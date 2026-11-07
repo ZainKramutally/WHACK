@@ -37,7 +37,9 @@ export function createLabCam(o: LabCamOpts) {
     position: 'fixed', left: '8px', bottom: '6px', font: '12px ui-monospace, monospace', color: '#22060f',
     background: 'rgba(253,233,226,0.75)', padding: '3px 6px', transition: 'opacity 1.2s', opacity: '1', pointerEvents: 'none',
   });
-  document.body.appendChild(hint);
+  // no hint in automated captures (Playwright sets navigator.webdriver) or with ?hint=0
+  const quiet = (navigator as any).webdriver || new URLSearchParams(location.search).get('hint') === '0' || location.hash.includes('capture');
+  if (!quiet) document.body.appendChild(hint);
   let hintT = 6;
   const showHint = (s = 4) => { hintT = s; hint.style.opacity = '1'; };
 

@@ -50,33 +50,43 @@ function skin(plan: FaunaPlan, x: number, j: number, d: number, th = 0): { key: 
   if (plan.form === 'bell') {
     // gas bell: pale crown → blush → crimson → maroon rim in stepped bands, mottled with spots that grow denser lower
     const u = x / plan.segments;
-    // round-ish mottling: fine spots, clustered by a coarser field (denser in some patches, like the reference)
-    const fine = hash01(plan.seed + Math.floor(x * 2) * 29, j); // ~square cells (2 rings × 1 side)
-    const coarse = hash01(plan.seed + 7 + Math.floor(x * 1.3) * 31, Math.floor(j / 5));
-    const cell = fine / (0.45 + coarse);
-    const band = u > 0.8 ? 4 : u > 0.56 ? 3 : u > 0.3 ? 2 : u > 0.12 ? 1 : 0;
-    const baseK: PaletteKey[] = ['maroon', 'crimson', 'blush', 'blush', 'bone'];
-    const spotK: PaletteKey[] = ['crimson', 'maroon', 'crimson', 'crimson', 'blush'];
-    const dens = [0.35, 0.4, 0.42, 0.2, 0.1][band];
+    // mottling: a few large organic blotches (3–5 on juveniles, a few more and smaller on adolescents), each with a
+    // ragged edge and a freckle halo, instead of per-cell noise that reads as a checkerboard at a distance
+    const nBl = Math.round(6 + 6 * plan.age + hash01(plan.seed, 41) * 1.4); // all round the bell: 3–5 face the viewer
+    const scaleBl = 1.2 - 0.3 * plan.age;
+    let inBlot = false, freckle = false;
+    for (let b = 0; b < nBl; b++) {
+      const uc = 0.25 + 0.55 * hash01(plan.seed + b, 43), tc = 2 * Math.PI * ((b + 0.6 * hash01(plan.seed + b, 47)) / nBl);
+      const ru = (0.07 + 0.06 * hash01(plan.seed + b, 53)) * scaleBl, rt = ru * (2.2 + hash01(plan.seed + b, 59));
+      let dt = th - tc; dt = Math.atan2(Math.sin(dt), Math.cos(dt));
+      const d = Math.hypot((u - uc) / ru, dt / rt);
+      const ragged = 0.85 + 0.3 * hash01(plan.seed + Math.floor(x * 4) * 13 + b, j);
+      if (d < ragged) inBlot = true;
+      else if (d < 1.5 && hash01(plan.seed + Math.floor(x * 4) * 7, j + b * 97) < 0.18) freckle = true;
+    }
+    const cell = inBlot || freckle ? 0 : 1;
     // soft specular: a bone patch where the bell faces the key light (bell vertex dir = (sin θ, ·, cos θ))
     const kl = Math.hypot(KEY_LIGHT[0], KEY_LIGHT[2]);
     const face = (Math.sin(th) * KEY_LIGHT[0] + Math.cos(th) * KEY_LIGHT[2]) / kl;
     if (face > 0.9 + ((u - 0.66) / 0.12) ** 2 * 0.1 && u > 0.5 && u < 0.8) return { key: 'bone', glow: 0 };
-    return { key: cell < dens ? spotK[band] : baseK[band], glow: 0 };
+    const band = u > 0.8 ? 4 : u > 0.56 ? 3 : u > 0.3 ? 2 : u > 0.12 ? 1 : 0;
+    const baseK: PaletteKey[] = ['maroon', 'crimson', 'blush', 'blush', 'bone'];
+    const spotK: PaletteKey[] = ['crimson', 'maroon', 'crimson', 'crimson', 'blush'];
+    return { key: cell === 0 && band > 0 ? spotK[band] : baseK[band], glow: 0 };
   }
   const n = plan.segments;
   const seg = Math.floor(Math.max(0, x));
   const h = plan.seed;
   if (plan.mode !== 'sessile' && x < 0.35 && d < -0.1 && plan.gape > 0.25) return { key: 'ink', glow: 0 }; // mouth line
-  if (d < -0.3) return { key: plan.belly, glow: 0 };
-  if (d < 0.25) {
+  if (d < -0.45) return { key: plan.belly, glow: 0 };
+  if (d < -0.05) {
     // flank: crimson (or maroon when the back is crimson)
     return { key: plan.back === 'crimson' || plan.chemistry === 'silicon' ? 'maroon' : 'crimson', glow: 0 };
   }
   let mark = false;
   if (plan.pattern === 'bands') mark = seg % 2 === 1;
-  else if (plan.pattern === 'spots') mark = hash01(h + Math.floor(x * 2.5) * 17, j) < 0.22;
-  else mark = hash01(h + Math.floor(x / 1.5) * 13, Math.floor(j / 3)) < 0.4;
+  else if (plan.pattern === 'spots') mark = hash01(h + Math.floor(x * 2.5) * 17, j) < 0.14;
+  else mark = hash01(h + Math.floor(x / 1.5) * 13, Math.floor(j / 3)) < 0.22; // sparse marks: the back stays pale
   return { key: mark ? plan.mark : plan.back, glow: 0 };
 }
 

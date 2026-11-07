@@ -226,9 +226,10 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
 
   // --- skin: value-inverted bands, dark under / pale back (ART_DIRECTION §1.4) -------------------------------
   const pattern: Pattern = g.segments > 0.6 ? 'bands' : g.plates > 0.5 ? 'patch' : 'spots';
-  const back: PaletteKey = silicon ? rng.pick(['bone', 'bone', 'blush'] as const) : rng.pick(['blush', 'crimson', 'blush'] as const);
+  // backs are always pale (bone/blush) so walkers separate in value from the red ground; marks carry the crimson
+  const back: PaletteKey = silicon ? rng.pick(['bone', 'bone', 'blush'] as const) : rng.pick(['blush', 'bone', 'blush'] as const);
   const belly: PaletteKey = silicon ? 'ink' : rng.pick(['maroon', 'ink'] as const);
-  const mark: PaletteKey = back === 'crimson' ? 'bone' : 'crimson';
+  const mark: PaletteKey = 'crimson';
 
   const out: FaunaPlan = {
     seed, chemistry: silicon ? 'silicon' : 'carbon', comp: { ...comp }, mode,
