@@ -73,7 +73,7 @@ Each was checked against the source abstract or title on Crossref/OpenAlex.
 4. **"For a young Mexican cavefish, eyes and the visual brain cost 15 % of its resting energy, and the cave form lost them."** Moran, Softley & Warrant 2015 doi:10.1126/sciadv.1500363.
 5. **"Three in four animals seen in the deep water off California can make their own light."** (76 %, 0–3,900 m, about 350,000 observations.) Martini & Haddock 2017 doi:10.1038/srep45750.
 6. **"Warmth shrinks water animals about 5 % in mass per degree, ten times more than land animals."** (Animals of about 100 mg dry mass.) Forster, Hirst & Atkinson 2012 doi:10.1073/pnas.1210460109.
-7. **"Giant insects lived when the air was oxygen-rich, and some insects raised in extra oxygen today grow bigger."** Harrison et al. 2010 doi:10.1098/rspb.2010.0001.
+7. **"Evolution has turned crustaceans into crabs at least five separate times."** Wolfe, Luque & Bracken-Grissom 2021 doi:10.1002/bies.202100020. (This replaced the giant-insects line, which moved to §1 #5 only.)
 8. **"Only about 3 % of the glass that ocean life makes survives into the seafloor. The sea dissolves the rest."** Tréguer et al. 1995 doi:10.1126/science.268.5209.375.
 
 **Off-limits until checked:**
@@ -83,8 +83,50 @@ Each was checked against the source abstract or title on Crossref/OpenAlex.
 - giant squid eye diameter
 - "hawk-sized dragonflies" (wingspan figure not sourced here)
 
-## 4. Open questions
+## 4. Templates: tiny capsule worms that mould into species (direction update)
+
+The new design has many tiny capsule/worm creatures that gradually mould into nine fauna templates, each with a state machine. Biology supports templates on four counts. The *snap-to-template mechanism* is ours, so it is `[game]`.
+
+### 4.1 The principles
+
+| Principle | What's real | Source | Status | What it licenses in the sim | Tag |
+|---|---|---|---|---|---|
+| **Convergent evolution / limited forms** | The same functional problem keeps producing the same body. Morphospace is limited, so a few forms recur. | McGhee 2011 *Convergent Evolution: Limited Forms Most Beautiful* doi:10.7551/mitpress/9780262016421.001.0001 `[BOOK]` | consensus | A short list of templates is honest. Different chemistries reaching the *same* template is the convergence beat. | sci |
+| **Carcinisation** | "At least five cases of convergent evolution of the crab-like body plan" in decapods, and it has also been lost repeatedly ("decarcinization") | Wolfe, Luque & Bracken-Grissom 2021 doi:10.1002/bies.202100020 `[REVIEW]` | consensus | Templates can be gained *and lost* by a lineage | sci |
+| **Streamlining convergence** | Lamnid sharks and tunas converged on the same internal swimming mechanics. Marine tetrapods (ichthyosaurs, whales, and others) evolved many innovations "convergently in multiple clades". | Donley et al. 2004 doi:10.1038/nature02435 `[PEER]`; Kelley & Pyenson 2015 doi:10.1126/science.aaa3716 `[REVIEW]` | consensus | Swimmer and hunter templates converge on one fusiform or eel silhouette regardless of chemistry | sci |
+| **Canalization** | Development buffers variation, so genotypes fall into a few stable outcomes (Waddington's "epigenetic landscape" valleys) | Waddington 1942 doi:10.1038/150563a0 `[PEER]` | consensus (concept); the mechanisms are still studied | Templates as **attractors**: a genome near a template gets pulled into it. The pull strength is a `[game]` coefficient. | sci (concept), game (pull) |
+| **Ontogeny / larvae → adults** | Annelids and molluscs share a tiny ciliated **trochophore larva**, and the adults differ hugely (worm vs snail vs clam). Complex life cycles with metamorphosis are widespread. | Nielsen 2004 doi:10.1002/jez.b.20001 `[REVIEW]`; Moran 1994 doi:10.1146/annurev.es.25.110194.003041 `[REVIEW]` (title-verified only) | consensus | "Everyone starts as the same tiny capsule" is real biology | sci |
+| **Allometric growth** | Body parts grow at their own power-law rates, y = a·x^b, as the body grows (Huxley's fiddler-crab claw, from memory). Shape changes with size. | Huxley 1932 *Problems of Relative Growth* doi:10.5962/bhl.title.6427 `[BOOK]`; Gould 1966 doi:10.1111/j.1469-185x.1966.tb01624.x `[REVIEW]` | consensus | Morph by power laws of body size: horns, legs and frills with b > 1, so the template "emerges" as a capsule grows | sci |
+
+**One thing the design must decide:** does an *individual* mould as it grows, or does a *lineage* mould over generations?
+- **Individual** is ontogeny or metamorphosis `[sci]`. It's fast and legible, and the slide line is "they grow up into it".
+- **Lineage** is evolution `[sci]`, and it's slow.
+- **Recommended:** both, as in F's dual pathway. Each newborn starts as a capsule and grows allometrically towards its lineage's template. Selection shifts *which* template a lineage aims at, and how far it gets (template progress is a heritable gene).
+
+### 4.2 Each template's closest real convergent analogue
+
+| Template | Real convergent analogue | Source | Status | Tag | Slide line |
+|---|---|---|---|---|---|
+| **Drifter / jelly** | Gelatinous drifters evolved separately in cnidarian medusae, comb jellies and salps. Salps are chordates, our own phylum (from memory). Gas-float drifters: siphonophores. | Haddock 2004 doi:10.1007/s10750-004-2653-9 `[REVIEW]` (title-verified, claim from memory) | consensus | sci | "Jellyfish, comb jellies and salps look alike but aren't related. Salps are closer kin to you." |
+| **Swimmer / eel** | Snake-like, limb-reduced bodies evolved "about 25 times" in squamates, plus eels and caecilians | Wiens, Brandley & Reeder 2006 doi:10.1554/05-328.1 `[PEER]` | consensus | sci | "Lizards have turned snake-shaped about 25 separate times." |
+| **Spinner** (crystal wheel / spiral coil) | Rotation is rare. It pays only on flat open ground or at low Reynolds number. Dung beetles, tumbleweeds and bacterial flagella are the exceptions. A rolling stomatopod is known too (Full 1993). Spiral = shell coiling morphospace. | LaBarbera 1983 doi:10.1086/284068 `[PEER]`; Full et al. 1993 doi:10.1038/365495a0 `[PEER]`; Raup 1966 *J. Paleontol.* 40 `[PEER]` (no DOI found) | consensus (rarity) | game (sci only for "rare, needs flat ground") | "Nature almost never invents the wheel. Dung beetles and tumbleweeds are the exceptions." |
+| **Grazer / plated hopper** | Crab form: ≥5 times. Armoured grazers, such as glyptodonts, armadillos, ankylosaurs and chitons (from memory). Bipedal hopping evolved separately in desert rodents, kangaroos and jerboas, and jerboas' unpredictable hops help them escape predators. | Wolfe 2021 (above); Moore et al. 2017 doi:10.1038/s41467-017-00373-2 `[PEER]` (title-verified) | consensus | sci | "Evolution has turned crustaceans into crabs at least five separate times." |
+| **Hunter / frilled serpent** | Fast hunters converge: lamnid sharks and tunas share swimming mechanics, and ichthyosaurs, dolphins and sharks share the fusiform shape. The elongate ambush hunter is the moray. (The real frilled shark is eel-shaped, but its "frills" are gills, from memory.) | Donley 2004; Kelley & Pyenson 2015 (above) | consensus (convergence); game (frills → turn rate) | sci (body), game (frills) | "Sharks, ichthyosaurs and dolphins: three hunters, one shape." |
+| **Builder** | Reef building evolved separately in corals, sponges (glass sponge reefs), oysters, tube worms and bryozoans (from memory). **Ecosystem engineers** modify habitat for others. | Jones, Lawton & Shachak 1994 doi:10.2307/3545850 `[PEER]`; Krautter 2001 (above) | consensus | sci | "Sponges, corals, oysters and worms each learned to build reefs on their own." |
+| **Strider** | Long-legged stilt walkers: harvestmen, crane flies, wading birds, giraffes (from memory). Effective limb length explains 98 % of the differences in walking cost. | Pontzer 2007 doi:10.1242/jeb.002246 `[PEER]` | consensus (physics); the template itself is a loose analogy | sci (cost), game (template) | "Long legs are the cheapest way to walk: leg length explains 98 % of the cost." |
+| **Rhino-lizard** | Nose and head horns evolved separately in rhinos, ceratopsians, horned lizards and chameleons (from memory). They are mainly sexually selected weapons. | Emlen 2008 doi:10.1146/annurev.ecolsys.39.110707.173502 `[REVIEW]` | consensus (repeated horns); refuted (hunger as the cause) | sci (form), game (why) | "Horns evolved again and again, mostly to win mates, not fights with predators." |
+| **Sky whale** | Giant filter-feeders recur: baleen whales, whale and basking sharks, mantas, and a "100-million-year dynasty" of giant planktivorous Mesozoic fish. Gas-bag "floaters" in a dense atmosphere: Sagan & Salpeter, hypothetical. | Friedman et al. 2010 doi:10.1126/science.1184743 `[PEER]`; Goldbogen et al. 2017 doi:10.1146/annurev-marine-122414-033905 `[REVIEW]`; Sagan & Salpeter 1976 (above) | consensus (giant planktivores); theorised (aerial floaters) | sci (giant filter-feeder), game (flying) | "Giant plankton-eaters keep evolving: whales, whale sharks, and a giant-fish dynasty that lasted 100 million years." |
+
+### 4.3 Design suggestions from the template biology
+
+1. **Pick templates by niche, not chemistry, and let chemistry set the *style*.** That is what convergence says: a silicon strider and a carbon strider share a silhouette and differ in facets and colour. The slide is "your silicon world reinvented the crab".
+2. **Allow template loss (decarcinisation).** A lineage can drift back to capsule or eel when its niche disappears, for example sky whales grounded after Heat ↑ thins the air.
+3. **Morph allometrically.** Template parts scale as `part = a·S^b`, with b > 1 for horns, legs and frills, so small newborns look capsule-like and adults look like the template. One exponent table per template, and a cheap `[sci]` story.
+4. **Canalization strength as a declared knob.** Strong pull gives clean templates and less novelty; weak pull gives intermediates. State it on screen as "development prefers a few shapes".
+
+## 5. Open questions
 
 1. Does adding inducible armour (change 2) make Hunger *too* legible? Plates appear in 2 s, and selection then has less to do. That needs a headless check with the prototype.
 2. The hump-shaped eye rule needs a glow-density query per agent. Is a per-cell glow average from the 64² grid enough?
 3. Is it worth a separate `aquatic` flag for the TSR amplitude, or can it read the locomotion mode (swim/float = aquatic)?
+4. Templates: does an individual mould as it grows (ontogeny, fast) or does a lineage mould (evolution, slow)? §4.1 recommends both. Is template progress a heritable gene the coordinator wants?

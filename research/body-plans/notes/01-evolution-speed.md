@@ -15,6 +15,7 @@ Structured data: `research/body-plans/data/evolution-speed.json`.
 3. **F is structurally faster than Sims-style evolution.** F's agents are points, and the ledger maps morphology straight to locomotion cost. There's no neural controller that has to re-adapt after every body change. The co-adaptation drag that slowed Sims and every successor is therefore gone (Cheney et al. 2018 `[PEER]` name it as *the* obstacle). F's genome is 32 bounded floats, and every genome develops into a viable body. `[INFERRED]` **plausible**.
 4. **Visible novelty doesn't need fixation.** Offspring are placed near their parents, so a new trait shows up as a local patch. Ten horned animals together read as "horns evolved" even at 1–2 % of the whole population. Getting to that level takes about ln(local cluster)/s ≈ 5–8 generations, not the 30–70 that full fixation needs. `[INFERRED]` **plausible**: this is what makes a 150 s window viable.
 5. **Recommended recipe (§5):** N = 800 · generation time of about 4 sim-s for small bodies · baseline ×3 sim speed (60 ticks/s) · per-gene p = 0.3 with σ = 0.06 plus a 10 % Cauchy tail · segment duplication 0.03, Hox shift 0.05, new limb-pair duplication 0.02 · founders with standing variation, some of whom already straddle the limb threshold · strong ledger selection (s ≥ 0.3 in-niche) · stress mutagenesis made **per-parent** (triggered by starvation) instead of a global timer · ⏩ ×40 deep time for the giants. Expect legs by about 1:00, plates by about 1:10 (Water), horns by about 1:35, and buoyant giants only after deep time. Arches still need the pre-evolved menagerie.
+6. **Direction update (§7):** the templated-species idea works if the archetypes are **developmental attractors** (Waddington canalization, κ ≤ 0.5, look parameters only), never fitness targets. Then it's honest, and it cuts "first readable archetype" from about 40 to about 12–15 gens (≈3×). Behaviour: one shared FSM with utility-scored, gene-weighted transitions and boids inside states.
 
 ---
 
@@ -180,7 +181,112 @@ Each item says what it does and why. Numbers are starting points for the headles
 
 ---
 
-## 7. Open questions / next round
+## 7. Direction update: template-attracted species from tiny capsules (with state-machine behaviour)
+
+> Proposal (coordinator, 2026-11-07): "tons of tiny capsule/worm-like creatures slowly moulding larger into a variety of procedural species, templated from our fauna categories (drifter, swimmer, spinner, grazer, hunter, builder, strider, rhino-lizard, sky whale); each species' behaviour controlled by a state machine."
+
+### 7.1 Verdict
+
+**Good idea, if the templates live in development and not in fitness.** Template archetypes should be **attractors in `develop()`**: a declared developmental bias, Waddington-style. Selection still decides which basin each lineage falls into. Templates must never be targets that selection pulls toward, and never something the dials pick directly.
+- Done this way, it is honest (it's the same kind of authored rule as the Hox layout already in the honesty box). It's also legible, and it fixes the slowest part of the problem: the *unselected* "look" traits that otherwise drift for hundreds of generations.
+- Done the other way (fitness = distance to template, or `if dial > x → rhino-lizard`), it is the thing the critique marked C down for: "morphology decided by `if` statements, not by the field" (README §2.1). Target-based evolution is also known to work *worse* (§7.3).
+- **Speed gain** `[INFERRED]`, to be measured in `prototype/`:
+  - about **1.5–2×** on selected traits
+  - about **10×+** on unselected aesthetic traits
+  - about **3×** overall on "first readable rhino-lizard/strider" (≈40 → ≈12–15 gens)
+- It does **not** shorten the ecological critical path (prey → hunters → horns). That still needs §5.
+
+### 7.2 Precedents: archetype-based procedural creatures
+
+| System | How templates work | Real evolution? | Lesson for F | Tag |
+|---|---|---|---|---|
+| **Spore** (Maxis 2008) | Free part placement on a spine. Animation is *retargeted* at runtime to any user morphology (Hecker et al. 2008 *ACM TOG* 10.1145/1360612.1360626). Archetypes are implicit in the part catalogue | No: the player designs it (the Cell → Creature stage is editor-driven) | Procedural gait for arbitrary bodies is solved and published. Spore is "seen-before", so F must *show* selection doing the work | `[PEER]` (animation) / `[POP]` (design) |
+| **No Man's Sky** (Hello Games 2016→) | Hand-authored skeleton **archetypes** (quadruped, hexapod, biped, flyer, swimmer, etc.), each with swappable part variants and procedural bone scaling. Animation is authored per archetype (GDC 2017 talk, "Continuous World Generation in No Man's Sky", and press) | No: seeded sampling | A small set of rigs plus parameterised parts is enough for apparent variety at scale. Variety *within* an archetype is what players notice | `[POP]` |
+| **Species: ALRE** (Quasar) | One procedural skeleton template with continuous parameters (legs, neck, torso, head) | **Yes**: real selection, time-accelerated | The closest precedent to "templates plus real evolution". It shows a single template still reads as many species once proportions diverge. Novelty takes tens of minutes, because there are no basins and every look trait drifts | `[POP]` |
+| **Sims 1994 / Framsticks** | Open graphs with no templates | Yes | Open-ended, but slow (hours) and often illegible | `[PEER]`/`[BOOK]` |
+| **MAP-Elites niches** (Mouret & Clune 2015) | A grid of behaviour/morphology bins, one elite per bin | Yes (QD search) | The guide bins can act as basins, but in QD they're *archive cells*, not attractors. Good for the bestiary and menagerie, not for shaping bodies | `[PREPRINT]` |
+
+### 7.3 Directed evolution toward targets: what the evidence says
+
+- **Target-based fitness is deceptive and slow.** Woolley & Stanley (GECCO 2011) took images that Picbreeder users had found interactively, such as a skull, and tried to evolve them directly as targets from scratch. It failed: the representations that fitness-pressure produced were worse, and the target was not reached `[PEER]` (DOI not verified) **consensus** within the novelty-search literature. Lehman & Stanley 2011 make the same point in general.
+  - Implication: don't add "distance to rhino-lizard" to the ledger.
+- **Changing goals speeds evolution.** Kashtan, Noor & Alon 2007 *PNAS* (10.1073/pnas.0611630104) found that modularly varying goals greatly speed evolution compared with a fixed goal. Kashtan & Alon 2005 *PNAS* (10.1073/pnas.0503610102) found that varying goals also produce modular structure `[PEER]` **plausible** (shown in model systems).
+  - Implication: the presenter's dial moves are an accelerator, not just a spectacle. This argues for **several basins tied to the environment** rather than one target.
+- **Interpolation in morphospace.** One option is a genome of barycentric weights over the 9 archetypes. It's very fast (a 9-simplex) but produces chimeras, and it reads as a blend slider, i.e. a character creator. `[INFERRED]`: don't use it as the *only* encoding. Basins with soft capture (below) give the same speed, keep a free residual, and keep "unclassified" forms.
+
+### 7.4 Scientific framing: templates as attractors (canalization, convergence)
+
+| Idea | Source | What it licenses | Tag / status |
+|---|---|---|---|
+| **Canalization / epigenetic landscape** | Waddington 1942 *Nature* 10.1038/150563a0; Waddington 1957 *The Strategy of the Genes* `[BOOK]` | Development funnels genetic variation into a few robust end states (valleys). A soft snap in `develop()` *is* a canalized landscape | `[PEER]` consensus (canalization exists) |
+| **Developmental bias** | Uller, Moczek, Watson, Brakefield & Laland 2018 *Genetics* 10.1534/genetics.118.300995 | The genotype → phenotype map makes some forms far more likely than others, which shapes evolution's direction | `[REVIEW]` plausible (its relative importance is debated) |
+| **Evolution "learns" attractors** | Watson & Szathmáry 2016 *TREE* 10.1016/j.tree.2015.11.009; Parter, Kashtan & Alon 2008 *PLoS Comput Biol* 10.1371/journal.pcbi.1000206 | Past selection biases development towards phenotypes that were useful before (facilitated variation). Archetypes can be framed as "what this rule-set's ancestors already learned" | `[REVIEW]`/`[PEER]` plausible |
+| **Convergent evolution / limited forms** | McGhee 2011 *Convergent Evolution: Limited Forms Most Beautiful* (MIT Press, 10.7551/mitpress/9780262016421.001.0001) `[BOOK]`; Conway Morris 2003 *Life's Solution* `[BOOK]` | Functional and developmental constraints mean the same few forms evolve again and again (fusiform swimmers, crabs, sabre-teeth). "The same 9 kinds keep appearing across seeds" becomes a *scientific claim*, not an admission | consensus (convergence is common) / disputed (how predictable evolution is) |
+| **Carcinisation** | Wolfe, Luque & Bracken-Grissom 2021 *BioEssays* 10.1002/bies.202100020 (≥5 independent origins in decapods, plus "decarcinisation"); Keiler, Wirkner & Richter 2017 *Biol J Linn Soc* 10.1093/biolinnean/blw031 | A crisp slide example of an attractor body plan, reached repeatedly *and lost again* | `[REVIEW]`/`[PEER]` consensus |
+| **Empty morphospace** | Raup 1966 *J Paleontol* 40:1178 (no DOI) | Most theoretically possible shell shapes are never occupied, so real morphospace is clustered | `[PEER]` consensus |
+| **Homeotic switches** | Lewis 1978; Antennapedia (legs replacing antennae) | Small genetic change → a whole module swaps identity. This justifies a *snap* at the basin edge rather than only a smooth creep | `[PEER]` consensus |
+| **Growth from small juveniles** | allometry/heterochrony (textbook); Bongard 2011 *PNAS* (morphology change during life speeds evolution) | "Capsules moulding larger" = ontogeny: a juvenile capsule morphs into the adult basin form over the juvenile period | `[PEER]` plausible |
+
+### 7.5 How to build it (recommended)
+
+1. **Morphospace coordinates.** Compute 5 derived axes from the 32 genes:
+   - elongation · limb index (pairs × length) · armour (plateCover × size) · buoyancy · radial symmetry
+   - plus diet t, which acts as a *role* axis, not a body axis
+2. **Basins = body archetypes on the body axes only:** worm/serpent, swimmer, strider, rhino-lizard (heavy plated quadruped), spinner (radial), drifter/bell, sky whale.
+   - **Roles** (grazer, hunter, builder, filter-feeder) are *not* body templates. They come from diet t, gape and the Si·O builder flag, and can combine with any body (plated hunter-strider, builder-worm).
+   - The 9 categories mix two axes, so splitting them avoids "every hunter looks the same" and keeps contingency.
+3. **Soft capture in `develop()`:**
+   - `x' = x + κ·w(d)·(a* − x)` on the look parameters, where `a*` is the nearest basin centre in normalised morphospace, `d` is the distance to it, `w(d) = smoothstep(r, 0.5r, d)`, the capture radius `r` ≈ 0.35, and **κ ≤ 0.5**.
+   - Outside `r`, there is no snap: unclassified forms exist and are labelled "unnamed form".
+   - The ledger uses the *developed* (snapped) phenotype, so the snap is real physiology, not a render fake.
+4. **What may be canalized:**
+   - *look/proportion* parameters: neck/head proportion, limb taper, plate tiling, silhouette radius profile, gait style
+   - *never* the cost-bearing quantities that decide fitness directly: plateCover, size, limb length, hornLen, diet. Those stay raw-genome and selected.
+   - About 60 % of the visible shape is canalized and 100 % of fitness is selected.
+5. **Ontogeny.** Newborns are capsules (segN-long, radius from comp). Over the juvenile period `3 s·S^0.25`, the body morphs capsule → adult with an ease-out. Tiny capsules everywhere, slowly maturing into species, is a strong visual. It's also cheap: juveniles share one LOD mesh.
+6. **Honesty instruments:**
+   - **Neutral control run.** Run the headless sim with the ledger flattened (all traits free). Basin occupancy should then track basin volume. With dials on, it should diverge from that. A Vitest assertion should check this.
+   - The guide shows a "% unnamed forms" counter.
+   - Honesty box addition: "*designed developmental attractors (7 body basins, κ ≤ 0.5, look parameters only); which basin a lineage reaches is selected*".
+7. **Counts ("tons of tiny").** At 0.3 ms per 1k agents per tick (F's estimate), 2,000 agents at ×3 is about 36 ms per real second, which is fine. Above 2k, neighbour queries dominate, so move steering to a Worker or GPU. Most of the "tons" can be juveniles with a cheaper 5 Hz behaviour tick.
+
+### 7.6 Speed gain (arithmetic, `[INFERRED]`)
+
+- A readable archetype needs about 4–6 traits past threshold. Take a rhino-lizard: 2 limb pairs, plates, size, a stocky profile and a short neck.
+- **Selected components** (plates in Water, limbs vs crawl cost) creep at Δz ≈ 0.04/gen (§3). Each needs about 10 gens, mostly in parallel.
+  - With capture at 50–60 % of the way (κ = 0.5, r = 0.35), they read as finished after about 5–6 gens: **≈1.5–2×**.
+- **Unselected components** (profile, neck, taper) only drift. Drift time to move Δ ≈ 0.4 at per-gen σ_eff ≈ 0.03 is about (Δ/σ)² ≈ **180 gens**, longer than the whole demo. That's why open-ended sims look like blobs for so long.
+  - Canalization fills them in as soon as the selected axes enter the basin: **≈10×+**.
+- **Overall:** first readable strider/rhino-lizard at about 12–15 gens instead of about 40+. On the §5 clock (≈0.75 gen/s), that's about 0:55–1:00 instead of about 1:30+.
+- **Not shortened:** hunters needing prey, and horns needing hunters. Sky whales still need size and buoyancy creep, so they still need ⏩.
+
+### 7.7 Behaviour: FSM vs behaviour tree vs utility for about 1–2k agents
+
+| Approach | Fit for F | Precedent | Tag |
+|---|---|---|---|
+| **Finite state machine** (Wander/Forage/Flee/Chase/Rest/Bud/Build/Drift) | **Yes, as the skeleton.** One `Uint8` state per agent in SoA, a switch per tick, cache- and GPU-friendly, trivially debuggable (colour by state in `#debug`) | GPU crowd FSMs for thousands of agents: "March of the Froblins" (Shopf, Barczak, Oat & Tatarchuk 2008, SIGGRAPH course, 10.1145/1404435.1404439) | `[PEER]`-ish (course notes) |
+| **Utility scoring for transitions** | **Yes.** Each state's score = gene weight × context (e.g. Flee = Hunger·threat·(1 − boldness)). The highest score wins, with hysteresis. This is F's existing weighted-steering sum made discrete, and the gene weights let **behaviour evolve too** | Mark 2009 *Behavioral Mathematics for Game AI* `[BOOK]`; Rain World creatures use per-creature AI modules with threat/relationship tracking feeding procedural animation (Jakobsson, GDC talks) `[POP]` | `[BOOK]`/`[POP]` |
+| **Behaviour trees** | **No** for the crowd. They suit a few rich NPCs; per-agent tree traversal is branchy and costs authoring time | Isla 2005, Halo 2 AI (GDC) | `[POP]` |
+| **GOAP / planners** | No: too costly for 1k agents per tick | Orkin 2006, F.E.A.R. (GDC) | `[POP]` |
+| **Boids steering inside states** | **Yes.** Each state sets the steering weights (cohesion and alignment from sociality) | Reynolds 1987 (10.1145/37402.37406) | `[PEER]` consensus |
+
+**Recommendation:** **one shared FSM**, with states unlocked by morphology (Drift only if buoyant, Build only if Si·O, Chase only if t > 0.4 and gape > 0). Transitions are **utility-scored from genes and context**. Steering inside states is boids. Behaviour then emerges from the same genome, and nobody authors a "rhino-lizard AI".
+- **Per-species FSMs** (one hand-written machine per template) would be faster to tune but are *authored behaviour per category*. That would need a line in the honesty box and weakens the emergence claim. Use them only as a fallback for the two discovery-plate species.
+
+### 7.8 How much template vs open-ended
+
+| Layer | Template-attracted | Open-ended / selected |
+|---|---|---|
+| Fitness / ledger | **0 %** (no distance-to-template term, ever) | 100 % |
+| Which basin a lineage reaches | 0 % (selection plus contingency) | 100 % |
+| Cost-bearing traits (size, plates, limb length, horns, diet, buoyancy) | 0 % | 100 % |
+| Look/proportion parameters inside a basin | **≤ 50 % (κ ≤ 0.5)**, only within capture radius | the remainder, plus all colour/pattern/eye/frill genes |
+| Bodies outside every basin | 0 % (no snap) | shown as "unnamed forms" (target 15–30 % of animals) |
+| Behaviour | shared FSM *structure* (authored, declared) | utility weights are genes |
+
+**Honesty check:** if you can't say "a different seed under the same dials could have filled a different basin, and a flattened ledger fills basins only by their volume", the templates have become targets. The neutral-control test in 7.5.6 makes that sentence true and testable.
+
+## 8. Open questions / next round
 
 1. **Does F's 0.3 ms/tick hold?** The whole recipe assumes ×3 on the main thread and ×40 in a Worker. Measure it in `prototype/` first.
 2. **Real s values in the ledger.** The arithmetic needs s ≥ 0.3 per target trait. Nobody has measured the authored coefficients yet. The tuner should report time-to-trait distributions over seeds, not single runs.

@@ -440,6 +440,36 @@
    "change": "Keep stress mutagenesis off slides",
    "why": "Microbial phenomenon only",
    "sources": []
+  },
+  {
+   "change": "Templates by niche; chemistry sets style (facets, colour)",
+   "why": "Convergence: same function -> same form",
+   "sources": [
+    "mcghee2011"
+   ]
+  },
+  {
+   "change": "Allow template loss (decarcinisation) when niche disappears",
+   "why": "Crab form lost repeatedly",
+   "sources": [
+    "wolfe2021"
+   ]
+  },
+  {
+   "change": "Morph template parts allometrically: part = a*S^b",
+   "why": "Huxley allometry; capsule newborns, template adults",
+   "sources": [
+    "huxley1932",
+    "gould1966"
+   ]
+  },
+  {
+   "change": "Expose canalization strength as a declared knob; individual moulds by ontogeny, lineage template by selection",
+   "why": "Waddington canalization; trochophore larvae",
+   "sources": [
+    "waddington1942",
+    "nielsen2004"
+   ]
   }
  ],
  "slide_facts": [
@@ -487,9 +517,9 @@
    "verified": "abstract"
   },
   {
-   "fact": "Giant insects lived when the air was oxygen-rich, and some insects raised in extra oxygen today grow bigger.",
+   "fact": "Evolution has turned crustaceans into crabs at least five separate times.",
    "sources": [
-    "harrison2010"
+    "wolfe2021"
    ],
    "verified": "abstract"
   },
@@ -837,6 +867,278 @@
    "cite": "Nakamura et al. 2012, PLoS ONE (candidate source, unchecked claim)",
    "doi": "10.1371/journal.pone.0032965",
    "tag": "PEER"
+  },
+  {
+   "id": "mcghee2011",
+   "cite": "McGhee 2011, Convergent Evolution: Limited Forms Most Beautiful (MIT Press)",
+   "doi": "10.7551/mitpress/9780262016421.001.0001",
+   "tag": "BOOK"
+  },
+  {
+   "id": "wolfe2021",
+   "cite": "Wolfe, Luque & Bracken-Grissom 2021, BioEssays",
+   "doi": "10.1002/bies.202100020",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "donley2004",
+   "cite": "Donley et al. 2004, Nature",
+   "doi": "10.1038/nature02435",
+   "tag": "PEER"
+  },
+  {
+   "id": "kelley2015",
+   "cite": "Kelley & Pyenson 2015, Science",
+   "doi": "10.1126/science.aaa3716",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "waddington1942",
+   "cite": "Waddington 1942, Nature",
+   "doi": "10.1038/150563a0",
+   "tag": "PEER"
+  },
+  {
+   "id": "nielsen2004",
+   "cite": "Nielsen 2004, J. Exp. Zool. B",
+   "doi": "10.1002/jez.b.20001",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "moran1994",
+   "cite": "Moran 1994, Annu. Rev. Ecol. Syst. (title-verified only)",
+   "doi": "10.1146/annurev.es.25.110194.003041",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "huxley1932",
+   "cite": "Huxley 1932, Problems of Relative Growth",
+   "doi": "10.5962/bhl.title.6427",
+   "tag": "BOOK"
+  },
+  {
+   "id": "gould1966",
+   "cite": "Gould 1966, Biol. Rev.",
+   "doi": "10.1111/j.1469-185x.1966.tb01624.x",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "haddock2004",
+   "cite": "Haddock 2004, Hydrobiologia (title-verified; claim from memory)",
+   "doi": "10.1007/s10750-004-2653-9",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "wiens2006",
+   "cite": "Wiens, Brandley & Reeder 2006, Evolution",
+   "doi": "10.1554/05-328.1",
+   "tag": "PEER"
+  },
+  {
+   "id": "labarbera1983",
+   "cite": "LaBarbera 1983, Am. Nat.",
+   "doi": "10.1086/284068",
+   "tag": "PEER"
+  },
+  {
+   "id": "full1993",
+   "cite": "Full et al. 1993, Nature",
+   "doi": "10.1038/365495a0",
+   "tag": "PEER"
+  },
+  {
+   "id": "raup1966",
+   "cite": "Raup 1966, J. Paleontol. 40 (no DOI found)",
+   "doi": null,
+   "tag": "PEER"
+  },
+  {
+   "id": "moore2017",
+   "cite": "Moore et al. 2017, Nat. Commun. (title-verified)",
+   "doi": "10.1038/s41467-017-00373-2",
+   "tag": "PEER"
+  },
+  {
+   "id": "jones1994",
+   "cite": "Jones, Lawton & Shachak 1994, Oikos",
+   "doi": "10.2307/3545850",
+   "tag": "PEER"
+  },
+  {
+   "id": "friedman2010",
+   "cite": "Friedman et al. 2010, Science",
+   "doi": "10.1126/science.1184743",
+   "tag": "PEER"
+  },
+  {
+   "id": "goldbogen2017",
+   "cite": "Goldbogen et al. 2017, Annu. Rev. Mar. Sci.",
+   "doi": "10.1146/annurev-marine-122414-033905",
+   "tag": "REVIEW"
+  }
+ ],
+ "template_principles": [
+  {
+   "principle": "Convergent evolution / limited forms",
+   "phenomenon": "Same functional problem -> same body; limited morphospace",
+   "status": "consensus",
+   "tag": "sci",
+   "licenses": "A short template list; different chemistries reaching the same template = convergence beat",
+   "sources": [
+    "mcghee2011"
+   ]
+  },
+  {
+   "principle": "Carcinisation",
+   "phenomenon": ">=5 independent origins of crab-like form in decapods; repeated losses (decarcinization)",
+   "status": "consensus",
+   "tag": "sci",
+   "licenses": "Templates can be gained and lost",
+   "sources": [
+    "wolfe2021"
+   ]
+  },
+  {
+   "principle": "Streamlining convergence",
+   "phenomenon": "Lamnid sharks and tunas converge mechanically; marine tetrapods converge in many innovations",
+   "status": "consensus",
+   "tag": "sci",
+   "licenses": "Swimmer/hunter silhouettes independent of chemistry",
+   "sources": [
+    "donley2004",
+    "kelley2015"
+   ]
+  },
+  {
+   "principle": "Canalization",
+   "phenomenon": "Development buffers variation into a few stable outcomes (epigenetic landscape)",
+   "status": "consensus (concept)",
+   "tag": "sci",
+   "licenses": "Templates as attractors; pull strength is a game coefficient",
+   "sources": [
+    "waddington1942"
+   ]
+  },
+  {
+   "principle": "Ontogeny / larvae -> adults",
+   "phenomenon": "Shared trochophore larva in annelids and molluscs, very different adults; widespread metamorphosis",
+   "status": "consensus",
+   "tag": "sci",
+   "licenses": "Every creature starts as the same tiny capsule",
+   "sources": [
+    "nielsen2004",
+    "moran1994"
+   ]
+  },
+  {
+   "principle": "Allometric growth",
+   "phenomenon": "Parts grow as y = a*x^b; shape changes with size",
+   "status": "consensus",
+   "tag": "sci",
+   "licenses": "Morph template parts as power laws of body size (b>1 for horns/legs/frills)",
+   "sources": [
+    "huxley1932",
+    "gould1966"
+   ]
+  }
+ ],
+ "templates": [
+  {
+   "template": "drifter/jelly",
+   "analogue": "Gelatinous drifters convergent in medusae, ctenophores, salps (chordates); siphonophore gas floats",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Jellyfish, comb jellies and salps look alike but aren't related. Salps are closer kin to you.",
+   "sources": [
+    "haddock2004"
+   ]
+  },
+  {
+   "template": "swimmer/eel",
+   "analogue": "Snakelike limb-reduced form evolved ~25 times in squamates; eels, caecilians",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Lizards have turned snake-shaped about 25 separate times.",
+   "sources": [
+    "wiens2006"
+   ]
+  },
+  {
+   "template": "spinner",
+   "analogue": "Rotation rare in nature; useful only on flat open ground or low Reynolds number (dung beetles, tumbleweeds, flagella; rolling stomatopod); spirals = shell coiling",
+   "status": "consensus (rarity)",
+   "tag": "game",
+   "slide_line": "Nature almost never invents the wheel. Dung beetles and tumbleweeds are the exceptions.",
+   "sources": [
+    "labarbera1983",
+    "full1993",
+    "raup1966"
+   ]
+  },
+  {
+   "template": "grazer/plated hopper",
+   "analogue": "Carcinisation >=5 times; armoured grazers recur; bipedal hopping convergent in desert rodents (unpredictable escape)",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Evolution has turned crustaceans into crabs at least five separate times.",
+   "sources": [
+    "wolfe2021",
+    "moore2017"
+   ]
+  },
+  {
+   "template": "hunter/frilled serpent",
+   "analogue": "Fast hunters converge (lamnids/tunas; ichthyosaurs/dolphins/sharks); elongate ambush hunters (morays); frills->turn rate invented",
+   "status": "consensus (body); game (frills)",
+   "tag": "sci",
+   "slide_line": "Sharks, ichthyosaurs and dolphins: three hunters, one shape.",
+   "sources": [
+    "donley2004",
+    "kelley2015"
+   ]
+  },
+  {
+   "template": "builder",
+   "analogue": "Reef building in corals, sponges, oysters, tube worms, bryozoans; ecosystem engineers",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Sponges, corals, oysters and worms each learned to build reefs on their own.",
+   "sources": [
+    "jones1994",
+    "krautter2001"
+   ]
+  },
+  {
+   "template": "strider",
+   "analogue": "Long-legged stilt walkers recur; limb length explains 98% of walking cost variance",
+   "status": "consensus (physics); template loose",
+   "tag": "sci",
+   "slide_line": "Long legs are the cheapest way to walk.",
+   "sources": [
+    "pontzer2007"
+   ]
+  },
+  {
+   "template": "rhino-lizard",
+   "analogue": "Head horns evolved repeatedly (rhinos, ceratopsians, horned lizards, chameleons), mainly sexually selected",
+   "status": "consensus (form); refuted (hunger cause)",
+   "tag": "sci",
+   "slide_line": "Horns evolved again and again, mostly to win mates.",
+   "sources": [
+    "emlen2008"
+   ]
+  },
+  {
+   "template": "sky whale",
+   "analogue": "Giant planktivores recur: baleen whales, whale/basking sharks, mantas, 100-Myr pachycormid dynasty; aerial floaters hypothetical",
+   "status": "consensus (planktivores); theorised (flying)",
+   "tag": "sci",
+   "slide_line": "Giant plankton-eaters keep evolving, including a giant-fish dynasty that lasted 100 million years.",
+   "sources": [
+    "friedman2010",
+    "goldbogen2017",
+    "sagan1976"
+   ]
   }
  ]
 }
