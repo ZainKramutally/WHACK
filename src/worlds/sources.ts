@@ -84,6 +84,18 @@ const list: Source[] = [
     doi: '10.1038/ngeo2713',
     note: 'Crossref. Early Earth life thrived on much less air than today.',
   },
+  {
+    id: 'fulchignoni2005',
+    citation: "Fulchignoni M et al. (2005). In situ measurements of the physical characteristics of Titan's environment. Nature.",
+    doi: '10.1038/nature04314',
+    note: "Crossref. Huygens measured Titan's surface at about 94 K and about 1.5 bar of nitrogen: the real thick cold air our silicon world is modelled on.",
+  },
+  {
+    id: 'mastrogiuseppe2014',
+    citation: 'Mastrogiuseppe M et al. (2014). The bathymetry of a Titan sea. Geophysical Research Letters.',
+    doi: '10.1002/2013GL058618',
+    note: 'Crossref. Cassini radar found Ligeia Mare at least about 160 m deep: the real scale of a cold-world sea.',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));

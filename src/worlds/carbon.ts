@@ -150,7 +150,7 @@ export const carbon: WorldConfig = {
         luminosity: 1,              // star luminosity relative to the Sun
         albedo: 0.3,
         greenhouseK: 33,            // baseline greenhouse warming with the reference air (1× nitrogen, 0.04% CO₂)
-        greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009)
+        greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009, sourced only for about 0.5–2×). Beyond that it is a log extrapolation: +10 K at 1,000× and −7 K at 0.01×, assumption: true
         nitrogenRef: 1,             // × Earth
         referenceCo2: 0.04,         // %, the CO₂ the baseline greenhouse already includes (Earth today)
         co2PerDoublingK: 3,         // K of extra warming per doubling of CO₂ (Myhre 1998 forcing; Sherwood 2020 sensitivity about 3.1 K)
@@ -182,7 +182,7 @@ export const carbon: WorldConfig = {
       params: { value: -50 },
       reason: 'Too cold for surface life',
       boxEffect: 'freeze',
-      why: 'Surface life survived Snowball Earth conditions; our model follows surface life only, and the edge sits well below them.',
+      why: 'Surface life survived the Snowball Earth glaciations, which were the coldest conditions Earth is known to have had, and our model follows surface life only; the edge is a round figure chosen below them, not a measured limit.',
       sources: ['hoffman2017'],
       assumption: true,
     },
@@ -205,7 +205,9 @@ export const carbon: WorldConfig = {
       params: { value: 0.05 },
       reason: 'Not enough nitrogen to build cells',
       boxEffect: 'starve',
-      why: 'Life needs nitrogen for proteins and DNA, and it thrived on early Earth with perhaps half of today\'s air pressure; the exact edge is a placeholder.',
+      // 0.05 × Earth is about 0.04 bar of N₂ at 1 g: under a quarter of Som 2016's central estimate for the whole 2.7 Ga atmosphere
+      // (0.23 bar, upper bound 0.5 bar), and still above the pressure at which water would boil at 15 °C (0.017 bar).
+      why: 'Life needs nitrogen for proteins and DNA, and it thrived on early Earth with under half of today\'s air pressure; the edge sits at about 0.04 bar of N₂, well below that, yet still thick enough to keep water liquid at 15 °C (our choice, not a measured limit).',
       sources: ['som2016'],
       assumption: true,
     },

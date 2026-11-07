@@ -43,6 +43,9 @@ export const silicon: WorldConfig = {
   ranges: {
     gravity: [0.5, 1.0],
   },
+  // Nitrogen 30 × Earth's per m²: Titan's air alone holds about 14 × (1.47 bar at 1.35 m/s², Fulchignoni 2005), so tens of × is the
+  // right order for a cold world. At −183 °C and 0.75 g the air holds about 6 ×, leaving about 24 × in the seas: roughly 240 m of liquid
+  // N₂ spread over the whole surface, or about 500 m over the ~50% it covers, against Ligeia Mare's measured ≥160 m (Mastrogiuseppe 2014).
   startDefaults: { temperature: -183, nitrogen: 30, oxygen: 0 },
   targets: {
     temperature: [-185, -165],
@@ -185,11 +188,11 @@ export const silicon: WorldConfig = {
       inputs: ['nitrogen', 'temperature', 'gravity'],
       params: {
         earthN2Bar: 0.78,   // bar of N₂ at 1× Earth nitrogen and 1 g
-        halfVolume: 20,     // sea volume (× Earth N₂) at which cover reaches half its maximum; the saturating form is invented
+        halfVolume: 20,     // sea volume (× Earth N₂) at which cover reaches half its maximum; the saturating form is invented. At the 30× default it gives about 50% cover and sea depth of hundreds of metres (Titan's Ligeia Mare: ≥160 m)
         maxCover: 0.9,      // cover approached as the seas deepen (a fraction, 0..1)
       },
-      why: 'Sea cover follows the nitrogen the air cannot hold: whatever is left over lies in the seas, and it saturates as the seas deepen.',
-      sources: [],
+      why: 'Sea cover follows the nitrogen the air cannot hold: whatever is left over lies in the seas, and it saturates as the seas deepen; sized so the default seas are hundreds of metres deep, as on Titan.',
+      sources: ['mastrogiuseppe2014'],
       assumption: true,
     },
   ],
@@ -227,7 +230,7 @@ export const silicon: WorldConfig = {
       reason: 'Too little nitrogen for seas (speculative)',
       boxEffect: 'dryUp',
       why: 'A nitrogen sea can only exist if the planet has more nitrogen than its air can hold at this temperature; a smaller inventory boils away completely at a lower temperature.',
-      sources: [],
+      sources: ['fulchignoni2005'],
       assumption: true,
     },
     {
@@ -235,12 +238,14 @@ export const silicon: WorldConfig = {
       statId: 'oxygen',
       side: 'above',
       model: 'fixed',
-      params: { value: 0.01 },   // %, a trace
+      // %, a trace. Below 0.1% of the slider's 0–40% track, so the thumb reads as pinned at zero. The true threshold is likely far lower
+      // (lab silicon grows a native oxide in air within hours), so this is a display choice, not a measurement.
+      params: { value: 0.01 },
       reason: 'Free oxygen turns silicon into rock (speculative)',
       boxEffect: 'rust',
-      why: 'Silicon bonds to oxygen extremely strongly, so any more than a trace locks it away as rock.',
+      why: 'Silicon bonds to oxygen extremely strongly, so any more than a trace locks it away as rock; the exact trace level is our choice.',
       sources: ['petkowski2020'],
-      assumption: true,   // the exact trace threshold is ours
+      assumption: true,
     },
   ],
   life: {
