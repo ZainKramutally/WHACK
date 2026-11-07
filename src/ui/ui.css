@@ -82,7 +82,8 @@
   position: absolute; box-sizing: border-box; width: 300px; max-height: calc(100vh - 16px); overflow-y: auto;
   background: var(--wu-bg); border: 1px solid var(--wu-line); border-radius: 12px; padding: 14px 16px; backdrop-filter: blur(8px); z-index: 4;
 }
-.wu-summary { top: 60px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); }
+.wu-summary { top: 60px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 68px); }   /* scrolls inside, like the inspect card */
+.wu-card > .wu-h { padding-right: 28px; }   /* room for the × button, long titles wrap */
 .wu-summary .wu-table { width: 100%; }
 .wu-summary .wu-table td:first-child { width: 34%; }
 .wu-x { position: absolute; top: 8px; right: 10px; background: none; border: 0; font-size: 20px; line-height: 1; color: var(--wu-dim); }

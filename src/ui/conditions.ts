@@ -1,8 +1,8 @@
 // Conditions panel: sliders (full range, living band, red zones, Earth marker), stats beside Earth's,
 // years counter, silicon reasoning + caveat, and a button for the summary card.
 import { el } from './dom';
-import { formatStat, formatValue, formatYears } from './format';
-import { clampToBand, fracToValue, redSegments, valueToFrac } from './sliderMath';
+import { formatStat, formatValue, formatYears, TRACE_O2_PCT } from './format';
+import { clampToBand, fracToValue, pinTraceOxygen, redSegments, valueToFrac } from './sliderMath';
 import { newTarget, nudgedValue, setTarget, syncLive, type SliderTarget } from './sliderTarget';
 import { listen, type UiBus } from './uiBus';
 import type { ControlDef, ControlId, LivingBand, SimSnapshot, WorldConfig } from '../worlds/types';
@@ -72,7 +72,7 @@ export function mountConditions(
   function paintThumb(v: SliderView) {
     v.thumb.style.left = `${valueToFrac(v.value, v.def) * 100}%`;
     v.thumb.setAttribute('aria-valuenow', String(v.value));
-    v.readout.textContent = formatValue(v.value, v.def.unit);
+    v.readout.textContent = formatStat(v.def.id, v.value, v.def.unit);
     // The eased live value, shown as a ghost while it is still catching up with the target.
     const apart = Math.abs(valueToFrac(v.live, v.def) - valueToFrac(v.value, v.def)) > GHOST_MIN_FRAC;
     v.ghost.hidden = !apart;
@@ -106,6 +106,8 @@ export function mountConditions(
   /** Move the thumb to a requested value, stopping at the band edge. */
   function request(v: SliderView, requested: number) {
     const r = v.band ? clampToBand(requested, v.band) : { value: requested, blocked: null as null | 'low' | 'high', limitId: undefined };
+    // Silicon's whole oxygen band is a trace (at most TRACE_O2_PCT): the thumb is pinned at zero, not left at the trace edge.
+    r.value = pinTraceOxygen(v.def.id, v.band, r.value, TRACE_O2_PCT);
     if (r.blocked) {
       pulse(v, r.blocked);
       showReason(v, limitReason(r.limitId));

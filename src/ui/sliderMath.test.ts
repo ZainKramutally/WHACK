@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampToBand, fracToValue, redSegments, valueToFrac } from './sliderMath';
+import { clampToBand, fracToValue, pinTraceOxygen, redSegments, valueToFrac } from './sliderMath';
 import { formatValue, formatYears } from './format';
 
 const temp = { min: -250, max: 150, scale: 'linear' as const };
@@ -65,4 +65,19 @@ describe('format', () => {
     expect(formatValue(0.05, '× Earth')).toBe('0.050 × Earth');
   });
   it('formats years', () => expect(formatYears(4.5e9)).toBe('4.50 billion years'));
+});
+
+describe('pinTraceOxygen', () => {
+  const trace = { low: 0, high: 0.01 };
+  it('pins a positive value to 0 when the whole band is a trace', () => {
+    expect(pinTraceOxygen('oxygen', trace, 0.01, 0.01)).toBe(0);
+    expect(pinTraceOxygen('oxygen', trace, 0.003, 0.01)).toBe(0);
+    expect(pinTraceOxygen('oxygen', trace, 0, 0.01)).toBe(0);
+  });
+  it('leaves wider bands, other sliders and empty bands alone', () => {
+    expect(pinTraceOxygen('oxygen', { low: 0, high: 40 }, 21, 0.01)).toBe(21);
+    expect(pinTraceOxygen('nitrogen', trace, 0.005, 0.01)).toBe(0.005);
+    expect(pinTraceOxygen('oxygen', { low: 0, high: 0, empty: true }, 5, 0.01)).toBe(5);
+    expect(pinTraceOxygen('oxygen', null, 5, 0.01)).toBe(5);
+  });
 });

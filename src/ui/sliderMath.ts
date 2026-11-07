@@ -45,3 +45,12 @@ export function redSegments(band: LivingBand, r: Range): RedSegment[] {
   if (band.high < r.max && hi < 1) out.push({ side: 'high', from: hi, to: 1, limitId: band.highLimitId });
   return out;
 }
+
+/**
+ * A band that is only a trace of oxygen (silicon: free oxygen rusts it, so the thumb is pinned at zero) pins any
+ * positive value to 0, rather than leaving it sitting on the trace edge. Other sliders and wider bands are untouched.
+ */
+export function pinTraceOxygen(id: string, band: LivingBand | null, value: number, trace: number): number {
+  if (id !== 'oxygen' || !band || band.empty || band.low > 0 || band.high > trace) return value;
+  return value > 0 ? 0 : value;
+}
