@@ -1,0 +1,1654 @@
+{
+ "_meta": {
+  "what": "Landform response matrix: control setting -> landforms, colours, machines, analogues, tags, render methods",
+  "date": "2026-11-07",
+  "sources": [
+   "notes/01-earth-landforms.md",
+   "notes/02-alien-and-silica-geology.md",
+   "notes/03-procedural-methods.md",
+   "data/landforms.json",
+   "data/alien-geology.json",
+   "data/methods.json"
+  ],
+  "tags": "[sci] real science (simplified); [game] our world logic; [INFERRED] reasoned, unsourced. Status labels per research/silicon-life/README.md.",
+  "methods_note": "method names, morphs_live and effort are copied from data/methods.json; morphs_live=false means a debounced re-bake, most have a live analytic fake (see notes/03 §3)."
+ },
+ "machines": [
+  {
+   "id": "M1",
+   "name": "dissolve",
+   "does": "the sea eats soluble rock along cracks",
+   "main_control": "Sea (+Heat, Time)",
+   "landforms": [
+    "karst towers",
+    "caves",
+    "labyrinth terrain (Titan)",
+    "acid pitting"
+   ]
+  },
+  {
+   "id": "M2",
+   "name": "precipitate",
+   "does": "dissolved stone comes back out when the liquid degasses, cools, mixes or evaporates",
+   "main_control": "Sea + Heat gradient",
+   "landforms": [
+    "silica sinter",
+    "travertine",
+    "tufa",
+    "speleothems",
+    "salt/sulfur crusts",
+    "varnish (disputed)"
+   ]
+  },
+  {
+   "id": "M3",
+   "name": "crack-and-pry",
+   "does": "freeze-thaw, salt crystals or thermal contraction split rock along joints",
+   "main_control": "Heat (crossing a phase change)",
+   "landforms": [
+    "hoodoos",
+    "fins -> arches",
+    "tafoni",
+    "patterned ground",
+    "columnar jointing"
+   ]
+  },
+  {
+   "id": "M4",
+   "name": "abrade",
+   "does": "moving liquid, sand or waves grind rock, strongest near the ground or waterline",
+   "main_control": "Sea (waves, floods) + dryness",
+   "landforms": [
+    "slot canyons",
+    "sea stacks",
+    "mushroom rocks",
+    "dunes",
+    "river channels"
+   ]
+  },
+  {
+   "id": "M5",
+   "name": "stack-and-strip",
+   "does": "lay layers down, lift them, erode down through them",
+   "main_control": "Time (+Recipe/Sea for layer colour)",
+   "landforms": [
+    "mesa -> butte -> spire",
+    "rainbow strata",
+    "fairy chimneys",
+    "canyon walls"
+   ]
+  },
+  {
+   "id": "M6",
+   "name": "life-built (sixth)",
+   "does": "life templates, builds or bores stone",
+   "main_control": "Hunger + Light (+Recipe)",
+   "landforms": [
+    "sinter mats",
+    "stromatolites",
+    "reefs (coral, glass sponge)",
+    "phytokarst pits",
+    "diatom/radiolarian honeycomb",
+    "R12 builder arches and spires"
+   ]
+  }
+ ],
+ "matrix": [
+  {
+   "control": "recipe",
+   "setting": "C corner",
+   "dials": "c≈1",
+   "appears": [
+    "soft living towers (tissue, not stone)",
+    "bubbles/haze (CO2 is a gas)"
+   ],
+   "grows": [
+    "with Water+life: carbonate reefs, stromatolites, tufa (DECISION a)",
+    "with Methane+Light: organic sand and organic karst (Titan)"
+   ],
+   "erodes": [
+    "any carbonate in Acid (fast karst)"
+   ],
+   "vanishes": [
+    "permanent stone in non-water seas",
+    "sinter, sandstone arches, columnar jointing"
+   ],
+   "colours": [
+    "coral living towers; char black when hot+bright+old"
+   ],
+   "machines": [
+    "M6",
+    "M2 (only if decision a)"
+   ],
+   "analogue": [
+    "coral and Shark Bay stromatolites (Suosaari 2016)",
+    "Titan organic dunes (Lorenz 2006)"
+   ],
+   "tag": "[sci] R2 gas; [sci] carbonate exception; [game] mapping",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    }
+   ],
+   "generator_today": "builders≈0 at the C corner; no stone, no reefs (blocks eco-03)",
+   "notes": "Earth's C+O stone needs calcium/magnesium, which the Recipe does not model."
+  },
+  {
+   "control": "recipe",
+   "setting": "Si corner",
+   "dials": "si≈1, o low",
+   "appears": [
+    "glassy, faceted life",
+    "quartz/glass sand"
+   ],
+   "grows": [
+    "dunes of glass sand when dry and lifeless"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "rust stains (little O)"
+   ],
+   "colours": [
+    "bone-white to clear stone; cyan life"
+   ],
+   "machines": [
+    "M4",
+    "M6"
+   ],
+   "analogue": [
+    "quartz dune seas"
+   ],
+   "tag": "[game] (R2 says stone needs O)",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "builders formula uses si+o, so pure Si already raises full builders (see open question)",
+   "notes": "Strictly, R2 makes stone from Si AND O; consider min(si,o)-weighted builders."
+  },
+  {
+   "control": "recipe",
+   "setting": "O corner",
+   "dials": "o≈1",
+   "appears": [
+    "oxidised crusts and rims"
+   ],
+   "grows": [
+    "red/orange/black stains: red beds, rust rims, varnish"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "green/grey reduced strata"
+   ],
+   "colours": [
+    "hematite red, goethite yellow, Mn black"
+   ],
+   "machines": [
+    "M2",
+    "M5 (band colour)"
+   ],
+   "analogue": [
+    "Colorado Plateau red beds",
+    "desert varnish (Dorn & Oberlander 1981)"
+   ],
+   "tag": "[sci] iron/manganese oxidation; [game] scaling",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sediment epochs (strata from history, design A §4)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "stain depends on sea and age only, not on O",
+   "notes": ""
+  },
+  {
+   "control": "recipe",
+   "setting": "Si+O edge",
+   "dials": "si+o ≥ 0.8",
+   "appears": [
+    "sandstone fins and arches",
+    "spires (R12)",
+    "slot canyons",
+    "columnar jointing (hot)",
+    "sinter terraces (hot spring)",
+    "chert/jasper, BIF stripes"
+   ],
+   "grows": [
+    "arches, spires, pores with age",
+    "glass-sponge / diatom honeycomb with life"
+   ],
+   "erodes": [
+    "slowly in Water (R5); fastest in hot alkaline water"
+   ],
+   "vanishes": [
+    "carbonate karst, travertine"
+   ],
+   "colours": [
+    "bone white -> sea stain; jasper red where Fe+O"
+   ],
+   "machines": [
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6"
+   ],
+   "analogue": [
+    "Arches NP (Bruthans 2014)",
+    "El Tatio / Yellowstone sinter (Campbell 2015)",
+    "BIF (Konhauser 2017)",
+    "glass-sponge reefs (Krautter 2001)"
+   ],
+   "tag": "[sci] rock types; [game] mapping",
+   "methods": [
+    {
+     "method": "Swept-tube arches (current) extended to living arch",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Fin erosion arches (SDF subtraction / stress-feedback)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Columnar jointing (Voronoi prisms)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "builders, spires, pores and arches live (shape of spires/arches built once per preset)",
+   "notes": ""
+  },
+  {
+   "control": "recipe",
+   "setting": "C+O edge",
+   "dials": "c+o ≥ 0.8, si low",
+   "appears": [
+    "gas and haze by default (R2)"
+   ],
+   "grows": [
+    "in Water+life: limestone-family stone (reefs, travertine, tufa, karst) IF decision a"
+   ],
+   "erodes": [
+    "karst under Acid or old Water"
+   ],
+   "vanishes": [
+    "silica forms"
+   ],
+   "colours": [
+    "cream/white carbonate; pink O-life"
+   ],
+   "machines": [
+    "M1",
+    "M2",
+    "M6"
+   ],
+   "analogue": [
+    "Guilin karst (Waltham 2009)",
+    "Mono Lake tufa (Council & Bennett 1993)",
+    "Lost City carbonate towers (Kelley 2005)"
+   ],
+   "tag": "[sci] carbonate is C+O stone; [game] whether we allow it",
+   "methods": [
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    }
+   ],
+   "generator_today": "no carbonate path exists",
+   "notes": ""
+  },
+  {
+   "control": "recipe",
+   "setting": "C+Si edge",
+   "dials": "c≈si, o low",
+   "appears": [
+    "Si stone stacks with carbon life riding on top"
+   ],
+   "grows": [
+    "capped stacks (eco-06)"
+   ],
+   "erodes": [],
+   "vanishes": [],
+   "colours": [
+    "bone stacks, coral caps"
+   ],
+   "machines": [
+    "M4",
+    "M6"
+   ],
+   "analogue": [
+    "silicified Archaean stromatolites (Allwood 2006)",
+    "silica-carbonate biomorphs (García-Ruiz 2003, lab)"
+   ],
+   "tag": "[game] split; [sci] analogues",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "spires exist; no cap-on-stack flora placement",
+   "notes": ""
+  },
+  {
+   "control": "recipe",
+   "setting": "centre (balanced)",
+   "dials": "c≈si≈o",
+   "appears": [
+    "every machine at moderate rate",
+    "fluted/tiered spires"
+   ],
+   "grows": [
+    "most landform variety"
+   ],
+   "erodes": [],
+   "vanishes": [],
+   "colours": [
+    "patchwork stains; most colours (R9)"
+   ],
+   "machines": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6"
+   ],
+   "analogue": [
+    "Earth"
+   ],
+   "tag": "[game]",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "works via palette; no fluting",
+   "notes": ""
+  },
+  {
+   "control": "sea",
+   "setting": "Water",
+   "dials": "sea.water=1",
+   "appears": [
+    "the full Earth set: frost-wedge hoodoos, fins, arches, karst, travertine, sinter, sea stacks, rivers, red beds"
+   ],
+   "grows": [
+    "sea stacks (waves)",
+    "rivers/canyons (floods)"
+   ],
+   "erodes": [
+    "silicon slowly (R5)",
+    "carbonate (karst)"
+   ],
+   "vanishes": [],
+   "colours": [
+    "iron red if O high; green/grey if O low"
+   ],
+   "machines": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6"
+   ],
+   "analogue": [
+    "Earth",
+    "Mars (old, dried)",
+    "Enceladus/Europa (cold)"
+   ],
+   "tag": "[sci]",
+   "methods": [
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Flow accumulation and river carving (D8 / spline)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "no liquid surface anywhere (blocks eco-03/06/11/15)",
+   "notes": "Only Water expands ~9% on freezing, so only Water frost-wedges."
+  },
+  {
+   "control": "sea",
+   "setting": "Ammonia",
+   "dials": "sea.ammonia=1",
+   "appears": [
+    "cryolava domes and flows",
+    "tufa-like alkaline towers",
+    "silica dissolve/redeposit"
+   ],
+   "grows": [
+    "towers and chimneys"
+   ],
+   "erodes": [
+    "silica at high pH (if ammonia acts like alkaline water)"
+   ],
+   "vanishes": [
+    "frost-wedge hoodoos (ammonia contracts on freezing)"
+   ],
+   "colours": [
+    "plum/violet stain [game]; Triton pink is the nearest real colour"
+   ],
+   "machines": [
+    "M2",
+    "M3 (contraction polygons only)"
+   ],
+   "analogue": [
+    "Kargel 1992 (plausible)",
+    "Triton (Soderblom 1990)",
+    "Mono Lake tufa"
+   ],
+   "tag": "[game] colour; [INFERRED] chemistry",
+   "methods": [
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "plum stain only",
+   "notes": "Ammonia-silica chemistry needs a check before any slide."
+  },
+  {
+   "control": "sea",
+   "setting": "Methane",
+   "dials": "sea.methane=1",
+   "appears": [
+    "organic dunes",
+    "labyrinth/karst of organics",
+    "calm lakes and dendritic rivers",
+    "rounded ice cobbles",
+    "thermal-contraction polygons"
+   ],
+   "grows": [
+    "builder arches persist (nothing dissolves silicon, R5)",
+    "dune fields with Time"
+   ],
+   "erodes": [
+    "organic sediments only"
+   ],
+   "vanishes": [
+    "silicate dissolution",
+    "wave-cut sea stacks (calm seas)",
+    "frost-wedge hoodoos (methane contracts)"
+   ],
+   "colours": [
+    "Light-gated: bright -> tholin orange; dim -> pale frost"
+   ],
+   "machines": [
+    "M1 (organics)",
+    "M4 (wind, rain)",
+    "M6 (builders)"
+   ],
+   "analogue": [
+    "Titan (Stofan 2007, Lorenz 2006, Malaska 2020, Cornet 2015, Hörst 2017)"
+   ],
+   "tag": "[sci] Titan; [game] silicate bedrock",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Flow accumulation and river carving (D8 / spline)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "snow + slate-blue stain; no liquid, no light-dependent stain",
+   "notes": "Liquid methane is clear: a white river is [game]."
+  },
+  {
+   "control": "sea",
+   "setting": "Acid",
+   "dials": "sea.acid=1",
+   "appears": [
+    "sulfur-yellow crusts",
+    "rough pitting",
+    "fast karst of any carbonate",
+    "porous silica spires (R5: silicon thrives)"
+   ],
+   "grows": [
+    "builders, pores (R5/R12)"
+   ],
+   "erodes": [
+    "carbonate fastest of any sea"
+   ],
+   "vanishes": [
+    "travertine, tufa, carbonate reefs"
+   ],
+   "colours": [
+    "sulfur yellow fresh -> tan/orange with age [INFERRED]; lemon haze"
+   ],
+   "machines": [
+    "M1",
+    "M2",
+    "M6"
+   ],
+   "analogue": [
+    "Dallol acid brines and fumaroles",
+    "Venus cloud deck (~300-350 K at 50-55 km)"
+   ],
+   "tag": "[sci] analogue; Venus has acid CLOUDS, not seas",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "tan stain capped low; pores live",
+   "notes": "Venus surface (tesserae, pancake domes) belongs to the Heat extreme, not this swatch."
+  },
+  {
+   "control": "sea",
+   "setting": "Lava (candidate)",
+   "dials": "RECOMMEND: heat > ~0.92 with Si+O, not a 5th swatch",
+   "appears": [
+    "magma lakes",
+    "columnar jointing as it cools",
+    "lava tubes and natural bridges",
+    "obsidian glass",
+    "pancake domes (Venus)"
+   ],
+   "grows": [
+    "column fields; thinner columns with faster quench"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "all solvent landforms; all life"
+   ],
+   "colours": [
+    "incandescent orange-yellow; black glass; grey basalt"
+   ],
+   "machines": [
+    "M3 (thermal contraction)",
+    "M2 (melt solidifies)"
+   ],
+   "analogue": [
+    "55 Cnc e (Demory 2016, plausible)",
+    "Giant's Causeway (Goehring 2009)",
+    "Venus (Pavri 1992)"
+   ],
+   "tag": "[sci] lava worlds/jointing; [game] placement on the dial",
+   "methods": [
+    {
+     "method": "Columnar jointing (Voronoi prisms)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "nothing",
+   "notes": ""
+  },
+  {
+   "control": "heat",
+   "setting": "low (always frozen)",
+   "dials": "heat < ~0.2",
+   "appears": [
+    "patterned ground polygons",
+    "snow drifts",
+    "giant slow forms (R6)"
+   ],
+   "grows": [
+    "spire height (R6)",
+    "arch survival (code: (1-heat)^2)"
+   ],
+   "erodes": [
+    "nearly nothing: all machines slow"
+   ],
+   "vanishes": [
+    "liquid seas/rivers",
+    "freeze-thaw (never thaws)"
+   ],
+   "colours": [
+    "pale, little stain"
+   ],
+   "machines": [
+    "M3 (contraction only)"
+   ],
+   "analogue": [
+    "Titan, Triton, permafrost (Lachenbruch 1962)"
+   ],
+   "tag": "[sci]",
+   "methods": [
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Thermal erosion / talus relaxation",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "snow + taller spires live; no polygons",
+   "notes": ""
+  },
+  {
+   "control": "heat",
+   "setting": "mid (crosses the sea's freezing point)",
+   "dials": "heat ~0.25-0.55",
+   "appears": [
+    "hoodoos, fins -> arches (Water only)",
+    "sorted circles/stripes",
+    "life peak (Goldilocks)"
+   ],
+   "grows": [
+    "hoodoos with Time",
+    "arches self-stabilise"
+   ],
+   "erodes": [
+    "fins along joints"
+   ],
+   "vanishes": [],
+   "colours": [
+    "Bryce reds/pinks/purples"
+   ],
+   "machines": [
+    "M3",
+    "M1",
+    "M6"
+   ],
+   "analogue": [
+    "Bryce Canyon (NPS)",
+    "Arches NP"
+   ],
+   "tag": "[sci] Water; [INFERRED] other seas",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Fin erosion arches (SDF subtraction / stress-feedback)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "no freeze-crossing term",
+   "notes": ""
+  },
+  {
+   "control": "heat",
+   "setting": "high (hot, dry)",
+   "dials": "heat > ~0.7",
+   "appears": [
+    "tafoni honeycomb",
+    "dunes",
+    "mushroom rocks",
+    "salt flats",
+    "varnish",
+    "red beds",
+    "slot canyons with rare floods"
+   ],
+   "grows": [
+    "steeper walls (dryness stops widening)",
+    "talus at wall feet"
+   ],
+   "erodes": [
+    "fast weathering of pores (code: erosion=heat*age)"
+   ],
+   "vanishes": [
+    "freeze-thaw forms",
+    "most life (pins no sand -> dunes)"
+   ],
+   "colours": [
+    "red, orange, black varnish, white salt, pink brines"
+   ],
+   "machines": [
+    "M2",
+    "M3 (salt)",
+    "M4",
+    "M5"
+   ],
+   "analogue": [
+    "Colorado Plateau",
+    "Mars (cold in reality)",
+    "Salar polygons (Lasser 2023)"
+   ],
+   "tag": "[sci] Earth; [game] hot Mars",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Thermal erosion / talus relaxation",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "INVERTED: wallH *= mix(1,0.3,hot) lowers walls",
+   "notes": ""
+  },
+  {
+   "control": "heat",
+   "setting": "volcanic source / gradient",
+   "dials": "local hot spot over cooler surface",
+   "appears": [
+    "sinter terraces (Si+O)",
+    "travertine (C+O)",
+    "columnar jointing",
+    "fairy-chimney tuff"
+   ],
+   "grows": [
+    "terraces mm-cm/yr: visibly in a demo"
+   ],
+   "erodes": [],
+   "vanishes": [],
+   "colours": [
+    "temperature-banded mats: green/yellow/orange; opal white"
+   ],
+   "machines": [
+    "M2",
+    "M3",
+    "M6"
+   ],
+   "analogue": [
+    "Grand Prismatic, El Tatio (Nicolau 2014)",
+    "Mammoth travertine (Hammer 2007)"
+   ],
+   "tag": "[sci]",
+   "methods": [
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Columnar jointing (Voronoi prisms)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "no hot-spot concept",
+   "notes": ""
+  },
+  {
+   "control": "light",
+   "setting": "low",
+   "dials": "light < 0.3",
+   "appears": [
+    "caves and speleothems mood",
+    "glowing pores and pockets"
+   ],
+   "grows": [
+    "glow (R8)",
+    "tall stalks"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "photosynthetic bioerosion",
+    "tholin stain in Methane"
+   ],
+   "colours": [
+    "Methane stays pale frost; lit pores amber [game]"
+   ],
+   "machines": [
+    "M6 (non-photosynthetic only)"
+   ],
+   "analogue": [
+    "Lost City pores host microbes (Kelley 2005) but do not glow"
+   ],
+   "tag": "[game] glow; [sci] pore shape",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "glow live",
+   "notes": ""
+  },
+  {
+   "control": "light",
+   "setting": "high",
+   "dials": "light > 0.7",
+   "appears": [
+    "phytokarst (black bored, sponge-like rock)",
+    "microbial mat colours on sinter/travertine",
+    "salt-flat glare"
+   ],
+   "grows": [
+    "caps (R7)",
+    "tholin orange in Methane",
+    "varnish (if microbial)"
+   ],
+   "erodes": [
+    "bio-pitted rock (with life)"
+   ],
+   "vanishes": [
+    "glow"
+   ],
+   "colours": [
+    "tholin orange (Methane); mat greens/oranges; black phytokarst"
+   ],
+   "machines": [
+    "M6",
+    "M2 (photochemistry)"
+   ],
+   "analogue": [
+    "Cayman phytokarst (Folk 1973)",
+    "Titan haze (Hörst 2017)"
+   ],
+   "tag": "[sci] via life and photolysis; abiotic effect weak",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    }
+   ],
+   "generator_today": "caps live; stain ignores light",
+   "notes": ""
+  },
+  {
+   "control": "time",
+   "setting": "young",
+   "dials": "age < 0.3",
+   "appears": [
+    "chemical-garden tubes (seconds)",
+    "fresh sinter/travertine/tufa",
+    "fresh columns",
+    "tafoni starting"
+   ],
+   "grows": [
+    "precipitates"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "deep stains, karst towers, buttes"
+   ],
+   "colours": [
+    "bone white (R3)"
+   ],
+   "machines": [
+    "M2",
+    "M3"
+   ],
+   "analogue": [
+    "silicate gardens (Barge 2015)"
+   ],
+   "tag": "[sci]",
+   "methods": [
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Columnar jointing (Voronoi prisms)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "low builders, pale stone",
+   "notes": ""
+  },
+  {
+   "control": "time",
+   "setting": "mid",
+   "dials": "age 0.3-0.7",
+   "appears": [
+    "hoodoos, fins, arches, sea arches -> stacks"
+   ],
+   "grows": [
+    "arches",
+    "stacks",
+    "hoodoo totems"
+   ],
+   "erodes": [
+    "fins thin"
+   ],
+   "vanishes": [],
+   "colours": [
+    "partial stain bands"
+   ],
+   "machines": [
+    "M3",
+    "M4"
+   ],
+   "analogue": [
+    "Bryce, Arches NP, Twelve Apostles [POP]"
+   ],
+   "tag": "[sci]",
+   "methods": [
+    {
+     "method": "Fin erosion arches (SDF subtraction / stress-feedback)",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "arches/spires live",
+   "notes": ""
+  },
+  {
+   "control": "time",
+   "setting": "old",
+   "dials": "age > 0.7",
+   "appears": [
+    "karst towers",
+    "mesa -> butte -> spire",
+    "banded strata",
+    "deep varnish (dark old stone)",
+    "red dunes",
+    "collapsed arches, lone pillars, stack stumps",
+    "living arch rings (eco-13)"
+   ],
+   "grows": [
+    "canyon depth (with liquid history)",
+    "stain depth",
+    "band count"
+   ],
+   "erodes": [
+    "arches past their peak",
+    "stacks to stumps"
+   ],
+   "vanishes": [
+    "young precipitate textures"
+   ],
+   "colours": [
+    "full sea stain; varnish black; rainbow bands"
+   ],
+   "machines": [
+    "M1",
+    "M5",
+    "M2 (varnish)",
+    "M6"
+   ],
+   "analogue": [
+    "Zhangye Danxia (Peng 2020)",
+    "varnish 1-40 um/kyr (Liu & Broecker 2000)",
+    "Mars layered rock (Malin & Edgett 2000)"
+   ],
+   "tag": "[sci] timescales; [game] scaling",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sediment epochs (strata from history, design A §4)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Pipe-model hydraulic erosion (virtual pipes, shallow water)",
+     "morphs_live": false,
+     "effort": "L"
+    },
+    {
+     "method": "Thermal erosion / talus relaxation",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "stain, builders live; terrain shape fixed",
+   "notes": ""
+  },
+  {
+   "control": "hunger",
+   "setting": "low",
+   "dials": "gentle",
+   "appears": [
+    "undisturbed mats -> stromatolites, reefs, sinter templates"
+   ],
+   "grows": [
+    "life-built stone (M6 build side)"
+   ],
+   "erodes": [],
+   "vanishes": [
+    "bioerosion pits"
+   ],
+   "colours": [
+    "mat colours"
+   ],
+   "machines": [
+    "M6 (build)"
+   ],
+   "analogue": [
+    "Shark Bay stromatolites (Suosaari 2016; Reid 2000)"
+   ],
+   "tag": "[sci] analogue; [game] scaling",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    }
+   ],
+   "generator_today": "no Hunger dial in the generator",
+   "notes": "Grazer-free stromatolites is a well-known [INFERRED] link, not sourced in this pass."
+  },
+  {
+   "control": "hunger",
+   "setting": "high",
+   "dials": "fierce",
+   "appears": [
+    "grazer-rasped and bored rock",
+    "parrotfish-style sand"
+   ],
+   "grows": [
+    "pits, sand"
+   ],
+   "erodes": [
+    "reef and mat surfaces"
+   ],
+   "vanishes": [
+    "mats, stromatolites"
+   ],
+   "colours": [
+    "darker pitted surfaces"
+   ],
+   "machines": [
+    "M6 (bore/erode)"
+   ],
+   "analogue": [
+    "phytokarst grazers (Folk 1973)"
+   ],
+   "tag": "[sci] analogue; [game] scaling",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "generator_today": "no Hunger dial in the generator",
+   "notes": ""
+  }
+ ],
+ "interactions": [
+  {
+   "id": "X1",
+   "when": "Water + Heat crossing freezing + mid Time",
+   "result": "frost-wedge hoodoos and fins -> arches",
+   "why": "water expands ~9% when it freezes; methane and ammonia contract, so they never pry joints open",
+   "otherwise": "Methane/Ammonia at the same Heat: no hoodoos; thermal-contraction polygons still form",
+   "tag": "[sci] Water (NPS Bryce); [INFERRED] the non-transfer",
+   "status": "consensus (water); inferred (other seas)",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Patterned ground (sorted circles/polygons)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-07"
+   ]
+  },
+  {
+   "id": "X2",
+   "when": "Methane + Light high",
+   "result": "orange tholin stain, organic dunes",
+   "otherwise": "Methane + Light low: pale frost, slate stone",
+   "why": "tholins are made from CH4+N2 by UV; no light, no smog",
+   "tag": "[sci] (Hörst 2017) [INFERRED] mapping",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-05 (bright)",
+    "eco-04, eco-15 (dim)"
+   ]
+  },
+  {
+   "id": "X3",
+   "when": "Water + Recipe O high",
+   "result": "red beds, rust stain",
+   "otherwise": "Water + O low: green/grey strata",
+   "why": "iron's oxidation state sets layer colour",
+   "tag": "[sci]",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sediment epochs (strata from history, design A §4)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-01",
+    "eco-10"
+   ]
+  },
+  {
+   "id": "X4",
+   "when": "Acid + C",
+   "result": "no lasting carbonate; fast karst; yellow sulfur crust",
+   "otherwise": "Acid + Si+O: silica survives and builders thrive (R5) -> bone-white porous spires",
+   "why": "acid dissolves carbonate; silica is acid-resistant",
+   "tag": "[sci] carbonate/acid; [INFERRED] silica residue",
+   "status": "consensus (carbonate)",
+   "methods": [
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-14",
+    "eco-02"
+   ]
+  },
+  {
+   "id": "X5",
+   "when": "Si+O + Water + hot source over cool surface (+ Light for mats)",
+   "result": "silica sinter terraces with temperature-banded mat colours",
+   "why": "silica dissolves hot and precipitates as it cools/evaporates, templated on microbes",
+   "tag": "[sci] (Konhauser 2001, Campbell 2015)",
+   "status": "consensus",
+   "correction": "The brief's 'acid + Si -> sinter' is not supported: sinter's driver is the heat gradient in near-neutral water. Acid + Si gives silica residue + sulfur crust [INFERRED].",
+   "methods": [
+    {
+     "method": "Rimstone dam / travertine-sinter terrace growth",
+     "morphs_live": false,
+     "effort": "M"
+    },
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": []
+  },
+  {
+   "id": "X6",
+   "when": "Old + Hot + Si+O + liquid history",
+   "result": "deep, steep, banded canyon (stack-and-strip + flood abrasion)",
+   "otherwise": "same dials, no incision: open plain with relic spires (eco-01)",
+   "why": "Time deepens, dryness keeps walls steep, layers band; incision needs past liquid",
+   "tag": "[sci] mechanism; [game] rule",
+   "status": "consensus (mechanism)",
+   "methods": [
+    {
+     "method": "Stratified hardness + stepped strata (differential erosion)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Pipe-model hydraulic erosion (virtual pipes, shallow water)",
+     "morphs_live": false,
+     "effort": "L"
+    },
+    {
+     "method": "Thermal erosion / talus relaxation",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Flow accumulation and river carving (D8 / spline)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-10",
+    "eco-01"
+   ]
+  },
+  {
+   "id": "X7",
+   "when": "C + Methane + Light",
+   "result": "carbon DOES make landforms: organic sand dunes and organic karst",
+   "why": "in a hydrocarbon sea, photochemical organics are the sediment",
+   "tag": "[sci] Titan (Lorenz 2006, Cornet 2015)",
+   "status": "consensus (dunes), plausible (karst)",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Karst tower dissolution",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-05",
+    "eco-08"
+   ]
+  },
+  {
+   "id": "X8",
+   "when": "C + Water + life + low Hunger",
+   "result": "carbonate reefs, stromatolites, tufa (if decision a = yes)",
+   "why": "life and water lock C+O into shell",
+   "tag": "[sci] Earth; [game] whether allowed",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+     "morphs_live": false,
+     "effort": "M"
+    }
+   ],
+   "pins": [
+    "eco-03",
+    "eco-06"
+   ]
+  },
+  {
+   "id": "X9",
+   "when": "life + Light high + Hunger",
+   "result": "bio-pitted honeycomb rock (phytokarst)",
+   "why": "photosynthetic borers + grazers",
+   "tag": "[sci] (Folk 1973); R12's real anchor",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-02",
+    "eco-14"
+   ]
+  },
+  {
+   "id": "X10",
+   "when": "Builders + Light low",
+   "result": "glowing pores",
+   "why": "R8",
+   "tag": "[game] glow; [sci] shape (Lost City, diatoms)",
+   "status": "glow invented",
+   "methods": [
+    {
+     "method": "Tafoni / honeycomb (Worley void noise)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-14",
+    "eco-12"
+   ]
+  },
+  {
+   "id": "X11",
+   "when": "Heat max + Si+O (+ Water present to quench)",
+   "result": "lava world; cooling makes columnar jointing; faster quench -> thinner columns",
+   "why": "thermal contraction cracks order into hexagons (Goehring 2009)",
+   "tag": "[sci] jointing; [game] dial placement",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Columnar jointing (Voronoi prisms)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": []
+  },
+  {
+   "id": "X12",
+   "when": "Sea changed mid-game + Time",
+   "result": "striped cliffs recording each era's stain",
+   "why": "each era lays a band in its sea's stain",
+   "tag": "[game] on a [sci] basis (strata record conditions)",
+   "status": "game",
+   "methods": [
+    {
+     "method": "Sediment epochs (strata from history, design A §4)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-13 rings",
+    "eco-10 walls"
+   ]
+  },
+  {
+   "id": "X13",
+   "when": "Old + any sea (esp. dim Methane)",
+   "result": "dark old stone (varnish-like age darkening)",
+   "why": "eco-15's dark arches cannot come from dim-methane stain, which is pale",
+   "tag": "[game] with Earth varnish analogue (disputed origin)",
+   "status": "disputed",
+   "methods": [
+    {
+     "method": "Sediment epochs (strata from history, design A §4)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-15"
+   ]
+  },
+  {
+   "id": "X14",
+   "when": "liquid + wind (waves) + Time",
+   "result": "headland -> cave -> arch -> stack -> stump",
+   "otherwise": "calm Methane seas: few stacks",
+   "why": "waves exploit joints",
+   "tag": "[sci] (Sunamura 1992); Titan calm seas [INFERRED]",
+   "status": "consensus",
+   "methods": [
+    {
+     "method": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+     "morphs_live": true,
+     "effort": "S"
+    },
+    {
+     "method": "Sea / liquid surface plane",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": [
+    "eco-06"
+   ]
+  },
+  {
+   "id": "X15",
+   "when": "life high",
+   "result": "dunes vanish (life pins sand)",
+   "tag": "[sci]",
+   "status": "consensus",
+   "why": "vegetation and crusts stabilise sand",
+   "methods": [
+    {
+     "method": "Analytic dune field (live fake)",
+     "morphs_live": true,
+     "effort": "S"
+    }
+   ],
+   "pins": []
+  }
+ ],
+ "stain_proposal": {
+  "rule": "stain(sea, light, o, age): reconcile three conflicting values in docs and code",
+  "conflicts": {
+   "methane": {
+    "WORLD_ATLAS §6": "#AD603B tholin orange",
+    "world-generator.md": "#C3C4D4 barely stains",
+    "derive.ts": "0x6a95b3 blue-slate"
+   },
+   "acid": {
+    "WORLD_ATLAS R3/§6": "#E2CF95 sulfur",
+    "world-generator.md / derive.ts": "#A47C68 tan",
+    "ART_DIRECTION_PIXEL": "sulfur-tan ramp"
+   }
+  },
+  "proposal": {
+   "methane": "mix(slate 0x6a95b3, tholin #AD603B, smoothstep(0.4, 0.8, light)) [sci] X2",
+   "water": "mix(reduced green-grey, iron #F94B1E, smoothstep(0.2, 0.5, recipe.o)) [sci] X3",
+   "acid": "sulfur #E2CF95 young -> tan #A47C68 old [INFERRED]",
+   "ammonia": "plum #5A3B52 [game]",
+   "age_darkening": "multiply by (1 - 0.5*smoothstep(0.85, 1, age)) for varnish-dark old stone [game] X13"
+  },
+  "cost": "uniform-only, morphs live, S"
+ },
+ "lava": {
+  "question": "Lava as a 5th Sea swatch or the Heat extreme?",
+  "options": [
+   {
+    "option": "5th Sea swatch",
+    "pros": [
+     "one tap, distinct palette",
+     "easy to pitch"
+    ],
+    "cons": [
+     "lava at Heat=cold is nonsense, so Sea and Heat stop being independent",
+     "needs a new palette, stain and anchors",
+     "breaks the 4-swatch Sea UI and ART_DIRECTION sea table"
+    ]
+   },
+   {
+    "option": "Heat extreme (heat > ~0.92, strongest with Si+O)",
+    "pros": [
+     "physically honest: lava is molten Si+O, i.e. the Recipe melted",
+     "no new UI",
+     "gives Heat a dramatic far end and the Venus surface a home"
+    ],
+    "cons": [
+     "only reachable by pushing a slider to the end",
+     "palette field needs an incandescence override above the threshold"
+    ]
+   }
+  ],
+  "recommendation": "Heat extreme. Ship as the 'melt' end of the Heat slider; columnar jointing appears as Heat comes back down.",
+  "tag": "[sci] lava worlds plausible (Demory 2016); [game] placement"
+ },
+ "decisions": [
+  {
+   "id": "a",
+   "question": "Should C+O make lasting stone in Water worlds?",
+   "options": [
+    "keep R2 strict: eco-03 pillars are living tissue (atlas text already says so); add a living-stack flora",
+    "R2 exception: 'carbon rusts to air, unless life in water makes shell' -> reefs = life*water*smoothstep(.4,.7,c), dissolves in Acid",
+    "pillars are minority-Si builder stone"
+   ],
+   "recommendation": "option 2, scoped to Water + life; it is real Earth science, adds a '...but then' twist, and Acid dissolving it is another readable rule. Keep the slide wording of R2 with the 'unless' clause."
+  },
+  {
+   "id": "b",
+   "question": "Lava: 5th Sea or Heat extreme?",
+   "recommendation": "Heat extreme (see lava)"
+  },
+  {
+   "id": "c",
+   "question": "eco-01 vs eco-10 canyon: rule or preset framing?",
+   "options": [
+    "preset framing (valleyWidth) only",
+    "rule: canyonDepth ∝ age * liquidHistory, steepness ∝ heat (needs sediment-epoch state)",
+    "hybrid"
+   ],
+   "recommendation": "hybrid: preset framing for the demo, but fix the inverted heat->wall rule now so the rule supports the framing (hot = steeper, age = deeper); add liquid history only with sediment epochs."
+  }
+ ]
+}
