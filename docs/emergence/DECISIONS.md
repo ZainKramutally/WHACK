@@ -348,7 +348,7 @@ Status:
 
 Solvent values are `[recalled]` handbook figures at the liquid's typical temperature.
 
-**Budget check (guardrails 4–5):** every row uses only the 12 genes (G.1) and the 18 constants (G.2). Derived quantities are fine. Rows that would have needed a new gene or constant are marked **→ NOT_NOW** or **render-only**.
+**Budget check (guardrails 4–5):** every row uses only the 12 body genes plus 3 climate genes (G.1), the 15 constants (G.2) and the world-config inputs (solvent, airDensity, tissueDensity). Derived quantities are fine. Rows that would have needed a new gene or constant are marked **→ NOT_NOW** or **render-only**.
 
 | Quantity (source in model) | Equation / direction | Tag | Feeds (genes · constants) | What you SEE | Status |
 |---|---|---|---|---|---|
@@ -448,7 +448,7 @@ Keep, though authored: the `develop()` grammar, the ledger, render-side look att
 | honesty | flattened ledger (look attractors fill by volume); shuffled access functions (different attractors fill) | §9.8 guards |
 | guardrail audit | grep the sim for `preset`, species names and basin ids; count rules, genes and constants | must be 0 / 0 / 0 hits; ≤ 12 / 12 / ≤ 25 |
 
-All configs use the 12-gene genome and the 18 constants (G.1–G.2), on one 64² grid at a fixed 20 Hz tick (dt 0.05). The toy's dt 0.25 is replaced.
+All configs use the 15-gene genome (12 body + 3 climate) and the 15 constants (G.1–G.2), with world facts from config, on one 64² grid at a fixed 20 Hz tick (dt 0.05). The toy's dt 0.25 is replaced.
 
 **Pass bars:**
 - `full` must pass M1–M14 and the per-preset §A bars in ≥ 4/5 presets.
