@@ -28,3 +28,4 @@
 - 17:30: 360° world merged (f5b3c65): 2.4 km terrain, 3 river branches, arch 2 / titan forest / pod hollow / rib ridge, butte+range rings, sector culling, flora translucency, focal glow. 79 tests, 60fps hero/tour/fly. Views sheet design/iteration/2026-11-07-1726-red-world-views/. rw-scene re-sent moons+no-particles priority (missed).
 - 17:31: rw-move r2 merged (568c2cd): camera boom pull-in, fg push 35% in player mode, turn lag/roll, speed FOV, landing dip. 84 tests, 60fps. Waiting on rw-scene moons+no-particles.
 - 17:34: moons + no particles merged (cherry-pick of 6669a9e). 84 tests, 60fps. rw-scene on r4 (hero rim, far-forest thin, gc#3 fg-only, empty dunes, WORLD_DISC).
+- 17:40: scene r3 merged (7fbcb11): hero dark lowest rim, far forest -30%, spike crowns sparse/fg, heavy pod off scatter, basin dressing, WORLD_DISC r1900. 84 tests. rw-scene on r4 (clearings/groves, mid-ground life, fg-right silhouette).
