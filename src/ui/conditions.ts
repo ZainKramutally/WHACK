@@ -1,7 +1,7 @@
 // Conditions panel: sliders (full range, living band, red zones, Earth marker), stats beside Earth's,
 // years counter, silicon reasoning + caveat, and a button for the summary card.
 import { el } from './dom';
-import { formatValue, formatYears } from './format';
+import { formatStat, formatValue, formatYears } from './format';
 import { clampToBand, fracToValue, redSegments, valueToFrac } from './sliderMath';
 import { newTarget, nudgedValue, setTarget, syncLive, type SliderTarget } from './sliderTarget';
 import { listen, type UiBus } from './uiBus';
@@ -42,7 +42,7 @@ export function mountConditions(
 
   // --- sliders ---
   const sliderBox = el('section', 'wu-sliders');
-  sliderBox.append(el('p', 'wu-note', 'Ask “what if?” Moving a slider is you changing the planet, not a natural event.'));
+  sliderBox.append(el('p', 'wu-note', 'Ask “what if?” Moving a slider is you changing the planet, not a natural event. Keys: ↑↓ choose a slider, ←→ move it.'));
   const views = new Map<ControlId, SliderView>();
   let selected = 0; // D-pad focus
 
@@ -162,12 +162,6 @@ export function mountConditions(
     const end = () => { v.dragging = false; };
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);
-    thumb.addEventListener('keydown', (e) => {
-      const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
-      if (!d) return;
-      e.preventDefault();
-      request(v, nudgedValue(v.st, d, def, STEP));
-    });
   }
   drawer.append(sliderBox);
 
@@ -247,7 +241,7 @@ export function mountConditions(
     for (const st of world.stats) {
       const n = statCells.get(st.id);
       const val = s.stats[st.id];
-      if (n && val !== undefined) n.textContent = formatValue(val, st.unit);
+      if (n && val !== undefined) n.textContent = formatStat(st.id, val, st.unit);
     }
     for (const v of views.values()) {
       const b = s.bands[v.def.id];
@@ -286,7 +280,25 @@ export function mountConditions(
   }
   selectSlider(0);
 
+  /**
+   * Keyboard, like the gamepad D-pad: up/down choose a slider (and focus its thumb), left/right move it.
+   * Tab is the game's Conditions toggle, so the arrows work wherever focus is while the panel is open.
+   */
+  function handleKey(e: KeyboardEvent): boolean {
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    switch (e.key) {
+      case 'ArrowUp': selectSlider(-1); focusSelected(); return true;
+      case 'ArrowDown': selectSlider(1); focusSelected(); return true;
+      case 'ArrowLeft': nudgeSelected(-1); return true;
+      case 'ArrowRight': nudgeSelected(1); return true;
+      default: return false;
+    }
+  }
+  function focusSelected() { views.get(controls[selected].id)?.thumb.focus({ preventScroll: true }); }
+
   return {
+    handleKey,
+    focusSelected,
     el: drawer,
     update,
     selectSlider,

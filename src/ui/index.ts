@@ -83,8 +83,9 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     conditions.el.classList.toggle('wu-open', p === 'conditions');
     guide.el.classList.toggle('wu-open', p === 'guide');
     condTab.classList.toggle('wu-active', p === 'conditions');
-    if (p === 'conditions' && latest) conditions.update(latest);
+    if (p === 'conditions') { if (latest) conditions.update(latest); conditions.focusSelected(); }
     guideTab.classList.toggle('wu-active', p === 'guide');
+    if (p !== 'conditions' && conditions.el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
   }
   const toggle = (p: Panel) => show(open === p ? null : p);
 
@@ -100,6 +101,12 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     else if (e.key === 'Escape') closeTop();
   };
   if (!opts.externalInput) window.addEventListener('keydown', onKey);
+  // Arrow keys work the sliders while Conditions is open (Tab is the panel toggle, so focus cannot be tabbed into it).
+  const onArrows = (e: KeyboardEvent) => {
+    if (open !== 'conditions' || (e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
+    if (conditions.handleKey(e)) e.preventDefault();
+  };
+  window.addEventListener('keydown', onArrows);
 
   const hint = mountControlsHint(host, {
     onY: () => toggle('conditions'),
@@ -141,6 +148,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     dispose() {
       offSnap();
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onArrows);
       hint.dispose();
       captions.dispose();
       conditions.dispose();

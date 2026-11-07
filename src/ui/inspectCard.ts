@@ -1,7 +1,7 @@
 // Click-to-inspect card: what it is, details, why, and "this world" beside the other world's targets.
 // Holds a transparent window for the render layer's counterpart view and reports its rect on inspect:window.
 import { el } from './dom';
-import { formatValue } from './format';
+import { formatStat, formatValue } from './format';
 import { statsAtStart } from './otherWorld';
 import { listen, type UiBus } from './uiBus';
 import { ORGANISM_STRIDE, OrganismField as F, readOrganism, type OrganismRecord } from '../sim/organismLayout';
@@ -53,8 +53,8 @@ export function mountInspectCard(
   selfBtn.type = 'button'; otherBtn.type = 'button';
   toggle.append(selfBtn, otherBtn);
   const winLabel = el('p', 'wu-window-label');
-  card.append(title, closeBtn, kind, status, details, whyP, cmpTitle, table, win, toggle, winLabel);
-  let viewMode: 'self' | 'other' = 'self';
+  // The counterpart window sits near the top so it is visible without scrolling on a short screen.
+  card.append(title, closeBtn, kind, status, win, winLabel, details, whyP, cmpTitle, table);
   root.append(card);
 
   let target: InspectTarget | null = null;
@@ -123,8 +123,8 @@ export function mountInspectCard(
       const otherToday = otherStart && other?.stats.some((x) => x.id === id) ? otherStart[id] : undefined;
       out.push([
         def.label,
-        mine !== undefined ? formatValue(mine, def.unit) : '–',
-        otherToday !== undefined ? formatValue(otherToday, def.unit) : '–',
+        mine !== undefined ? formatStat(id, mine, def.unit) : '–',
+        otherToday !== undefined ? formatStat(id, otherToday, def.unit) : '–',
         formatValue(def.earthValue, def.unit),
       ]);
     }
@@ -214,12 +214,27 @@ export function mountInspectCard(
 
   function reportWindow() {
     if (card.hidden || win.hidden) return;
+<<<<<<< HEAD
     const r = win.getBoundingClientRect();
     punchWindow(r);
     const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',') + viewMode;
     if (key === lastRect) return;
     lastRect = key;
     bus.emit('inspect:window', { x: r.left, y: r.top, width: r.width, height: r.height, mode: viewMode });
+=======
+    // Only the part of the window inside the card's visible (scrolled) area is shown; none visible means no render.
+    const w = win.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const left = Math.max(w.left, c.left), top = Math.max(w.top, c.top);
+    const right = Math.min(w.right, c.right), bottom = Math.min(w.bottom, c.bottom);
+    const visible = right - left >= 4 && bottom - top >= 4;
+    const key = visible ? [left, top, right - left, bottom - top].map(Math.round).join(',') : 'hidden';
+    if (visible) punchWindow(new DOMRect(left, top, right - left, bottom - top));
+    else { card.style.maskImage = ''; card.style.removeProperty('-webkit-mask-image'); }
+    if (key === lastRect) return;
+    lastRect = key;
+    bus.emit('inspect:window', visible ? { x: left, y: top, width: right - left, height: bottom - top } : null);
+>>>>>>> 5c9d25a (fix(ui): arrow-key sliders, reserved reason line, cards fit short screens and scroll, trace oxygen label)
   }
 
   function open(t: InspectTarget, at: { x: number; y: number }) {
@@ -260,6 +275,8 @@ export function mountInspectCard(
   selfBtn.addEventListener('click', () => setMode('self'));
   otherBtn.addEventListener('click', () => setMode('other'));
   closeBtn.addEventListener('click', () => close());
+  // Scrolling the card moves the counterpart window with it.
+  card.addEventListener('scroll', () => reportWindow());
   // Click elsewhere closes. The render layer's own click (which opens a new card) comes after pointerdown.
   const onDown = (e: PointerEvent) => {
     if (!card.hidden && !card.contains(e.target as Node)) close();

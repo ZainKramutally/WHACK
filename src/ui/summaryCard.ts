@@ -1,6 +1,6 @@
 // Summary card: the world's stats now, beside Earth's, plus the dominant life form's traits. Opened on demand only.
 import { el } from './dom';
-import { formatValue } from './format';
+import { formatStat, formatValue } from './format';
 import { dominantRows } from './lifeText';
 import type { LifeRegistry } from './lifeRegistry';
 import type { SimSnapshot, WorldConfig } from '../worlds/types';
@@ -37,7 +37,7 @@ export function mountSummaryCard(root: HTMLElement, world: WorldConfig, registry
       const tr = el('tr');
       tr.append(
         paceCell(d),
-        el('td', 'wu-num', s.stats[d.id] !== undefined ? formatValue(s.stats[d.id], d.unit) : '–'),
+        el('td', 'wu-num', s.stats[d.id] !== undefined ? formatStat(d.id, s.stats[d.id], d.unit) : '–'),
         el('td', 'wu-num wu-dim', formatValue(d.earthValue, d.unit)),
       );
       return tr;

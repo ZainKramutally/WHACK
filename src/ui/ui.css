@@ -52,8 +52,8 @@
 .wu-earth-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; font-size: 10px; color: #8ec5ff; white-space: nowrap; }
 .wu-chips { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--wu-dim); }
 .wu-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; background: var(--wu-red); border-radius: 2px; vertical-align: -1px; }
-.wu-reason { min-height: 0; max-height: 0; overflow: hidden; opacity: 0; color: #ff9a94; font-size: 12px; transition: opacity .2s; }
-.wu-reason.wu-on { max-height: 40px; opacity: 1; margin-top: 4px; }
+.wu-reason { min-height: 21px; margin-top: 4px; opacity: 0; color: #ff9a94; font-size: 12px; line-height: 1.3; transition: opacity .2s; }   /* height reserved, so showing a reason never moves the sliders below */
+.wu-reason.wu-on { opacity: 1; }
 
 /* Years */
 .wu-years { margin: 6px 0 10px; font-size: 13px; }
@@ -79,7 +79,7 @@
 
 /* Cards (inspect, summary) */
 .wu-card {
-  position: absolute; width: 300px; max-height: calc(100vh - 16px); overflow-y: auto;
+  position: absolute; box-sizing: border-box; width: 300px; max-height: calc(100vh - 16px); overflow-y: auto;
   background: var(--wu-bg); border: 1px solid var(--wu-line); border-radius: 12px; padding: 14px 16px; backdrop-filter: blur(8px); z-index: 4;
 }
 .wu-summary { top: 60px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); }
