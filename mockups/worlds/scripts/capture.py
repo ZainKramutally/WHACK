@@ -6,7 +6,9 @@ Usage (from mockups/worlds):
   python3 scripts/capture.py eco01 eco14        # a subset
   python3 scripts/capture.py --testgeo          # add #testgeo (stand-in ground + columns)
   python3 scripts/capture.py --url http://127.0.0.1:5173   # reuse a running dev server
+  python3 scripts/capture.py --only eco14      # one preset (same as positional)
   python3 scripts/capture.py --no-fps           # skip the fps measurement
+  python3 scripts/capture.py --fps-runs 3       # fps: N x 5 s windows after 2 s warm-up; prints best + median
 Needs: pip install playwright pillow ; playwright install chromium  (channel="chromium" gives real Metal/WebGPU)
 """
 import argparse, os, re, subprocess, sys, time, socket, urllib.request
@@ -53,11 +55,14 @@ def main():
     ap.add_argument("--url")
     ap.add_argument("--testgeo", action="store_true")
     ap.add_argument("--no-fps", action="store_true")
+    ap.add_argument("--only", action="append", default=[], help="capture just this preset (repeatable), e.g. --only eco14")
+    ap.add_argument("--fps-runs", type=int, default=3, help="5 s fps windows per preset after a 2 s warm-up")
     ap.add_argument("--fps-size", default="1920x1080", help="fps viewport, e.g. 2560x1440")
     ap.add_argument("--fps-q", default="", help="e.g. low to add ?q=low")
     ap.add_argument("--extra", default="", help="extra hash flags, e.g. nofigure")
     a = ap.parse_args()
-    metas = [m for m in preset_meta() if not a.presets or m[0] in a.presets]
+    wanted = a.presets + a.only
+    metas = [m for m in preset_meta() if not wanted or m[0] in wanted]
     OUT.mkdir(parents=True, exist_ok=True)
     proc, url = (None, a.url) if a.url else start_server()
     flags = ["capture"] + (["testgeo"] if a.testgeo else []) + ([a.extra] if a.extra else [])
@@ -82,16 +87,20 @@ def main():
                 cmp.save(OUT / f"{pid.replace('eco', 'eco-')}-compare.jpg", quality=88)
                 print(f"{pid}: {png}  ({r.width}x{r.height})" + (f"  console errors: {errs[:3]}" if errs else ""))
             if not a.no_fps:
-                for pid, _, _ in metas[:4]:
-                    fw, fh = (int(v) for v in a.fps_size.split("x"))
+                import statistics
+                fw, fh = (int(v) for v in a.fps_size.split("x"))
+                tag = f"@{a.fps_size} q={a.fps_q or 'high'}"
+                for pid, _, _ in metas:
                     pg = b.new_page(viewport={"width": fw, "height": fh}, device_scale_factor=1)
                     pg.goto(f"{url}/?preset={pid}{'&q=' + a.fps_q if a.fps_q else ''}#orbit" + ("&testgeo" if a.testgeo else ""))
                     pg.wait_for_function("window.__ready===true", timeout=60000)
-                    pg.wait_for_timeout(1500)
-                    fps = pg.evaluate("""() => new Promise(res => { let n = 0; const t0 = performance.now();
-                        const f = () => { n++; if (performance.now() - t0 >= 3000) res(n / ((performance.now() - t0) / 1000)); else requestAnimationFrame(f); };
-                        requestAnimationFrame(f); })""")
-                    print(f"fps {pid} @{a.fps_size}{' q=' + a.fps_q if a.fps_q else ' q=high'}: {fps:.1f}")
+                    pg.wait_for_timeout(2000)  # warm-up
+                    runs = [pg.evaluate("""() => new Promise(res => { let n = 0; const t0 = performance.now();
+                        const f = () => { n++; const dt = performance.now() - t0; if (dt >= 5000) res(n / (dt / 1000)); else requestAnimationFrame(f); };
+                        requestAnimationFrame(f); })""") for _ in range(a.fps_runs)]
+                    best, med = max(runs), statistics.median(runs)
+                    warn = "  WARNING: best/median differ >15%, GPU is probably shared; trust best" if best > med * 1.15 else ""
+                    print(f"fps {pid} {tag}: best {best:.1f}  median {med:.1f}  runs {[round(r, 1) for r in runs]}{warn}")
                     pg.close()
             b.close()
     finally:
