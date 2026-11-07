@@ -144,11 +144,13 @@ export const silicon: WorldConfig = {
     assumption: true,
   },
   feedbacks: [
-    // Change in the stat per unit driver per ecology second. Speculative; labelled so in the UI.
+    // Change in the stat per unit driver per ecology second, scaled to the Ecology's biomass units (producerBiomass ≈ 3,700,
+    // consumerBiomass ≈ 1,000, animal deaths ≈ 6 mass/s at the end of the build): lock-up balances decay once the population is steady.
+    // Speculative; labelled so in the UI.
     // 'deadBiomass' is biomass of organisms that died per ecology second; the sim must expose it as a driver.
-    { id: 'producerNitrogenLock', statId: 'nitrogen', driver: 'producerBiomass', rate: -4.4e-5, why: 'Bodies are built from silicon–nitrogen compounds, so a growing population locks nitrogen away.', sources: [], assumption: true },
-    { id: 'consumerNitrogenLock', statId: 'nitrogen', driver: 'consumerBiomass', rate: -4.4e-5, why: 'Animals lock nitrogen into their bodies the same way.', sources: [], assumption: true },
-    { id: 'decayNitrogenReturn', statId: 'nitrogen', driver: 'deadBiomass', rate: 3e-5, why: 'When organisms die, their bodies return the nitrogen.', sources: [], assumption: true },
+    { id: 'producerNitrogenLock', statId: 'nitrogen', driver: 'producerBiomass', rate: -3e-6, why: 'Bodies are built from silicon–nitrogen compounds, so a growing population locks nitrogen away.', sources: [], assumption: true },
+    { id: 'consumerNitrogenLock', statId: 'nitrogen', driver: 'consumerBiomass', rate: -3e-6, why: 'Animals lock nitrogen into their bodies the same way.', sources: [], assumption: true },
+    { id: 'decayNitrogenReturn', statId: 'nitrogen', driver: 'deadBiomass', rate: 2.5e-3, why: 'When organisms die, their bodies return the nitrogen.', sources: [], assumption: true },
   ],
   derived: [
     {

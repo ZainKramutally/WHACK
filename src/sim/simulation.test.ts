@@ -280,11 +280,7 @@ describe('WorldSimulation', () => {
   });
 
   describe('end of the build, demo seeds', () => {
-    // Stats that miss their configured target with the demo seed and the current feedback rates. Reported to the
-    // team lead rather than loosened. The Ecology's producerBiomass is Σ flora over 4,096 cells (~4,000), about 20×
-    // the scale the placeholder rates were written for: carbon oxygen overshoots and CO₂ hits 0, and silicon's
-    // nitrogen lock-up boils the seas away (the sim holds nitrogen at the seas-gone edge and the animals die).
-    const KNOWN_GAPS: Record<string, string[]> = { carbon: ['oxygen', 'co2'], silicon: ['nitrogen', 'seaCover'] };
+    // Both worlds land inside every target at the default sliders with the demo seeds.
     const memo = new Map<string, Record<string, number>>();
     const endOfBuild = (w: WorldConfig) => {
       let stats = memo.get(w.id);
@@ -299,16 +295,19 @@ describe('WorldSimulation', () => {
     it.each([carbon, silicon])('lands inside targets at the default sliders ($id)', { timeout: 30000 }, (w: WorldConfig) => {
       const stats = endOfBuild(w);
       for (const [id, [lo, hi]] of Object.entries(w.targets)) {
-        if (KNOWN_GAPS[w.id].includes(id)) continue;
         expect(stats[id], `${w.id} ${id}`).toBeGreaterThanOrEqual(lo);
         expect(stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
       }
     });
-    it.each([carbon, silicon])('the known gaps are still gaps (delete the entry when the config is retuned) ($id)', { timeout: 30000 }, (w: WorldConfig) => {
-      const stats = endOfBuild(w);
-      for (const id of KNOWN_GAPS[w.id]) {
-        const [lo, hi] = w.targets[id];
-        expect(stats[id] < lo || stats[id] > hi, `${w.id} ${id} = ${stats[id]}`).toBe(true);
+    it.each([carbon, silicon])('stays alive and in band for a minute after the build ($id)', { timeout: 30000 }, (w: WorldConfig) => {
+      const sim = new WorldSimulation(w, EARTH);
+      sim.advance(w.build.durationSec + 60);
+      const s = sim.snapshot();
+      expect(s.population.consumers).toBeGreaterThan(100);
+      for (const [id, [lo, hi]] of Object.entries(w.targets)) {
+        if (id === 'light' || id === 'pace' || id === 'gravity') continue;
+        expect(s.stats[id], `${w.id} ${id}`).toBeGreaterThanOrEqual(lo);
+        expect(s.stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
       }
     });
   });

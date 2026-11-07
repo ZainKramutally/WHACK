@@ -133,10 +133,11 @@ export const carbon: WorldConfig = {
     assumption: true,
   },
   feedbacks: [
-    // Rates are change in the stat per unit biomass per ecology second; placeholders for the headless tuner.
-    { id: 'photosynthesisOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: 2e-5, why: 'Photosynthesis releases oxygen.', sources: [], assumption: true },
-    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -6e-5, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
-    { id: 'photosynthesisCo2', statId: 'co2', driver: 'producerBiomass', rate: -2e-6, why: 'Photosynthesis draws carbon dioxide out of the air.', sources: [], assumption: true },
+    // Rates are change in the stat per unit biomass per ecology second, scaled to the Ecology's biomass units
+    // (producerBiomass ≈ 3,400, consumerBiomass ≈ 400 at the end of the build); placeholders for the headless tuner (issues #31, #11).
+    { id: 'photosynthesisOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: 2.5e-6, why: 'Photosynthesis releases oxygen.', sources: [], assumption: true },
+    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -2e-5, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
+    { id: 'photosynthesisCo2', statId: 'co2', driver: 'producerBiomass', rate: -2.5e-7, why: 'Photosynthesis draws carbon dioxide out of the air.', sources: [], assumption: true },
     { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 1e-6, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
   ],
   derived: [
