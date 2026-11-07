@@ -43,8 +43,8 @@ export function startSimClient(bus: Bus, opts: SimClientOptions = {}): () => voi
   };
   worker.onerror = (e) => console.error('[sim worker]', e);
 
-  const onSelected = (p: { worldId: 'carbon' | 'silicon'; requested: { temperature: number; nitrogen: number; oxygen: number } }) =>
-    send({ type: 'selectWorld', worldId: p.worldId, requested: p.requested });
+  const onSelected = (p: { worldId: 'carbon' | 'silicon'; requested: { temperature: number; nitrogen: number; oxygen: number }; seed?: number }) =>
+    send({ type: 'selectWorld', worldId: p.worldId, requested: p.requested, seed: p.seed });
   const onControl = (p: { controlId: 'temperature' | 'nitrogen' | 'oxygen'; value: number }) =>
     send({ type: 'controlSet', controlId: p.controlId, value: p.value });
   bus.on('world:selected', onSelected);

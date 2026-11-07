@@ -109,3 +109,7 @@
 .wu-form-type { font-size: 12px; opacity: .75; white-space: nowrap; }
 .wu-forms .wu-dim { font-size: 12px; }
 .wu-details li .wu-v { text-align: right; }
+
+/* Seed line at the bottom of the Conditions panel */
+.wu-seed { margin: 14px 0 0; font-size: 12px; color: var(--wu-dim); }
+.wu-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }

@@ -162,7 +162,7 @@ export interface NewFormEvent { binId: number; name: string; organismId: number 
 /** Typed bus events (CLAUDE.md "Bus events"). */
 export interface BusEvents {
   'selection:changed': { worldId: WorldId; conditions: Conditions };
-  'world:selected': { worldId: WorldId; requested: Conditions };
+  'world:selected': { worldId: WorldId; requested: Conditions; seed?: number };   // seed: this run's seed (default world.demoSeed)
   'build:life': { worldId: WorldId };
   'build:complete': { worldId: WorldId };
   'sim:snapshot': SimSnapshot;

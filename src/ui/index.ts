@@ -12,6 +12,7 @@ import { el } from './dom';
 import { mountFieldGuide } from './fieldGuide';
 import { mountInspectCard } from './inspectCard';
 import { mountLifeRegistry } from './lifeRegistry';
+import { replayUrl } from '../seed';
 import { mountSummaryCard } from './summaryCard';
 import { listen, type UiBus } from './uiBus';
 import type { ControlDef, SimSnapshot, WorldConfig } from '../worlds/types';
@@ -28,6 +29,8 @@ export interface WorldUIOptions {
    * Drive it through the returned toggleConditions / close / selectSlider / nudgeSlider / setInputKind instead.
    */
   externalInput?: boolean;
+  /** This run's seed, shown small in the Conditions panel with a link that replays it. */
+  seed?: number;
 }
 
 type Panel = 'conditions' | 'guide';
@@ -58,6 +61,19 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   const guideTab = mkTab('Field guide', 'guide');
   guideTab.append(guideBadge);
   tabs.append(condTab, guideTab);
+  if (opts.seed !== undefined) {
+    const seedLine = el('p', 'wu-seed', `Seed ${opts.seed} · `);
+    const copy = el('button', 'wu-link', 'Copy link');
+    copy.type = 'button';
+    copy.addEventListener('click', () => {
+      const url = replayUrl(location.href, world.id, opts.seed!);
+      void navigator.clipboard?.writeText(url).catch(() => undefined);
+      copy.textContent = 'Copied';
+      setTimeout(() => { copy.textContent = 'Copy link'; }, 1500);
+    });
+    seedLine.append(copy);
+    conditions.el.append(seedLine);
+  }
   host.append(tabs, conditions.el, guide.el);
 
   let open: Panel | null = null;

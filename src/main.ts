@@ -6,6 +6,7 @@ import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createWorldView } from './render/world';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
+import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
 import { controlList, worldFor } from './worlds';
@@ -14,9 +15,9 @@ import type { Conditions, SimSnapshot, VisualInputs, WorldConfig, WorldId } from
 // ---- injection points ----
 
 /** Terrain: the real analytic sampler (gen/terrain.ts); falls back to flat ground if its config is rejected. */
-function createTerrainSampler(world: WorldConfig): TerrainSampler | Terrain {
+function createTerrainSampler(world: WorldConfig, seed: number): TerrainSampler | Terrain {
   try {
-    return createTerrain(world.terrain, world.demoSeed);
+    return createTerrain(world.terrain, seed);
   } catch (e) {
     console.warn('terrain config rejected, using flat ground:', e);
     return flatTerrain;
@@ -37,7 +38,9 @@ async function boot() {
   const requested: Conditions = Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions;
 
   const app = await createApp();
-  const terrain = createTerrainSampler(world);
+  // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
+  const { seed } = pickSeed(location.search, world.demoSeed);
+  const terrain = createTerrainSampler(world, seed);
   const view = createWorldView(app);
   if ('relics' in terrain) view.setTerrainSampler(terrain);
   // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
@@ -67,7 +70,7 @@ async function boot() {
   });
 
   // In-world UI. The player's input owns Tab/Esc/gamepad, so the UI skips its own.
-  const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true });
+  const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true, seed });
 
   // Player.
   const pick = view.pick;
@@ -115,11 +118,11 @@ async function boot() {
 
 
   // Console handles for debugging and headless smoke tests, behind ?debug (like the fps readout).
-  if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view });
+  if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view, seed, bus });
 
   // Everything is subscribed: start the sim, then select the world.
   startSim(bus);
-  bus.emit('world:selected', { worldId, requested });
+  bus.emit('world:selected', { worldId, requested, seed });
 }
 
 boot().catch((e) => {

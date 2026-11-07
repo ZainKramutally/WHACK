@@ -48,7 +48,7 @@ async function smoke(world) {
   const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
   const problems = [];
   const errs = []; p.on('pageerror', (e) => errs.push('PAGEERR ' + e)); p.on('console', (m) => ['error'].includes(m.type()) && errs.push(m.text().slice(0, 200)));
-  await p.goto(`${BASE}/?world=${world}&debug`);
+  await p.goto(`${BASE}/?world=${world}&debug&demo`);
   await p.evaluate(() => {
     window.__fps = []; let n = 0, last = performance.now();
     const tick = (now) => { n++; if (now - last >= 1000) { window.__fps.push({ fps: Math.round(n * 1000 / (now - last)), prog: window.app?.inputs?.buildProgress ?? 0 }); n = 0; last = now; } requestAnimationFrame(tick); };
