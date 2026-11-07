@@ -109,6 +109,15 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     if (m.side === THREE.DoubleSide) If(frontFacing.not(), () => { N.mulAssign(-1); });
     const col = base.toVar();
     const dist = positionWorld.sub(cameraPosition).length();
+    if (o.translucent) {
+      // flora only: pale surfaces (titan caps, edge-on at distance) tint toward blush/crimson with distance (250-1000 m), so from
+      // the air groves group as masses instead of a speckle of white discs
+      const pale = smoothstep(0.45, 0.75, dot(base, vec3(0.2126, 0.7152, 0.0722)));
+      const up = float(1); // all pale flora surfaces: thin far discs read edge-on, so undersides count too
+      const far = smoothstep(250, 1000, dist);
+      base.assign(mix(base, mix(c3(PALETTE.blush), c3(PALETTE.crimson), 0.6), pale.mul(up).mul(far).mul(0.9)));
+      col.assign(base);
+    }
 
     if (o.bounce !== false) {
       const orient = dot(N, vec3(0, -1, 0)).smoothstep(-0.3, 1.0);
