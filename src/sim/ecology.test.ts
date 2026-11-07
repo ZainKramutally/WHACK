@@ -3,6 +3,8 @@ import { CAP, Ecology, type EcologyEnv, type EcologyLedger } from './ecology';
 import { CELLS, FLORA_STRIDE, GRID, createGrid, liquidFromHeights } from './grid';
 import { ORGANISM_STRIDE, readOrganism } from './organismLayout';
 import type { LifeRules } from './population';
+import { worlds } from '../worlds';
+import { ecologyFromWorld } from './__fixtures__/ecologyFromWorld';
 
 // Fixtures only: the real values live in each world's config (life.rules, life.ledger, life.inputs).
 const rules: LifeRules = {
@@ -165,19 +167,26 @@ describe('Ecology: headless carbon-like run', () => {
     expect(eco.drainBirths().length).toBeGreaterThan(24);
   });
   const slow = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SLOW;
-  it.skipIf(!slow)('full 340 ecology-second build: legs, plates and hunters evolve, cap respected (SLOW)', () => {
-    const { eco } = make();
-    eco.seedLife(env);
+  it.skipIf(!slow)('carbon demo seed, real config: legs, plates and hunters together by 340 ecology-s (SLOW)', () => {
+    const { eco, env: e } = ecologyFromWorld(worlds.carbon);
+    eco.seedLife(e);
     const t0 = performance.now();
-    run(eco, 6800);
+    let hunterSamples = 0;
+    for (let t = 1; t <= 6800; t++) {
+      eco.step(e, DT);
+      if (t > 5100 && t % 170 === 0) hunterSamples += hunters(eco) > 0 ? 1 : 0; // last 85 s, every 8.5 s
+    }
     const ms = performance.now() - t0;
     const legged = living(eco).filter((i) => eco.plan[i].legPairs > 0).length;
-    console.log(`SLOW 6800 ticks: ${ms.toFixed(0)} ms, animals ${eco.animals}, legged ${legged}, gen ${eco.stats().generation.toFixed(1)}`);
-    expect(eco.animals).toBeGreaterThanOrEqual(1);
+    const plated = living(eco).filter((i) => eco.genome[i].body.plates > 0.3).length;
+    console.log(`SLOW 6800 ticks: ${ms.toFixed(0)} ms, animals ${eco.animals}, legged ${legged}, plated ${plated}, hunters ${hunters(eco)} (present in ${hunterSamples}/10 late samples), gen ${eco.stats().generation.toFixed(1)}`);
     expect(eco.animals).toBeLessThanOrEqual(CAP);
     expect(legged).toBeGreaterThan(0);
-  });
+    expect(plated).toBeGreaterThan(0);
+    expect(hunters(eco)).toBeGreaterThan(0);
+  }, 60000);
 });
+const hunters = (eco: Ecology) => living(eco).filter((i) => eco.plan[i].meatGain > 0.25 && eco.plan[i].gapeSize > 0.3 * eco.plan[i].scale).length;
 
 describe('Ecology: silicon rules', () => {
   const allSea = new Float64Array(CELLS).fill(1);
@@ -205,3 +214,20 @@ describe('Ecology: silicon rules', () => {
     expect(grid.stone.every((v) => v === 0)).toBe(true);
   });
 });
+
+describe('Ecology from the real world configs', () => {
+  for (const id of ['carbon', 'silicon'] as const) {
+    it(`${id}: constructs from its config, seeds life and survives 200 ticks`, () => {
+      const { eco, env: e } = ecologyFromWorld(worlds[id]);
+      eco.seedLife(e);
+      const founders = eco.animals;
+      expect(founders).toBeGreaterThanOrEqual(24);
+      run2(eco, e, 200);
+      expect(eco.animals).toBeGreaterThan(0);
+      expect(Number.isFinite(eco.matterTotal())).toBe(true);
+      expect(eco.biomass().producerBiomass).toBeGreaterThan(0);
+      if (id === 'silicon') expect(eco.grid.stone.every((v) => v === 0)).toBe(true); // o = 0: no builders, no ceramic-free stone
+    });
+  }
+});
+function run2(eco: Ecology, e: EcologyEnv, ticks: number) { for (let t = 0; t < ticks; t++) eco.step(e, DT); }

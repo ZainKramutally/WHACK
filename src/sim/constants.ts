@@ -1,4 +1,4 @@
-// The sim's tunables: DECISIONS.md §G.2, exactly the 15 constants. Budget: ≤ 25 (guardrail 5).
+// The sim's tunables: DECISIONS.md §G.2, exactly the 14 constants. Budget: ≤ 25 (guardrail 5).
 // Every addition costs a removal. Structure (GRID 64, TICK 20 Hz, CAP 1024) is not tunable and lives elsewhere.
 // Each entry: default value + tag. 'game' = a declared game-balance knob; 'sci' = sourced from the literature.
 // Solvent, air density and tissue density are world facts (WorldConfig.life.inputs), not constants.
@@ -39,8 +39,6 @@ export const CONSTANTS = deepFreeze({
   FLY_K: c(1.0, 'game'),
   /** R3: Kleiber exponent (1932). */
   KLEIBER: c(0.75, 'sci'),
-  /** R3: Q10 of the (log-compressed) rate(heat), Gillooly 2001. */
-  Q10: c(2.5, 'sci'),
   /** R3: share of upkeep that full eyes cost (Moran 2015). */
   EYE_FRAC: c(0.15, 'sci'),
   /** R4: trophic transfer ε = EPS0·(1 + 2·Hunger), 6–18% (Lindeman 1942, recalled). */

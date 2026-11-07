@@ -251,7 +251,7 @@ export const silicon: WorldConfig = {
       producer: { lightGain: 1, upkeep: 0.3 },
       consumer: { biteRate: 10, biteSize: 0.12, assimilation: 0.7, upkeep: 0.15, halfFood: 40, interference: 4, grazeShare: 0.6 },
       reproduction: { energyThreshold: 1, childShare: 0.5, maturityAge: 0.3 },
-      lifespan: 6,
+      lifespan: 40,   // ecology seconds at M = 1 (scales with M^0.25); 6 was the old population.ts value and starves the new ecology's generation time
       toleranceCost: 0.02,
       stressDeath: 1.5,
       edgeStressWeight: 1,
@@ -260,7 +260,37 @@ export const silicon: WorldConfig = {
       chemTrait: { kind: 'coldStability', warmRelief: 0.5, cost: 0.2 },
     },
     composition: { c: 0.1, si: 0.9, o: 0.0 },
-    ledger: {},   // typed when sim/ecology.ts lands
+    // Ecology scalings (issue #19, all assumption: true). Tuned on the demo seed so legs, plates and hunters appear together by ~340 ecology-s.
+    ledger: {
+      massUnit: 1, // kg of develop() mass per matter unit (unit conversion)
+      floraLightGain: 100, // assumption: crystalline flora is adapted to ~1% starlight, so it still grows; eyes and glow still see the real light
+      upkeepScale: 0.02, // converts B0·M^0.75 into matter per ecology second; sets generation time near 25 s
+      cellMass: 40, // matter in a cell fully covered by flora
+      shadeK: 1.2, // Beer–Lambert canopy shading of ground mats
+      waterAttn: 0.3, // light lost per metre of liquid depth, so flora lives in the shallows
+      canopyRate: 0.3, // canopy growth relative to mat growth
+      floraDecay: 0.02, // share of flora lost per ecology second; returned as nutrients
+      spread: 0.5, // how strongly neighbouring mats seed an empty cell, so flora colonises land from the shore
+      seedMat: 0.3, // flora biomass planted in the shallows when life appears
+      shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
+      deepLiquid: 6, // liquid depth (m) that gives full shelter
+      wadeDepth: 0.5, // deepest liquid (m) a walker can cross
+      intake: 3, // assumption: raised so slow-pace silicon grazers still bud within their lifespan
+      speed: 1.5, // cells per ecology second
+      moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost
+      catchRate: 0.4, // catch attempts per ecology second when a prey is in reach; tuned so hunters persist
+      buildRate: 0.05, // stone matter per M^0.75 per ecology second while a builder rests at home
+      senseBase: 0.7, // cells an animal sees with no eyes
+      senseGain: 0.8, // extra cells seen at full eyes in full light
+      lureWeight: 0.5, // how strongly grazers are drawn to glow in the dark
+      glowCost: 0.3, // extra upkeep share at full glow
+      sizeRef: 1, // body length (m) that counts as size 1 for the oxygen cap
+      hungerTime: 10, // seconds of standing flora counted as one second of supply, for Hunger
+      founders: 24, // seeded capsule worms when life appears (at least 24)
+      supplyC: 5, // starting carbon nutrient per cell, in matter units
+      supplySi: 40, // starting silicon nutrient per cell, in matter units
+      supplyO: 0, // no free oxygen: it would turn silicon into rock
+    },
     inputs: {
       solvent: {
         rho: 0.81, mu: 0.16, epsilonR: 1.43, liquidBandC: [-210, -147],   // g/cm³, mPa·s, –, °C (liquid N₂ near 77 K)

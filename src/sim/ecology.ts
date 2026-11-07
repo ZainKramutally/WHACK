@@ -27,6 +27,7 @@ export interface EcologyEnv extends Environment { heatBand: number }
  */
 export interface EcologyLedger {
   massUnit: number; // kg of develop() mass per matter unit
+  floraLightGain: number; // flora light efficiency: effective light = min(1, light × this), so dim-star flora can still grow
   upkeepScale: number; // converts B0·M^0.75 into matter per ecology second
   cellMass: number; // matter in a cell fully covered by flora (biomass 1)
   shadeK: number; // Beer–Lambert: light under canopy = light·exp(−shadeK·canopy)
@@ -53,7 +54,7 @@ export interface EcologyLedger {
 }
 
 export const DEFAULT_LEDGER: EcologyLedger = {
-  massUnit: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
+  massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
   hungerTime: 10, founders: 24,
@@ -184,6 +185,7 @@ export class Ecology {
     const P0 = CONSTANTS.P0.value;
     const hab = clamp01(this.env.habitat);
     const decay = Math.min(1, L.floraDecay * dt);
+    const sun = Math.min(1, this.env.light * L.floraLightGain);
     const cm = L.cellMass;
     for (let i = 0; i < CELLS; i++) {
       // decay returns nutrients
@@ -195,7 +197,7 @@ export class Ecology {
         can -= can * decay;
       }
       const wet = g.liquid[i] > 0;
-      const light = this.env.light * Math.exp(-L.shadeK * can - L.waterAttn * g.liquid[i]);
+      const light = sun * Math.exp(-L.shadeK * can - L.waterAttn * g.liquid[i]);
       g.light[i] = light;
       const x = i % GRID;
       const y = (i / GRID) | 0;
@@ -210,7 +212,7 @@ export class Ecology {
       b += grow;
       let growC = 0;
       if (!wet) {
-        growC = P0 * dt * hab * this.env.light * L.canopyRate * b * (1 - can);
+        growC = P0 * dt * hab * sun * L.canopyRate * b * (1 - can);
         growC = this.limit(i, growC, 1 - can);
         can += growC;
       }
