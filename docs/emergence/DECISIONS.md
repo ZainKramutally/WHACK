@@ -3,7 +3,7 @@
 > **Proxy decisions by an agent acting for the owner. Override any line.**
 > 2026-11-07. **Revised the same day after an owner override: no Storm, and no global or periodic cycle of any kind** (no day/night, no seasons-as-rule). The jobs the Storm did are now done by space, chemistry and predation.
 >
-> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Open items are tracked as GitHub issues:** #25 (round-3 prototype), #26 (verify recalled sources), #27 (quantities that feed nothing). **Gene budget (owner ruling):** 15 genes = 12 body + the 3 climate genes in `population.ts`.
+> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Open items are tracked as GitHub issues:** #25 (round-3 prototype), #26 (verify recalled sources), #27 (quantities that feed nothing). **As built** (`session/logic` 073732b): the 12 rules are implemented, `Q10` is replaced by `pace()` (14 constants), `life.rules.lifespan` is 40 in both worlds (at 6, nothing reached a generation), and silicon needs a world-config ledger key `floraLightGain = 100` (flora sees min(1, light × gain)) to survive 1% starlight. That key is an `assumption: true` and an honesty-box candidate, raised with the owner. **Gene budget (owner ruling):** 15 genes = 12 body + the 3 climate genes in `population.ts`.
 >
 > **Second revision, same day: the owner's 10 simplicity guardrails are applied throughout (§G).** Limits: 12 rules, 12 genes, ≤ 25 sim constants in `sim/constants.ts`, no preset code, read-only render, and a `→ NOT_NOW` parking lot at the end of §4.
 >
@@ -227,7 +227,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 2 | **One of everything** | One utility loop (R5), one relationship function (R6), one `develop()` (R9) and one ledger (R3). No per-species FSM, no basin special cases in the sim |
 | 3 | **Derive, don't author** | Roles, relationships, niches, channel shares, bulk forage, boldness, range and litter size are all *derived*. The 7 named basins leave the sim: they become **anonymous look attractors in the renderer**, and names come from a trait-based name generator |
 | 4 | **Small genome** | **15 genes: 12 body genes (below) + the 3 climate genes already built in `src/sim/population.ts`** (preferred temperature, tolerance width, and oxygen need on carbon / cold stability on silicon). Owner ruling 2026-11-07. Down from F's 32; the other 20 become derived look or behaviour, or go to NOT_NOW. A new gene costs a removal |
-| 5 | **Tunables cap** | 15 sim constants in `sim/constants.ts` (below): 9 `[game]`, 6 `[sci]`. That leaves 10 slots of headroom, and every addition costs one removal. Per-world facts (solvent, air and tissue density) live in each world's config (`life.inputs`), per `CLAUDE.md`'s "science lives in data" rule, and don't count here |
+| 5 | **Tunables cap** | 14 sim constants in `sim/constants.ts` (below): 9 `[game]`, 5 `[sci]`. That leaves 11 slots of headroom, and every addition costs one removal. Per-world facts (solvent, air and tissue density) live in each world's config (`life.inputs`), per `CLAUDE.md`'s "science lives in data" rule, and don't count here |
 | 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. **1,024 animals** (owner ruling; never fewer than 1,000, no 512 tier). ⏩ = more 20 Hz ticks per frame |
 | 7 | **Feature gate** | A rule or feature ships only if a headless A/B raises a §A variety metric or the readability metric (§5 acceptance rule) |
 | 8 | **No cheats, no preset code** | No midwives, no rescues, no `if preset ==`, no seeded lineages. Presets = dial values only. Fallbacks that broke this were removed (Q3, Q4, hunters). The menagerie is flagged for the owner |
@@ -257,7 +257,7 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 - radius profile, symmetry (radial when si high and limbPairs 0), axis, head length/width, joint bias, dorsal rods vs frills (from comp), low-Re cilia fringe (from Re), tail type, eye count (from the `eyes` gene; F §3.3's `eyeCountBias` gene no longer exists), horn count, skin pattern
 - in the sim: boldness = defence/(defence + threat), range (from cost of transport), litter size (bud energy ÷ offspring mass), sessile mode (the cheapest mode when moving costs more than filtering)
 
-### G.2 `sim/constants.ts`: all 15
+### G.2 `sim/constants.ts`: all 14
 
 | # | Constant | Default | Tag | Rule |
 |---|---|---|---|---|
@@ -271,11 +271,10 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 | 8 | `TSR` temperature–size magnitude | 0.6 | [game]; [sci] direction Atkinson 1994 `[verified]` | R9 |
 | 9 | `FLY_K` flight/hover scale | tune | [game] | R10 |
 | 10 | `KLEIBER` | 0.75 | [sci] Kleiber 1932 `[verified]` | R3 |
-| 11 | `Q10` (rate log-compressed) | 2.5 | [sci] Gillooly 2001 `[verified]` | R3 |
-| 12 | `EYE_FRAC` | 0.15 | [sci] Moran 2015 `[verified]` | R3 |
-| 13 | `EPS0` (ε = EPS0·(1 + 2·Hunger), 6–18%) | 0.06 | [sci] Lindeman 1942 `[recalled]` | R4 |
-| 14 | `GEN_EXP` | 0.25 | [sci] Brown 2004 `[verified]` | R8 |
-| 15 | `TSR_LAND` | 0.1 | [sci] Forster 2012 `[verified]` | R9 |
+| 11 | `EYE_FRAC` | 0.15 | [sci] Moran 2015 `[verified]` | R3 |
+| 12 | `EPS0` (ε = EPS0·(1 + 2·Hunger), 6–18%) | 0.06 | [sci] Lindeman 1942 `[recalled]` | R4 |
+| 13 | `GEN_EXP` | 0.25 | [sci] Brown 2004 `[verified]` | R8 |
+| 14 | `TSR_LAND` | 0.1 | [sci] Forster 2012 `[verified]` | R9 |
 
 **World facts, not sim constants** (moved to each world's config, `life.inputs`, each with a `why` and `sources`, per `CLAUDE.md`): `solvent` {ρ, μ, ε_r, liquid band} ([sci] handbook `[recalled]`; R2, R10), `airDensity` ([sci] `[INFERRED]`, P·M/(R·T); R1, R10; `develop()` already takes it as an input), `tissueDensity` {C 1.05, Si 2.2} ([sci] `[recalled]`; R10).
 
@@ -348,7 +347,7 @@ Status:
 
 Solvent values are `[recalled]` handbook figures at the liquid's typical temperature.
 
-**Budget check (guardrails 4–5):** every row uses only the 12 body genes plus 3 climate genes (G.1), the 15 constants (G.2) and the world-config inputs (solvent, airDensity, tissueDensity). Derived quantities are fine. Rows that would have needed a new gene or constant are marked **→ NOT_NOW** or **render-only**.
+**Budget check (guardrails 4–5):** every row uses only the 12 body genes plus 3 climate genes (G.1), the 14 constants (G.2) and the world-config inputs (solvent, airDensity, tissueDensity). Derived quantities are fine. Rows that would have needed a new gene or constant are marked **→ NOT_NOW** or **render-only**.
 
 | Quantity (source in model) | Equation / direction | Tag | Feeds (genes · constants) | What you SEE | Status |
 |---|---|---|---|---|---|
@@ -360,7 +359,7 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 | **Solvent viscosity μ** (0.89, 0.25, 0.12, ≈ 25 mPa·s) → Re = ρ·v·S/μ (vs Water ×2.4, ×3.1, ×3.1, ×0.065) | the weight on form drag rises with log Re, anchored to Water. At high Re, `segments` (elongation) cuts swim cost; at low Re, drag ∝ surface favours compact bodies | [sci] Purcell 1977 `[recalled]` | R10 · `segments`, `size`, `solvent` (world) | methane/ammonia: torpedo eels. Acid: compact swimmers with a cilia fringe (fringe is **render-only**, from Re) | NEW |
 | **Solvent polarity ε_r** (80, 22, 1.7, ≈ 100) | attack = `DISSOLVE`·ε_r/80 on unplated Si (Water, NH₃) or C shell/stone (Acid). Methane ≈ 0. Dissolved matter returns to cells (R2) | [sci] direction (sea silica mostly dissolves, Tréguer 1995 `[verified]` fact); [game] scale | R2 · `plates`, `DISSOLVE`, `solvent` (world) | plated forms in Water; bare Si in Methane | LIVE (Water, Acid), NEW (ε_r scaling) |
 | **Liquid temperature range** (0–100, −78 to −33, −182 to −162, 10–337 °C) | Heat = position inside the solvent's liquid band. Absolute T is unused | [game], declared (real Arrhenius at 90 K would freeze methane life) | — | — | **FLAG** feeds nothing → NOT_NOW (ℓ from band edges, frost fringe) |
-| **Temperature** (Heat) | rate(heat) via `Q10` → upkeep, speed, tempo, generation time. Adult scale × (1 + `TSR`·(1 − 2·heat)), ×`TSR_LAND` for walkers. Lifespan ∝ M^0.25/rate | [sci] Gillooly 2001, Atkinson 1994, Forster 2012 `[verified]`; [game] magnitude | R3, R9 · `Q10`, `TSR`, `TSR_LAND`, `GEN_EXP` | everything speeds up when hot; big slow swimmers in cold seas | LIVE |
+| **Temperature** (Heat) | rate(heat) via `pace()` (world config `life.rules.metabolism`; `Q10` removed) → upkeep, speed, tempo, generation time. Adult scale × (1 + `TSR`·(1 − 2·heat)), ×`TSR_LAND` for walkers. Lifespan ∝ M^0.25/rate | [sci] Gillooly 2001, Atkinson 1994, Forster 2012 `[verified]`; [game] magnitude | R3, R9 · `Q10`, `TSR`, `TSR_LAND`, `GEN_EXP` | everything speeds up when hot; big slow swimmers in cold seas | LIVE |
 | **Microclimate** (shelter) | heat pulled toward mild by `REFUGE`·shelter | [sci] direction (burrow buffering); [game] | R7 · `REFUGE` (shared) | in extreme-heat worlds the big and slow cluster in dens | NEW (no new constant) |
 | **Light intensity** (Light) | flora ∝ light (R1). Eye benefit = vision ∝ light vs cost `EYE_FRAC`, so eyes regress in the dark *without a rule*. Glow lures pay when dim, on both worlds: glow output = `glow`·(1 − light). On carbon it's luciferase-style bioluminescence; on silicon, chemiluminescence (`assumption: true`) | [sci] Moran 2015, Nilsson 2012, Warrant & Locket 2004, Martini & Haddock 2017 `[verified]` | R1, R3, R5, R9 · `eyes`, `glow`, `EYE_FRAC` | big eyes at dusk, eyeless den-dwellers, glow lures; caps vs glow bulbs | LIVE (the `o > 0.3` threshold dropped) |
 | **Light spectrum** (tholin orange) | sky/stain colour; skin hue tinted by ambient spectrum | [game] | render only | orange-tinted skins | **FLAG** no sim effect (render-only, allowed by guardrail 9) |
@@ -401,7 +400,7 @@ None needs a new gene or constant to stay as it is. Anything more goes to NOT_NO
 | Seeded buoyant founder lineage | round 2 recipe 5a | A seed / preset code (guardrail 8) | — (NOT_NOW) |
 | Litter ∝ S, lifespan × heat bonus | round 2 recipe 5c | Extra size rules | Jarman–Bell + filter + gape refuge + patch travel (Q2). Litter is derived |
 | 20 of F's 32 genes (profile, symmetry, axis, head, limb domain/period/joint bias, plate size, dorsal mix/density, tail, eye/horn count, boldness, r/K, skin pattern, headWidth, motility) | F §3.3 | Each adds a gene with no unique sim payoff | 12 genes (G.1); the rest is derived look or behaviour |
-| Per-trait ledger prices (plate build 0.05, glow 0.3, eye 0.2, hover k, intake scarcity 0.6, speed × O, vigilance 0.2, microclimate 30%, `si·o > 0.12` builder flag, `o > 0.3` glow-eye gate, g(heat) hump, canopy/air/den share coefficients, Hox p, segment-dup p) | F §3.4, REPORT §9.3, earlier draft | Constants that steer without new behaviour | Structures cost their mass at the R2 element price. Shares emerge from the grid. 15 constants (G.2) |
+| Per-trait ledger prices (plate build 0.05, glow 0.3, eye 0.2, hover k, intake scarcity 0.6, speed × O, vigilance 0.2, microclimate 30%, `si·o > 0.12` builder flag, `o > 0.3` glow-eye gate, g(heat) hump, canopy/air/den share coefficients, Hox p, segment-dup p) | F §3.4, REPORT §9.3, earlier draft | Constants that steer without new behaviour | Structures cost their mass at the R2 element price. Shares emerge from the grid. 14 constants (G.2) |
 | Named basins in the sim | round 2 `BASINS` | A table that names species (guardrail 3) | Anonymous look attractors in the renderer (guardrail 9) |
 | L-system flora as sim agents | F §5 | Second agent type | Per-cell flora biomass. L-system shapes are render-only |
 | Basins by authored affinity | round 2 | Failed and steers | By occupancy |
@@ -448,7 +447,7 @@ Keep, though authored: the `develop()` grammar, the ledger, render-side look att
 | honesty | flattened ledger (look attractors fill by volume); shuffled access functions (different attractors fill) | §9.8 guards |
 | guardrail audit | grep the sim for `preset`, species names and basin ids; count rules, genes and constants | must be 0 / 0 / 0 hits; ≤ 12 / 12 / ≤ 25 |
 
-All configs use the 15-gene genome (12 body + 3 climate) and the 15 constants (G.1–G.2), with world facts from config, on one 64² grid at a fixed 20 Hz tick (dt 0.05). The toy's dt 0.25 is replaced.
+All configs use the 15-gene genome (12 body + 3 climate) and the 14 constants (G.1–G.2), with world facts from config, on one 64² grid at a fixed 20 Hz tick (dt 0.05). The toy's dt 0.25 is replaced.
 
 **Pass bars:**
 - `full` must pass M1–M14 and the per-preset §A bars in ≥ 4/5 presets.
