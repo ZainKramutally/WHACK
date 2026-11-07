@@ -33,5 +33,5 @@ Drop anything that inspires the build here: visual or technical, half-formed or 
 
 | Date | Who | Type | Ref | Steal this |
 |---|---|---|---|---|
-| 2026-11-07 | team | site | [Bruno Simon 2019](sites/bruno-simon-2019/) | Driveable toy-world portfolio: physics car, baked lighting, playful discovery |
-| 2026-11-07 | team | site | [Bruno Simon (current)](sites/bruno-simon/) | Current portfolio: see breakdown |
+| 2026-11-07 | team | site | [Bruno Simon 2019](sites/bruno-simon-2019/BREAKDOWN.md) | Loader becomes the START pad, radial world rise, matcaps + fake offset shadows (no real lights), diegetic floor UI, velocity-pitched SFX |
+| 2026-11-07 | team | site | [Bruno Simon 2025](sites/bruno-simon/BREAKDOWN.md) | Same stack as ours (WebGPU + TSL + Rapier). Circle-reveal intro, one palette material, violet coloured shadows, bloom threshold 1, tilt-shift DOF, real-clock day/season cycles, Blender-named colliders |
