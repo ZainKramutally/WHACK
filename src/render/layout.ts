@@ -94,7 +94,20 @@ export function marchRay(o: Vec3, d: Vec3, opt: MarchOptions): { target: Inspect
   return { target: { kind: 'sky' }, dist: maxDist };
 }
 
-/** Ray vs sphere; returns the nearest positive distance or −1. `d` must be normalised. */
+/**
+ * Where a ray ENTERS a sphere: the near intersection if it is in front of the origin, else −1. A ray that starts inside
+ * the sphere (or points away from it) does not enter it. `d` must be normalised.
+ */
+export function raySphereEntry(o: Vec3, d: Vec3, c: Vec3, r: number): number {
+  const ox = o.x - c.x, oy = o.y - c.y, oz = o.z - c.z;
+  const b = ox * d.x + oy * d.y + oz * d.z;
+  const disc = b * b - (ox * ox + oy * oy + oz * oz - r * r);
+  if (disc < 0) return -1;
+  const t0 = -b - Math.sqrt(disc);
+  return t0 > 0 ? t0 : -1;
+}
+
+/** Ray vs sphere; returns the nearest positive distance or −1 (counts the far side when starting inside). `d` must be normalised. */
 export function raySphere(o: Vec3, d: Vec3, c: Vec3, r: number): number {
   const ox = o.x - c.x, oy = o.y - c.y, oz = o.z - c.z;
   const b = ox * d.x + oy * d.y + oz * d.z;
@@ -450,7 +463,7 @@ export function nearestSphere(
 ): { id: number; dist: number } | null {
   let best: { id: number; dist: number } | null = null;
   for (let i = 0; i < n; i++) {
-    const t = raySphere(o, d, { x: xs[i], y: ys[i], z: zs[i] }, rs[i]);
+    const t = raySphereEntry(o, d, { x: xs[i], y: ys[i], z: zs[i] }, rs[i]);
     if (t > 0 && (!best || t < best.dist)) best = { id: ids[i], dist: t };
   }
   return best;

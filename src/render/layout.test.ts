@@ -53,6 +53,19 @@ describe('nearestSphere', () => {
     expect(hit?.dist).toBeCloseTo(4);
     expect(nearestSphere({ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, ids, xs, ys, zs, rs, 2)).toBeNull();
   });
+  const O = { x: 0, y: 0, z: 0 }, FWD = { x: 0, y: 0, z: 1 };
+  it('a ray starting inside a sphere is not a hit (the camera can sit inside a big creature)', () => {
+    expect(nearestSphere(O, FWD, [1], [0], [0], [2], [5], 1)).toBeNull();
+    // ...but another sphere further ahead (outside the one we are in) is hit.
+    expect(nearestSphere(O, FWD, [1, 2], [0, 0], [0, 0], [2, 12], [5, 1], 2)?.id).toBe(2);
+  });
+  it('spheres behind the origin are ignored', () => {
+    expect(nearestSphere(O, FWD, [1], [0], [0], [-6], [1], 1)).toBeNull();
+  });
+  it('a grazing ray still hits, a near-miss does not', () => {
+    expect(nearestSphere({ x: 1, y: 0, z: 0 }, FWD, [1], [0], [0], [5], [1], 1)?.dist).toBeCloseTo(5);
+    expect(nearestSphere({ x: 1.01, y: 0, z: 0 }, FWD, [1], [0], [0], [5], [1], 1)).toBeNull();
+  });
 });
 
 describe('marchRay', () => {

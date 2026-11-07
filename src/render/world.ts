@@ -52,6 +52,8 @@ export interface WorldView {
   setCreatureScale(k: number): void;
   /** Resolves when every material in the scene (including the card swatches) is compiled. Await this instead of calling compileAsync yourself. Never rejects. */
   readonly ready: Promise<void>;
+  /** World position and pick radius of a drawn creature by id (debugging / tests). */
+  locate(id: number): { x: number; y: number; z: number; radius: number } | null;
   readonly counts: { creatures: number; plants: number };
   /** Per-part CPU ms accumulated since creation (for profiling; reset fields to 0 to restart). */
   readonly prof: Record<'frames' | 'total' | 'terrain' | 'sky' | 'sea' | 'fauna' | 'flora' | 'counterpart', number>;
@@ -163,6 +165,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       return patch;
     },
     pick: (at) => picker.resolve(at),
+    locate: (id) => fauna.locate(id),
     setCreatureScale(k) {
       fauna.scaleBoost = k;
     },

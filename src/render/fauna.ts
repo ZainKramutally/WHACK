@@ -17,7 +17,7 @@ import { ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim
 import { unpackBodyPlan } from '../sim/plan';
 import { LOCOMOTION } from '../sim/develop';
 import {
-  armRods, beadLayout, capsuleLayout, displayFactor, displayLength, limbChain, nearestSphere, patchToWorld, type BeadLayout, type Vec3,
+  armRods, beadLayout, capsuleLayout, displayFactor, displayLength, limbChain, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
   armStance, bellPulse, fadeScale, gaitFoot, interpPose, limbPhaseOffset, rollAngle, swayOffset, swimWave,
@@ -155,6 +155,8 @@ export function createFauna(app: App): FaunaPart {
   // Pick data, rebuilt every update.
   let pid = new Float64Array(1024), px = new Float32Array(1024), py = new Float32Array(1024), pz = new Float32Array(1024), pr = new Float32Array(1024);
   let pn = 0;
+  // Per live creature for the precise pick: the entry, its draw scale and ground base.
+  let pe: Entry[] = [], pS = new Float32Array(1024), pY0 = new Float32Array(1024);
 
   function makeEntry(layout: BeadLayout, silicon: boolean, diet: number, glow: number, scale: number, id: number, planned = false): Entry {
     return {
@@ -327,7 +329,7 @@ export function createFauna(app: App): FaunaPart {
       const n = organismCount(buf);
       if (px.length < n) {
         const m = Math.max(n, px.length * 2);
-        pid = new Float64Array(m); px = new Float32Array(m); py = new Float32Array(m); pz = new Float32Array(m); pr = new Float32Array(m);
+        pS = new Float32Array(m); pY0 = new Float32Array(m); pid = new Float64Array(m); px = new Float32Array(m); py = new Float32Array(m); pz = new Float32Array(m); pr = new Float32Array(m);
       }
       pn = 0;
       const boost = part.scaleBoost;
@@ -394,7 +396,8 @@ export function createFauna(app: App): FaunaPart {
           carr[c3] = rgb[t3] * glowK; carr[c3 + 1] = rgb[t3 + 1] * glowK; carr[c3 + 2] = rgb[t3 + 2] * glowK;
         }
         if (live) {
-          pid[pn] = e.id; px[pn] = e.x; py[pn] = y0 + lay.centreY * s; pz[pn] = e.z; pr[pn] = Math.max(lay.radius * s, 0.5);
+          pid[pn] = e.id; px[pn] = e.x; py[pn] = y0 + lay.centreY * s; pz[pn] = e.z; pr[pn] = Math.max(lay.radius * s * 0.85, 0.3); // tight: 85% of the bead bounds, at least 30 cm
+          pe[pn] = e; pS[pn] = s; pY0[pn] = y0;
           pn++;
         }
       }
@@ -461,7 +464,27 @@ export function createFauna(app: App): FaunaPart {
       part.count = pn;
     },
     hit(origin, dir) {
-      return nearestSphere(origin, dir, pid, px, py, pz, pr, pn);
+      // Broad phase: the loose bounding sphere (either side, so a camera inside one still tests the body).
+      // Narrow phase: the creature's drawn parts (beads, and sample points along rods), at rest pose, a little padded.
+      let best: { id: number; dist: number } | null = null;
+      const c = { x: 0, y: 0, z: 0 };
+      for (let i = 0; i < pn; i++) {
+        if (raySphere(origin, dir, { x: px[i], y: py[i], z: pz[i] }, pr[i]) <= 0) continue;
+        const e = pe[i], s = pS[i], y0 = pY0[i];
+        const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
+        let t = -1;
+        const test = (lx: number, ly: number, lz: number, r: number) => {
+          c.x = e.x + (lx * s) * cosH - (lz * s) * sinH; c.y = y0 + ly * s; c.z = e.z + (lx * s) * sinH + (lz * s) * cosH;
+          const d = raySphereEntry(origin, dir, c, r * s * 1.2 + 0.05);
+          if (d > 0 && (t < 0 || d < t)) t = d;
+        };
+        for (const b of e.layout.beads) test(b.x, b.y, b.z, b.r);
+        for (const r of e.layout.radial?.rods ?? []) {
+          for (const f of [0, 0.33, 0.67, 1]) test(r.ax + (r.bx - r.ax) * f, r.ay + (r.by - r.ay) * f, r.az + (r.bz - r.az) * f, r.r);
+        }
+        if (t > 0 && (!best || t < best.dist)) best = { id: pid[i], dist: t };
+      }
+      return best;
     },
     layoutOf(id) {
       const e = entries.get(id);
