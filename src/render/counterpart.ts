@@ -90,7 +90,9 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     round: new THREE.MeshStandardNodeMaterial({ roughness: 0.6 }),
     faceted: new THREE.MeshStandardNodeMaterial({ roughness: 0.35, flatShading: true }),
   };
-  const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0) };
+  // Radial (silicon) bodies are prisms: one n-gon cylinder per hub symmetry plus a hex one for arms, tiles and spires.
+  const prism = (n: number) => { const g = new THREE.CylinderGeometry(1, 1, 1, n, 1); g.rotateY(Math.PI / 2); return g; };
+  const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0), p3: prism(3), p4: prism(4), p6: prism(6) };
   const geo = <T extends THREE.BufferGeometry>(g: T): T => { disposables.push(g); return g; };
 
   const backdrops = new Map<string, THREE.Mesh>();
@@ -133,6 +135,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       minY = Math.min(minY, b.y - b.r);
       maxY = Math.max(maxY, b.y + b.r);
     }
+    const rods = lay.radial?.rods ?? [];
+    for (const r of rods) {
+      reach = Math.max(reach, Math.hypot(r.ax, r.az) + r.r, Math.hypot(r.bx, r.bz) + r.r);
+      minY = Math.min(minY, r.ay - r.r, r.by - r.r);
+      maxY = Math.max(maxY, r.ay + r.r, r.by + r.r);
+    }
     const halfH = Math.tan((cam.fov * Math.PI) / 360) * cam.position.z;
     // Fit the window, but keep the spin radius small next to the camera distance so near parts don't balloon.
     const k = Math.min((halfH * aspect * 0.8) / reach, (halfH * 0.62) / Math.max(0.05, (maxY - minY) / 2), 1.4 / reach);
@@ -146,6 +154,25 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     mesh.frustumCulled = false;
     mesh.position.y = 0.6; // a little above the look-at height so hanging limbs stay in frame
     turntable.add(mesh);
+    if (lay.radial) {
+      const R = lay.radial;
+      const hubGeo = R.hubSides === 3 ? beadGeo.p3 : R.hubSides === 4 ? beadGeo.p4 : beadGeo.p6;
+      const hub = new THREE.InstancedMesh(hubGeo, beadMat.faceted, R.nTiers);
+      const hex = new THREE.InstancedMesh(beadGeo.p6, beadMat.faceted, Math.max(1, rods.length - R.nTiers));
+      const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), pos = new THREE.Vector3(), sc = new THREE.Vector3();
+      rods.forEach((r, i) => {
+        d.set(r.bx - r.ax, r.by - r.ay, r.bz - r.az);
+        const len = Math.max(1e-5, d.length());
+        q.setFromUnitVectors(up, d.divideScalar(len));
+        pos.set(((r.ax + r.bx) / 2) * k, ((r.ay + r.by) / 2 - cy) * k, ((r.az + r.bz) / 2) * k);
+        m4.compose(pos, q, sc.set(r.r * k, len * k, r.r * k));
+        const target = i < R.nTiers ? hub : hex;
+        const idx = i < R.nTiers ? i : i - R.nTiers;
+        target.setMatrixAt(idx, m4);
+        target.setColorAt(idx, c.setHex(creatureColour(true, diet, r.tone as Tone)));
+      });
+      for (const m of [hub, hex]) { m.frustumCulled = false; m.position.y = 0.6; turntable.add(m); }
+    }
   }
 
   // Placeholder for a creature whose body plan hasn't arrived: a neutral label, never another chemistry's rebuild.

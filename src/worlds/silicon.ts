@@ -93,10 +93,10 @@ export const silicon: WorldConfig = {
   features: {
     organism: {
       name: 'Silicon animal',
-      description: 'A creature built from silicon–nitrogen compounds, with hexagonal faceted segments, straight rod limbs and ceramic plates.',
+      description: 'A creature built from silicon–nitrogen compounds, as a radial crystal: a faceted hub with straight rod arms, ceramic tiles and dot eyes at the arm tips, and no head or tail.',
       statIds: ['temperature', 'oxygen'],
       factIds: ['bodyChemistry'],
-      why: "Silicon's stiff, weak bonds only hold together in the cold, so its bodies grow faceted and rod-like (speculative).",
+      why: "Silicon's stiff, weak bonds only hold together in the cold, so its bodies grow as radial, faceted crystals with straight rod arms (speculative).",
       sources: ['petkowski2020'],
       assumption: true,
     },
