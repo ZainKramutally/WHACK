@@ -68,7 +68,7 @@ export function poseBell(plan: FaunaPlan, t: number, path: Path, inst: Instance,
   const down = scl(axis, -1);
   const bob = 0.04 * H * Math.sin(ph - 1.1);
   const L = plan.bodyLen;
-  const br = L * 0.26;
+  const br = L * 0.34;
   const swayB = 0.05 * H * Math.sin(0.9 * tt);
   const lat = norm(cross(axis, front));
   const headP = add(add(surf(0.1, front, br * 1.1), scl(down, bob)), scl(lat, swayB * 0.3));
@@ -119,7 +119,7 @@ export function poseBell(plan: FaunaPlan, t: number, path: Path, inst: Instance,
   for (let i = 0; i < N; i++) {
     const ang = (i / N) * 2 * Math.PI + 0.4;
     const spread = add(scl(e1, Math.cos(ang)), scl(e2, Math.sin(ang)));
-    let p = add(add(mid, scl(spread, br * 0.6)), scl(down, br * 0.3));
+    let p = add(add(mid, scl(spread, br * 1.1)), scl(down, br * 0.3));
     const len = 0.7 + 0.3 * ((i * 7) % 5) / 4;
     const sl = seg * len;
     for (let k = 1; k <= M; k++) {
@@ -127,7 +127,7 @@ export function poseBell(plan: FaunaPlan, t: number, path: Path, inst: Instance,
       const wave = Math.sin(1.1 * tt - k * 0.55 + i * 1.9);
       const latW = scl(norm(cross(down, fwd)), wave * 0.3 * sl * kk * 2.2);
       const lag = scl(back, sl * (0.12 + 0.22 * kk));               // trails behind the drift, more at the tips
-      const fan = scl(spread, sl * 0.35 * (1 - kk * 0.7));
+      const fan = scl(spread, sl * 0.7 * (1 - kk * 0.6));
       const q = add(add(add(add(p, scl(down, sl * 0.9)), lag), latW), fan);
       const wide = norm(cross(sub(q, p), fwd));
       ribbon(sink, p, q, Math.max(0.01, br * 0.55 * (1 - 0.4 * kk)), wide, k < 2 ? plan.belly : k < 4 ? 'crimson' : 'blush', k < 2 ? 'crimson' : k < 4 ? 'blush' : 'bone');

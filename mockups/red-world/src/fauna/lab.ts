@@ -26,7 +26,7 @@ const plans = VARIANTS.map((v) => develop(v.genes, v.comp, seed, undefined, v.ag
 const ext = (p: FaunaPlan) => Math.max(p.scale, p.legLen * 1.2, p.armLen * 2);
 // loops are wide enough that turning never folds the body (radius ≥ 1.3 body lengths)
 const LOOSE = view !== 'lineup'; // close-ups and strips get wide loops; the lineup uses tighter ones so it fits
-const loopA = (p: FaunaPlan) => (p.mode === 'hover' ? 1.2 * p.scale : Math.max((LOOSE ? 2 : 1.1) * p.scale, ext(p) * (LOOSE ? 1 : 0.6)));
+const loopA = (p: FaunaPlan) => (p.mode === 'hover' ? 1.2 * p.scale : Math.max((LOOSE ? 2 : 0.7) * p.scale, ext(p) * (LOOSE ? 1 : 0.4)));
 const loopB = (p: FaunaPlan) => (p.mode === 'hover' ? 1.3 * p.scale : Math.max((LOOSE ? 1.3 : 0.9) * p.scale, 0.8 * p.legLen, LOOSE ? 1 : 0.5));
 function loopFor(p: FaunaPlan, cx: number, cz: number): Path { return stadium(cx, cz, loopA(p), loopB(p)); }
 function individualsFor(i: number, cx: number, cz: number): Individual[] {
@@ -42,20 +42,23 @@ function individualsFor(i: number, cx: number, cz: number): Individual[] {
 
 const individuals: Individual[] = [];
 const lanes: { i: number; cx: number; cz: number }[] = [];
+let explorerX = 0, explorerZ = 0;
 const LINEUP_FOV = 34;
 if (view === 'lineup') {
-  // two rows sorted by size (small ones in front), each row placed at the depth where its loops fill the frame width;
-  // the explorer stands by the rhinosaur for true scale and the floater drifts overhead at the back
+  // one row at a common depth, sorted by size, so true size differences read; the explorer stands in the row at its
+  // own size rank (1.8 m), and the floaters drift overhead at the back
   const ground = plans.map((p, i) => ({ p, i })).filter((d) => d.p.mode !== 'hover').sort((a, b) => ext(a.p) - ext(b.p));
   const hf = Math.tan(((LINEUP_FOV / 2) * Math.PI) / 180) * (innerWidth / innerHeight);
-  const rows = [ground.slice(0, 3), ground.slice(3)];
-  rows.forEach((row) => {
-    const w = row.map((d) => 2 * (loopA(d.p) + loopB(d.p)) + 1.5);
-    const total = w.reduce((x, y) => x + y, 0);
-    const D = total / (2 * hf * 0.92) + Math.max(...row.map((d) => loopB(d.p)));
-    let x = -total / 2;
-    row.forEach((d, k) => { lanes.push({ i: d.i, cx: x + w[k] / 2, cz: -D }); x += w[k]; });
+  const w = ground.map((d) => 2 * loopA(d.p) + 1);
+  const exW = 3, exAt = ground.findIndex((d) => ext(d.p) > 1.8);
+  const total = w.reduce((x, y) => x + y, 0) + exW;
+  const D = total / (2 * hf * 0.9);
+  let x = -total / 2;
+  ground.forEach((d, k) => {
+    if (k === exAt) { explorerX = x + exW / 2; x += exW; }
+    lanes.push({ i: d.i, cx: x + w[k] / 2, cz: -D }); x += w[k];
   });
+  explorerZ = -D + 1.5;
   // floaters at the back, each at a depth where it sits in the sky band: leviathan mid, adolescent bellwhale far right
   // (~90 m up), juvenile low and near
   plans.forEach((p, i) => {
@@ -111,10 +114,10 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground, herd.group);
 
-const explorers = (view === 'lineup' ? lanes.filter((l) => l.i === 0) : lanes).map((l) => {
-  const e = ext(plans[l.i]);
+const explorers = (view === 'lineup' ? [null] : lanes).map((l) => {
   const m = buildExplorer(0, 0, 0.5);
-  m.position.set(l.cx + (view === 'lineup' ? loopA(plans[l.i]) + 1 : e * 1.6 + 0.8), -0.05, l.cz + (view === 'lineup' ? loopB(plans[l.i]) + 0.5 : -e * 0.2));
+  if (l) { const e = ext(plans[l.i]); m.position.set(l.cx + e * 1.6 + 0.8, -0.05, l.cz - e * 0.2); }
+  else m.position.set(explorerX, -0.05, explorerZ);
   scene.add(m);
   return m;
 });
@@ -128,8 +131,8 @@ const centreOf = (idx: number) => {
   return sp ? spineAt(sp, sp.P.length / 2, true).p : [0, 0, 0];
 };
 if (view === 'lineup') {
-  camera.position.set(0, 2.2, 0);
-  camera.lookAt(0, 3.2, -60);
+  camera.position.set(0, 1.6, 0);
+  camera.lookAt(0, 2.6, explorerZ);
 }
 void explorers;
 const post = createPost(renderer, scene, camera);

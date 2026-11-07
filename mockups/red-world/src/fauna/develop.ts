@@ -28,6 +28,8 @@ export interface FaunaPlan {
   scale: number;            // body length, metres
   segments: number;         // 3..16 (sim rule)
   radii: number[];          // per ring (segments + 1), metres; stepped for silicon
+  hump: number[];           // per ring: extra dorsal height share (shoulder hump, hip rise)
+  sag: number[];            // per ring: extra ventral depth share (belly)
   aspect: number;           // cross-section height / width
   sides: number;           // 6 silicon prism, 12 carbon loft, 24 for a gas bell
   flat: boolean;            // faceted normals
@@ -55,6 +57,7 @@ export interface FaunaPlan {
   hornLen: number;
   hornCurved: boolean;
   gape: number;             // mouth size share of head radius
+  diet: number;             // 0 grazer .. 1 hunter (claw length, jaw)
   eyeKind: EyeKind;
   eyeCount: number;
   eyeRadius: number;        // metres
@@ -153,6 +156,7 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   // silicon: each segment is one prism whose radius is the segment's mean, quantised to 3 steps (stacked repeat units)
   const quant = (r: number) => rMax * (r > rMax * 0.78 ? 1 : r > rMax * 0.5 ? 0.66 : r > rMax * 0.28 ? 0.42 : r / rMax);
   const radii = smooth.map((r, i) => {
+    if (silicon && mode !== 'sessile') return r + (quant(r) - r) * 0.4 * comp.si; // one faceted hull, gently stepped
     if (!silicon || i === segments) return r;
     const m = (r + smooth[i + 1]) / 2;
     return m + (quant(m) - m) * comp.si;
@@ -182,6 +186,15 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   else if (mode === 'crawl') speed = 0.18 * scale;
   else if (mode === 'hover') speed = 0.07 * scale;
   const cadence = stride > 0 ? speed / stride : 0;
+
+  // --- silhouette: shoulder hump over the front legs, a lower hip rise, belly sag and a waist between them --------
+  const gss = (x: number, m: number, w: number) => Math.exp(-(((x - m) / w) ** 2));
+  const uF0 = legs.length ? Math.min(...legs.map((l) => l.u)) : headLen + 0.1, uB0 = legs.length ? Math.max(...legs.map((l) => l.u)) : 0.6;
+  const walker = mode === 'walk';
+  const humpA = walker ? 0.22 + 0.25 * g.plates + 0.1 * g.size : mode === 'crawl' ? 0.05 : 0;
+  const hump = radii.map((_, i) => { const u = i / segments; return humpA * gss(u, uF0, 0.13) + 0.5 * humpA * gss(u, uB0, 0.1); });
+  const sag = radii.map((_, i) => { const u = i / segments; return walker && legPairs >= 2 ? 0.14 * gss(u, (uF0 + uB0) / 2, 0.14) : 0; });
+  if (walker && legPairs >= 2) for (let i = 0; i <= segments; i++) radii[i] *= 1 - 0.16 * gss(i / segments, (uF0 + uB0) / 2 + 0.05, 0.08);
 
   // --- plates, horns, eyes, dorsal row ---------------------------------------------------------------------
   const plates: FaunaPlan['plates'] = [];
@@ -218,11 +231,11 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
 
   const out: FaunaPlan = {
     seed, chemistry: silicon ? 'silicon' : 'carbon', comp: { ...comp }, mode,
-    scale, segments, radii, aspect: mode === 'hover' ? 0.9 : silicon ? 0.85 : 0.8, sides: silicon ? 6 : 12, flat: comp.si > 0.45,
+    scale, segments, radii, hump, sag, aspect: mode === 'hover' ? 0.9 : silicon ? 0.85 : 0.8, sides: silicon ? 6 : 12, flat: comp.si > 0.45,
     jointMaxDeg: snap(55 + (14 - 55) * comp.si, silicon ? 15 : 0), jointSnapDeg: silicon ? 15 : 0, radialOrder, headLen,
     legPairs, legs, limbKind, legLen, legBones, legRadius: Math.max(0.004, rMax * (0.22 + 0.16 * g.size) * (silicon ? 1 : 1.15) / Math.sqrt(Math.max(1, legPairs) / 2) * (1 + 0.3 * g.plates)),
     hipHeight, splay, gait, duty, stride, speed, cadence,
-    plates, hornCount, hornLen, hornCurved: !silicon, gape: g.gape,
+    plates, hornCount, hornLen, hornCurved: !silicon, gape: g.gape, diet: g.diet,
     eyeKind, eyeCount, eyeRadius, headWidth, dorsal, dorsalCount, dorsalHeight,
     tendrils, tendrilLen: scale * (0.25 + 0.25 * g.buoy), arms, armLen: scale * (0.35 + 0.4 * g.limbLen),
     glow, glowSpots: Math.round(glow * (3 + 1.5 * segments)), pattern,
@@ -239,12 +252,12 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   const bradii: number[] = [];
   for (let i = 0; i <= nB; i++) { const u = i / nB; bradii.push(R * Math.max(0.04, Math.sin(Math.PI * (0.12 + 0.88 * u ** 1.3)) ** 0.5)); } // round crown, narrower rim
   bradii[nB] = 0.42 * R; // the crown closes with a dome cap, not a point
-  const bodyLen = scale * (0.4 - 0.16 * grow); // juveniles: relatively bigger body and head
+  const bodyLen = scale * (0.44 - 0.14 * grow); // juveniles: relatively bigger body and head
   return {
-    ...out, form: 'bell', segments: nB, radii: bradii, sides: 40, flat: false, aspect: 1, headLen: 0,
+    ...out, form: 'bell', segments: nB, radii: bradii, hump: bradii.map(() => 0), sag: bradii.map(() => 0), sides: 40, flat: false, aspect: 1, headLen: 0,
     bellR: R, bodyLen, gripArms: 2 + Math.round(2 * g.limbLen),
     eyeKind: eyeless ? 'none' : 'rings', eyeCount: eyeless ? 0 : 2,
-    eyeRadius: bodyLen * 0.11 * Math.sqrt(eyeArea) * grow ** -0.35,
+    eyeRadius: bodyLen * 0.12 * Math.sqrt(eyeArea) * grow ** -0.35,
     tendrils: 3 + Math.round(3 * g.buoy), tendrilLen: scale * (0.8 + 0.45 * grow),
     plates: [], dorsalCount: 0, glowSpots: 0, hornCount: 0,
     back: 'blush', mark: 'crimson', belly: 'maroon', limbHi: 'maroon', limbLo: 'ink',

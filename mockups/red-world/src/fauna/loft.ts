@@ -25,7 +25,7 @@ export interface LoftTemplate {
 function ringsFor(plan: FaunaPlan): Ring[] {
   const n = plan.segments;
   const R: Ring[] = [];
-  if (plan.chemistry === 'silicon') {
+  if (plan.chemistry === 'silicon' && plan.mode === 'sessile') {
     R.push({ x: 0.02, rj: 0, rf: 0 });
     for (let i = 0; i < n; i++) {
       const w = i % 2 ? 0.94 : 1; // alternating repeat units
@@ -108,15 +108,18 @@ export function loftTemplate(plan: FaunaPlan): LoftTemplate {
 /** Place the template on a posed spine: writes positions and normals at vertex offset `off`. */
 export function writeLoft(tp: LoftTemplate, plan: FaunaPlan, sp: Spine, pos: Float32Array, nor: Float32Array, off: number) {
   const smooth = plan.chemistry === 'carbon';
-  const S = tp.sides, nr = tp.rings.length;
+  const S = tp.sides, nr = tp.rings.length, n = plan.segments;
   const G: V3[] = new Array(nr * S);
   for (let i = 0; i < nr; i++) {
     const rg = tp.rings[i];
     const f = spineAt(sp, rg.x, smooth);
     const r = (rg.rj >= 0 ? sp.r[rg.rj] : f.r) * rg.rf;
+    const xc = Math.min(n, Math.max(0, rg.x)), i0 = Math.min(n - 1, Math.floor(xc)), fr = xc - i0;
+    const hu = 1 + plan.hump[i0] + (plan.hump[i0 + 1] - plan.hump[i0]) * fr;
+    const sg = 1 + plan.sag[i0] + (plan.sag[i0 + 1] - plan.sag[i0]) * fr;
     for (let j = 0; j < S; j++) {
-      const th = tp.theta[j];
-      G[i * S + j] = add(f.p, add(scl(f.R, Math.cos(th) * r), scl(f.U, Math.sin(th) * r * plan.aspect)));
+      const th = tp.theta[j], sn = Math.sin(th);
+      G[i * S + j] = add(f.p, add(scl(f.R, Math.cos(th) * r), scl(f.U, sn * r * plan.aspect * (sn > 0 ? hu : sg))));
     }
   }
   if (!tp.perFace) {

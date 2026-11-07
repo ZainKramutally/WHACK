@@ -9,8 +9,9 @@ import { footAt, legPhase, plantDistance, twoBoneIK } from './ik';
 import type { Path } from './path';
 import { poseBell } from './bell';
 
-export type PartType = 'rodSi' | 'rodC' | 'plateSi' | 'plateC' | 'hornSi' | 'hornC' | 'frill' | 'eyeRing' | 'eyeDot';
-export const PART_TYPES: PartType[] = ['rodSi', 'rodC', 'plateSi', 'plateC', 'hornSi', 'hornC', 'frill', 'eyeRing', 'eyeDot'];
+export type PartType = 'rodSi' | 'rodC' | 'plateSi' | 'plateC' | 'hornSi' | 'hornC' | 'frill' | 'eyeRing' | 'eyeDot'
+  | 'thighSi' | 'thighC' | 'skullSi' | 'skullC';
+export const PART_TYPES: PartType[] = ['rodSi', 'rodC', 'plateSi', 'plateC', 'hornSi', 'hornC', 'frill', 'eyeRing', 'eyeDot', 'thighSi', 'thighC', 'skullSi', 'skullC'];
 
 /** Receives one part: origin and three scaled basis axes (columns of the instance matrix), two palette colours, glow. */
 export interface Sink { part(type: PartType, o: V3, x: V3, y: V3, z: V3, a: PaletteKey, b: PaletteKey, glow: number): void }
@@ -94,7 +95,22 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
   let bob = 0, sway = 0, counter = 0, pitch = 0;
   if (plan.gait === 'trot') { bob = -0.04 * hipH * Math.cos(2 * cyc); sway = 0.012 * L * Math.sin(cyc); counter = 0.05 * Math.sin(cyc); }
   else if (plan.gait === 'wave') { bob = -0.02 * hipH * Math.cos(2 * cyc); sway = 0.006 * L * Math.sin(cyc); counter = 0.03 * Math.sin(cyc); }
-  else if (plan.gait === 'hop') {
+  // weight: each foot strike drops the body over that leg (hips sink on contact frames); the spine rocks in trot
+  const legDip = (u0: number) => {
+    let d = 0;
+    plan.legs.forEach((leg, pi) => {
+      const w = Math.exp(-(((u0 - leg.u) / 0.18) ** 2));
+      for (const sd of [-1, 1] as const) {
+        const ph0 = gp + legPhase(plan.gait, pi, plan.legPairs, sd);
+        const f = ph0 - Math.floor(ph0);
+        d += w * (Math.exp(-((f / 0.09) ** 2)) + Math.exp(-(((f - 1) / 0.09) ** 2)) + 0.5 * Math.exp(-(((f - 0.12) / 0.07) ** 2)));
+      }
+    });
+    return d;
+  };
+  const rock = plan.gait === 'trot' ? 0.03 * hipH * Math.sin(cyc) : 0;
+  const roll = plan.gait === 'trot' ? 0.06 * Math.sin(cyc) : plan.gait === 'wave' ? 0.03 * Math.sin(cyc) : 0;
+  if (plan.gait === 'hop') {
     const phi = gp - Math.floor(gp);
     if (phi < plan.duty) { const c = Math.sin((Math.PI * phi) / plan.duty); bob = -0.12 * hipH * c; pitch = 0.08 * c; }
     else { const u = (phi - plan.duty) / (1 - plan.duty); bob = 0.45 * hipH * Math.sin(Math.PI * u); pitch = -0.12 * Math.sin(Math.PI * u); }
@@ -125,7 +141,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
       lat = 0.02 * L * Math.sin(0.6 * tt - u * 3);
     } else {
       // walkers: hips at hip height, head carried up, tail sloping to the ground with follow-through
-      y = hipH + bob;
+      y = hipH + bob - (plan.gait === 'hop' ? 0 : 0.035 * hipH * legDip(u)) + rock * ((u - (uF + uB) / 2) / 0.5);
       if (u < uF) y += (uF - u) * L * (plan.gait === 'hop' ? 0.2 : smooth ? 0.22 : -0.06) + pitch * (uF - u) * L;
       if (u > uB) y = Math.max(rAt(u) * plan.aspect * 0.8, y - (u - uB) ** 1.3 * L * (plan.gait === 'hop' ? 0.15 : 0.7)); // hoppers hold the tail out as a counterweight
       if (plan.gait === 'hop' && u > uB) y += pitch * (u - uB) * L;
@@ -158,6 +174,12 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
   const tgt = (i: number) => (hash01(plan.seed + i, 11) < 0.3 ? 0 : (hash01(plan.seed, i) - 0.5) * 1.1);
   let yaw = tgt(k - 1) + (tgt(k) - tgt(k - 1)) * (tick ? (tk > 0.05 ? 1 : 0) : sstep(0, 0.14, tk));
   let lookPitch = (hash01(plan.seed + k, 5) - 0.5) * 0.3;
+  // the head leads: it turns toward where the path is going before the body does (anticipation)
+  if (!isSessile && plan.mode !== 'hover') {
+    const h0 = path.at(s).t, h1 = path.at(s + 0.8 * L).t;
+    const turnA = Math.atan2(h0[0] * h1[2] - h0[2] * h1[0], h0[0] * h1[0] + h0[2] * h1[2]);
+    yaw = 0.55 * yaw - 0.9 * Math.max(-0.6, Math.min(0.6, turnA));
+  }
   if (tick) { yaw = snapA(yaw, 15); lookPitch = snapA(lookPitch, 15); }
   if (!isSessile && plan.mode !== 'hover') {
     const hd = sub(P[0], P[1]);
@@ -173,7 +195,8 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
   for (let j = 0; j <= n; j++) {
     const Tj = norm(sub(P[Math.max(0, j - 1)], P[Math.min(n, j + 1)]));
     const fr = frame(Tj);
-    T.push(Tj); U.push(fr.U); R.push(fr.R);
+    const rl = roll * (1 - Math.abs(j / n - 0.5)); // roll toward the stance side, strongest mid-body
+    T.push(Tj); U.push(rl ? rotate(fr.U, Tj, rl) : fr.U); R.push(rl ? rotate(fr.R, Tj, rl) : fr.R);
     const u = j / n;
     const w = Math.exp(-(((u - 0.38) / 0.22) ** 2));
     let rr = plan.radii[j] * (1 + (plan.mode === 'hover' ? 0.06 : 0.035) * breath * w);
@@ -182,6 +205,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
   }
   const spine: Spine = { P, T, U, R, r };
   const at = (u: number) => spineAt(spine, u * n, smooth);
+  const humpAt = (u: number) => { const x = Math.min(n, Math.max(0, u * n)), i = Math.min(n - 1, Math.floor(x)); return 1 + plan.hump[i] + (plan.hump[i + 1] - plan.hump[i]) * (x - i); };
 
   // ---- legs ------------------------------------------------------------------------------------------------
   if (plan.legPairs > 0) {
@@ -207,34 +231,68 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
           ? add(add(scl(b0.U, 0.45), scl(b0.R, side * 1)), scl(b0.T, front ? 0.25 : -0.25)) // elbows out (sprawl)
           : add(add(scl(b0.T, front ? -0.8 : 0.8), scl(b0.R, side * 0.35)), scl(b0.U, 0.2));
         const rr = plan.legRadius;
+        const thighT: PartType = rod ? 'thighSi' : 'thighC', shinT: PartType = rod ? 'rodSi' : 'rodC';
+        const knob = (p: V3, r: number) => sink.part('eyeDot', p, [r, 0, 0], [0, r, 0], [0, 0, r], plan.limbHi, plan.limbHi, 0);
+        const claws = (f: V3, dir: V3, n: number) => {
+          const len = rr * (plan.diet > 0.55 ? 1.6 : 1.0);
+          for (let i = 0; i < n; i++) {
+            const d = norm(add(rotate(dir, UP, (i - (n - 1) / 2) * 0.5), [0, -0.25, 0]));
+            const o: V3 = [f[0], rr * 0.22, f[2]];
+            bone(sink, 'hornSi', o, add(o, scl(d, len)), rr * 0.24, UP, plan.limbLo, 'bone');
+          }
+        };
+        const pad = (f: V3, r: number) => sink.part(rod ? 'plateSi' : 'plateC', [f[0], rr * 0.12, f[2]], scl(b0.T, r), [0, rr * 0.24, 0], scl(b0.R, r), plan.limbLo, plan.limbLo, 0);
         if (plan.gait === 'hop') {
-          // jerboa leg: 2-bone IK to the ankle, then a long foot flat on the ground ahead of it
+          // jerboa leg: muscular thigh, shin, and a long foot flat on the ground (2-bone IK to the ankle)
           const fl = plan.legLen * 0.3;
           const toe = add(foot, scl(b0.T, fl * 0.5));
           const ankle: V3 = [foot[0] - b0.T[0] * fl * 0.5, foot[1] + rr * 0.8, foot[2] - b0.T[2] * fl * 0.5];
           const zk = twoBoneIK(hip, ankle, plan.legLen * 0.33, plan.legLen * 0.37, add(scl(b0.T, 1), scl(b0.R, side * 0.25)));
-          bone(sink, 'rodC', hip, zk.knee, rr * 1.35, b0.T, plan.limbHi, plan.limbHi);
-          bone(sink, 'rodC', zk.knee, zk.foot, rr * 0.8, b0.T, plan.limbHi, plan.limbLo);
-          bone(sink, 'rodC', zk.foot, toe, rr * 0.6, UP, plan.limbLo, plan.limbLo);
+          bone(sink, 'thighC', hip, zk.knee, rr * 1.6, b0.T, plan.limbHi, plan.limbHi);
+          knob(zk.knee, rr * 0.6);
+          bone(sink, 'rodC', zk.knee, zk.foot, rr * 0.7, b0.T, plan.limbHi, plan.limbLo);
+          knob(zk.foot, rr * 0.5);
+          bone(sink, 'rodC', zk.foot, toe, rr * 0.55, UP, plan.limbLo, plan.limbLo);
+          claws(toe, b0.T, 3);
           continue;
         }
-        const ik = twoBoneIK(hip, foot, a, b, pole);
-        if (rod) {
-          bone(sink, 'rodSi', hip, ik.knee, rr, b0.T, plan.limbHi, plan.limbHi);
-          bone(sink, 'rodSi', ik.knee, ik.foot, rr * 0.62, b0.T, plan.limbLo, plan.limbLo);
-          const pad = rr * 1.05; // hex foot pad, flat on the ground
-          sink.part('plateSi', [ik.foot[0], rr * 0.12, ik.foot[2]], scl(b0.T, pad), [0, rr * 0.24, 0], scl(b0.R, pad), plan.limbLo, plan.limbLo, 0);
+        const quad = plan.legPairs <= 2;
+        if (quad && !front) {
+          // digitigrade hind leg: thigh (knee forward), shin back to a raised hock, metatarsus down to the toes
+          const m = plan.legLen * 0.26;
+          const ankle: V3 = [foot[0] - b0.T[0] * m * 0.4, foot[1] + m * 0.9, foot[2] - b0.T[2] * m * 0.4];
+          const ik = twoBoneIK(hip, ankle, plan.legLen * 0.38, plan.legLen * 0.38, add(scl(b0.T, 1), scl(b0.R, side * 0.3)));
+          bone(sink, thighT, hip, ik.knee, rr * 1.25, b0.T, plan.limbHi, plan.limbHi);
+          knob(ik.knee, rr * 0.5);
+          bone(sink, shinT, ik.knee, ik.foot, rr * 0.5, b0.T, plan.limbHi, plan.limbLo);
+          knob(ik.foot, rr * 0.4);
+          bone(sink, shinT, ik.foot, foot, rr * 0.4, b0.T, plan.limbLo, plan.limbLo);
+          pad(foot, rr * 0.75);
+          claws(foot, b0.T, rod ? 2 : 3);
+        } else if (quad) {
+          // front leg: upper arm, forearm (elbow back), short hand flat to the ground
+          const wrist: V3 = [foot[0] - b0.T[0] * rr * 0.4, foot[1] + plan.legLen * 0.1, foot[2] - b0.T[2] * rr * 0.4];
+          const ik = twoBoneIK(hip, wrist, plan.legLen * 0.47, plan.legLen * 0.43, add(scl(b0.T, -1), scl(b0.R, side * 0.25)));
+          bone(sink, thighT, hip, ik.knee, rr * 1.1, b0.T, plan.limbHi, plan.limbHi);
+          knob(ik.knee, rr * 0.48);
+          bone(sink, shinT, ik.knee, ik.foot, rr * 0.5, b0.T, plan.limbHi, plan.limbLo);
+          bone(sink, shinT, ik.foot, foot, rr * 0.42, b0.T, plan.limbLo, plan.limbLo);
+          pad(foot, rr * 0.75);
+          claws(foot, b0.T, rod ? 2 : 3);
         } else {
-          // tentacle leg: the IK knee shapes a curve, drawn as legBones tapering links
-          const m = plan.legBones;
-          const ctl = add(ik.knee, scl(sub(ik.knee, lerp3(hip, ik.foot, 0.5)), 0.35));
-          const q = (u: number): V3 => add(add(scl(hip, (1 - u) ** 2), scl(ctl, 2 * u * (1 - u))), scl(ik.foot, u * u));
-          for (let i = 0; i < m; i++) {
-            const u0 = i / m, u1 = (i + 1) / m;
-            bone(sink, 'rodC', q(u0), q(u1), rr * (1 - 0.55 * u0), b0.T, i < m / 2 ? plan.limbHi : plan.limbLo, plan.limbLo);
+          // many-legged sprawl: thick femur up and out, thin tibia down, claw tip
+          const ik = twoBoneIK(hip, foot, a, b, pole);
+          bone(sink, thighT, hip, ik.knee, rr * 1.1, b0.T, plan.limbHi, plan.limbHi);
+          knob(ik.knee, rr * 0.45);
+          if (rod) bone(sink, 'rodSi', ik.knee, ik.foot, rr * 0.45, b0.T, plan.limbLo, plan.limbLo);
+          else {
+            const ctl = add(lerp3(ik.knee, ik.foot, 0.5), scl(sub(ik.knee, lerp3(hip, ik.foot, 0.5)), 0.25));
+            const q = (u: number): V3 => add(add(scl(ik.knee, (1 - u) ** 2), scl(ctl, 2 * u * (1 - u))), scl(ik.foot, u * u));
+            const m = Math.max(2, plan.legBones - 1);
+            for (let i = 0; i < m; i++) bone(sink, 'rodC', q(i / m), q((i + 1) / m), rr * 0.5 * (1 - 0.4 * (i / m)), b0.T, plan.limbLo, plan.limbLo);
           }
-          const pad = rr * 1.2;
-          sink.part('plateC', [ik.foot[0] + b0.T[0] * pad * 0.4, rr * 0.25, ik.foot[2] + b0.T[2] * pad * 0.4], scl(b0.T, pad * 1.3), [0, rr * 0.5, 0], scl(b0.R, pad), plan.limbLo, plan.limbLo, 0);
+          pad(foot, rr * 0.55);
+          claws(foot, norm(add(b0.T, scl(b0.R, side * 0.5))), 2);
         }
       }
     });
@@ -254,14 +312,9 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
       }
       continue;
     }
-    const y = norm(sub(f.U, scl(f.T, 0.22)));
-    const o = add(f.p, scl(f.U, f.r * plan.aspect * 0.86));
-    sink.part(pType, o, scl(f.T, seg * 0.62 * pl.size), scl(y, f.r * 0.16), scl(f.R, f.r * 0.85 * pl.size), plan.plate, plan.belly, 0);
-    if (pl.size > 1.0) for (const side of [-1, 1]) {
-      const nrm = norm(add(scl(f.U, 0.55), scl(f.R, side * 0.85)));
-      const o2 = add(f.p, add(scl(f.U, f.r * plan.aspect * 0.45), scl(f.R, side * f.r * 0.82)));
-      sink.part(pType, o2, scl(f.T, seg * 0.5 * pl.size), scl(nrm, f.r * 0.12), scl(cross(f.T, nrm), f.r * 0.5 * pl.size), plan.plate, plan.belly, 0);
-    }
+    const y = norm(sub(f.U, scl(f.T, 0.35))); // shingled: each plate's back edge lifts over the next
+    const o = add(f.p, scl(f.U, f.r * plan.aspect * 0.8 * humpAt(pl.u)));
+    sink.part(pType, o, scl(f.T, seg * 0.7 * pl.size), scl(y, f.r * 0.1), scl(f.R, f.r * 0.62 * pl.size), plan.plate, plan.belly, 0);
   }
 
   // ---- glow: small cyan photophores in lines along the flanks (the accent stays small) -----------------------------
@@ -279,48 +332,62 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
     }
   }
 
-  // ---- head: eyes and horns ----------------------------------------------------------------------------------------
+  // ---- head: a sculpted skull (cranium, snout, jaw line), eyes in dark sockets under brow ridges, nostrils, horns -----
   if (!isSessile) {
     const F = norm(sub(P[0], P[1]));
     const fr = frame(F);
     const hr = plan.radii[0] / 0.75;
-    const Hc = lerp3(P[0], P[1], 0.35);
-    const hw = 1 + 3 * plan.headWidth;
-    const eye = (pos: V3, dir: V3, rad: number, kind: 'eyeRing' | 'eyeDot', glowE: boolean) => {
+    const sculpt = plan.mode !== 'hover';
+    const len = Math.max(hr * 2.4, L * plan.headLen * 0.9), hgt = hr * (smooth ? 1.6 : 1.45), wid = hr * 1.7;
+    const SC = sculpt ? add(add(P[0], scl(F, len * 0.12)), scl(fr.U, hr * 0.1)) : lerp3(P[0], P[1], 0.35);
+    const hx = sculpt ? len : hr * 2, hy = sculpt ? hgt / 2 : hr, hz = sculpt ? wid / 2 : hr;
+    const hp = (fx: number, uy: number, rz: number): V3 => add(add(SC, scl(F, hx * fx)), add(scl(fr.U, hy * uy), scl(fr.R, hz * rz)));
+    if (sculpt) sink.part(smooth ? 'skullC' : 'skullSi', SC, scl(F, len), scl(fr.U, hgt / 2), scl(fr.R, wid / 2), plan.belly, plan.back, 0);
+    const spread = 1 + 2.2 * plan.headWidth;
+    const er = plan.eyeRadius;
+    const eye = (pos: V3, dir: V3, rad: number, kind: 'eyeRing' | 'eyeDot', glowE: boolean, brow: boolean) => {
       const z = norm(dir), x = norm(cross(fr.U, z)), y = cross(z, x);
       const sq = 1 - 0.85 * blink;
+      if (sculpt && !glowE) sink.part('eyeDot', sub(pos, scl(z, rad * 0.3)), scl(x, rad * 1.32), scl(y, rad * 1.25), scl(z, rad * 1.1), 'ink', 'ink', 0); // socket
       sink.part(kind, pos, scl(x, rad), scl(y, rad * sq), scl(z, rad), glowE ? 'glow' : 'ink', glowE ? 'glow' : 'bone', glowE ? 1 : 0);
+      if (sculpt && brow) {
+        const bo = add(add(pos, scl(fr.U, rad * 1.15)), scl(z, -rad * 0.1));
+        sink.part(smooth ? 'plateC' : 'plateSi', bo, scl(F, rad * 1.5), scl(norm(add(fr.U, scl(x, 0.2))), rad * 0.35), scl(x, rad * 1.2), plan.belly, plan.belly, 0);
+      }
     };
     if (plan.eyeKind === 'rings') for (const e of [-1, 1]) {
-      eye(add(add(Hc, scl(F, hr * 0.42)), add(scl(fr.R, e * hr * 0.62 * hw), scl(fr.U, hr * 0.38))), add(scl(F, 0.55), scl(fr.R, e * 0.8)), plan.eyeRadius, 'eyeRing', false);
+      eye(sculpt ? hp(0.12, 0.32, e * 0.8 * spread) : add(add(SC, scl(F, hr * 0.42)), add(scl(fr.R, e * hr * 0.62 * spread), scl(fr.U, hr * 0.38))),
+        add(add(scl(F, 0.45), scl(fr.R, e * 0.85)), scl(fr.U, 0.1)), er, 'eyeRing', false, true);
     } else if (plan.eyeKind === 'glossy') {
-      eye(add(add(Hc, scl(F, hr * 0.5)), scl(fr.U, hr * 0.42)), add(scl(F, 0.85), scl(fr.U, 0.3)), plan.eyeRadius, 'eyeRing', false);
+      eye(sculpt ? hp(0.16, 0.62, 0) : add(add(SC, scl(F, hr * 0.5)), scl(fr.U, hr * 0.42)), add(scl(F, 0.8), scl(fr.U, 0.45)), er, 'eyeRing', false, true);
     } else if (plan.eyeKind === 'dots' || plan.eyeKind === 'glowDots') {
       const g = plan.eyeKind === 'glowDots';
       const nE = plan.eyeCount;
-      const pos: V3[] = [];
       const clusters = nE === 6 ? [-1, 1] : [0];
       const per = nE / clusters.length;
+      if (plan.headWidth > 0.3) bone(sink, 'rodSi', hp(0, 0.35, -0.75 * spread), hp(0, 0.35, 0.75 * spread), hr * 0.22, fr.U, plan.back, plan.back);
       for (const c of clusters) for (let i = 0; i < per; i++) {
-        const a = per === 1 ? 0 : (i / (per - 1) - 0.5);
-        const cx = c * hr * 0.55 * hw;
+        const a2 = per === 1 ? 0 : (i / (per - 1) - 0.5);
         const row = nE === 6 ? (i === 1 ? 1 : 0) : 0;
-        pos.push(add(add(Hc, scl(F, hr * (0.5 + 0.1 * row))), add(scl(fr.R, cx + a * hr * (nE === 6 ? 0.45 : 0.9)), scl(fr.U, hr * (0.5 + 0.18 * row - 0.1 * Math.abs(a))))));
+        const pz = (plan.headWidth > 0.3 ? c * 0.75 * spread : c * 0.55) + a2 * (nE === 6 ? 0.5 : 1.0);
+        eye(hp(0.2 + 0.06 * row, 0.62 + 0.2 * row - 0.15 * Math.abs(a2), pz), add(scl(F, 0.8), add(scl(fr.U, 0.4), scl(fr.R, pz * 0.25))), er, 'eyeDot', g, false);
       }
-      if (plan.headWidth > 0.3) bone(sink, 'rodSi', add(Hc, scl(fr.R, -hr * 0.55 * hw)), add(Hc, scl(fr.R, hr * 0.55 * hw)), hr * 0.22, fr.U, plan.back, plan.back);
-      for (const p of pos) eye(p, add(scl(F, 0.8), scl(fr.U, 0.4)), plan.eyeRadius, 'eyeDot', g);
+      if (sculpt) sink.part('plateSi', hp(0.14, 0.86, 0), scl(F, hr * 0.5), scl(fr.U, hr * 0.12), scl(fr.R, hr * 0.8), plan.belly, plan.belly, 0); // brow shelf
+    }
+    if (sculpt) for (const e of [-1, 1]) { // nostrils
+      const nr2 = hr * 0.07;
+      sink.part('eyeDot', hp(0.5, 0.18, e * 0.16), [nr2, 0, 0], [0, nr2, 0], [0, 0, nr2], 'ink', 'ink', 0);
     }
     if (plan.hornCount > 0) {
       const hl = plan.hornLen;
       if (plan.hornCurved) for (const e of [-1, 1]) {
-        const o = add(add(Hc, scl(fr.U, hr * 0.45)), scl(fr.R, e * hr * 0.4));
+        const o = hp(-0.1, 0.72, e * 0.5);
         const y = norm(add(add(scl(fr.U, 0.75), scl(fr.R, e * 0.55)), scl(F, 0.25)));
         const z = norm(sub(scl(F, -1), scl(y, dot(scl(F, -1), y))));
         sink.part('hornC', o, scl(cross(y, z), hl * 0.16), scl(y, hl), scl(z, hl * 0.16), plan.belly, 'bone', 0);
       } else {
-        const nose = add(add(Hc, scl(F, hr * 0.65)), scl(fr.U, hr * 0.25));
-        const dirs: [V3, V3][] = [[nose, add(scl(F, 0.6), scl(fr.U, 0.8))]];
-        if (plan.hornCount === 3) for (const e of [-1, 1]) dirs.push([add(add(Hc, scl(fr.U, hr * 0.5)), scl(fr.R, e * hr * 0.45)), add(add(scl(F, 0.45), scl(fr.U, 0.8)), scl(fr.R, e * 0.35))]);
+        const dirs: [V3, V3][] = [[hp(0.36, 0.6, 0), add(scl(F, 0.6), scl(fr.U, 0.8))]];
+        if (plan.hornCount === 3) for (const e of [-1, 1]) dirs.push([hp(0.0, 0.8, e * 0.45), add(add(scl(F, 0.45), scl(fr.U, 0.8)), scl(fr.R, e * 0.35))]);
         dirs.forEach(([o, d], i) => bone(sink, 'hornSi', o, add(o, scl(norm(d), i === 0 ? hl : hl * 0.6)), hl * (i === 0 ? 0.17 : 0.13), F, plan.belly, 'bone'));
       }
     }
@@ -330,7 +397,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
   for (let k2 = 0; k2 < plan.dorsalCount; k2++) {
     const u = plan.headLen + ((k2 + 0.5) / plan.dorsalCount) * (0.92 - plan.headLen);
     const f = at(u);
-    const o = add(f.p, scl(f.U, f.r * plan.aspect * 0.8));
+    const o = add(f.p, scl(f.U, f.r * plan.aspect * 0.8 * humpAt(u)));
     const hgt = plan.dorsalHeight * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, u * 1.15)));
     if (plan.dorsal === 'frills') {
       const wav = 0.35 * Math.sin(2.2 * tt - u * 9);
