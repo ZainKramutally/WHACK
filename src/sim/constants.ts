@@ -1,4 +1,4 @@
-// The sim's tunables: DECISIONS.md §G.2, exactly the 14 constants. Budget: ≤ 25 (guardrail 5).
+// The sim's tunables: DECISIONS.md §G.2, the 14 constants plus SPORE_VIABILITY (15). Budget: ≤ 25 (guardrail 5).
 // Every addition costs a removal. Structure (GRID 64, TICK 20 Hz, CAP 1024) is not tunable and lives elsewhere.
 // Each entry: default value + tag. 'game' = a declared game-balance knob; 'sci' = sourced from the literature.
 // Solvent, air density and tissue density are world facts (WorldConfig.life.inputs), not constants.
@@ -47,6 +47,8 @@ export const CONSTANTS = deepFreeze({
   GEN_EXP: c(0.25, 'sci'),
   /** R9: temperature–size magnitude for walkers (Forster 2012). */
   TSR_LAND: c(0.1, 'sci'),
+  /** Spores (owner ruling, issue #6; overrides the no-rescue guardrail): a dormant genome germinates only if its climate fit is at least this. */
+  SPORE_VIABILITY: c(0.5, 'game'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;

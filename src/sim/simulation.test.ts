@@ -334,6 +334,66 @@ describe('WorldSimulation', () => {
     });
   });
 
+  describe('spores (owner ruling, issue #6)', () => {
+    const consumers = (sim: WorldSimulation) => sim.snapshot().population.consumers;
+    /** A quick-build world, run past its build, then a heat spike held for `hold` seconds, then back. */
+    const spike = (w: WorldConfig, hot: number, back: number, hold: number) => {
+      const sim = new WorldSimulation(quick(w), EARTH);
+      sim.advance(5);
+      const before = consumers(sim);
+      sim.setControl('temperature', hot);
+      let lowest = before;
+      let extinctAt = -1;
+      for (let t = 0; t < hold; t += 0.25) {
+        sim.advance(0.25);
+        const n = consumers(sim);
+        lowest = Math.min(lowest, n);
+        if (n === 0 && extinctAt < 0) extinctAt = t;
+      }
+      const atHoldEnd = consumers(sim);
+      sim.setControl('temperature', back);
+      let backAt = -1;
+      for (let t = 0; t < 15 && backAt < 0; t += 0.25) {
+        sim.advance(0.25);
+        if (consumers(sim) > 0) backAt = t;
+      }
+      return { sim, before, lowest, extinctAt, atHoldEnd, backAt };
+    };
+
+    it('carbon at 70 °C dies out, then animals reappear within seconds of returning to 15 °C', () => {
+      const r = spike(carbon, 70, 15, 30);
+      expect(r.before).toBeGreaterThan(10);
+      expect(r.extinctAt).toBeGreaterThanOrEqual(0);
+      expect(r.atHoldEnd).toBe(0);
+      expect(r.backAt).toBeGreaterThanOrEqual(0);
+      expect(r.backAt).toBeLessThanOrEqual(5);
+    });
+    it('silicon collapses near the warm edge of its band, and life is back (or never left) after returning to −183 °C', () => {
+      const r = spike(silicon, -162, -183, 30);
+      expect(r.lowest).toBeLessThan(r.before / 2);
+      expect(r.backAt).toBeGreaterThanOrEqual(0);
+      expect(r.backAt).toBeLessThanOrEqual(5);
+      expect(consumers(r.sim)).toBeGreaterThan(0);
+    });
+    it('is deterministic with spores', () => {
+      const a = spike(carbon, 70, 15, 20);
+      const b = spike(carbon, 70, 15, 20);
+      expect(fingerprint(b.sim)).toEqual(fingerprint(a.sim));
+      expect([b.extinctAt, b.backAt]).toEqual([a.extinctAt, a.backAt]);
+    });
+    it('never germinates while conditions are lethal', () => {
+      const sim = new WorldSimulation(quick(carbon), EARTH);
+      sim.advance(5);
+      sim.setControl('temperature', 70);
+      sim.advance(20); // everything is dead by now (see the first test)
+      expect(consumers(sim)).toBe(0);
+      for (let i = 0; i < 80; i++) {
+        sim.advance(0.5);
+        expect(consumers(sim)).toBe(0);
+      }
+    });
+  });
+
   describe('field guide events', () => {
     it.each([carbon, silicon])('announces each form once, not once per snapshot ($id)', (w: WorldConfig) => {
       // 6 s build with 100 ecology-seconds of life, snapshotted at 20 Hz as the worker does.

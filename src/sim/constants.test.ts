@@ -5,10 +5,11 @@ import { CONSTANTS } from './constants';
 const G2_NAMES = [
   'P0', 'DISSOLVE', 'B0', 'PLATE_MASS', 'INDUCE', 'REFUGE', 'SIGMA', 'TSR', 'FLY_K',
   'KLEIBER', 'EYE_FRAC', 'EPS0', 'GEN_EXP', 'TSR_LAND',
+  'SPORE_VIABILITY', // owner ruling, issue #6
 ];
 
 describe('constants budget', () => {
-  it('has exactly the 14 names from DECISIONS §G.2 and never more than 25', () => {
+  it('has the 14 names from DECISIONS §G.2 plus SPORE_VIABILITY and never more than 25', () => {
     const names = Object.keys(CONSTANTS);
     expect(names.length).toBeLessThanOrEqual(25);
     expect(names).toEqual(G2_NAMES);

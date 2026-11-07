@@ -76,6 +76,9 @@ const RISK_EVERY = 40; // derived fields (risk, hunger) refresh every 2 s
 const FLORA_EVERY = 4; // flora (slow) updates every 4th tick with 4× the step
 const SCAN = 12; // an animal looks at no more than this many neighbours per cell (bounds crowded cells)
 const FOUNDER_CELLS = 24; // with a spawn hint, founders start in this many shallow cells nearest to it
+const SPORE_BANK = 24; // dormant genomes kept (issue #6)
+const SPORE_BELOW = 4; // spores may germinate while fewer than this many animals live
+const SPORES_PER_TICK = 8; // at most this many germinate in one tick
 const REACH = 1; // cells within which a hunter can strike
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -122,6 +125,10 @@ export class Ecology {
   private readonly seed: number;
   private env: EcologyEnv = { temperature: 15, oxygen: 21, light: 1, habitat: 1, edgeStress: 0, heatBand: 0.5 };
   private dt = 0;
+  /** Spore bank (owner ruling, issue #6): genomes of animals that died recently, best climate fit first to be kept. */
+  private readonly spores: AnimalGenome[] = [];
+  /** Shallow cells where life was seeded (nearest the spawn, if a hint was given); spores germinate here. */
+  private founderPool: number[] = [];
 
   constructor(o: EcologyOptions) {
     this.grid = o.grid;
@@ -136,6 +143,9 @@ export class Ecology {
   }
 
   get animals(): number { return this.living; }
+
+  /** Dormant spores held (they do not eat, move or count as population). */
+  get sporeCount(): number { return this.spores.length; }
 
   /**
    * The founders appear in the shallows with a first patch of flora (build.lifeSec). Seeded; same seed, same worms.
@@ -158,6 +168,7 @@ export class Ecology {
       const d2 = (c: number) => ((c % GRID) + 0.5 - near.x * GRID) ** 2 + (Math.floor(c / GRID) + 0.5 - near.y * GRID) ** 2;
       pool = [...pool].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, FOUNDER_CELLS);
     }
+    this.founderPool = pool;
     const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
     for (const gen of founders) {
       const cell = pool[Math.floor(this.rnd() * pool.length)];
@@ -180,6 +191,7 @@ export class Ecology {
     if (!(this.dt > 0)) return;
     this.env = env;
     this.tick++;
+    if (this.living < SPORE_BELOW && this.spores.length > 0) this.germinate();
     if (this.tick % RISK_EVERY === 1) this.refreshDerived();
     if (this.tick % FLORA_EVERY === 0) this.stepFlora(this.dt * FLORA_EVERY);
     this.dissolve();
@@ -281,6 +293,44 @@ export class Ecology {
   }
 
   /** Stone, canopy and deep liquid are shelter (R7). */
+  /** Comfort-band fit 0..1 of a climate genome at a temperature, with shelter `sh` pulling the animal toward mild (R7). */
+  private climateMatch(cl: ClimateGenes, temperature: number, sh: number): number {
+    let dev = (temperature - cl.prefTemp) * (1 - CONSTANTS.REFUGE.value * sh);
+    const ct = this.rules.chemTrait;
+    if (ct.kind === 'coldStability' && dev > 0) dev *= 1 - ct.warmRelief * cl.chem;
+    const z = dev / cl.tolerance;
+    return Math.exp(-0.5 * z * z);
+  }
+
+  /** Banks the genome of an animal that is dying, keeping the best fit to the conditions right now (ties go to the newest). */
+  private bankSpore(i: number): void {
+    const g = this.genome[i];
+    const fit = this.climateMatch(g.climate, this.env.temperature, 0);
+    if (this.spores.length < SPORE_BANK) { this.spores.push(g); return; }
+    let worst = 0;
+    let worstFit = Infinity;
+    for (let k = 0; k < this.spores.length; k++) {
+      const f = this.climateMatch(this.spores[k].climate, this.env.temperature, 0);
+      if (f < worstFit) { worstFit = f; worst = k; }
+    }
+    if (fit >= worstFit) this.spores[worst] = g;
+  }
+
+  /** With (almost) no animals left, spores whose fit at their shallow cell is viable germinate as founders, with mutation. */
+  private germinate(): void {
+    const pool = this.founderPool;
+    if (pool.length === 0) return;
+    let n = 0;
+    for (let k = 0; k < this.spores.length && n < SPORES_PER_TICK; ) {
+      const cell = pool[Math.floor(this.rnd() * pool.length)];
+      const fit = this.climateMatch(this.spores[k].climate, this.env.temperature, this.shelter(cell));
+      if (fit < CONSTANTS.SPORE_VIABILITY.value) { k++; continue; }
+      const child = mutate(this.spores[k], this.rnd, this.rules);
+      this.spores.splice(k, 1);
+      if (this.spawn(child, (cell % GRID) + this.rnd(), Math.floor(cell / GRID) + this.rnd(), 0, null, this.env)) n++;
+    }
+  }
+
   private shelter(cell: number): number {
     const g = this.grid;
     return Math.max(clamp01(g.stone[cell]), clamp01(g.canopy[cell]), clamp01(g.liquid[cell] / this.L.deepLiquid));
@@ -454,10 +504,7 @@ export class Ecology {
     const cl = this.genome[i].climate;
     const sh = this.shelter(cell);
     const ct = rules.chemTrait;
-    let dev = (env.temperature - cl.prefTemp) * (1 - CONSTANTS.REFUGE.value * sh);
-    if (ct.kind === 'coldStability' && dev > 0) dev *= 1 - ct.warmRelief * cl.chem;
-    const z = dev / cl.tolerance;
-    const match = Math.exp(-0.5 * z * z);
+    const match = this.climateMatch(cl, env.temperature, sh);
     let stress = 1 - match + rules.edgeStressWeight * clamp01(env.edgeStress);
     let efficiency = 1;
     if (ct.kind === 'oxygenNeed') {
@@ -610,6 +657,7 @@ export class Ecology {
   }
 
   private kill(i: number): void {
+    this.bankSpore(i);
     this.alive[i] = 0;
     this.living--;
     this.free.push(i);
