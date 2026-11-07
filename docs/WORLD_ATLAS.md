@@ -15,7 +15,7 @@ Every explanation in the atlas uses only these. If a world on the board can't be
 | # | Rule (A → B) | Shows up as | Tag |
 |---|---|---|---|
 | **R1** | **Stiff bones.** Silicon bonds are short and rarely double, so silicon life is built from straight segments and angles. Carbon bends and double-bonds, so carbon life curls. | Silicon: facets, spikes, lattices, zig-zags, geometric trees. Carbon: curves, spirals, soft blobs, sinuous eels. | **[sci]** Si=Si π ≈ 97 vs C=C ≈ 274 kJ/mol |
-| **R2** | **Silicon rusts to stone, carbon rusts to air.** Silicon + oxygen gives stone that stays. Carbon + oxygen gives gas that floats away. | Silicon worlds pile up shells, arches, spires and sand. Carbon worlds stay clean, with bubbles and haze. | **[sci]** SiO₂ is solid, CO₂ is a gas |
+| **R2** | **Silicon rusts to stone, carbon rusts to air.** Silicon + oxygen gives stone that stays. Carbon + oxygen gives gas that floats away, **unless life in water turns it into shell** (reefs, stromatolites, limestone pillars), which acid dissolves again. | Silicon worlds pile up shells, arches, spires and sand. Carbon worlds stay clean, with bubbles and haze. | **[sci]** SiO₂ is solid, CO₂ is a gas |
 | **R3** | **Stone takes stains.** Fresh stone is bone white. Over time it soaks up whatever the sea carries. | Water (iron) gives **rust-red deserts**. Methane + sunlight gives **orange dunes** (tholin smog, like Titan). Acid gives **sulfur-yellow crusts**. Ammonia gives **plum and violet**. | **[sci]** iron oxide, Titan's orange tholins; **[game]** the exact mapping |
 | **R4** | **The sea paints the sky.** The liquid a world is made of sets its whole field colour: sky, fog, ground and shadow. | Teal (water), violet dusk (ammonia), frost (methane), lemon haze (acid) | **[game]** (ART_DIRECTION §3) |
 | **R5** | **The sea picks who survives.** Water dissolves silicon, so silicon life in water has to armour up. Cold methane spares silicon. Acid suits a silicon–carbon mix. | Plated, shelled silicon creatures in water worlds. Delicate glassy silicon in cold worlds. The richest silicon life in acid. | **[sci]** |
@@ -319,3 +319,15 @@ The DESIGN.md goal still works, and it's simpler:
 | `world-style` | The stain needs one extra uniform (`stoneAge`) on the shared world material. No new material. | Proposed |
 
 **Open question:** do we need a separate **Hunger** dial, or can it come from Light? (Scarce light → competition → hunters, DESIGN §2.) Merging them gives **4 dials + clock**, which is simpler, but the player loses the "gentle world in the dark" combination (eco-12, eco-15). Our leaning: keep Hunger, and test with a fresh player at H8.
+
+---
+
+## 7. Decisions (2026-11-07, from `research/world-forms/`)
+
+| Decision | Choice | Effect |
+|---|---|---|
+| Carbon stone | **R2 exception**: carbon + oxygen + life in a **Water** sea builds lasting shell stone (reefs, stromatolites, limestone pillars). Acid dissolves it. | eco-03's pillars and eco-06's caps get a real mechanism. On slides say "shell", not "chemistry" (real carbonate needs calcium, which the Recipe doesn't model). |
+| Lava | **The far end of the Heat dial**, not a fifth Sea. At max Heat the Recipe melts. Pulling Heat back down cracks out hexagonal columns as the melt cools. | No new UI; Sea and Heat stay independent. |
+| Canyons (eco-10 vs eco-01) | **Hybrid**: preset framing for the demo now, and later a rule (depth ∝ age × past liquid, steepness ∝ heat). Fix now: heat currently *lowers* canyon walls in `terrain.ts`, which is backwards. | eco-10 is reachable now. The rule can be added once sediment history exists. |
+
+Full rationale: `research/world-forms/REPORT.md` §6. Control → landform matrix: `research/world-forms/data/response-matrix.json`.
