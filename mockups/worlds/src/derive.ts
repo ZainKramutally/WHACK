@@ -33,6 +33,36 @@ export const blendHex = (cols: number[], w: number[]): number => {
   return linearToHex([acc[0] / s, acc[1] / s, acc[2] / s]);
 };
 
+export function hexToHsl(hex: number): [number, number, number] {
+  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (d < 1e-9) return [0, 0, l];
+  const sat = d / (1 - Math.abs(2 * l - 1));
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return [h, sat, l];
+}
+export function hslToHex(h: number, s: number, l: number): number {
+  const c = (1 - Math.abs(2 * l - 1)) * s, hp = (((h % 360) + 360) % 360) / 60, x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r1, g1, b1] = hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  const m = l - c / 2, B = (v: number) => Math.round(sat(v + m) * 255);
+  return (B(r1) << 16) | (B(g1) << 8) | B(b1);
+}
+
+/** Dominant-family glow colour: the leading recipe family wins (soft-argmax), hue is a circular mean, S/L held at the family level. */
+export function glowHueOf(recipe: Recipe): number {
+  const r = [recipe.c, recipe.si, recipe.o], fam = [FAMILY.c, FAMILY.si, FAMILY.o].map(hexToHsl);
+  const mx = Math.max(...r);
+  const w = r.map((v) => Math.exp((v - mx) / 0.025));
+  const ws = w[0] + w[1] + w[2];
+  let sx = 0, sy = 0, S = 0, L = 0;
+  fam.forEach(([h, s, l], i) => {
+    const k = w[i] / ws, a = (h * Math.PI) / 180;
+    sx += Math.cos(a) * k; sy += Math.sin(a) * k; S += s * k; L += l * k;
+  });
+  return hslToHex((Math.atan2(sy, sx) * 180) / Math.PI, S, L);
+}
+
 // ------------------------------------------------------------------ normalisation
 
 export function normalizeRecipe(r: Recipe): Recipe {
@@ -139,7 +169,7 @@ export function derive(dialsIn: Dials, presets: Preset[]): Derived {
   const builders = smoothstep(0.45, 0.8, recipe.si + recipe.o) * age;
   const erosion = sat(heat * age);
   const life = g(heat, 0.5, 0.28);
-  const glowHue = blendHex([FAMILY.c, FAMILY.si, FAMILY.o], [recipe.c + 1e-6, recipe.si + 1e-6, recipe.o + 1e-6]);
+  const glowHue = glowHueOf(recipe);
   const fogDensity = SEA_KEYS.reduce((s, k) => s + sea[k] * FOG_BASE[k], 0) * Math.max(0.2, 1.2 - heat);
 
   return {

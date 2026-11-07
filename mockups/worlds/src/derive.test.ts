@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS } from './presets';
 import { SPECIES } from './contracts';
 import type { SpeciesId } from './contracts';
-import { derive, normalizeRecipe, normalizeSea, paletteField } from './derive';
+import { derive, hexToHsl, normalizeRecipe, normalizeSea, paletteField } from './derive';
 
 const byId = (id: string) => PRESETS.find((p) => p.id === id)!;
 
@@ -63,5 +63,22 @@ describe('normalisation + clamping', () => {
       expect(d.fogDensity).toBeGreaterThan(0);
       for (const v of Object.values(d.palette)) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(0xffffff); }
     }
+  });
+});
+
+describe('glowHue (dominant family, not a beige average)', () => {
+  const hueDist = (a: number, b: number) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+  for (const p of PRESETS) {
+    it(`${p.id} is saturated`, () => {
+      expect(hexToHsl(derive(p.dials, PRESETS).glowHue)[1]).toBeGreaterThanOrEqual(0.6);
+    });
+  }
+  it('eco04 is hot pink (pin #DA1B58)', () => {
+    expect(hueDist(hexToHsl(derive(byId('eco04').dials, PRESETS).glowHue)[0], hexToHsl(0xda1b58)[0])).toBeLessThan(20);
+  });
+  it('eco12 is cyan (pin #27AAA6 / #5CB8B4)', () => {
+    const h = hexToHsl(derive(byId('eco12').dials, PRESETS).glowHue)[0];
+    expect(hueDist(h, hexToHsl(0x27aaa6)[0])).toBeLessThan(20);
+    expect(hueDist(h, hexToHsl(0x5cb8b4)[0])).toBeLessThan(20);
   });
 });
