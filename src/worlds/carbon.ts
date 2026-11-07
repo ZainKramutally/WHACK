@@ -151,12 +151,8 @@ export const carbon: WorldConfig = {
         greenhouseK: 33,            // baseline greenhouse warming with the reference air (1× nitrogen, 0.04% CO₂)
         greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009)
         nitrogenRef: 1,             // × Earth
-        // Not read by sim/models.ts yet (kept so the data is not lost): the CO₂ greenhouse and brightening.
-        referenceCo2: 0.04,         // %
-        co2PerDoublingK: 3,         // extra warming per doubling of CO₂
-        luminosityRiseTotal: 0,     // fractional brightening over the build; none for carbon
       },
-      why: 'Absorbed starlight balances the heat the planet radiates, with a CO₂-and-air greenhouse on top.',
+      why: 'Absorbed starlight balances the heat the planet radiates, with a greenhouse that thicker air strengthens a little.',
       sources: ['goldblatt2009'],
       assumption: true,
     },

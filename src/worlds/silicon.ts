@@ -162,10 +162,8 @@ export const silicon: WorldConfig = {
         greenhouseK: 0,
         greenhousePerLnN: 0,
         nitrogenRef: 1,
-        // Not read by sim/models.ts yet (kept so the data is not lost): slow brightening of a Sun-like star.
-        luminosityRiseTotal: 0.4,
       },
-      why: 'Absorbed starlight balances the heat the planet radiates; a Sun-like star brightens over its life, so the world warms slowly.',
+      why: 'Absorbed starlight balances the heat the planet radiates; the starlight is fixed by the orbit, so the temperature moves only with the Temperature slider.',
       sources: [],
       assumption: true,
     },
