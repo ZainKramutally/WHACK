@@ -41,7 +41,9 @@ export const SHADE_EDGES: [number, number] = [0.15, 0.55];      // N·L: shadow 
 export const DEPTH_EDGES: [number, number, number] = [25, 70, 160]; // metres
 export const DEPTH_MIX = [0, 0.25, 0.5, 0.75];                     // share of the horizon colour per depth band
 export const SURFACE_GAIN = 0.88;                                 // keeps palette step 5 for highlights: lit surfaces land on step 4
-export const BONE_BIAS = 0.006;                                   // Oklab² penalty so desaturated cool greys prefer a stain/field ramp over fresh bone
+export const CHROMA_GAIN = 1.6;                                   // …applied to shaded surfaces; fades out over L 0.55–0.8 so bright pools and snow keep their pale hue
+export const CHROMA_FADE: [number, number] = [0.55, 0.8];                                   // surface chroma boost in Oklab before the lock: shaded faces keep their hue instead of falling to grey-tan bone
+export const BONE_BIAS = 0.012;                                   // Oklab² penalty so desaturated cool greys prefer a stain/field ramp over fresh bone
 export const HALO_HDR2 = 2;                                        // emissive above this gets a 2 px ring
 
 /** The sea with the largest weight (ties resolve in dial order). */
@@ -51,20 +53,40 @@ export function dominantSea(sea: SeaWeights): SeaKey {
   return best;
 }
 
-/** Active scene palette: field ramp of the dominant sea + family ramps + stone/stain ramps + spark + ink + white. Exactly 32 entries (padded). */
-export function buildPalette(sea: SeaWeights): number[] {
+/** Pale neutral sky ramps per sea (3 steps, low chroma): the "pale pin" allowance for sky bands (§9: cream / sage / frost grey). */
+export const PALE_NEUTRAL: Record<SeaKey, number[]> = {
+  water: ramp('#6F8F88', '#A9C0B6', '#D3E2D6'),
+  acid: ramp('#8E9A86', '#C5CDB4', '#EEF0D8'),
+  methane: ramp('#7C88A8', '#B3BED6', '#E3E8F3'),
+  ammonia: ramp('#6A5E9A', '#A598C8', '#D8D0EA'),
+};
+
+/** Spec open question #3: a "dim water" field ramp shifted green, for very dark water worlds (eco-12). */
+export const DIM_WATER = ramp('#04201E', '#0A4B44', '#0F7A6A', '#1BA88C', '#5DDCB0', '#C4FFE6');
+export const DIM_LIGHT = 0.2; // water worlds below this light level use DIM_WATER
+
+export const useDimWater = (sea: SeaWeights, light: number): boolean => dominantSea(sea) === 'water' && light < DIM_LIGHT;
+
+/** Field ramp for the dominant sea (sky, depth haze). */
+export const fieldRamp = (sea: SeaWeights, light = 1): number[] => (useDimWater(sea, light) ? DIM_WATER : SEA_RAMPS[dominantSea(sea)]);
+
+/**
+ * Active scene palette, exactly 32 entries: ink, white, sky bands, field ramp, spark, stone/stain, families.
+ * Over-subscribed palettes drop from the tail (bone/stain highlights, family shadows) so sky and field always survive.
+ */
+export function buildPalette(sea: SeaWeights, light = 1, sky: number[] = []): number[] {
   const k = dominantSea(sea);
+  const fam = [FAMILIES.carbon, FAMILIES.silicon, FAMILIES.oxygen];
   const all = [
-    ...SEA_RAMPS[k], ...FAMILIES.carbon, ...FAMILIES.silicon, ...FAMILIES.oxygen, ...FAMILIES.spark,
-    ...BONE, ...STAINS[k], INK, WHITE,
+    INK, WHITE, ...sky, ...fieldRamp(sea, light), ...FAMILIES.spark,
+    ...STAINS[k].slice(0, 3), ...BONE.slice(0, 3),
+    ...fam.flatMap((f) => f.slice(1)), ...fam.map((f) => f[0]),
+    STAINS[k][3], BONE[3],
   ];
   const out = [...new Set(all)];
   while (out.length < PALETTE_SIZE) out.push(out[0]);
   return out.slice(0, PALETTE_SIZE);
 }
-
-/** Field ramp for the dominant sea (sky, depth haze). */
-export const fieldRamp = (sea: SeaWeights): number[] => SEA_RAMPS[dominantSea(sea)];
 
 /** 0 shadow · 1 base · 2 light from N·L. */
 export function shadeBand(nl: number): 0 | 1 | 2 {
@@ -123,17 +145,49 @@ export function skyBand(elevation: number): 0 | 1 | 2 | 3 {
   return elevation < e[0] ? 3 : elevation < e[1] ? 2 : elevation < e[2] ? 1 : 0;
 }
 
-/** Field-ramp step (0..5) nearest to a hex colour. */
-export const nearestStep = (hex: number, ramp: number[]): number => nearestIndex(hexToLin(hex), ramp);
+const lerpHex = (a: number, b: number, t: number) => {
+  const ch = (h: number, sh: number) => (h >> sh) & 255;
+  return [16, 8, 0].reduce((acc, sh) => acc | (Math.round(ch(a, sh) + (ch(b, sh) - ch(a, sh)) * t) << sh), 0);
+};
 
 /**
- * Field-ramp steps for the 4 sky bands (top → horizon), spanning the v1 sky's own range (skyTop → haze) so a pale
- * pin keeps a pale sky (spec §9 uses steps 3–5 there) and a dusk sky keeps its dark top. Monotone, ≥ 1 step apart.
+ * The 4 sky band colours (top → horizon): the v1 sky's own gradient (skyTop → haze) sampled at 4 points, each snapped to the
+ * nearest of field steps 1–5 + the sea's pale-neutral ramp. A pale sage pin keeps a sage sky; a dusk sky keeps its dark top.
  */
-export function skySteps(skyTop: number, haze: number, ramp: number[]): [number, number, number, number] {
-  let a = nearestStep(skyTop, ramp), b = nearestStep(haze, ramp);
-  if (a > b) [a, b] = [b, a];
-  if (a === b) { if (b < 5) b++; else a--; }
-  const at = (i: number) => Math.round(a + ((b - a) * i) / 3);
-  return [at(0), at(1), at(2), at(3)];
+export function skyBands(skyTop: number, haze: number, sea: SeaWeights, light = 1): [number, number, number, number] {
+  const cand = [...fieldRamp(sea, light).slice(1), ...PALE_NEUTRAL[dominantSea(sea)]];
+  const at = (i: number) => {
+    const target = lerpHex(skyTop, haze, i / 3);
+    return cand[nearestIndexRaw(hexToLin(target), cand)];
+  };
+  const b: [number, number, number, number] = [at(0), at(1), at(2), at(3)];
+  if (new Set(b).size < 2) {
+    // a flat v1 sky still gets 2 stepped tones: the top half drops to the next darker candidate
+    const lumOf = (h: number) => toOklab(hexToLin(h))[0];
+    const pool = PALE_NEUTRAL[dominantSea(sea)].includes(b[3]) ? PALE_NEUTRAL[dominantSea(sea)] : cand; // stay in the horizon's family
+    const darker = pool.filter((c) => lumOf(c) < lumOf(b[3])).sort((x, y) => lumOf(y) - lumOf(x))[0];
+    if (darker !== undefined) { b[0] = darker; b[1] = darker; }
+  }
+  return b;
 }
+
+/** Oklab nearest without biases (sky candidates are all scene-neutral). */
+function nearestIndexRaw(rgbLin: [number, number, number], palette: number[]): number {
+  const x = toOklab(rgbLin);
+  let best = 0, bd = Infinity;
+  palette.forEach((hex, i) => { const d = labDist(x, toOklab(hexToLin(hex))); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+
+/** 1 = carbon, 3 = bone (both penalised for emissive pixels), 4 = pale sky neutral, 2 = stain (penalised on high/young stone), 0 = neutral. */
+const CARBON = new Set(FAMILIES.carbon);
+const STAIN_ALL = new Set(Object.values(STAINS).flat());
+const BONE_SET = new Set(BONE);
+const PALE_SET = new Set(Object.values(PALE_NEUTRAL).flat());
+export const SKY_ONLY_BIAS = 0.01; // pale-neutral sky colours (except the horizon band) are for the sky; surfaces avoid them so silhouettes stay distinct
+export const paletteKind = (hex: number): 0 | 1 | 2 | 3 | 4 => (CARBON.has(hex) ? 1 : STAIN_ALL.has(hex) ? 2 : BONE_SET.has(hex) ? 3 : PALE_SET.has(hex) ? 4 : 0);
+export const EMISSIVE_CARBON_BIAS = 0.03; // emissive pixels lock toward silicon/oxygen light steps rather than carbon or stone
+export const STAIN_HIGH_BIAS = 0.012;     // stain penalty at full height, so high/young stone prefers bone
+/** Mirrors v1's tipStain: fully stained worlds (stainAmount ≥ 0.85) keep stain on high stone too. */
+export const stainFalloff = (stainAmount: number): number => 1 - Math.min(1, Math.max(0, (stainAmount - 0.6) / 0.25));
+export const STAIN_HIGH_Y: [number, number] = [4, 20]; // metres: smoothstep range of the height falloff

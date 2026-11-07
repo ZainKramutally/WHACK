@@ -99,7 +99,7 @@ export class World {
     const derived = derive(this.morph.current, PRESETS);
     applyDerived(this.uniforms, derived, this.morph.current);
     this.fogDensity.value = derived.fogDensity;
-    this.pixel.setSea(this.morph.current.sea);
+    this.pixel.setSea(this.morph.current.sea, this.morph.current.light);
     this.scene.backgroundNode = this.flags.pixel ? createPixelSky(this.pixel, comp) : createSkyNode(this.uniforms, comp);
     this.rig.setComposition(comp);
     this.rig.layout(this.quality);
@@ -158,6 +158,8 @@ export class World {
     this.hemi.intensity = Math.PI * 0.5;
     const [r, g, b] = hexToLinear(p.skyHorizon);
     this.pixel.setSky(p.skyTop, p.haze);
+    this.pixel.setHaze(d.fogDensity);
+    this.pixel.setStain(d.stainAmount);
     this.post.setPalette(0.2126 * r + 0.7152 * g + 0.0722 * b);
   }
 
@@ -188,7 +190,7 @@ export class World {
       applyDerived(this.uniforms, this.ctx.derived, this.morph.current);
       this.fogDensity.value = this.ctx.derived.fogDensity;
       this.updateLights();
-      this.pixel.setSea(this.morph.current.sea);
+      this.pixel.setSea(this.morph.current.sea, this.morph.current.light);
       this.onDerived?.();
     }
     this.rig.update(this.uniforms.time.value, dt, !this.flags.capture);

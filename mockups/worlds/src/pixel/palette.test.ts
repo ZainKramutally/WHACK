@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PALETTE_SIZE, SEA_RAMPS, STAINS, buildPalette, depthBand, dominantSea, hexToLin, integerScale, nearestIndex, paletteBias, shadeBand, skyBand, skySteps,
+  PALETTE_SIZE, SEA_RAMPS, STAINS, buildPalette, depthBand, dominantSea, hexToLin, integerScale, nearestIndex, paletteBias, shadeBand, skyBand, skyBands, PALE_NEUTRAL, DIM_WATER, useDimWater, fieldRamp,
 } from './palette';
 
 const sea = (o: Partial<Record<'water' | 'ammonia' | 'methane' | 'acid', number>>) => ({ water: 0, ammonia: 0, methane: 0, acid: 0, ...o });
@@ -42,15 +42,34 @@ describe('palette', () => {
     expect([0, 24.9, 25, 69.9, 70, 159.9, 160, 900].map(depthBand)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
   });
 
-  it('sky bands run top (0) → horizon (3) and sky steps are monotone, distinct', () => {
+  it('sky bands run top (0) → horizon (3) and come from field steps 1–5 + the pale neutral ramp', () => {
     expect([0.9, 0.2, 0.1, 0, -0.5].map(skyBand)).toEqual([0, 1, 2, 3, 3]);
-    const ramp = SEA_RAMPS.water;
-    for (const [top, haze] of [[0x04202b, 0xc4ffee], [0xc4ffee, 0xc4ffee], [0x0a4c5e, 0x5ddccf]]) {
-      const s = skySteps(top, haze, ramp);
+    const w = sea({ water: 1 });
+    const allowed = [...SEA_RAMPS.water.slice(1), ...PALE_NEUTRAL.water];
+    for (const [top, haze] of [[0x04202b, 0xc4ffee], [0xaab4ac, 0xc9d1c4], [0x0a4c5e, 0x5ddccf]]) {
+      const s = skyBands(top, haze, w);
       expect(s).toHaveLength(4);
-      for (let i = 1; i < 4; i++) expect(s[i]).toBeGreaterThanOrEqual(s[i - 1]);
-      expect(s[3]).toBeGreaterThan(s[0]);
+      s.forEach((c) => expect(allowed).toContain(c));
     }
+    // a flat pale sage sky stays neutral (not field cyan) at the horizon and still gets 2 stepped tones
+    const flat = skyBands(0xb4bcb0, 0xb8c0b4, w);
+    expect(PALE_NEUTRAL.water).toContain(flat[3]);
+    expect(new Set(flat).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('palette keeps sky bands, field and ink within 32, and drops highlights first', () => {
+    const w = sea({ acid: 1 });
+    const bands = skyBands(0xc4cdb4, 0xe8ecd0, w);
+    const p = buildPalette(w, 1, bands);
+    expect(p).toHaveLength(PALETTE_SIZE);
+    for (const c of [...bands, ...SEA_RAMPS.acid]) expect(p).toContain(c);
+  });
+
+  it('uses the green-shifted dim water ramp only for dark water worlds', () => {
+    expect(useDimWater(sea({ water: 1 }), 0.08)).toBe(true);
+    expect(useDimWater(sea({ water: 1 }), 0.85)).toBe(false);
+    expect(useDimWater(sea({ acid: 1 }), 0.05)).toBe(false);
+    expect(fieldRamp(sea({ water: 1 }), 0.08)).toBe(DIM_WATER);
   });
 
   it('integer upscale never goes below 1 and never exceeds the fit', () => {
