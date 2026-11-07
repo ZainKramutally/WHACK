@@ -26,6 +26,12 @@ PRESETS = {
     "rhino":    dict(recipe=(0.15, 0.65, 0.20), sea="water",   heat=0.50, light=0.55, hunger=0.55),
 }
 
+NG = 32
+(SEGN, SIZE, R0, R1, R2, ELONG, SYM, AXIS, HEADLEN, LSTART, LEND, LPER, LLEN, LJOINT,
+ PCOV, PSIZE, DMIX, DDENS, TAIL, EYEB, EYEC, HORN, HORNC, GAPE, DIET, BUOY, GLOW, SOC,
+ BOLD, RK, PATT, HEADW) = range(32)
+
+
 # ---------------------------------------------------------------- templates (guided mode)
 # Body-plan attractors from DESIGN.md §4 + WORLD_ATLAS fauna pins. genes: {index: target};
 # seg = target segment count; aff(env, rho_air) -> affinity in [0,1] (WORLD_ATLAS/F §6 rules).
@@ -64,6 +70,53 @@ TEMPLATES = [
 ]
 
 
+# Round 2: 7 BODY basins (canalization in develop; notes/01 §7.5). body = cost-bearing axes the
+# ledger selects (never snapped); look = cost-free proportion genes snapped <= kappa toward the basin.
+BASINS = [
+    dict(name="worm",         body=dict(elong=.2, pairs=0, armour=0, buoy=.2, size=0),  look={R0: .5, R1: .5, R2: .4, ELONG: .6}),
+    dict(name="swimmer",      body=dict(elong=.6, pairs=0, size=.15),                   look={ELONG: .95, TAIL: .9, R2: .1, HEADLEN: .3}),
+    dict(name="strider",      body=dict(pairs=.5, llen=.9, elong=.1),                   look={AXIS: .95, LJOINT: .8, HEADW: .7, R1: .3}),
+    dict(name="rhino_lizard", body=dict(pairs=.5, llen=.35, armour=.75, horn=.8, elong=.3), look={R1: .9, HEADLEN: .6, PSIZE: .8, AXIS: .1}),
+    dict(name="spinner",      body=dict(radial=.9, pairs=.75, llen=.2),                 look={R0: .5, R1: .8, R2: .5}),
+    dict(name="drifter",      body=dict(radial=.9, buoy=.9, size=.15),                  look={R1: .9, R2: .2, TAIL: .1}),
+    dict(name="sky_whale",    body=dict(buoy=.9, size=.75, pairs=0),                    look={R1: .9, TAIL: .95, ELONG: .7, HEADLEN: .4}),
+]
+BASIN_R, FORM_BODY, FORM_LOOK = 0.25, 0.12, 0.15   # capture radius, "formed" thresholds (RMS); r2b loosens to .15/.20
+
+
+def basin_affinity(env):
+    a = template_affinity(env)   # TEMPLATES order: drifter, eel, spinner, hopper, serpent, builder, strider, rhino, whale
+    b = np.array([0.3, a[1], a[6], a[7], a[2], a[0], a[8]])
+    return b / max(b.max(), 1e-9)
+
+
+def body_axes(D, G, segN):
+    return dict(elong=(segN - 3) / 13, pairs=np.minimum(D["npairs"], 4) / 4, llen=G[:, LLEN], armour=D["cover"],
+                buoy=D["buoy"], size=np.clip(np.log2(D["S"] / 0.15) / 6, 0, 1), radial=G[:, SYM], horn=G[:, HORN])
+
+
+def classify(D, G, segN):
+    ax = body_axes(D, G, segN); n = len(G)
+    dist = np.zeros((n, len(BASINS)))
+    for k, B in enumerate(BASINS):
+        dist[:, k] = np.sqrt(np.mean([(ax[a] - v) ** 2 for a, v in B["body"].items()], axis=0))
+    near = np.argmin(dist, 1)
+    return near, dist[np.arange(n), near]
+
+
+def look_rms(Gph, near):
+    out = np.zeros(len(Gph))
+    for k, B in enumerate(BASINS):
+        m = near == k
+        if m.any():
+            idx = np.array(list(B["look"])); tgt = np.array(list(B["look"].values()))
+            out[m] = np.sqrt(((Gph[np.ix_(m, idx)] - tgt) ** 2).mean(1))
+    return out
+
+
+R2_OVERRIDES = dict(plate_build=0.05, plate_mass=0.15, k_dis=0.15)   # round-1 ledger fix
+
+
 def template_affinity(env):
     rho = SEA[env["sea"]]["rho"] * (1.3 - env["heat"])
     c, si, o = env["recipe"]
@@ -100,36 +153,44 @@ C = dict(
     float_graze=0.5,    # floaters graze at half rate (aerial plankton / canopy tops)
     mut_p=0.3, mut_sigma=0.05, dup_p=0.03, del_p=0.01, hox_p=0.05,
     no_cannibal=True,
-    tpl_switch=0.01,    # guided: per-birth chance a lineage re-picks its template (affinity-weighted)
+    tpl_switch=0.01,
+    k_gas=1.0,          # r2: gas-bag upkeep, x b0 x buoy per mass
+    k_bigcold=0.3,      # r2: big bodies save up to 30% basal in cold, O-rich worlds
+    k_induce=0.4,       # r2: inducible armour = 0.4 * Hunger * min(1, hunters in cell / 2)    # guided: per-birth chance a lineage re-picks its template (affinity-weighted)
 )
-NG = 32
-(SEGN, SIZE, R0, R1, R2, ELONG, SYM, AXIS, HEADLEN, LSTART, LEND, LPER, LLEN, LJOINT,
- PCOV, PSIZE, DMIX, DDENS, TAIL, EYEB, EYEC, HORN, HORNC, GAPE, DIET, BUOY, GLOW, SOC,
- BOLD, RK, PATT, HEADW) = range(32)
 
 
 def rate_of(heat):  # log-compressed rate(heat); 0.44 at heat 0.1, 1.0 at 0.5
     return 0.3 + 1.4 * heat
 
 
-def develop(G, segN, comp, env):
-    """Vectorised F §3.3 develop(): genome rows -> traits used by the ledger."""
+def develop(G, segN, comp, env, r2=False):
+    """Vectorised F §3.3 develop(): genome rows -> traits used by the ledger.
+    r2=True applies round-2 biology (notes/02 §2): TSR full for limbless/aquatic bodies and 1/10 for
+    walkers, size x(1+0.5 o), hump-shaped eye plasticity."""
     heat, light = env["heat"], env["light"]
     rho_air = SEA[env["sea"]]["rho"] * (1.3 - heat)
     c, si, o = comp[:, 0], comp[:, 1], comp[:, 2]
     tsr = 1.6 + (0.65 - 1.6) * heat
     buoy = G[:, BUOY]
-    S = 0.15 * 2 ** (6 * G[:, SIZE]) * tsr * (1 + 0.6 * rho_air * buoy)
     ls = np.floor(segN * G[:, LSTART]).astype(int)
     le = np.floor(segN * G[:, LEND]).astype(int)
     per = 1 + np.floor(2.99 * G[:, LPER]).astype(int)
     span = np.maximum(0, le - ls)
     npairs = np.minimum(4, np.ceil(span / per)).astype(int)
+    if r2:
+        tsr = 1 + (tsr - 1) * np.where(npairs == 0, 1.0, 0.1)
+        S = 0.15 * 2 ** (6 * G[:, SIZE]) * tsr * (1 + 0.6 * rho_air * buoy) * (1 + 0.5 * o)
+    else:
+        S = 0.15 * 2 ** (6 * G[:, SIZE]) * tsr * (1 + 0.6 * rho_air * buoy)
     lenrel = 0.3 + 1.7 * G[:, LLEN]
     cover = G[:, PCOV]
     plates = np.round(cover * segN).astype(int)
     hornrel = G[:, HORN] * 0.6
-    A = G[:, EYEB] * (1.5 - light)
+    if r2 and light < 0.15:   # total dark: eyes regress unless glow (o > 0.3) is around
+        A = G[:, EYEB] * np.where(o > 0.3, 1.5 - light, 1.35 * light / 0.15)
+    else:
+        A = G[:, EYEB] * (1.5 - light)
     eyecount = np.where(si > 0.5, np.where(G[:, EYEC] < 0.33, 3, np.where(G[:, EYEC] < 0.66, 4, 6)),
                         np.where(G[:, EYEC] < 0.25, 1, 2))
     t = G[:, DIET]
@@ -159,7 +220,7 @@ def traits_flags(D):
 
 class Sim:
     def __init__(self, preset, cap=1000, mut_mult=1.0, dup=True, seed=0, cheats=False,
-                 founder_var=0.03, dt=None, guided=False, pull=0.1):
+                 founder_var=0.03, dt=None, guided=False, pull=0.1, r2=False, kappa=0.5, niches=True, activation="affinity"):
         self.env = dict(PRESETS[preset]); self.preset = preset
         self.cap, self.mut_mult, self.dup, self.cheats = cap, mut_mult, dup, cheats
         self.rng = np.random.default_rng(seed)
@@ -178,7 +239,8 @@ class Sim:
         base[DIET] = 0.1; base[EYEB] = 0.15; base[BUOY] = 0.2; base[PCOV] = 0.05; base[HORN] = 0.02
         base[RK] = 0.6; base[GAPE] = 0.3; base[DDENS] = 0.1
         self.guided, self.pull = guided, pull
-        n0 = cap // 2 if guided else 24   # guided: "tons of tiny capsule worms" from the start
+        self.r2, self.kappa, self.niches, self.activation = r2, kappa, niches, activation
+        n0 = cap // 2 if guided else (cap // 4 if r2 else 24)   # guided/r2: "tons of tiny capsule worms"
         self.G = np.clip(base + rng.normal(0, founder_var, (n0, NG)), 0, 1)
         self.base = base; self.L0 = int(L)
         self.aff = template_affinity(self.env)
@@ -188,7 +250,14 @@ class Sim:
         self.segN = np.full(n0, int(L))
         rec = np.array(self.env["recipe"])
         self.comp = np.tile(rec, (n0, 1))
-        spread = C["world"] / 2 if guided else 10
+        spread = C["world"] / 2 if (guided or r2) else 10
+        self.ind = np.zeros(n0)
+        rho_air = SEA[self.env["sea"]]["rho"] * (1.3 - self.env["heat"])
+        self.K_air = 0.6 * self.K * min(1.0, rho_air / 0.6); self.K_can = 0.6 * self.K
+        self.air = np.full(g * g, self.K_air); self.can = np.where(self.liquid, 0.0, self.K_can)
+        self.stone = (~self.liquid) & (rng.random(g * g) < 0.10)
+        self.baff = basin_affinity(self.env)
+        self.active = np.zeros(len(BASINS), bool); self.active[np.argsort(-self.baff)[:3]] = True
         self.x = rng.uniform(-spread, spread, n0); self.y = rng.uniform(-spread, spread, n0)
         self.age = np.zeros(n0); self.depth = np.zeros(n0, int)
         self._derive_all()
@@ -197,8 +266,24 @@ class Sim:
         self.midwife_until = -1; self.meat_fired = False
 
     def _derive_all(self):
-        self.D = develop(self.G, self.segN, self.comp, self.env)
-        self.D["mode"] = np.zeros(len(self.G), int)
+        if not self.r2:
+            self.D = develop(self.G, self.segN, self.comp, self.env)
+            self.D["mode"] = np.zeros(len(self.G), int)
+            return
+        Gph = self.G.copy(); Gph[:, PCOV] = np.minimum(1, Gph[:, PCOV] + self.ind)   # inducible armour
+        D = develop(Gph, self.segN, self.comp, self.env, r2=True)
+        near, d = classify(D, Gph, self.segN)
+        # canalization: look genes snapped <= kappa toward an ACTIVE basin, ramping with growth (ontogeny)
+        rate = rate_of(self.env["heat"])
+        grow = np.minimum(1, self.age / (3 * D["S"] ** 0.25 / rate))
+        w = np.clip((BASIN_R - d) / (0.5 * BASIN_R), 0, 1) * self.active[near] * self.kappa * grow
+        for k, B in enumerate(BASINS):
+            m = (near == k) & (w > 0)
+            if m.any():
+                idx = np.array(list(B["look"])); tgt = np.array(list(B["look"].values()))
+                Gph[np.ix_(m, idx)] += w[m, None] * (tgt - Gph[np.ix_(m, idx)])
+        D["mode"] = np.zeros(len(self.G), int)
+        self.D, self.Gph, self.near, self.bd, self.grow = D, Gph, near, d, grow
 
     def _mutate(self, G, segN, parent_comp, tpl=None):
         rng = self.rng; n = len(G)
@@ -256,12 +341,8 @@ class Sim:
         M = D["M"]; kl = M ** -0.25  # Kleiber per-mass multiplier
         inliq = self.liquid[cell]
         # --- locomotion mode: cheapest of crawl/walk, swim (liquid), float
-        walk = np.where(D["npairs"] > 0, 1.0 / (np.sqrt(2 * D["npairs"]) * D["lenrel"] + 1e-9), C["crawl"])
-        walk = np.minimum(walk, C["crawl"])
-        swim = np.where(inliq, C["swim"] / (1 + 0.6 * D["c"] * np.minimum(D["segN"], 12) / 12), 1e9)
-        hover = C["k_hover"] * np.maximum(0, D["rho_body"] - D["rho_air"]) / C["k_loco"]
-        flt = C["float_h"] + hover
-        costs = np.stack([walk, swim, np.full(n, 1e9), flt], 1)  # mode 2 = sessile (unused)
+        costs = self._mode_costs(D, inliq)
+        walk = costs[:, 0]
         mode = np.argmin(costs, 1); D["mode"] = mode
         loco = costs[np.arange(n), mode]
         # --- per-template finite state machine (guided mode only); baseline = F steering, all x1
@@ -286,13 +367,34 @@ class Sim:
         eye = C["k_eye"] * D["A"] ** 2 * C["b0"] * 5
         dis = C["k_dis"] * SEA[env["sea"]]["atk_si"] * D["si"] * (1 - D["cover"]) * np.where(mode == 3, 0.3, 1.0)
         hs = C["k_heat"] * max(0, heat - 0.5) * np.minimum(D["S"], 3) * C["b0"]
+        if self.r2:
+            basal = basal + C["k_gas"] * C["b0"] * D["buoy"]          # gas-bag upkeep
+            sz = np.clip(np.log2(D["S"] / 0.15) / 6, 0, 1)            # cold + O favour big bodies
+            basal = basal * (1 - C["k_bigcold"] * (1 - heat) * (0.5 + D["o"]) * sz)
         cost = (basal + eye + C["k_loco"] * loco * loco_m * rate + hs) * kl + dis
         # --- grazing (food-limited per cell)
         demand = C["i0"] * (1 - C["hunger_scarcity"] * H) * (1 - D["t"]) ** 1.5 * kl * M * dt * np.where(mode == 3, C["float_graze"], 1.0)
-        Dcell = np.bincount(cell, demand, g * g)
-        frac = np.minimum(1.0, self.food / np.maximum(Dcell, 1e-12))
-        take = demand * frac[cell] * np.minimum(1.0, self.food[cell] / (0.3 * self.K) + 0.2)
-        self.food = np.maximum(0, self.food - np.bincount(cell, take, g * g))
+        if self.r2 and self.niches:
+            # niche partitioning: ground / liquid (swimmers only) / aerial Spark (floaters) / canopy (long legs)
+            fl = mode == 3
+            reach = D["S"] * D["lenrel"] * (D["npairs"] > 0) * (1 + self.Gph[:, AXIS])
+            a_can = np.clip((reach - 0.3) / 0.5, 0, 1) * ~inliq * ~fl
+            ground_ok = ~fl & (~inliq | (mode == 1))
+            d_g = demand * ground_ok * (1 - a_can)
+            d_c = demand * a_can
+            d_a = demand / C["float_graze"] * fl * np.minimum(2.0, 0.5 + D["S"])   # filter area grows with size
+            take = np.zeros(n)
+            for pool, dd, Kp in ((self.food, d_g, self.K), (self.can, d_c, self.K_can), (self.air, d_a, self.K_air)):
+                Dc = np.bincount(cell, dd, g * g)
+                fr = np.minimum(1.0, pool / np.maximum(Dc, 1e-12))
+                tk = dd * fr[cell] * np.minimum(1.0, pool[cell] / (0.3 * Kp + 1e-12) + 0.2)
+                pool -= np.bincount(cell, tk, g * g); np.maximum(pool, 0, out=pool)
+                take += tk
+        else:
+            Dcell = np.bincount(cell, demand, g * g)
+            frac = np.minimum(1.0, self.food / np.maximum(Dcell, 1e-12))
+            take = demand * frac[cell] * np.minimum(1.0, self.food[cell] / (0.3 * self.K) + 0.2)
+            self.food = np.maximum(0, self.food - np.bincount(cell, take, g * g))
         self.E += take - cost * M * dt
         # --- predation
         dead = np.zeros(n, bool)
@@ -320,14 +422,19 @@ class Sim:
                 edible = (Sp * 0.8 < D["gape"][hu]) & ((D["mode"][pr] != 3) | (D["mode"][hu] == 3))
                 if C["no_cannibal"]:  # [game] carnivores (t >= 0.5) don't eat carnivores
                     edible &= D["t"][pr] < 0.5
-                att = D["t"][hu] * (1 + 2 * D["hornrel"][hu]) * np.sqrt(Sh / Sp)
-                dfn = 0.3 + 1.5 * D["cover"][pr] + 0.5 * D["si"][pr] + 1.0 * D["hornrel"][pr] \
+                if self.r2:   # notes/02 §2.3: horns are prey defence; the hunter weapon is gape
+                    att = D["t"][hu] * (0.5 + self.G[hu, GAPE]) * np.sqrt(Sh / Sp)
+                else:
+                    att = D["t"][hu] * (1 + 2 * D["hornrel"][hu]) * np.sqrt(Sh / Sp)
+                dfn = 0.3 + 1.5 * D["cover"][pr] + 0.5 * D["si"][pr] + (1.5 if self.r2 else 1.0) * D["hornrel"][pr] \
                     + 0.3 * self.G[pr, DDENS] * D["si"][pr] - 0.3 * (D["mode"][pr] == 3)
                 dfn = np.maximum(dfn, 0.05)
                 vh = Sh ** 0.5 / np.minimum(walk[hu], C["crawl"]) ** 0.5
                 vp = Sp ** 0.5 / np.minimum(walk[pr], C["crawl"]) ** 0.5
                 det = np.minimum(1, D["vision"][pr] / (D["vision"][hu] + 0.05))
                 p_win = att / (att + dfn) * vh / (vh + vp * det) * vuln_m[pr]
+                if self.r2:   # builders (si*o > 0.12) on stone cells hide in dens
+                    p_win = p_win * np.where((D["si"][pr] * D["o"][pr] > 0.12) & self.stone[cell[pr]], 0.2, 1.0)
                 win = edible & (rng.random(len(hu)) < p_win) & ~dead[hu]
                 gain = C["meat_eff"] * D["t"][hu] * (0.3 + 0.6 * H) * (np.maximum(self.E[pr], 0) + 0.5 * D["M"][pr])
                 self.E[hu[win]] += gain[win]
@@ -353,6 +460,10 @@ class Sim:
         # --- producers regrow (logistic, Light), corpses recycle
         r = C["food_r"] * (0.2 + light)
         self.food += r * (self.K - self.food) * (0.3 + 0.7 * self.food / self.K) * dt
+        if self.r2 and self.niches:
+            self.air += r * (self.K_air - self.air) * (0.3 + 0.7 * self.air / max(self.K_air, 1e-12)) * dt
+            land = ~self.liquid
+            self.can[land] += r * (self.K_can - self.can[land]) * (0.3 + 0.7 * self.can[land] / self.K_can) * dt
         # --- death
         self.age += dt
         life = 30 * D["S"] ** 0.25 / rate
@@ -377,12 +488,19 @@ class Sim:
             par = par[: max(0, room)]; each = each[: len(par)]
             G2, s2, c2 = self._mutate(self.G[par], self.segN[par], self.comp[par], self.tpl[par])
             t2 = self._tpl_out if self.guided else self.tpl[par]
-            D2 = develop(G2, s2, c2, env)
+            if self.r2:   # inducible defence: newborn armour from local predator density x Hunger
+                hc = np.bincount(cell[D["t"] >= 0.5], minlength=g * g)
+                i2 = C["k_induce"] * H * np.minimum(1, hc[cell[par]] / 2.0)
+                G2ph = G2.copy(); G2ph[:, PCOV] = np.minimum(1, G2ph[:, PCOV] + i2)
+                D2 = develop(G2ph, s2, c2, env, r2=True)
+            else:
+                i2 = np.zeros(len(par))
+                D2 = develop(G2, s2, c2, env)
             build = C["plate_build"] * D2["cover"] / (0.2 + D2["si"]) * D2["M"]
             E2 = each - build
             # offspring energy is absolute; must exceed 0.2 of own mass
             ok = E2 > 0.2 * D2["M"]
-            par, G2, s2, c2, E2, t2 = par[ok], G2[ok], s2[ok], c2[ok], E2[ok], t2[ok]
+            par, G2, s2, c2, E2, t2, i2 = par[ok], G2[ok], s2[ok], c2[ok], E2[ok], t2[ok], i2[ok]
             self.births += len(par)
             alive = ~dead
             self.G = np.concatenate([self.G[alive], G2]); self.segN = np.concatenate([self.segN[alive], s2])
@@ -391,16 +509,31 @@ class Sim:
             self.y = np.concatenate([self.y[alive], self.y[par] + rng.normal(0, 0.5, len(par))])
             self.E = np.concatenate([self.E[alive], E2]); self.age = np.concatenate([self.age[alive], np.zeros(len(par))])
             self.depth = np.concatenate([self.depth[alive], self.depth[par] + 1])
-            self.tpl = np.concatenate([self.tpl[alive], t2])
+            self.tpl = np.concatenate([self.tpl[alive], t2]); self.ind = np.concatenate([self.ind[alive], i2])
             self.state = np.concatenate([self.state[alive], np.zeros(len(par), int)])
             self.timer = np.concatenate([self.timer[alive], np.zeros(len(par))])
         else:
             alive = ~dead
-            for a in ("G", "segN", "comp", "x", "y", "E", "age", "depth", "tpl", "state", "timer"):
+            for a in ("G", "segN", "comp", "x", "y", "E", "age", "depth", "tpl", "state", "timer", "ind"):
                 setattr(self, a, getattr(self, a)[alive])
+        if self.r2 and self.activation == "occupancy" and int(self.t / 10) != int((self.t + dt) / 10) and len(self.G):
+            # canalize toward the 3 basins selection is actually filling (excluding the founder worm basin)
+            occ = np.bincount(self.near[self.bd < BASIN_R], minlength=len(BASINS)).astype(float); occ[0] = -1
+            self.active[:] = False; self.active[np.argsort(-occ)[:3]] = True
         self._derive_all()
         self.D["mode"] = np.zeros(len(self.G), int) if len(self.G) else self.D["mode"]
         self.t += dt
+
+    def _mode_costs(self, D, inliq):
+        n = len(D["S"])
+        walk = np.where(D["npairs"] > 0, 1.0 / (np.sqrt(2 * D["npairs"]) * D["lenrel"] + 1e-9), C["crawl"])
+        walk = np.minimum(walk, C["crawl"])
+        swim = np.where(inliq, C["swim"] / (1 + 0.6 * D["c"] * np.minimum(D["segN"], 12) / 12), 1e9)
+        hover = C["k_hover"] * np.maximum(0, D["rho_body"] - D["rho_air"]) / C["k_loco"]
+        flt = C["float_h"] + hover
+        if self.r2:   # notes/02 §2.7: floating needs a gas bag (buoy >= 0.6), not just thick air
+            flt = np.where(D["buoy"] >= 0.6, flt, 1e9)
+        return np.stack([walk, swim, np.full(n, 1e9), flt], 1)  # mode 2 = sessile (unused)
 
     def modes(self):
         """Recompute locomotion mode for the current population (for measurement)."""
@@ -409,10 +542,7 @@ class Sim:
             return np.zeros(0, int)
         g, cs, W = self.g, self.cs, C["world"]
         cell = ((np.floor((self.x + W / 2) / cs).astype(int) % g) * g + np.floor((self.y + W / 2) / cs).astype(int) % g)
-        walk = np.minimum(np.where(D["npairs"] > 0, 1.0 / (np.sqrt(2 * D["npairs"]) * D["lenrel"] + 1e-9), C["crawl"]), C["crawl"])
-        swim = np.where(self.liquid[cell], C["swim"] / (1 + 0.6 * D["c"] * np.minimum(D["segN"], 12) / 12), 1e9)
-        flt = C["float_h"] + C["k_hover"] * np.maximum(0, D["rho_body"] - D["rho_air"]) / C["k_loco"]
-        return np.argmin(np.stack([walk, swim, np.full(n, 1e9), flt], 1), 1)
+        return np.argmin(self._mode_costs(D, self.liquid[cell]), 1)
 
 
 def species_count(G, segN, rng, thr=0.55, sample=300):
@@ -457,8 +587,27 @@ def morph_bins(sim):
 TRAITS = ["legs2", "horns", "plates3", "eyes", "buoyant", "buoyant_giant", "long8", "hunter"]
 
 
-def run(preset, cap, mut_mult, dup, seed, T, cheats=False, dt=None, founder_var=0.03, guided=False, pull=0.1):
-    sim = Sim(preset, cap, mut_mult, dup, seed, cheats, founder_var, dt, guided, pull)
+def run(preset, cap, mut_mult, dup, seed, T, cheats=False, dt=None, founder_var=0.03, guided=False, pull=0.1,
+        r2=False, kappa=0.5, niches=True, activation="affinity", form=None):
+    global FORM_BODY, FORM_LOOK
+    saved = {k: C[k] for k in R2_OVERRIDES}; saved_form = (FORM_BODY, FORM_LOOK)
+    if form:
+        FORM_BODY, FORM_LOOK = form
+    if r2:
+        C.update(R2_OVERRIDES)
+    try:
+        out = _run(preset, cap, mut_mult, dup, seed, T, cheats, dt, founder_var, guided, pull, r2, kappa, niches, activation)
+        if r2 and out["r2"]:
+            out["r2"].update(activation=activation, form=[FORM_BODY, FORM_LOOK])
+        return out
+    finally:
+        C.update(saved); FORM_BODY, FORM_LOOK = saved_form
+
+
+def _run(preset, cap, mut_mult, dup, seed, T, cheats, dt, founder_var, guided, pull, r2, kappa, niches, activation):
+    sim = Sim(preset, cap, mut_mult, dup, seed, cheats, founder_var, dt, guided, pull, r2, kappa, niches, activation)
+    KB = len(BASINS); b20 = [None] * KB; b5 = [None] * KB; bfirst = [None] * KB
+    co = dict(first=None, p5=None, p20=None); unnamed_tl = []
     KT = len(TEMPLATES); tpl20 = [None] * KT; tpl_first = [None] * KT
     rng = np.random.default_rng(seed + 999)
     first = {k: None for k in TRAITS}; p20 = {k: None for k in TRAITS}
@@ -487,6 +636,25 @@ def run(preset, cap, mut_mult, dup, seed, T, cheats=False, dt=None, founder_var=
                     first[k] = round(sim.t, 2)
                 if p20[k] is None and n >= 20 and c / n >= 0.2:
                     p20[k] = round(sim.t, 2); gen_at[k] = float(np.mean(sim.depth))
+            if r2:
+                cap_m = sim.bd < BASIN_R; adult = sim.grow >= 1
+                lr = look_rms(sim.Gph, sim.near)
+                bformed = cap_m & adult & (sim.bd < FORM_BODY) & (lr < FORM_LOOK)
+                for k in range(KB):
+                    ck = cap_m & (sim.near == k); fk = int((bformed & (sim.near == k)).sum())
+                    if fk and bfirst[k] is None:
+                        bfirst[k] = round(sim.t, 2)
+                    if b20[k] is None and ck.sum() >= 10 and fk / ck.sum() >= 0.2:
+                        b20[k] = round(sim.t, 2)
+                    if b5[k] is None and fk >= 0.05 * n:
+                        b5[k] = round(sim.t, 2)
+                cob = fl["legs2"] & fl["horns"] & fl["plates3"]; cf = cob.mean()
+                if cob.any() and co["first"] is None:
+                    co["first"] = round(sim.t, 2)
+                if co["p5"] is None and cf >= 0.05:
+                    co["p5"] = round(sim.t, 2)
+                if co["p20"] is None and cf >= 0.2:
+                    co["p20"] = round(sim.t, 2)
             who, prog = template_progress(sim)
             for k in range(KT):
                 m = who == k
@@ -515,6 +683,11 @@ def run(preset, cap, mut_mult, dup, seed, T, cheats=False, dt=None, founder_var=
                                      tpl_census=np.bincount(who, minlength=KT).tolist(),
                                      tpl_prog=[round(float(prog[who == k].mean()), 2) if (who == k).any() else None
                                                for k in range(KT)]))
+                if r2:
+                    timeline[-1].update(basin_census=[int(((sim.near == k) & cap_m).sum()) for k in range(KB)],
+                                        basin_formed=[int((bformed & (sim.near == k)).sum()) for k in range(KB)],
+                                        unnamed=round(float(1 - cap_m.mean()), 3), juvenile=round(float(1 - adult.mean()), 3),
+                                        cooccur=round(float(cf), 3))
     wall = time.perf_counter() - t0
     if len(sim.G):
         sim.D["mode"] = sim.modes()
@@ -522,8 +695,20 @@ def run(preset, cap, mut_mult, dup, seed, T, cheats=False, dt=None, founder_var=
     who, prog = template_progress(sim) if len(sim.G) else (np.zeros(0, int), np.zeros(0))
     sims = sim.t
     stable = extinct_t is None and (minN_after60 or 0) >= 0.1 * cap
-    return dict(preset=preset, cap=cap, mut_mult=mut_mult, dup=dup, seed=seed, cheats=cheats,
-                mode="guided" if guided else "open", pull=pull if guided else None,
+    r2out = {}
+    if r2 and len(sim.G):
+        cap_m = sim.bd < BASIN_R
+        r2out = dict(kappa=kappa, niches=niches, active=[B["name"] for B, a in zip(BASINS, sim.active) if a],
+                     basin_affinity=[round(float(a), 2) for a in sim.baff],
+                     basin_first=dict(zip([B["name"] for B in BASINS], bfirst)),
+                     basin_p20=dict(zip([B["name"] for B in BASINS], b20)),
+                     basin_present5=dict(zip([B["name"] for B in BASINS], b5)),
+                     final_basin_census={B["name"]: int(((sim.near == k) & cap_m).sum()) for k, B in enumerate(BASINS)} | {"unnamed": int((~cap_m).sum())},
+                     cooccur=co)
+    elif r2:
+        r2out = dict(kappa=kappa, niches=niches, basin_first={}, basin_p20={}, basin_present5={}, final_basin_census={}, cooccur=co)
+    return dict(preset=preset, cap=cap, mut_mult=mut_mult, dup=dup, seed=seed, cheats=cheats, r2=r2out or None,
+                mode="hybrid" if r2 else ("guided" if guided else "open"), pull=pull if guided else None,
                 affinity=[round(float(a), 2) for a in sim.aff],
                 tpl_first=dict(zip([T["name"] for T in TEMPLATES], tpl_first)),
                 tpl_p20=dict(zip([T["name"] for T in TEMPLATES], tpl20)),
@@ -549,6 +734,8 @@ if __name__ == "__main__":
     ap.add_argument("--one", action="store_true"); ap.add_argument("--sweep", action="store_true")
     ap.add_argument("--preset", default="earth"); ap.add_argument("--cap", type=int, default=1000)
     ap.add_argument("--mut", type=float, default=1.0); ap.add_argument("--nodup", action="store_true")
+    ap.add_argument("--r2b", action="store_true"); ap.add_argument("--r2sweep", action="store_true"); ap.add_argument("--hybrid", action="store_true")
+    ap.add_argument("--kappa", type=float, default=0.5); ap.add_argument("--noniche", action="store_true")
     ap.add_argument("--guided", action="store_true"); ap.add_argument("--pull", type=float, default=0.1)
     ap.add_argument("--cheats", action="store_true"); ap.add_argument("--dt", type=float, default=None)
     ap.add_argument("--seed", type=int, default=0); ap.add_argument("--T", type=float, default=600)
@@ -557,11 +744,31 @@ if __name__ == "__main__":
     ap.add_argument("--caps", default="300,1000,3000"); ap.add_argument("--seeds", type=int, default=3)
     a = ap.parse_args()
     if a.one:
-        r = run(a.preset, a.cap, a.mut, not a.nodup, a.seed, a.T, a.cheats, a.dt, guided=a.guided, pull=a.pull)
+        r = run(a.preset, a.cap, a.mut, not a.nodup, a.seed, a.T, a.cheats, a.dt, guided=a.guided, pull=a.pull,
+                r2=a.hybrid, kappa=a.kappa, niches=not a.noniche)
         tl = r.pop("timeline")
         print(json.dumps(r, indent=1))
         for row in tl[:: max(1, len(tl) // 15)]:
             print(row)
+    elif a.r2sweep:   # round 2: hybrid engine (sigma x2.5, ledger fix, basins, niches, biology changes)
+        from multiprocessing import Pool
+        if a.r2b:   # r2b: occupancy-activated basins + loosened "formed" thresholds, cap 3000
+            jobs = [dict(preset=p, cap=3000, mut_mult=2.5, dup=True, seed=s, T=a.T, r2=True, kappa=k,
+                         activation="occupancy", form=(0.15, 0.20))
+                    for p, k, s in itertools.product(a.presets.split(","), [0.0, 0.5], range(a.seeds))]
+        else:
+            jobs = [dict(preset=p, cap=cap, mut_mult=2.5, dup=True, seed=s, T=a.T, r2=True, kappa=k)
+                    for p, cap, k, s in itertools.product(a.presets.split(","), [1000, 3000], [0.0, 0.5], range(a.seeds))]
+            jobs += [dict(preset=p, cap=1000, mut_mult=2.5, dup=True, seed=s, T=a.T, r2=True, kappa=0.5, niches=False)
+                     for p, s in itertools.product(a.presets.split(","), range(a.seeds))]
+        jobs.sort(key=lambda j: -j["cap"]); t0 = time.time()
+        with Pool(a.procs) as pool:
+            res = []
+            for i, r in enumerate(pool.imap_unordered(_run_star, jobs)):
+                res.append(r); print(f"{i+1}/{len(jobs)} {r['preset']} cap{r['cap']} k{r['r2']['kappa']} niche{r['r2']['niches']} s{r['seed']} wall {r['wall_s']}s", flush=True)
+        json.dump(dict(coefficients=C, r2_overrides=R2_OVERRIDES, basins=[{**B, "look": {int(k): v for k, v in B["look"].items()}} for B in BASINS],
+                       runs=res, sweep_wall_s=round(time.time() - t0, 1)), open(a.out, "w"))
+        print("wrote", a.out)
     elif a.sweep:
         from multiprocessing import Pool
         jobs = []

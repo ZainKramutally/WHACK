@@ -151,3 +151,146 @@ The guided failures come from **competitive exclusion**. All templates graze the
 - **No** flora L-systems, sociality, frills, glow, builders, terrain or sessile growth. The 2 m grid cell is the interaction radius.
 - Prevalence is measured per trait, not per combined body plan.
 - Guided-mode results depend on my template targets, affinities and the 0.01 switch rate.
+
+---
+
+## Round 2: the hybrid engine (open-ended F + body basins + niches + biology fixes)
+
+Data: `../data/time-to-trait.json` holds two blocks.
+- `round2`: 25 configs × 3 seeds, basins activated by affinity, strict "formed" thresholds.
+- `round2b`: 10 configs × 3 seeds, the final version, basins activated by occupancy, looser thresholds.
+
+Raw runs are in `../data/raw-r2.json.gz` and `../data/raw-r2b.json.gz`. Run with `python3 f_ecology.py --r2sweep [--r2b] --T 1300 --out ...`, then `summarize_r2.py`. T = 1,300 sim-s is exactly demo 150 s on the hybrid schedule.
+
+### What was built (all in `f_ecology.py`, `r2=True`)
+
+- **Engine.** The open-ended F engine with σ ×2.5 always on and the round-1 ledger fix (`R2_OVERRIDES`: plate build 0.05, plate mass 0.15, Water dissolution 0.15).
+  - It starts from cap/4 tiny worms spread over the dish.
+  - Growth within life: the look snap ramps from 0 to full over the juvenile period, so newborns read as capsules. On average **11%** of animals on screen (8–23%) are capsules moulding into adults.
+- **7 body basins** (worm, swimmer, strider, rhino-lizard, spinner, drifter, sky whale), defined on cost-bearing body axes: elongation, limb pairs, limb length, armour, buoyancy, size, radial symmetry, horn.
+  - **Canalization:** only *look* genes (profile, head, joints, tail, plate size, stilt axis) are snapped, by κ·w(d)·growth with κ ≤ 0.5, inside capture radius 0.25. Size, plates, limbs, horns, diet and buoyancy are never snapped. Grazer, hunter and builder are roles any body can take.
+  - **round2:** the active basins are the top-3 by chemistry affinity.
+  - **round2b:** the active basins are the top-3 by *occupancy*, the non-worm basins selection is actually filling, refreshed every 10 s.
+- **Niches.** Every resource pool is depletable, so frequency-dependence applies:
+  - ground grazing
+  - liquid cells (only swimming bodies graze there)
+  - aerial Spark, floaters only: pool = 0.6 K·min(1, ρ_air/0.6), with filter area growing with size
+  - a canopy pool, 0.6 K on land, reached in proportion to `(S·limbLen·(1 + stilt) − 0.3)/0.5`
+  - stone den cells, 10% of land, where builders (si·o > 0.12) are only 0.2× as catchable
+- **Biology (notes/02 §2):**
+  - Horns are prey defence (+1.5·horn to defence) and gape is the hunter's weapon.
+  - Inducible armour: newborn cover gets +0.4·Hunger·local hunter density.
+  - Eyes regress in total dark unless o > 0.3.
+  - TSR is full for limbless bodies and 1/10 for walkers.
+  - Size ×(1 + 0.5 o).
+  - Floating requires buoy ≥ 0.6 and pays a gas-bag upkeep.
+  - Big bodies save up to 30% basal in cold, O-rich worlds.
+
+### Results (cap 3,000, κ 0.5, round2b; sim-s; medians over 3 seeds; "–" = ≤ 1 of 3 seeds)
+
+| Preset | legs ≥2 | horns | plates ≥3 | hunter tier | legs+horns+plates in ONE body: first / ≥5% / ≥20% | strider ≥5% of pop formed | other basins formed (≥20% of captured) | unnamed | stable |
+|---|---|---|---|---|---|---|---|---|---|
+| rhino (Si, Water, med H) | 321 | 542 | 309 | – | 166 / **601** / – | **341** | spinner 967 | 14–23% | 3/3 |
+| dusk (Si, Ammonia, fierce) | 258 | 541 | 227 | 202 | 221 / **863** / – | **289** | swimmer 133, spinner 422 | 8–13% | 3/3 (min N 400–590) |
+| silicon (Si+O, Acid) | 210 | 820 | – | – | 106 / – / – | **208** | swimmer 359, rhino-lizard **960** (2/3), spinner 268, drifter 286 (2/3) | 6–8% | 3/3 |
+| earth (C, Water) | 199 | 388 | – | – | 131 / – / – | 622 | swimmer 559, spinner 150, drifter 801 | 9–12% | 3/3 |
+| frozen (Si+O, Methane, cold) | 219 | 587 | 798 | 135 | 175 / – / – | – | drifter 625 (2/3) | 10–16% | 3/3 |
+
+**Final census (out of 3,000):**
+
+| Preset | strider | worm | rhino-lizard | spinner | swimmer | drifter | sky whale |
+|---|---|---|---|---|---|---|---|
+| rhino | 1,870 | 107 | 330 | | | | 0 |
+| dusk | 2,280 | | 258 | | | | 0 |
+| frozen | 1,500 | 820 | 177 | | | | 0 |
+| earth | 1,010 | 1,350 | | 170 | | | 0 |
+| silicon | 1,590 | 1,080 | | | | | 0 |
+
+Drifters number ≤ 13 in every world, and sky whales are 0 everywhere.
+
+**Demo-time conversions:**
+
+| Event | sim-s | Hybrid schedule (×1 → ×40 at 2:00) | Constant ×3 |
+|---|---|---|---|
+| strider ≥ 5% formed | 208–341 | 123–126 demo-s | 94–139 demo-s |
+| one-body legs+horns+plates ≥ 5% | 601–863 | 133–139 demo-s | 225–313 demo-s (too late) |
+
+×3 constant gives 375 sim-s by demo 150, so on that schedule only legs, plates, strider and spinner arrive in time.
+
+**κ = 0 vs κ = 0.5:**
+- **κ = 0:** identical dynamics, because the snap only touches look genes. *No* strider, spinner or rhino-lizard ever reads as "formed".
+- **κ = 0.5:** strider at 208–622, spinner at 150–967, rhino-lizard at 960 in silicon.
+
+So canalization doesn't speed up evolution. It makes the bodies selection already built *readable* about 5–10× sooner, which matches notes/01 §7.6 for look traits.
+
+**Basins activated by affinity (round2) vs by occupancy (round2b):**
+- **By affinity:** almost nothing forms except the founder worm. Selection fills the **strider** basin in every world (about 50–75% of bodies sit within capture radius). The affinity table never picks it for rhino, dusk, silicon or earth, so those bodies never get canalized.
+- **By occupancy:** the canalized basins follow selection. This is also the honest version: selection chooses, development tidies.
+
+**Niches:**
+- The canopy pool made long legs pay everywhere: a strider monoculture plus worms and a few rhino-lizards.
+- Niche-off control (round2, cap 1,000): bestiary divergence between presets drops from 0.61 to 0.50.
+- **Bestiary distance** (basin census, cap 3,000): 0.59–0.63 between presets vs 0.18–0.22 within. That passes F §8's "within < 0.4" well, and sits right at the "> 0.6 between" threshold.
+
+**Trophic levels:**
+- Hunters persist only in dusk (H 0.9) and frozen, where hunters are in the F 5–35% band 33–62% of the time.
+- In rhino, earth and silicon there is **no hunter tier**. Horns-as-defence plus inducible armour took away the predation payoff at medium Hunger. Round 1 had hunters there at 26–48 s.
+- Cap 1,000 is fragile: dusk went extinct in 2 of 3 round-2 configs.
+
+**Never reached in any config (75 + 30 runs):**
+- **sky whale:** median body size stays 0.17–0.20 m
+- drifter beyond a handful
+- buoyancy: float fraction ≈ 0 even in Methane
+- one-body legs+horns+plates at ≥ 20%
+
+The causes:
+1. **Size is selected against by generation time.** Reproduction time scales with M^0.25, and under a full-cap, turnover-limited ecology, fast breeders win. The cold + O basal bonus (≤ 30%) and the gape refuge don't outweigh that.
+2. **The gas-bag gate (buoy ≥ 0.6) is a fitness valley.** buoy 0.2 → 0.6 is unselected drift that costs upkeep, so nothing crosses it.
+
+### Atlas fauna under the hybrid
+
+| Pin | Verdict |
+|---|---|
+| fauna-01/07 striders | **reached everywhere** (too much: it's the dominant form) |
+| fauna-02 rhino-lizard | 180–330 bodies per world in the basin, and the one-body legs+horns+plates combination is ≥ 5% by 601–863 sim-s (rhino, dusk). But it reads as "formed" in only 1 preset (silicon, 960 s). **Partial.** |
+| spinner (DESIGN §4) | reached (κ 0.5) |
+| fauna-08 eels / swimmers | reached as a minority (swimmer basin formed 133–559 s) |
+| fauna-06 plated hopper | absorbed into the strider and rhino-lizard basins. There is no hopper basin in this round. |
+| fauna-05 frilled serpent, eco-09 hunter | only in dusk |
+| fauna-03 jellybots / drifters | **not reached** (single digits) |
+| fauna-09 sky whales | **not reached** |
+
+### Verdict: conditional GO for the hybrid
+
+The hybrid meets the brief for **ground body plans**. By demo 150 s on the ×1 → ×40 schedule it delivers:
+- legs, horns and plates, each ≥ 20%
+- legs+horns+plates in one body ≥ 5%, in Water and Ammonia worlds
+- readable striders and spinners
+- distinct bestiaries per preset
+- 5–23% unnamed forms
+- stable populations at cap 3,000
+
+It is **NO-GO for buoyant giants and drifters** as specified, and its **hunters vanish at medium Hunger**. Both need the fixes below before the sky-whale or hunter demo beats are promised.
+
+### Exact recipe (tested values, with the untested fixes marked)
+
+1. **Engine:** σ ×2.5 always on, animal cap **3,000** (1,000 is unstable at high Hunger), cap/4 founder worms across the dish, ledger fix `plate_build 0.05, plate_mass 0.15, k_dis 0.15`.
+2. **Basins:** 7 body basins (`BASINS` in the script), capture RMS 0.25, look-only snap with **κ 0.5** ramped by growth.
+   - **Activate the top-3 non-worm basins by occupancy every 10 s, not by authored affinity.**
+   - "Formed" thresholds: body RMS < 0.15, look RMS < 0.20.
+   - Show "unnamed form" outside the capture radius.
+3. **Niches:** ground / liquid / aerial (0.6 K) / canopy / stone dens, as above.
+   - **Untested:** cut the canopy pool to about 0.3 K so striders stop being a monoculture.
+4. **Biology:** horns as defence, gape as weapon, eye regression in the dark, TSR by medium, and size ×(1 + 0.5 o), all as built.
+   - **Untested:** gate inducible armour to Hunger > 0.6 and raise the gape weapon (0.5 + 1.5·gape) so medium-Hunger worlds keep a hunter tier.
+5. **Giants and floaters (untested, required):**
+   - (a) In thick-air worlds, seed one buoyant founder lineage (buoy 0.7, F's own fallback).
+   - (b) Replace the hard gas-bag gate with a smooth hover cost.
+   - (c) Give size a payoff that beats the M^0.25 generation penalty: litter size ∝ S, or lifespan × (1 + (1 − heat)).
+6. **Schedule:** ×1 until 2:00, then ×40 in a Worker at dt 0.25 (160 ticks/s, about 2.4 ms/frame at 3k agents, by F's per-agent estimate).
+   - ×3 constant is not enough for the one-body rhino-lizard. It needs about ×5 (601/125).
+
+**Caveats:**
+- It's still a toy with my coefficients.
+- Basin centres and thresholds are authored, and the strider dominance is partly my canopy coefficient.
+- "Formed" depends on the thresholds. Strict thresholds (round2) gave almost nothing; round2b's looser ones gave the table above.

@@ -64,3 +64,20 @@ Flags:
 ## Not modelled
 
 L-system flora, sociality and shoals, frills, glow, builders and terrain, sessile growth, sexual crossover, and real steering or vision geometry. The 2 m cell is the interaction radius.
+
+## Round 2: hybrid engine
+
+`--hybrid` (or `run(..., r2=True)`) turns on the round-2 engine described in `../notes/04-time-to-trait.md`:
+- σ ×2.5 and the ledger fix
+- 7 body basins with look-only canalization (`--kappa`, default 0.5)
+- niche partitioning (`--noniche` turns it off)
+- the notes/02 biology changes
+
+```bash
+python3 f_ecology.py --one --hybrid --mut 2.5 --preset rhino --cap 3000 --T 1300
+python3 f_ecology.py --r2sweep --T 1300 --procs 13 --out ../data/raw-r2.json         # affinity-activated basins
+python3 f_ecology.py --r2sweep --r2b --T 1300 --procs 13 --out ../data/raw-r2b.json  # occupancy-activated (final)
+python3 summarize_r2.py ../data/raw-r2.json ../data/time-to-trait.json round2
+python3 summarize_r2.py ../data/raw-r2b.json ../data/time-to-trait.json round2b
+```
+
