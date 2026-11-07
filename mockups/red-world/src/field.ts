@@ -35,6 +35,8 @@ export function baseHeight(x: number, z: number): number {
   h += 1.5 * (1 - smoothstep(8, 70, camD));                                      // camera rise
   h -= BASIN.depth * (1 - smoothstep(BASIN.radius * 0.25, BASIN.radius, Math.hypot(x - BASIN.x, z - BASIN.z)));
   h += fbm(x / 520, z / 520, 4, SEED) * 13 * smoothstep(80, 600, camD);            // broad swells away from camera
+  h += Math.max(0, fbm(x / 260, z / 180, 3, SEED + 5)) * 34 * smoothstep(520, 1100, camD) * (1 - smoothstep(2500, 4000, camD)); // far dune ridges
+  h += Math.max(0, fbm(x / 70, z / 45, 3, SEED + 6)) * 11 * smoothstep(160, 300, camD) * (1 - smoothstep(520, 720, camD)); // hummocks break the crest
   h += fbm(x / 110, z / 110, 4, SEED + 3) * 3.2;                                    // medium ripples
   h += fbm(x / 22, z / 22, 3, SEED + 9) * 0.55;                                     // small lumps
   h += smoothstep(600, 4500, -z) * 70;                                              // far ground rises into the ranges
@@ -51,12 +53,12 @@ export function heightAt(x: number, z: number): number {
   return h - carve + bank;
 }
 
-/** Ground data per point, each 0..1: [riverbed mask, hollow (crimson), sunlit variation]. */
-export function groundData(x: number, z: number): [number, number, number] {
+/** Ground data per point, each 0..1: [riverbed mask, hollow (crimson), sunlit variation, river arc fraction]. */
+export function groundData(x: number, z: number): [number, number, number, number] {
   const { d, t } = riverDist(x, z);
   const w = riverHalfWidth(t);
   const river = 1 - smoothstep(w * 0.75, w * 1.05, d);
   const hollow = Math.max(0, Math.min(1, 0.5 - fbm(x / 60, z / 60, 3, SEED + 21) * 1.4)) * (1 - river);
   const vary = Math.max(0, Math.min(1, 0.5 + fbm(x / 35, z / 35, 3, SEED + 33)));
-  return [river, hollow, vary];
+  return [river, hollow, vary, t];
 }

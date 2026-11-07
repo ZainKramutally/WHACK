@@ -9,7 +9,7 @@ export const CAMERA = {
   pitch: 0.05, // radians, slight downward look keeps sky ~40%
 };
 
-export const HERO = { x: 95, z: -470, height: 118 };
+export const HERO = { x: 95, z: -470, height: 155 };
 export const EXPLORER = { x: -14.5, z: -70 };
 
 /** Dry riverbed centreline, camera → hero base. */

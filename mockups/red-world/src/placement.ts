@@ -66,30 +66,33 @@ const SPECS: Spec[] = [
   { species: 'weeper', rect: { x0: -600, x1: 600, z0: -900, z1: -70 }, minDist: 70, h: [22, 48], variants: 3,
     mask: (x, z) => 0.5 * smoothstep(0, 0.3, fbm(x / 200, z / 200, 2, 10)) },
   { species: 'coilSpire', rect: { x0: -1400, x1: 1400, z0: -2200, z1: -260 }, minDist: 80, h: [40, 115], variants: 3,
-    mask: (x, z) => 0.7 * smoothstep(-0.05, 0.25, fbm(x / 300, z / 300, 2, 11)) },
+    mask: (x, z) => 0.9 * smoothstep(0.2, 0.34, fbm(x / 260, z / 260, 2, 11)) },
   { species: 'parasolTitan', rect: { x0: -2600, x1: 2600, z0: -3400, z1: -620 }, minDist: 150, h: [40, 105], variants: 3,
-    mask: (x, z) => smoothstep(0.0, 0.25, fbm(x / 420, z / 420, 3, 12)) },
+    mask: (x, z) => smoothstep(0.1, 0.3, fbm(x / 380, z / 380, 3, 12)) },
 ];
 
 /** Hand-placed composition plants: hero, its grove (repeating, diminishing), and foreground framing. */
 export const HAND: { species: SpeciesId; variant: number; x: number; z: number; h: number; yaw: number; tilt?: [number, number] }[] = [
   { species: 'parasolTitan', variant: 1, x: HERO.x, z: HERO.z, h: HERO.height, yaw: 0.4, tilt: [0.02, -0.03] },
-  // left grove, repeating and diminishing
-  { species: 'parasolTitan', variant: 0, x: -150, z: -300, h: 72, yaw: 1.1 },
-  { species: 'parasolTitan', variant: 2, x: -245, z: -480, h: 96, yaw: 2.0 },
-  { species: 'parasolTitan', variant: 0, x: -110, z: -600, h: 58, yaw: 0.2 },
-  { species: 'coilSpire', variant: 0, x: -62, z: -335, h: 74, yaw: 0.6 },
-  { species: 'coilSpire', variant: 2, x: -190, z: -235, h: 46, yaw: 2.4 },
+  // left grove: demoted (smaller, further back, paler) so nothing competes with the hero
+  { species: 'parasolTitan', variant: 0, x: -260, z: -760, h: 70, yaw: 1.1 },
+  { species: 'parasolTitan', variant: 2, x: -430, z: -980, h: 85, yaw: 2.0 },
+  { species: 'parasolTitan', variant: 0, x: -170, z: -880, h: 48, yaw: 0.2 },
+  { species: 'coilSpire', variant: 0, x: -90, z: -420, h: 55, yaw: 0.6 },
+  { species: 'coilSpire', variant: 2, x: -200, z: -330, h: 38, yaw: 2.4 },
   // right of hero
-  { species: 'parasolTitan', variant: 0, x: 215, z: -640, h: 84, yaw: 2.9 },
-  { species: 'coilSpire', variant: 1, x: 150, z: -300, h: 60, yaw: 1.7 },
-  { species: 'coilSpire', variant: 0, x: 168, z: -480, h: 92, yaw: 0.3 },
-  // foreground framing: weeper arching over the top-left corner, pods + fans on the bottom corners
-  { species: 'weeper', variant: 2, x: -26, z: -16, h: 30, yaw: -0.75, tilt: [0, -0.04] },
+  { species: 'parasolTitan', variant: 0, x: 300, z: -900, h: 70, yaw: 2.9 },
+  { species: 'coilSpire', variant: 1, x: 150, z: -300, h: 48, yaw: 1.7 },
+  { species: 'coilSpire', variant: 0, x: 240, z: -760, h: 70, yaw: 0.3 },
+  // far giants: hazy repeats of the hero shape for depth
+  { species: 'parasolTitan', variant: 3, x: -1050, z: -1900, h: 300, yaw: 0.8 },
+  { species: 'parasolTitan', variant: 0, x: 1100, z: -2600, h: 330, yaw: 2.2 },
+  // foreground framing: a cropped, overhanging young titan cap in the top-left corner; pods + fan tips on the bottom corners
+  { species: 'parasolTitan', variant: 0, x: -36, z: -44, h: 28, yaw: 0.3, tilt: [0, -0.4] },
   { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
-  { species: 'lanternPods', variant: 1, x: 10.5, z: -14, h: 7, yaw: 2.2 },
-  { species: 'ribFan', variant: 1, x: 15, z: -21, h: 10, yaw: -0.4 },
-  { species: 'ribFan', variant: 0, x: -24, z: -52, h: 13, yaw: 0.9 },
+  { species: 'lanternPods', variant: 0, x: 11, z: -13, h: 5, yaw: 2.2 },
+  { species: 'ribFan', variant: 1, x: 19, z: -15, h: 9, yaw: -0.9 },
+  { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
 ];
 
 export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: number) => number, variantsOf?: (s: SpeciesId) => number): PlantInstance[] {

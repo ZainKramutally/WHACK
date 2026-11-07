@@ -12,7 +12,7 @@ function dirFrom(azDeg: number, elDeg: number) {
 }
 
 export function skyNode(): any {
-  const P = dirFrom(7, 17); // planet centre: upper-left, away from the hero
+  const P = dirFrom(11, 16); // planet centre: upper-left, away from the hero
   const R = (6 * Math.PI) / 180;
   const T1 = new THREE.Vector3().crossVectors(P, new THREE.Vector3(0, 1, 0)).normalize();
   const T2 = new THREE.Vector3().crossVectors(T1, P).normalize();
@@ -43,7 +43,7 @@ export function skyNode(): any {
     const lamb = clamp(dot(sn, vec3(L.x, L.y, L.z)).mul(0.5).add(0.5), 0, 1);
     let lit: any = lamb;
     if (PIXEL) lit = floor(lamb.mul(4)).div(4);
-    const planet = mix(c3(PALETTE.skyZenith).mul(0.86), c3(PALETTE.skyHorizon).mul(1.0), lit);
+    const planet = mix(c3(PALETTE.skyZenith).mul(0.8), c3(PALETTE.skyHorizon).mul(1.0), lit);
     // thin ring: an ellipse in the tilted frame; the back half hides behind the disc
     const er = length(vec2(u, w.div(0.2)));
     const band = smoothstep(Math.sin(R) * 1.42, Math.sin(R) * 1.47, er).mul(smoothstep(Math.sin(R) * 1.78, Math.sin(R) * 1.7, er))
@@ -51,7 +51,7 @@ export function skyNode(): any {
     const behind = inDisc.mul(w.greaterThan(0));
     const ring = clamp(band, 0, 1).mul(cosA.greaterThan(0)).mul(behind.oneMinus());
     col.assign(mix(col, planet, inDisc));
-    col.assign(mix(col, col.mul(vec3(0.89, 0.88, 0.91)), ring));
+    col.assign(mix(col, col.mul(vec3(0.84, 0.83, 0.87)), ring));
     return col;
   })();
 }

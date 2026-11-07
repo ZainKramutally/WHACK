@@ -19,14 +19,15 @@ export const U = {
   lightDir: uniform(new THREE.Vector3(-0.62, 0.5, -0.6).normalize()),
   sun: uniform(new THREE.Color(1.0, 0.97, 0.93)),
   shadowTint: uniform(lin(PALETTE.shadow)),
-  shadowMix: uniform(0.75),
-  shadowGain: uniform(0.82),
+  shadowMix: uniform(0.88),
+  shadowGain: uniform(0.78),
   coreLow: uniform(-0.12),
   coreHigh: uniform(0.42),
   bounceDist: uniform(140),
   bounceStrength: uniform(0.6),
   fogColor: uniform(lin(PALETTE.haze)),
-  fogDist: uniform(4600),
+  fogStart: uniform(420),
+  fogDist: uniform(3800),
   hazeDist: uniform(1500),
   hazeBase: uniform(-8),
   hazeHeight: uniform(55),
@@ -57,8 +58,13 @@ export const groundColor = Fn(([xz]: any[]) => {
   // dry salt bed: pale blush/bone with polygonal crack lines
   const w = mx_worley_noise_vec2(xz.mul(0.32));
   const crack = smoothstep(0.1, 0.03, w.y.sub(w.x));
-  const bed = mix(c3(PALETTE.blush), c3(PALETTE.bone), smoothstep(0.3, 0.7, d.b));
-  c.assign(mix(c, mix(bed, c3(PALETTE.crimson), crack.mul(0.85)), d.r));
+  // leading line brightens toward the focal point: maroon/crimson near the camera → blush → bone at the hero's base
+  const along = d.a;
+  const bed = mix(c3(PALETTE.maroon), c3(PALETTE.crimson), smoothstep(0.0, 0.1, along)).toVar();
+  bed.assign(mix(bed, c3(PALETTE.blush), smoothstep(0.08, 0.45, along)));
+  bed.assign(mix(bed, c3(PALETTE.bone), smoothstep(0.45, 0.9, along).mul(0.6).add(smoothstep(0.3, 0.7, d.b).mul(0.25)).clamp(0, 1)));
+  const crackCol = mix(c3(PALETTE.ink), c3(PALETTE.crimson), smoothstep(0.1, 0.5, along));
+  c.assign(mix(c, mix(bed, crackCol, crack.mul(0.8)), d.r));
   return c;
 });
 
@@ -119,8 +125,9 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     out.assign(mix(out, out.mul(vec3(0.32, 0.12, 0.2)), fg));
 
     if (o.fog !== false) {
-      const range = float(1).sub(exp(dist.div(U.fogDist).negate()));
-      const haze = float(1).sub(exp(dist.div(U.hazeDist).negate()))
+      // the midground (< ~400 m) stays clear and saturated; air builds only past it (value planes, brief §3)
+      const range = float(1).sub(exp(max(dist.sub(U.fogStart), 0).div(U.fogDist).negate()));
+      const haze = float(1).sub(exp(max(dist.sub(U.fogStart.mul(0.6)), 0).div(U.hazeDist).negate()))
         .mul(exp(max(positionWorld.y.sub(U.hazeBase), 0).div(U.hazeHeight).negate())).mul(U.hazeAmount);
       const f = clamp(max(range, haze), 0, 1).toVar();
       if (PIXEL) f.assign(floor(f.mul(16).add(0.5)).div(16));

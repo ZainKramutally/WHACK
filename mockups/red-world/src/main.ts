@@ -1,7 +1,6 @@
 // Red World hero frame. ?style=smooth disables pixelation, ?free gives OrbitControls, #capture freezes time.
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { BuildFloraLibrary } from './contracts';
 import { CAMERA, HERO, EXPLORER } from './layout';
 import { heightAt } from './field';
 import { PIXEL, U } from './material';
@@ -13,11 +12,7 @@ import { placePlants } from './placement';
 import { buildInstances } from './scatter';
 import { buildAtmos } from './atmos';
 import { buildExplorer } from './explorer';
-import { buildFloraLibrary as standinLibrary } from './flora-standin';
-
-// Real flora (rw-flora, src/flora/index.ts) wins automatically once it exists; the stand-in keeps the scene running until then.
-const floraMods = import.meta.glob('./flora/index.ts', { eager: true }) as Record<string, { buildFloraLibrary?: BuildFloraLibrary }>;
-const buildFloraLibrary: BuildFloraLibrary = floraMods['./flora/index.ts']?.buildFloraLibrary ?? standinLibrary;
+import { buildFloraLibrary } from './flora/index';
 
 const params = new URLSearchParams(location.search);
 const FREE = params.has('free');

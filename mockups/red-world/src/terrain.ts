@@ -12,9 +12,9 @@ export function buildGroundTexture(size = 1024): any {
     const z = z0 + ((j + 0.5) / size) * (z1 - z0);
     for (let i = 0; i < size; i++) {
       const x = x0 + ((i + 0.5) / size) * (x1 - x0);
-      const [r, g, b] = groundData(x, z);
+      const [r, g, b, a] = groundData(x, z);
       const k = (j * size + i) * 4;
-      data[k] = r * 255; data[k + 1] = g * 255; data[k + 2] = b * 255; data[k + 3] = 255;
+      data[k] = r * 255; data[k + 1] = g * 255; data[k + 2] = b * 255; data[k + 3] = a * 255;
     }
   }
   const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
