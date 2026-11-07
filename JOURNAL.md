@@ -53,3 +53,4 @@
 - 20:21: fog A/B merged (0c45629): ?fog=current|lilac|teal|apricot|ash|sulfur, sheet design/iteration/2026-11-07-2018-red-world-fog/. 60fps all. Agent pick lilac. Awaiting user choice.
 - 20:25: USER picked lilac fog -> rw-scene makes default (PALETTE haze/skyHorizon). ART_DIRECTION updated (lilac haze, cool shadow, 2 moons, no particles).
 - 20:30: lilac default merged (a963625 cherry-pick). 98 tests, 60fps.
+- 21:11: rebased session/red-world onto main 5afb26c (full app logic). CLAUDE.md from main (#22). Red-world 98 tests + build, root tsc + 325 tests green. Pushed session/red-world.
