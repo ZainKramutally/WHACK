@@ -67,32 +67,85 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     for (const d of disposables.splice(0)) d.dispose();
   };
 
+  // Materials are cached for the life of the view (building a node material is the slow part of opening a card).
+  const matCache = new Map<string, THREE.Material>();
   const mat = (hex: number, o: { flat?: boolean; rough?: number; opacity?: number } = {}) => {
-    const m = new THREE.MeshStandardNodeMaterial({ color: hex, roughness: o.rough ?? 0.6, flatShading: !!o.flat });
-    if (o.opacity !== undefined && o.opacity < 1) { m.transparent = true; m.opacity = o.opacity; m.depthWrite = false; }
-    disposables.push(m);
+    const key = `${hex}|${o.flat ? 1 : 0}|${o.rough ?? 0.6}|${o.opacity ?? 1}`;
+    let m = matCache.get(key) as THREE.MeshStandardNodeMaterial | undefined;
+    if (!m) {
+      m = new THREE.MeshStandardNodeMaterial({ color: hex, roughness: o.rough ?? 0.6, flatShading: !!o.flat });
+      if (o.opacity !== undefined && o.opacity < 1) { m.transparent = true; m.opacity = o.opacity; m.depthWrite = false; }
+      matCache.set(key, m);
+    }
     return m;
   };
+  const basicMat = (hex: number) => {
+    const key = `basic|${hex}`;
+    let m = matCache.get(key);
+    if (!m) { m = new THREE.MeshBasicNodeMaterial({ color: hex, fog: false }); matCache.set(key, m); }
+    return m;
+  };
+  // One white material per chemistry for beads; per-bead colour comes from instanceColor.
+  const beadMat = {
+    round: new THREE.MeshStandardNodeMaterial({ roughness: 0.6 }),
+    faceted: new THREE.MeshStandardNodeMaterial({ roughness: 0.35, flatShading: true }),
+  };
+  const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0) };
   const geo = <T extends THREE.BufferGeometry>(g: T): T => { disposables.push(g); return g; };
 
-  function setBackdrop(other: WorldConfig) {
-    if (backdrop) { scene.remove(backdrop); backdrop.geometry.dispose(); (backdrop.material as THREE.Material).dispose(); }
-    const sky = skyStyle(other.starType, mid(other, 'light', 1), mid(other, 'pressure', 1), mid(other, 'temperature', 15));
-    const g = new THREE.SphereGeometry(40, 24, 16);
-    const pos = g.attributes.position;
-    const cols = new Float32Array(pos.count * 3);
-    const c = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      const t = Math.max(0, Math.min(1, pos.getY(i) / 40));
-      c.setHex(mixHex(sky.horizon, sky.zenith, Math.sqrt(t)));
-      cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
+  const backdrops = new Map<string, THREE.Mesh>();
+  function backdropFor(other: WorldConfig): THREE.Mesh {
+    let m = backdrops.get(other.id);
+    if (!m) {
+      const sky = skyStyle(other.starType, mid(other, 'light', 1), mid(other, 'pressure', 1), mid(other, 'temperature', 15));
+      const g = new THREE.SphereGeometry(40, 24, 16);
+      const pos = g.attributes.position;
+      const cols = new Float32Array(pos.count * 3);
+      const c = new THREE.Color();
+      for (let i = 0; i < pos.count; i++) {
+        const t = Math.max(0, Math.min(1, pos.getY(i) / 40));
+        c.setHex(mixHex(sky.horizon, sky.zenith, Math.sqrt(t)));
+        cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+      m = new THREE.Mesh(g, new THREE.MeshBasicNodeMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
+      backdrops.set(other.id, m);
     }
-    g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-    const m = new THREE.MeshBasicNodeMaterial({ vertexColors: true, side: THREE.BackSide, fog: false });
-    backdrop = new THREE.Mesh(g, m);
+    return m;
+  }
+  function setBackdrop(other: WorldConfig) {
+    if (backdrop) scene.remove(backdrop);
+    backdrop = backdropFor(other);
     scene.add(backdrop);
+    const sky = skyStyle(other.starType, mid(other, 'light', 1), mid(other, 'pressure', 1), mid(other, 'temperature', 15));
     key.color.setHex(sky.starColour);
     key.intensity = 0.8 + 1.8 * sky.brightness;
+  }
+
+  /** One InstancedMesh for all beads of a layout, framed so the whole body fills a window of this aspect. */
+  function beadsContent(lay: ReturnType<typeof beadLayout>, silicon: boolean, diet: number, aspect: number) {
+    const mesh = new THREE.InstancedMesh(silicon ? beadGeo.faceted : beadGeo.round, silicon ? beadMat.faceted : beadMat.round, lay.beads.length);
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lay.beads.length * 3), 3);
+    // Bounds: horizontal reach (turntable spins around y) and height.
+    let reach = 0.05, minY = Infinity, maxY = -Infinity;
+    for (const b of lay.beads) {
+      reach = Math.max(reach, Math.hypot(b.x, b.z) + b.r);
+      minY = Math.min(minY, b.y - b.r);
+      maxY = Math.max(maxY, b.y + b.r);
+    }
+    const halfH = Math.tan((cam.fov * Math.PI) / 360) * cam.position.z;
+    // Fit the window, but keep the spin radius small next to the camera distance so near parts don't balloon.
+    const k = Math.min((halfH * aspect * 0.8) / reach, (halfH * 0.62) / Math.max(0.05, (maxY - minY) / 2), 1.4 / reach);
+    const cy = (minY + maxY) / 2;
+    const m4 = new THREE.Matrix4(), c = new THREE.Color();
+    lay.beads.forEach((b, i) => {
+      m4.makeScale(b.r * k, b.r * k, b.r * k).setPosition(b.x * k, (b.y - cy) * k, b.z * k);
+      mesh.setMatrixAt(i, m4);
+      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, b.tone as Tone)));
+    });
+    mesh.frustumCulled = false;
+    mesh.position.y = 0.6; // a little above the look-at height so hanging limbs stay in frame
+    turntable.add(mesh);
   }
 
   function organismContent(other: WorldConfig, inputs: VisualInputs, id: number) {
@@ -109,19 +162,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       lineage: rec.lineage,
     };
     const plan = develop(genome, { light: Math.min(1, mid(other, 'light', 1)), heatBand: 0.5 }, developInputsFor(other));
-    const lay = beadLayout(plan);
-    const silicon = plan.chemistry === 'silicon';
-    const sphere = geo(silicon ? new THREE.IcosahedronGeometry(1, 0) : new THREE.SphereGeometry(1, 12, 8));
-    const k = 1 / Math.max(0.2, lay.radius);          // fit the body into a unit-radius view
-    const group = new THREE.Group();
-    for (const b of lay.beads) {
-      const m = new THREE.Mesh(sphere, mat(creatureColour(silicon, rec.body.diet, b.tone as Tone), { flat: silicon, rough: silicon ? 0.35 : 0.6 }));
-      m.position.set(b.x * k, (b.y - lay.centreY) * k, b.z * k);
-      m.scale.setScalar(b.r * k);
-      group.add(m);
-    }
-    group.position.y = 0.6;
-    turntable.add(group);
+    beadsContent(beadLayout(plan), plan.chemistry === 'silicon', rec.body.diet, rect ? rect.width / rect.height : 2);
   }
 
   function seaContent(other: WorldConfig) {
@@ -199,8 +240,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   function skyContent(other: WorldConfig) {
     // The backdrop is the sky; add the star disc and a low ground ring for scale.
     const sky = skyStyle(other.starType, mid(other, 'light', 1), mid(other, 'pressure', 1), mid(other, 'temperature', 15));
-    const star = new THREE.Mesh(geo(new THREE.CircleGeometry(1, 24)), new THREE.MeshBasicNodeMaterial({ color: sky.starColour, fog: false }));
-    disposables.push(star.material as THREE.Material);
+    const star = new THREE.Mesh(geo(new THREE.CircleGeometry(1, 24)), basicMat(sky.starColour));
     star.position.set(1.2, 2.6, -8);
     star.scale.setScalar(0.45 * sky.starSize * 2);
     turntable.add(star);
@@ -224,8 +264,26 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       case 'producer': producerContent(other); break;
       case 'sky': skyContent(other); break;
     }
-    void r.compileAsync(scene, cam);
+    r.compileAsync(scene, cam).catch(console.error);
   }
+
+  // Warm-up: build every swatch of both worlds once, compile them together, then clear. Materials and backdrops
+  // stay cached, so opening a card later only builds meshes.
+  function warmUp() {
+    for (const id of ['carbon', 'silicon'] as const) {
+      const other = deps.worldFor(id);
+      seaContent(other); groundContent(other); producerContent(other); skyContent(other);
+      beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
+      backdropFor(other);
+    }
+    const all = [...backdrops.values()];
+    all.forEach((b) => scene.add(b));
+    r.compileAsync(scene, cam).catch(console.error).finally(() => {
+      all.forEach((b) => scene.remove(b));
+      if (!target) clearContent(); // a card may have opened meanwhile; build() clears warm-up content itself
+    });
+  }
+  warmUp();
 
   const onWindow = (w: typeof rect) => { rect = w; if (!w) { builtFor = ''; clearContent(); } };
   const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
@@ -265,7 +323,10 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       bus.off('inspect:close', onClose);
       r.render = origRender;
       clearContent();
-      if (backdrop) { backdrop.geometry.dispose(); (backdrop.material as THREE.Material).dispose(); }
+      for (const m of matCache.values()) m.dispose();
+      for (const b of backdrops.values()) { b.geometry.dispose(); (b.material as THREE.Material).dispose(); }
+      for (const m of Object.values(beadMat)) m.dispose();
+      for (const g of Object.values(beadGeo)) g.dispose();
     },
   };
 }

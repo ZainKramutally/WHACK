@@ -32,7 +32,7 @@ export function createSky(app: App): SkyPart {
   const sun = new THREE.DirectionalLight(0xffffff, 3);
   sun.position.set(0.55, 0.7, 0.45).multiplyScalar(100);
   const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x554433, 0.6);
-  scene.add(sun, hemi);
+  scene.add(sun, sun.target, hemi);
 
   // The star as a flat disc far away; it follows the camera so it never gets closer.
   const starMat = new THREE.MeshBasicNodeMaterial({ color: 0xffffff, fog: false, depthWrite: false });
@@ -87,7 +87,7 @@ export function createSky(app: App): SkyPart {
       starMat.color.setHex(st.starColour).multiplyScalar(1 + 1.5 * st.brightness);
     },
     dispose() {
-      scene.remove(sun, hemi, starMesh);
+      scene.remove(sun, sun.target, hemi, starMesh);
       starMesh.geometry.dispose();
       starMat.dispose();
       scene.backgroundNode = null;
