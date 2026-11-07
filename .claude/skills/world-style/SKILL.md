@@ -45,6 +45,8 @@ Sibling skills these mention but we **didn't install** (`threejs-shaders`, `thre
 
 > **Status: DRAFT.** Taken from the two Bruno Simon teardowns (`research/sites/*/BREAKDOWN.md`, which cite exact hex values and file:line). It's the default *family*, a **toy diorama**. Once `/spec` picks the idea, the team **replaces the palette and mood with our own**, because a straight copy of Bruno's orange-and-violet world will read as seen-before. Keep the *construction rules*. Change the *colours and subject*.
 
+> **Palette, mood and creature look are now set by [`docs/ART_DIRECTION.md`](../../../docs/ART_DIRECTION.md)** ("Colour is alive"). It replaces the Bruno colours below. Its §9 lists the deltas to this file.
+
 **Construction rules (keep):**
 - **One material for the whole world.** A single shared TSL node material (Lambert-based with a custom `outputNode`) handles flat palette colour, ground-tinted bounce light, a cel-step core shadow, **coloured shadows**, fog and the reveal discard. New props never get bespoke materials.
 - **Palette texture.** Props sample one small palette image (≤ 32 swatches, `NearestFilter`) by UV. Artists paint UVs onto swatches in Blender. Colour changes happen in one file.

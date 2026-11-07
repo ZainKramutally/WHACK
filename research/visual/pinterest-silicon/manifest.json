@@ -1,0 +1,927 @@
+[
+ {
+  "n": 1,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-01.jpg",
+  "img": "https://i.pinimg.com/originals/01/9f/7d/019f7d61547b1f5aa414f10d3b8738c7.jpg",
+  "alt": "Pin",
+  "size": [
+   750,
+   1129
+  ],
+  "palette": [
+   [
+    "#fffffc",
+    0.198
+   ],
+   [
+    "#8c9997",
+    0.187
+   ],
+   [
+    "#afc8ca",
+    0.175
+   ],
+   [
+    "#d1d6d1",
+    0.15
+   ],
+   [
+    "#fef9f3",
+    0.145
+   ],
+   [
+    "#eff0eb",
+    0.144
+   ]
+  ]
+ },
+ {
+  "n": 2,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-02.jpg",
+  "img": "https://i.pinimg.com/originals/68/ed/33/68ed337cbe488758396251df740b35e3.jpg",
+  "alt": "Pin",
+  "size": [
+   1024,
+   960
+  ],
+  "palette": [
+   [
+    "#352f2b",
+    0.268
+   ],
+   [
+    "#ebeae4",
+    0.235
+   ],
+   [
+    "#f1f0ea",
+    0.171
+   ],
+   [
+    "#f5f4ee",
+    0.133
+   ],
+   [
+    "#efece7",
+    0.131
+   ],
+   [
+    "#c3bcb3",
+    0.062
+   ]
+  ]
+ },
+ {
+  "n": 3,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-03.jpg",
+  "img": "https://i.pinimg.com/originals/fb/d4/cd/fbd4cdf03edadab13d6f0c55bde52871.jpg",
+  "alt": "Pin",
+  "size": [
+   735,
+   1200
+  ],
+  "palette": [
+   [
+    "#495065",
+    0.258
+   ],
+   [
+    "#6d9bce",
+    0.222
+   ],
+   [
+    "#82badf",
+    0.157
+   ],
+   [
+    "#5c7ca8",
+    0.13
+   ],
+   [
+    "#b0cee7",
+    0.129
+   ],
+   [
+    "#50729b",
+    0.104
+   ]
+  ]
+ },
+ {
+  "n": 4,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-04.jpg",
+  "img": "https://i.pinimg.com/originals/1b/89/22/1b89228022f9c16d1d4915284b8816f3.jpg",
+  "alt": "Pin",
+  "size": [
+   1125,
+   872
+  ],
+  "palette": [
+   [
+    "#091121",
+    0.239
+   ],
+   [
+    "#83897c",
+    0.19
+   ],
+   [
+    "#746857",
+    0.164
+   ],
+   [
+    "#9db2a7",
+    0.144
+   ],
+   [
+    "#cdccc6",
+    0.133
+   ],
+   [
+    "#2d4e55",
+    0.13
+   ]
+  ]
+ },
+ {
+  "n": 5,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-05.jpg",
+  "img": "https://i.pinimg.com/originals/13/70/26/1370261d57dc93423b0eb43e1a0b8377.jpg",
+  "alt": "Pin",
+  "size": [
+   700,
+   1303
+  ],
+  "palette": [
+   [
+    "#a4a19e",
+    0.426
+   ],
+   [
+    "#ada6a1",
+    0.203
+   ],
+   [
+    "#7e6359",
+    0.169
+   ],
+   [
+    "#ac9b92",
+    0.121
+   ],
+   [
+    "#c5beb6",
+    0.075
+   ],
+   [
+    "#aca29d",
+    0.007
+   ]
+  ]
+ },
+ {
+  "n": 6,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-06.jpg",
+  "img": "https://i.pinimg.com/originals/4f/e8/c5/4fe8c570263e56309d797a346af6d145.jpg",
+  "alt": "Pin",
+  "size": [
+   736,
+   736
+  ],
+  "palette": [
+   [
+    "#ffffff",
+    0.655
+   ],
+   [
+    "#544332",
+    0.157
+   ],
+   [
+    "#9a7c5b",
+    0.1
+   ],
+   [
+    "#fefffe",
+    0.067
+   ],
+   [
+    "#f3f2f1",
+    0.016
+   ],
+   [
+    "#fffffe",
+    0.006
+   ]
+  ]
+ },
+ {
+  "n": 7,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-07.jpg",
+  "img": "https://i.pinimg.com/originals/ab/ff/8f/abff8f0177f13fe7cc90ce9464215dd4.jpg",
+  "alt": "Pin",
+  "size": [
+   1440,
+   1920
+  ],
+  "palette": [
+   [
+    "#ffffff",
+    0.824
+   ],
+   [
+    "#ad9c7a",
+    0.075
+   ],
+   [
+    "#cec4a7",
+    0.052
+   ],
+   [
+    "#f2f1ed",
+    0.029
+   ],
+   [
+    "#fffffe",
+    0.013
+   ],
+   [
+    "#feffff",
+    0.007
+   ]
+  ]
+ },
+ {
+  "n": 8,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-08.jpg",
+  "img": "https://i.pinimg.com/originals/93/92/a5/9392a5327e43f351634ce0e0e7e007eb.jpg",
+  "alt": "Pin",
+  "size": [
+   563,
+   369
+  ],
+  "palette": [
+   [
+    "#ffffff",
+    0.48
+   ],
+   [
+    "#512d29",
+    0.247
+   ],
+   [
+    "#c19c86",
+    0.107
+   ],
+   [
+    "#fbfbf9",
+    0.079
+   ],
+   [
+    "#fcfffd",
+    0.044
+   ],
+   [
+    "#fffffd",
+    0.043
+   ]
+  ]
+ },
+ {
+  "n": 9,
+  "section": "fauna",
+  "file": "fauna/2026-11-07-fauna-09.jpg",
+  "img": "https://i.pinimg.com/originals/ce/92/ef/ce92ef78d0d637b4c2f2adec0b190e20.jpg",
+  "alt": "Pin",
+  "size": [
+   879,
+   879
+  ],
+  "palette": [
+   [
+    "#c9c1b8",
+    0.228
+   ],
+   [
+    "#444a55",
+    0.219
+   ],
+   [
+    "#797d89",
+    0.151
+   ],
+   [
+    "#e1d2c2",
+    0.151
+   ],
+   [
+    "#f7e3ce",
+    0.131
+   ],
+   [
+    "#aba09e",
+    0.12
+   ]
+  ]
+ },
+ {
+  "n": 10,
+  "section": "flora",
+  "file": "flora/2026-11-07-flora-01.jpg",
+  "img": "https://i.pinimg.com/736x/25/75/a1/2575a1469bfb91b1335a3f629a88f0e8.jpg",
+  "alt": "Pin",
+  "size": [
+   643,
+   834
+  ],
+  "palette": [
+   [
+    "#fdfdfc",
+    0.356
+   ],
+   [
+    "#fefefe",
+    0.3
+   ],
+   [
+    "#6a5857",
+    0.226
+   ],
+   [
+    "#e8e3de",
+    0.099
+   ],
+   [
+    "#fdfefe",
+    0.014
+   ],
+   [
+    "#fffdfe",
+    0.006
+   ]
+  ]
+ },
+ {
+  "n": 11,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-01.jpg",
+  "img": "https://i.pinimg.com/736x/86/7e/b5/867eb5e25156587e0f4607cac6950418.jpg",
+  "alt": "Pin",
+  "size": [
+   716,
+   1000
+  ],
+  "palette": [
+   [
+    "#f85c28",
+    0.272
+   ],
+   [
+    "#b7c8bf",
+    0.212
+   ],
+   [
+    "#b3bcaf",
+    0.186
+   ],
+   [
+    "#7d2a16",
+    0.169
+   ],
+   [
+    "#bfcfc7",
+    0.115
+   ],
+   [
+    "#bd5e39",
+    0.045
+   ]
+  ]
+ },
+ {
+  "n": 12,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-02.jpg",
+  "img": "https://i.pinimg.com/736x/90/9e/cb/909ecb6d94084a6748ab67be6cdca5fa.jpg",
+  "alt": "Pin",
+  "size": [
+   736,
+   1039
+  ],
+  "palette": [
+   [
+    "#492a5f",
+    0.236
+   ],
+   [
+    "#d07569",
+    0.212
+   ],
+   [
+    "#f0c678",
+    0.165
+   ],
+   [
+    "#753475",
+    0.144
+   ],
+   [
+    "#a34171",
+    0.135
+   ],
+   [
+    "#faf0b8",
+    0.108
+   ]
+  ]
+ },
+ {
+  "n": 13,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-03.jpg",
+  "img": "https://i.pinimg.com/originals/61/16/c6/6116c6910f61799234a82c67b2fa0fa8.jpg",
+  "alt": "Pin",
+  "size": [
+   1200,
+   2133
+  ],
+  "palette": [
+   [
+    "#01435c",
+    0.273
+   ],
+   [
+    "#5a3b52",
+    0.202
+   ],
+   [
+    "#276871",
+    0.189
+   ],
+   [
+    "#003d59",
+    0.127
+   ],
+   [
+    "#348482",
+    0.127
+   ],
+   [
+    "#4fada2",
+    0.082
+   ]
+  ]
+ },
+ {
+  "n": 14,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-04.jpg",
+  "img": "https://i.pinimg.com/736x/ee/f9/8a/eef98ae55505d9729df5f55750173c3a.jpg",
+  "alt": "Pin",
+  "size": [
+   736,
+   1313
+  ],
+  "palette": [
+   [
+    "#587c9a",
+    0.206
+   ],
+   [
+    "#5f415e",
+    0.176
+   ],
+   [
+    "#d3dee8",
+    0.166
+   ],
+   [
+    "#a7b8cc",
+    0.156
+   ],
+   [
+    "#9286a0",
+    0.149
+   ],
+   [
+    "#eaeff3",
+    0.146
+   ]
+  ]
+ },
+ {
+  "n": 15,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-05.jpg",
+  "img": "https://i.pinimg.com/originals/ee/97/3a/ee973ab31f8136e162977e0445d4dcfc.jpg",
+  "alt": "Pin",
+  "size": [
+   640,
+   1024
+  ],
+  "palette": [
+   [
+    "#ad603b",
+    0.195
+   ],
+   [
+    "#4c2f21",
+    0.186
+   ],
+   [
+    "#875641",
+    0.17
+   ],
+   [
+    "#c2977d",
+    0.166
+   ],
+   [
+    "#e5eae8",
+    0.147
+   ],
+   [
+    "#f8fcfd",
+    0.136
+   ]
+  ]
+ },
+ {
+  "n": 16,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-06.jpg",
+  "img": "https://i.pinimg.com/originals/90/27/43/9027437508a6c61935393b87fc6e97bc.jpg",
+  "alt": "Pin",
+  "size": [
+   3072,
+   1728
+  ],
+  "palette": [
+   [
+    "#283744",
+    0.212
+   ],
+   [
+    "#6e6070",
+    0.208
+   ],
+   [
+    "#8a919b",
+    0.177
+   ],
+   [
+    "#d5e5e9",
+    0.143
+   ],
+   [
+    "#72d2f2",
+    0.136
+   ],
+   [
+    "#533a47",
+    0.124
+   ]
+  ]
+ },
+ {
+  "n": 17,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-07.jpg",
+  "img": "https://i.pinimg.com/originals/78/e5/3a/78e53a9229a025c2eee156bd27f09844.jpg",
+  "alt": "Pin",
+  "size": [
+   791,
+   1200
+  ],
+  "palette": [
+   [
+    "#017ddd",
+    0.236
+   ],
+   [
+    "#4b5c7d",
+    0.185
+   ],
+   [
+    "#7f7d91",
+    0.171
+   ],
+   [
+    "#2096c5",
+    0.142
+   ],
+   [
+    "#b7a9b1",
+    0.133
+   ],
+   [
+    "#ad909d",
+    0.132
+   ]
+  ]
+ },
+ {
+  "n": 18,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-08.jpg",
+  "img": "https://i.pinimg.com/originals/3e/98/87/3e9887bd4c690b4f5ba9fcd8ba668b89.jpg",
+  "alt": "Pin",
+  "size": [
+   810,
+   1440
+  ],
+  "palette": [
+   [
+    "#4a6d9a",
+    0.294
+   ],
+   [
+    "#994844",
+    0.25
+   ],
+   [
+    "#828e9d",
+    0.131
+   ],
+   [
+    "#414e6b",
+    0.128
+   ],
+   [
+    "#9fadb3",
+    0.105
+   ],
+   [
+    "#817680",
+    0.092
+   ]
+  ]
+ },
+ {
+  "n": 19,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-09.jpg",
+  "img": "https://i.pinimg.com/originals/2a/bc/9e/2abc9e52910c4184e8319301767fcb95.jpg",
+  "alt": "Pin",
+  "size": [
+   923,
+   1280
+  ],
+  "palette": [
+   [
+    "#3d2285",
+    0.237
+   ],
+   [
+    "#1e0d68",
+    0.225
+   ],
+   [
+    "#ab7d9e",
+    0.161
+   ],
+   [
+    "#824f90",
+    0.16
+   ],
+   [
+    "#c4c8d1",
+    0.111
+   ],
+   [
+    "#6f2678",
+    0.106
+   ]
+  ]
+ },
+ {
+  "n": 20,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-10.jpg",
+  "img": "https://i.pinimg.com/originals/2f/de/e1/2fdee135fe9787e38c1622e708a0c071.jpg",
+  "alt": "Pin",
+  "size": [
+   658,
+   824
+  ],
+  "palette": [
+   [
+    "#f69a43",
+    0.246
+   ],
+   [
+    "#c61807",
+    0.227
+   ],
+   [
+    "#600804",
+    0.151
+   ],
+   [
+    "#8fdbfd",
+    0.14
+   ],
+   [
+    "#e94814",
+    0.134
+   ],
+   [
+    "#e0f4eb",
+    0.102
+   ]
+  ]
+ },
+ {
+  "n": 21,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-11.jpg",
+  "img": "https://i.pinimg.com/originals/18/9a/49/189a49a3f75883b969795982ab1d27f8.jpg",
+  "alt": "Pin",
+  "size": [
+   816,
+   1451
+  ],
+  "palette": [
+   [
+    "#103d45",
+    0.261
+   ],
+   [
+    "#1f7689",
+    0.248
+   ],
+   [
+    "#308a98",
+    0.173
+   ],
+   [
+    "#45554c",
+    0.149
+   ],
+   [
+    "#3b767a",
+    0.088
+   ],
+   [
+    "#44aeb7",
+    0.082
+   ]
+  ]
+ },
+ {
+  "n": 22,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-12.jpg",
+  "img": "https://i.pinimg.com/originals/f3/80/5d/f3805d00bd6f2b9df012fe25b32a7cef.jpg",
+  "alt": "Pin",
+  "size": [
+   1024,
+   1024
+  ],
+  "palette": [
+   [
+    "#094924",
+    0.272
+   ],
+   [
+    "#345f3f",
+    0.197
+   ],
+   [
+    "#317652",
+    0.194
+   ],
+   [
+    "#27aaa6",
+    0.145
+   ],
+   [
+    "#abb66b",
+    0.111
+   ],
+   [
+    "#264733",
+    0.081
+   ]
+  ]
+ },
+ {
+  "n": 23,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-13.jpg",
+  "img": "https://i.pinimg.com/originals/12/8b/c9/128bc9b689c654dbaf527fdd5d04b106.jpg",
+  "alt": "Pin",
+  "size": [
+   1080,
+   1080
+  ],
+  "palette": [
+   [
+    "#343b53",
+    0.205
+   ],
+   [
+    "#76a7b1",
+    0.191
+   ],
+   [
+    "#688da0",
+    0.18
+   ],
+   [
+    "#336b7f",
+    0.18
+   ],
+   [
+    "#6a6f8a",
+    0.137
+   ],
+   [
+    "#94cdd0",
+    0.107
+   ]
+  ]
+ },
+ {
+  "n": 24,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-14.jpg",
+  "img": "https://i.pinimg.com/originals/f3/b7/ae/f3b7ae4d7a0b0f4532420c75f2137ab3.jpg",
+  "alt": "Pin",
+  "size": [
+   2331,
+   4032
+  ],
+  "palette": [
+   [
+    "#5f5954",
+    0.234
+   ],
+   [
+    "#8c9490",
+    0.219
+   ],
+   [
+    "#9b6e59",
+    0.161
+   ],
+   [
+    "#ae9686",
+    0.152
+   ],
+   [
+    "#dae8df",
+    0.132
+   ],
+   [
+    "#bab7ac",
+    0.102
+   ]
+  ]
+ },
+ {
+  "n": 25,
+  "section": "ecosystem",
+  "file": "ecosystem/2026-11-07-ecosystem-15.jpg",
+  "img": "https://i.pinimg.com/736x/48/fb/e8/48fbe8e24dd5b1476e1ca9d179e57902.jpg",
+  "alt": "Pin",
+  "size": [
+   736,
+   1313
+  ],
+  "palette": [
+   [
+    "#403752",
+    0.243
+   ],
+   [
+    "#927592",
+    0.191
+   ],
+   [
+    "#9e9fb9",
+    0.189
+   ],
+   [
+    "#eae5e9",
+    0.132
+   ],
+   [
+    "#d5c9d7",
+    0.125
+   ],
+   [
+    "#d5a7b9",
+    0.12
+   ]
+  ]
+ }
+]
