@@ -162,7 +162,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
 
   // Warm-up: swatches first, then the main scene (terrain/sea/creatures/flora), one compile at a time.
   const ready: Promise<void> = counterpart.ready
-    .then(() => app.renderer.compileAsync(app.scene, app.camera))
+    .then(() => app.compile())
     .catch((e) => { console.error(e); });
 
   const unhook = opts.autoHook === false ? () => {} : app.registerFrameHook(step);
