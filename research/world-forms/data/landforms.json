@@ -1,0 +1,470 @@
+{
+  "_about": "Earth landform families on the mood board: mechanism, driving variables, timescale, colour source, and how our controls (Recipe C/Si/O, Sea, Heat, Light, Time, Hunger) push a world toward or away from each. Mechanism fields are Earth geology; control_response fields are [game] extrapolation unless prefixed [sci]. Evidence tags/status per research/silicon-life/README.md. Notes: research/world-forms/notes/01-earth-landforms.md. Compiled 2026-11-07.",
+  "landforms": [
+    {
+      "name": "Natural arch / bridge",
+      "family": "erosional-sculpted",
+      "mechanism": "Thick porous sandstone over a salt layer -> salt flows and domes the rock -> parallel joints crack it into thin fins -> water, frost and grain-loss eat the fin sides -> a hole breaks through -> stress concentrates in the remaining span; loaded grains are locked and resist erosion while unloaded grains fall, so the form self-shapes toward a stable arch (negative feedback) -> eventually the span thins and collapses.",
+      "drivers": ["jointing (tectonic/salt uplift)", "freeze-thaw", "water seepage and grain release", "stress field (self-stabilising)", "time"],
+      "timescale": "Fins over 10^5-10^6 yr; individual arches persist ~10^4-10^5 yr [INFERRED]; collapses are observed in human lifetimes (Wall Arch, 2008).",
+      "colour_sources": ["hematite / iron-oxide grain coatings (red, salmon)", "bleached zones where reducing fluids removed iron (white/cream)", "manganese-iron varnish streaks on faces (black)"],
+      "examples": [
+        {"name": "Delicate Arch", "place": "Arches National Park, Utah, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Delicatearch.png", "licence": "Public domain"},
+        {"name": "Landscape Arch area / Entrada fins", "place": "Arches National Park, Utah, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Delicate_arch_viewpoint.jpg", "licence": "CC BY-SA 4.0"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward: quartz sandstone is the arch-maker. [game] Builder-made arches (R12) are a second, life-built route.",
+        "sea": "Water toward (seepage + frost). Acid toward but faster/rougher (dissolves cement). Methane away (no dissolution, cold-locked).",
+        "heat": "Cool-to-mild with freeze-thaw crossings toward; very cold (always frozen) or very hot-dry slows it.",
+        "light": "Neutral.",
+        "time": "Strong: needs mid-old worlds; very old worlds show collapsed arches and lone pillars.",
+        "hunger": "Neutral (abiotic)."
+      },
+      "status": "consensus (mechanism); [game] (control mapping)",
+      "sources": ["S1", "S2"]
+    },
+    {
+      "name": "Hoodoo / spire",
+      "family": "erosional-sculpted",
+      "mechanism": "Flat-lying layers of weak, carbonate-cemented rock with harder bands -> plateau edge cracked by joints into fins -> frost wedging widens cracks (water expands ~9% on freezing) -> fins perforate into windows, windows collapse into free-standing columns -> slightly acidic rain dissolves the CaCO3 cement, rounding the soft bands and leaving a lumpy, 'totem' profile under a harder cap.",
+      "drivers": ["freeze-thaw (dominant)", "carbonate dissolution by weakly acidic rain", "layer hardness contrast", "time"],
+      "timescale": "Bryce sees >170 freeze-thaw nights per year (NPS); rim retreat of order 1 ft (~0.3 m) per few decades is often quoted [POP]; a hoodoo field lives ~10^4-10^5 yr.",
+      "colour_sources": ["hematite (red, pink)", "limonite/goethite (orange, yellow)", "manganese oxides (lavender/purple)", "pure limestone (white)"],
+      "examples": [
+        {"name": "Bryce Amphitheater", "place": "Bryce Canyon National Park, Utah, USA (Claron Formation)", "image_url": "https://commons.wikimedia.org/wiki/File:Hoodoos_in_the_Bryce_Canyon_National_Park.jpg", "licence": "CC BY 3.0"}
+      ],
+      "control_response": {
+        "recipe": "C+O toward on Earth (carbonate cement). Si+O toward if layers have hard/soft contrast.",
+        "sea": "Water strongly toward (freeze-thaw). Acid toward (dissolution). Methane/ammonia: only if surface temperature crosses that solvent's freezing point [INFERRED].",
+        "heat": "Peaks where daily temperature straddles the sea's freezing point; away at both extremes.",
+        "light": "Neutral.",
+        "time": "Mid-old; very old flattens to badland/plain.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S3", "S4"]
+    },
+    {
+      "name": "Fairy chimney (capped tuff cone)",
+      "family": "erosional-sculpted",
+      "mechanism": "Volcanic ash falls and welds into thick soft tuff (ignimbrite), topped by a harder lava/welded layer -> rain and runoff cut gullies -> harder cap blocks shield the tuff beneath -> cones/pillars with a 'hat' remain -> cap falls, the cone erodes away fast.",
+      "drivers": ["rain splash and runoff", "hardness contrast (cap vs tuff)", "freeze-thaw", "volcanic supply (sets the stack)"],
+      "timescale": "Tuff laid down over ~10^6-10^7 yr (Miocene-Pliocene); chimneys sculpted over ~10^4-10^5 yr; uncapped cones decay in centuries-millennia [INFERRED].",
+      "colour_sources": ["fresh ash (cream, white)", "iron-oxidised tuff bands (pink, ochre)"],
+      "examples": [
+        {"name": "Fairy chimneys of Goreme", "place": "Cappadocia, Turkey", "image_url": "https://commons.wikimedia.org/wiki/File:Cappadocia_Chimneys_Wikimedia_Commons.jpg", "licence": "CC BY-SA 3.0"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward (silicate ash). [game] Heat + Si = volcanic ash plains.",
+        "sea": "Water toward (rain). Others neutral.",
+        "heat": "Hot (volcanism makes the ash) then mild (rain sculpts).",
+        "light": "Neutral.",
+        "time": "Mid: young = ash plain, mid = chimneys, old = bare.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S5"]
+    },
+    {
+      "name": "Honeycomb / tafoni / alveolar weathering",
+      "family": "porous-pitted",
+      "mechanism": "Salty moisture (sea spray, groundwater) wicks into porous rock -> water evaporates in a slight hollow, salt crystallises in pores and pries grains loose -> hollow deepens; wind across the hollow speeds evaporation inside it and shelters the rims (which also get a protective case-hardened crust) -> positive feedback grows cells of similar size, 'cells within cells'.",
+      "drivers": ["salt crystallisation", "wetting-drying cycles", "wind-driven evaporation", "case-hardening of rims", "grain-scale porosity"],
+      "timescale": "Visible pitting in decades on coastal sandstone (seawalls); large tafoni over centuries-millennia.",
+      "colour_sources": ["host rock colour", "iron-oxide case-hardened rims (darker, orange)", "salt efflorescence (white)"],
+      "examples": [
+        {"name": "Tafoni at Bean Hollow State Beach", "place": "California, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Tafoni_at_Bean_Hollow_State_Beach.jpg", "licence": "CC BY-SA 4.0"},
+        {"name": "Tafoni, Hamamoroiso", "place": "Miura Peninsula, Japan", "image_url": "https://commons.wikimedia.org/wiki/File:Tafoni_with_hammer_in_Hamamoroiso_Miura.jpg", "licence": "CC BY-SA 4.0"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward (porous sandstone/granite). O toward (iron-crusted rims).",
+        "sea": "Water and acid toward (dissolved salts); salty coasts strongest. Methane away (no dissolved ions to crystallise) [INFERRED].",
+        "heat": "Warm, alternately wet and dry toward.",
+        "light": "Weak: sun-driven drying helps [INFERRED].",
+        "time": "Young-mid (fast, visible).",
+        "hunger": "Neutral abiotically; [game] R12 makes inhabited pores glow."
+      },
+      "status": "plausible/theorised (salt + wind best supported; exact mix debated)",
+      "sources": ["S6", "S7"]
+    },
+    {
+      "name": "Bio-pitted rock (phytokarst / bioerosion sponge texture)",
+      "family": "porous-pitted",
+      "mechanism": "Microbes (cyanobacteria, algae, fungi) bore into and dissolve carbonate rock surfaces -> grazers (snails, chitons, urchins) rasp the colonised surface to eat them -> the rock becomes a jagged, black, sponge-like field of pits and spikes; parrotfish grinding coral turns reef into sand.",
+      "drivers": ["life (borers + grazers)", "light (feeds the borers)", "dissolution", "time"],
+      "timescale": "mm-per-year-scale surface lowering on tropical carbonate coasts; spongy fields over centuries-millennia.",
+      "colour_sources": ["black/grey endolithic microbes and their pigments", "white fresh carbonate in the pits"],
+      "examples": [
+        {"name": "Black phytokarst of 'Hell'", "place": "Grand Cayman, Cayman Islands", "image_url": "", "licence": "not sourced"}
+      ],
+      "control_response": {
+        "recipe": "C+O rock toward on Earth; [game] any soluble stone toward.",
+        "sea": "Water, acid toward.",
+        "heat": "Warm toward (tropical).",
+        "light": "Bright toward: photosynthetic borers need it. [sci]",
+        "time": "Mid-old.",
+        "hunger": "Strong toward: more grazers = more pitting and sand. [sci] analogue; [game] scaling."
+      },
+      "status": "consensus (mechanism); [game] (control mapping)",
+      "sources": ["S8"]
+    },
+    {
+      "name": "Slot canyon",
+      "family": "incised",
+      "mechanism": "Massive, uniform sandstone with a joint -> rare desert flash floods funnel along the joint carrying sand and gravel -> abrasion and plucking cut down faster than the walls retreat (dry climate, few side tributaries) -> deep, narrow, wave-sculpted corridor.",
+      "drivers": ["flash-flood abrasion", "jointing", "arid climate (keeps walls from widening)", "uplift (base-level drop)"],
+      "timescale": "Incision of order 10^4-10^6 yr; walls re-polished every flood.",
+      "colour_sources": ["iron-oxide coated sand grains (orange, red)", "light bouncing between walls (warm glow)"],
+      "examples": [
+        {"name": "Lower Antelope Canyon", "place": "Navajo Nation, near Page, Arizona, USA (Navajo Sandstone)", "image_url": "https://commons.wikimedia.org/wiki/File:USA_Antelope-Canyon.jpg", "licence": "Public domain"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward (quartz sandstone).",
+        "sea": "Water toward; acid toward (faster). Methane: Titan has rain-cut channels too [INFERRED, see notes/02].",
+        "heat": "Hot-dry toward (flashy floods, no widening).",
+        "light": "Neutral (but shafts of light make it photogenic).",
+        "time": "Mid-old.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S9"]
+    },
+    {
+      "name": "Mesa / butte / monolith",
+      "family": "incised",
+      "mechanism": "Flat-lying strata with a resistant caprock over soft rock -> uplift lets rivers cut down -> cliffs retreat sideways as soft rock under the cap is undercut and the cap breaks off -> plateau splits into mesas (wider than tall) -> buttes (taller than wide) -> spires -> nothing.",
+      "drivers": ["uplift", "river incision", "scarp retreat (undercutting)", "caprock hardness", "time"],
+      "timescale": "10^6-10^7 yr.",
+      "colour_sources": ["hematite red beds (red, orange)", "bleached or grey caprock", "varnish streaks on cliffs (black)"],
+      "examples": [
+        {"name": "The Mittens / John Ford's Point", "place": "Monument Valley, Arizona-Utah, USA", "image_url": "https://commons.wikimedia.org/wiki/File:John_Ford%27s_Point_Monument_Valley_Luca_Galuzzi_2007.jpg", "licence": "CC BY-SA 2.5"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward (layered sediment); O toward red.",
+        "sea": "Water toward (rivers). [game] any flowing sea works.",
+        "heat": "Hot-arid toward (steep cliffs survive; humid climates soften slopes).",
+        "light": "Neutral.",
+        "time": "Strong: the mesa->butte->spire sequence IS the clock. Good Time readout.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S10"]
+    },
+    {
+      "name": "Sea cave -> sea arch -> sea stack -> stump",
+      "family": "coastal",
+      "mechanism": "Waves attack a headland -> hydraulic pressure and thrown-sand abrasion exploit joints/faults -> caves form on both sides -> caves meet as an arch -> arch roof collapses -> stack stands alone -> stack is undercut to a stump.",
+      "drivers": ["wave energy", "abrasion", "jointing/faults", "rock hardness", "sea level"],
+      "timescale": "Soft limestone/chalk coasts retreat cm/yr; arch-to-stack collapses observed (London Arch, Victoria, 1990; a Twelve Apostles stack, 2005).",
+      "colour_sources": ["host rock (chalk white, limestone gold)", "wave-washed base (darker band)"],
+      "examples": [
+        {"name": "Twelve Apostles", "place": "Port Campbell National Park, Victoria, Australia", "image_url": "https://commons.wikimedia.org/wiki/File:Princetown_(AU),_Port_Campbell_National_Park,_Twelve_Apostles_--_2019_--_0930.jpg", "licence": "CC BY-SA 4.0"},
+        {"name": "Old Harry Rocks", "place": "Isle of Purbeck, Dorset, UK", "image_url": "https://commons.wikimedia.org/wiki/File:Old_Harry_Rocks,_Handfast_Point,_Isle_of_Purbeck,_Dorset.jpg", "licence": "CC BY-SA 2.0"}
+      ],
+      "control_response": {
+        "recipe": "Any rock; carbonate (C+O) and chalk fastest.",
+        "sea": "Any liquid sea with waves toward; dense acid/water seas strongest. [INFERRED] Titan's seas are calm (low wave heights) so methane weakens it.",
+        "heat": "Not frozen (liquid sea needed).",
+        "light": "Neutral.",
+        "time": "Young = cliffs, mid = arches, old = stacks and stumps.",
+        "hunger": "Weak: bioeroders at the waterline speed undercutting [sci]."
+      },
+      "status": "consensus",
+      "sources": ["S11"]
+    },
+    {
+      "name": "Travertine terraces (rimstone pools)",
+      "family": "precipitated",
+      "mechanism": "CO2-rich groundwater dissolves limestone at depth -> emerges at a spring -> CO2 degasses as it flows, pushing CaCO3 past saturation -> calcite precipitates fastest where water is thin and fast (pool rims) -> rims grow up into dams, pools fill behind them -> staircase of terraces (self-organising positive feedback).",
+      "drivers": ["CO2 degassing (chemical precipitation)", "flow speed (rim feedback)", "temperature", "microbial mats (nucleation)"],
+      "timescale": "mm to cm per year at active vents; terraces reshape in months-years, whole edifices in 10^2-10^4 yr.",
+      "colour_sources": ["calcite (white)", "microbial mats in warm channels (orange, brown, green)", "iron (rust tints)"],
+      "examples": [
+        {"name": "Pamukkale", "place": "Denizli, Turkey", "image_url": "https://commons.wikimedia.org/wiki/File:The_travertines_of_Pamukkale_3.jpg", "licence": "CC BY-SA 4.0"},
+        {"name": "Mammoth Hot Springs", "place": "Yellowstone National Park, Wyoming, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Upper_Terraces_of_Mammoth_Hot_Springs.jpg", "licence": "CC BY-SA 3.0"}
+      ],
+      "control_response": {
+        "recipe": "C+O toward (carbonate). [game] Si+O gives the silica version (sinter terraces).",
+        "sea": "Water toward (carbonate system). Acid away (keeps carbonate dissolved).",
+        "heat": "Warm/hydrothermal toward.",
+        "light": "Weak: mats help nucleate. [sci]",
+        "time": "Young-mid (fast, visible growth).",
+        "hunger": "Neutral; mats are producers, not hunters."
+      },
+      "status": "consensus",
+      "sources": ["S12", "S13", "S14"]
+    },
+    {
+      "name": "Silica sinter (geyserite) mounds and terraces",
+      "family": "precipitated",
+      "mechanism": "Hot water dissolves silica from deep volcanic rock (silica solubility rises with temperature) -> water reaches the surface, cools and evaporates -> amorphous silica (opal-A) supersaturates and precipitates, often templated on microbial filaments -> beaded, spiky, terraced sinter that later recrystallises toward chert/quartz.",
+      "drivers": ["cooling and evaporation (chemical precipitation)", "silica supply (hot silicate host rock)", "microbial templating", "pH"],
+      "timescale": "~mm/yr typical accumulation at vents; recrystallisation to chert over 10^4-10^6 yr.",
+      "colour_sources": ["opal-A (white, grey)", "microbial mats by temperature band (carotenoid yellow/orange, cyanobacterial green, brown)"],
+      "examples": [
+        {"name": "Grand Prismatic Spring (sinter apron + mats)", "place": "Yellowstone National Park, Wyoming, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Yellowstone_National_Park_(WY,_USA),_Grand_Prismatic_Spring_--_2022_--_2514.jpg", "licence": "CC BY-SA 4.0"}
+      ],
+      "control_response": {
+        "recipe": "Si+O strongly toward: the most direct 'silicon builds stone' landform on Earth. [sci]",
+        "sea": "Water toward. [INFERRED] Ammonia (alkaline) holds more silica in solution, so ammonia worlds would deposit sinter where fluids cool or neutralise.",
+        "heat": "Hot source + cooler surface toward (needs a gradient).",
+        "light": "Moderate: bright = photosynthetic mat colours. [sci]",
+        "time": "Young (fast); old = chert.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus (mechanism); plausible/theorised (ammonia extrapolation)",
+      "sources": ["S15", "S16"]
+    },
+    {
+      "name": "Tufa tower",
+      "family": "precipitated",
+      "mechanism": "Calcium-rich spring water rises through the floor of an alkaline, carbonate-rich lake -> where the two waters mix, CaCO3 precipitates around the vent (cool water can also form ikaite) -> chimney grows upward toward the surface -> lake level drops and leaves the towers standing on dry shore.",
+      "drivers": ["mixing of two waters (chemical precipitation)", "lake alkalinity", "spring supply", "lake level (exposes towers)", "algae/microbes"],
+      "timescale": "Towers grow over decades-centuries; Mono Lake's were exposed after water diversions began in 1941.",
+      "colour_sources": ["calcite (cream, buff, grey)"],
+      "examples": [
+        {"name": "South Tufa", "place": "Mono Lake, California, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Mono_Lake_South_Tufa_August_2013_012.jpg", "licence": "CC BY-SA 3.0"}
+      ],
+      "control_response": {
+        "recipe": "C+O toward on Earth; [game] Si+O variant = chemical-garden-like silica chimneys.",
+        "sea": "Water (alkaline lake) toward; ammonia (alkaline) is a natural [game] fit. Acid away.",
+        "heat": "Cool-mild toward (cold favours ikaite).",
+        "light": "Weak (algae contribute).",
+        "time": "Mid; sea drawdown reveals them.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S17", "S18"]
+    },
+    {
+      "name": "Karst towers (fenglin) and cone karst",
+      "family": "dissolution",
+      "mechanism": "Rain picks up CO2 from air and soil -> carbonic acid dissolves limestone along joints -> joints widen into closed depressions -> depressions merge, leaving cones (fengcong) -> continued lowering to a flat floor isolates steep towers (fenglin).",
+      "drivers": ["dissolution (solvent + CO2)", "rainfall", "soil CO2 from vegetation", "jointing", "uplift"],
+      "timescale": "10^6-10^7 yr; limestone surfaces lower by tens of mm per 1000 yr in humid tropics.",
+      "colour_sources": ["limestone (grey, white)", "vegetation (green caps)", "black microbial streaks"],
+      "examples": [
+        {"name": "Li River karst", "place": "Guilin-Yangshuo, Guangxi, China", "image_url": "https://commons.wikimedia.org/wiki/File:Guilin_Scenery.jpg", "licence": "Public domain"}
+      ],
+      "control_response": {
+        "recipe": "C+O toward on Earth. [game] Whatever rock the sea dissolves becomes karst.",
+        "sea": "Acid strongly toward; water toward. [INFERRED] Methane dissolves organics, so methane worlds get karst in organic rock (Titan labyrinths, see notes/02).",
+        "heat": "Warm-wet toward (tropical karst is most dramatic).",
+        "light": "Indirect: bright = more plants = more soil CO2.",
+        "time": "Old (towers need millions of years).",
+        "hunger": "Indirect: more life = more CO2 = faster dissolution."
+      },
+      "status": "consensus",
+      "sources": ["S19", "S20"]
+    },
+    {
+      "name": "Cave formations (speleothems)",
+      "family": "precipitated (inside dissolution)",
+      "mechanism": "Water saturated with Ca-bicarbonate drips into an air-filled cave with lower CO2 -> degasses -> calcite precipitates: stalactites (down), stalagmites (up), columns where they meet, flowstone, rimstone dams.",
+      "drivers": ["CO2 degassing", "drip rate", "cave air CO2", "temperature"],
+      "timescale": "Typically ~0.01-1 mm/yr; metre-scale stalagmites in 10^3-10^5 yr.",
+      "colour_sources": ["pure calcite (white, translucent)", "iron oxides (orange)", "humic/organic acids from soil (tan, brown)"],
+      "examples": [
+        {"name": "Big Room speleothems", "place": "Carlsbad Caverns, New Mexico, USA", "image_url": "", "licence": "not sourced"}
+      ],
+      "control_response": {
+        "recipe": "C+O toward on Earth; [game] Si+O variant = opal drips.",
+        "sea": "Water toward. Acid: dissolves more than it deposits (sulfuric-acid caves like Carlsbad grow gypsum).",
+        "heat": "Mild.",
+        "light": "Dark (it's underground) - pairs with R8 glow.",
+        "time": "Old.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S19"]
+    },
+    {
+      "name": "Columnar jointing",
+      "family": "cooling-fracture",
+      "mechanism": "Thick lava flow (or welded tuff) cools from its top and bottom -> rock contracts and cracks perpendicular to the cooling front -> cracks advance inward in steps, reorganising toward a hexagonal network (120-degree junctions) -> straight polygonal columns; faster cooling makes thinner columns.",
+      "drivers": ["cooling rate (heat)", "thermal contraction", "water infiltration speeds cooling"],
+      "timescale": "Forms in years-decades as a flow cools; exposed by erosion over 10^4-10^7 yr.",
+      "colour_sources": ["basalt (black, dark grey)", "weathering rind (rust-brown)"],
+      "examples": [
+        {"name": "Giant's Causeway", "place": "County Antrim, Northern Ireland, UK", "image_url": "https://commons.wikimedia.org/wiki/File:Giant%27s_Causeway_(14).JPG", "licence": "CC BY 3.0"},
+        {"name": "Devils Tower", "place": "Wyoming, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Devils_Tower,_Southeast_view_20110821_1.jpg", "licence": "CC BY-SA 4.0"}
+      ],
+      "control_response": {
+        "recipe": "Si+O strongly toward (silicate melts). Also forms in starch and some ices [sci], so it is a generic contraction pattern.",
+        "sea": "Water toward (quenching gives thinner, more regular columns). [INFERRED]",
+        "heat": "Hot (volcanic) world, then cooled; [game] Heat high + Si high = hexagon fields.",
+        "light": "Neutral.",
+        "time": "Young to form; mid-old to expose.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S21"]
+    },
+    {
+      "name": "Dunes (barchan, transverse, linear, star)",
+      "family": "aeolian",
+      "mechanism": "Wind lifts sand into saltation -> sand piles where flow slows -> dune shape set by sand supply and how many wind directions there are: barchan (crescent) = little sand, one wind; transverse = lots of sand, one wind; linear (seif) = two alternating winds; star = winds from many directions. Dunes either grow in bed-instability mode or elongate from a fixed source.",
+      "drivers": ["wind regime (directional variability)", "sand supply", "grain size", "vegetation/moisture (pins sand)"],
+      "timescale": "Barchans migrate metres to tens of metres per year; large linear/star dunes 10^3-10^5 yr; dune reddening by iron coatings over 10^4-10^5 yr.",
+      "colour_sources": ["quartz (white-buff)", "hematite grain coatings (red, deepens with age and distance)", "gypsum (White Sands, white)", "organic grains on Titan (dark)"],
+      "examples": [
+        {"name": "Star dunes, Sossusvlei", "place": "Namib Desert, Namibia", "image_url": "https://commons.wikimedia.org/wiki/File:Sossusvlei_Dune_Rippled_cropped.jpg", "licence": "CC BY-SA 3.0"},
+        {"name": "Barchan and linear dunes (orbital)", "place": "NASA image PIA23669", "image_url": "https://commons.wikimedia.org/wiki/File:Barchan_and_Linear_Dunes_-_PIA23669.tif", "licence": "Public domain"}
+      ],
+      "control_response": {
+        "recipe": "Si+O toward (quartz sand, R2). C-only worlds lack durable sand unless organics (Titan).",
+        "sea": "Dry or methane toward (Titan has huge linear organic dunes [sci]); water oceans away locally.",
+        "heat": "Hot-dry toward; also cold-dry (Mars, Titan).",
+        "light": "Neutral (sun drives winds indirectly).",
+        "time": "Young-mid for shape; old for red colour.",
+        "hunger": "Away: life (plants, crusts) pins sand. [sci]"
+      },
+      "status": "consensus",
+      "sources": ["S22", "S23", "S24"]
+    },
+    {
+      "name": "Patterned ground and ice-wedge polygons",
+      "family": "periglacial",
+      "mechanism": "(a) Polygons: in permafrost, winter cold shrinks the ground -> thermal-contraction cracks -> meltwater fills and freezes -> wedge grows each year -> polygon net 10-30 m across. (b) Sorted circles/stripes: repeated freeze-thaw heaves stones up and sideways; stones and fines self-sort into circles on flats and stripes on slopes.",
+      "drivers": ["freeze-thaw cycling", "thermal contraction", "water/ice content", "slope (circles -> stripes)"],
+      "timescale": "Cracks open every winter; mature polygons and sorted circles in centuries-millennia.",
+      "colour_sources": ["sorted contrast: pale stones vs dark fines", "vegetation in troughs (green, brown)"],
+      "examples": [
+        {"name": "Ice-wedge polygons", "place": "Arctic tundra (Mackenzie Delta, Canada)", "image_url": "https://commons.wikimedia.org/wiki/File:Ice-wedge_hg.jpg", "licence": "CC BY-SA 2.5"}
+      ],
+      "control_response": {
+        "recipe": "Neutral (any rock).",
+        "sea": "Water strongly toward on Earth; [INFERRED] any frozen/thawing volatile could do it (Mars, Pluto's convection cells in N2 ice).",
+        "heat": "Cold with seasonal crossings toward; hot away.",
+        "light": "Neutral (seasonality matters more).",
+        "time": "Mid.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus",
+      "sources": ["S25", "S26"]
+    },
+    {
+      "name": "Desert (rock) varnish",
+      "family": "surface-coating",
+      "mechanism": "Wind-blown dust and dew settle on stable rock faces -> clay plus manganese and iron oxides build a thin coat (<200 micrometres) -> Mn is enriched ~50-100x over crust; leading recent hypothesis: cyanobacteria accumulate Mn as an antioxidant and leave it behind -> black or brown sheen, streaked where water runs.",
+      "drivers": ["dust and dew supply", "manganese oxidation (possibly microbial)", "rock surface stability", "time"],
+      "timescale": "Very slow: ~1-40 micrometres per 1000 years.",
+      "colour_sources": ["manganese oxides (black)", "iron oxides (orange-brown)"],
+      "examples": [
+        {"name": "Varnished cliffs", "place": "Valley of Fire State Park, Nevada, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Desert_varnish_-_Valley_of_Fire_State_Park.JPG", "licence": "CC BY-SA 2.5 ca"}
+      ],
+      "control_response": {
+        "recipe": "O toward (oxides). [game] dark-stained arches (eco-15) fit.",
+        "sea": "Dry/arid toward; humid washes it off.",
+        "heat": "Hot-dry toward.",
+        "light": "Bright toward if microbial: UV stress drives Mn uptake. [PEER, disputed]",
+        "time": "Strong: varnish darkness is a natural age readout (R3).",
+        "hunger": "Neutral."
+      },
+      "status": "disputed (biotic vs abiotic origin)",
+      "sources": ["S27", "S28", "S29"]
+    },
+    {
+      "name": "Coloured strata (Danxia, rainbow mountains)",
+      "family": "stratigraphic",
+      "mechanism": "Sands and muds pile up in basins under changing climates -> each layer gets a different iron state and mineral mix (oxidising arid conditions -> red hematite; wetter/reducing -> green, grey, yellow) -> mountain-building tilts and folds the stack -> erosion exposes stripes; Danxia red-bed cliffs are cut into towers and walls.",
+      "drivers": ["oxidation state at deposition (O availability)", "mineral supply", "uplift and folding", "erosion", "time"],
+      "timescale": "Deposition over 10^6-10^7 yr (Cretaceous red beds at Zhangye); exposure over the last few million years.",
+      "colour_sources": ["hematite (red, maroon)", "goethite/limonite (yellow, ochre)", "chlorite/reduced iron (green, grey-green)", "manganese (purple)", "gypsum, carbonate (white)"],
+      "examples": [
+        {"name": "Zhangye Danxia", "place": "Gansu, China", "image_url": "https://commons.wikimedia.org/wiki/File:Zhangye_Danxia.JPG", "licence": "CC BY-SA 4.0"},
+        {"name": "Vinicunca (Rainbow Mountain)", "place": "Cusco region, Peru", "image_url": "https://commons.wikimedia.org/wiki/File:Muleteer_and_her_horse_-_Vinicunca.tif", "licence": "CC BY-SA 4.0"}
+      ],
+      "control_response": {
+        "recipe": "O strongly toward red; low O toward green/grey. [sci] analogue.",
+        "sea": "R3 mapping: water -> iron red; acid -> sulfur yellow; methane -> tholin orange; ammonia -> plum [game].",
+        "heat": "Hot-arid toward red (oxidising).",
+        "light": "Neutral.",
+        "time": "Strong: stripes are layered history; [game] each Time era could lay a band in the current sea's stain colour.",
+        "hunger": "Neutral."
+      },
+      "status": "consensus (iron/oxidation colour); [game] (sea-to-colour mapping)",
+      "sources": ["S30", "S31"]
+    },
+    {
+      "name": "Salt flat / evaporite crust (incl. sulfur fields)",
+      "family": "precipitated",
+      "mechanism": "Closed basin collects brine -> sun and wind evaporate it -> halite (and gypsum) crystallise into a crust -> flood-evaporate cycles stack layers -> below the crust, salty groundwater convects in cells; salt precipitates over the downwelling edges, raising a polygon net of ridges ~1-2 m across. At Dallol, hot acid brines plus volcanic sulfur and iron give yellow-green-orange crusts.",
+      "drivers": ["evaporation (heat, wind)", "closed drainage", "brine supply", "porous-media convection (polygons)", "volcanic acid (Dallol)"],
+      "timescale": "Polygon ridges re-form in weeks-months after flooding; salt pans accumulate over 10^4 yr.",
+      "colour_sources": ["halite (white)", "halophilic archaea in brines (pink, bacterioruberin)", "native sulfur (yellow)", "iron chlorides/oxides (green -> orange as they oxidise)"],
+      "examples": [
+        {"name": "Salar de Uyuni", "place": "Potosi, Bolivia", "image_url": "https://commons.wikimedia.org/wiki/File:Piles_of_Salt_Salar_de_Uyuni_Bolivia_Luca_Galuzzi_2006_a.jpg", "licence": "CC BY-SA 2.5"},
+        {"name": "Dallol hydrothermal field", "place": "Afar, Ethiopia", "image_url": "https://commons.wikimedia.org/wiki/File:ET_Afar_asv2018-01_img48_Dallol.jpg", "licence": "FAL"}
+      ],
+      "control_response": {
+        "recipe": "Neutral for halite; O+S for sulfate/sulfur crusts.",
+        "sea": "Water (evaporating) toward; acid toward sulfur-yellow crusts (R3) [sci analogue: Dallol]. Methane: Titan lake-bed evaporites are proposed [PEER, see notes/02].",
+        "heat": "Hot toward (evaporation).",
+        "light": "Bright toward (evaporation).",
+        "time": "Young-mid (fast).",
+        "hunger": "Neutral; pink brines = life colour (R9)."
+      },
+      "status": "consensus",
+      "sources": ["S32", "S33"]
+    },
+    {
+      "name": "Mushroom / pedestal rock",
+      "family": "erosional-sculpted",
+      "mechanism": "Two routes. (a) Wind: saltating sand stays within ~1-2 m of the ground, so abrasion is strongest low down and undercuts a stem. (b) Moisture/hardness: the base stays damp longer and weathers faster, or a hard cap (concretion, harder bed) shields soft rock below. Most real pedestals combine both.",
+      "drivers": ["wind abrasion (low-level saltation)", "basal moisture weathering", "cap hardness contrast"],
+      "timescale": "10^3-10^5 yr.",
+      "colour_sources": ["chalk (white, White Desert)", "iron-stained sandstone caps (brown, orange)"],
+      "examples": [
+        {"name": "Chalk 'mushrooms'", "place": "White Desert, Farafra, Egypt", "image_url": "https://commons.wikimedia.org/wiki/File:White_Desert,_Rock_formations_in_desert_landscape,_Egypt.jpg", "licence": "CC BY 4.0"},
+        {"name": "Mushroom Rock (1916 photo)", "place": "Mushroom Rock State Park, Kansas, USA", "image_url": "https://commons.wikimedia.org/wiki/File:Mushroom_Rock_Kansas_1916.jpg", "licence": "Public domain"}
+      ],
+      "control_response": {
+        "recipe": "Si+O sand needed for the wind route (R2 sand).",
+        "sea": "Dry toward; methane (Titan winds + sand) plausibly toward [INFERRED].",
+        "heat": "Hot-dry toward.",
+        "light": "Neutral.",
+        "time": "Mid.",
+        "hunger": "Neutral. [game] Shape echoes R7 parasols, so abiotic 'parasol rocks' could be a visual pun on dead worlds."
+      },
+      "status": "disputed (relative role of wind vs basal weathering)",
+      "sources": ["S24", "S34"]
+    }
+  ],
+  "sources": [
+    {"id": "S1", "tag": "[PEER]", "cite": "Bruthans J. et al. (2014) Sandstone landforms shaped by negative feedback between stress and erosion. Nature Geoscience 7, 597-601.", "doi": "10.1038/ngeo2209"},
+    {"id": "S2", "tag": "[POP]", "cite": "US National Park Service, Arches NP: Arches (over 2,000 documented arches; Entrada Sandstone; salt domes; fins).", "url": "https://www.nps.gov/arch/learn/nature/arches.htm"},
+    {"id": "S3", "tag": "[POP]", "cite": "US National Park Service, Bryce Canyon NP: Hoodoos (>170 freeze-thaw nights/yr; 9% ice expansion; CaCO3 dissolution by slightly acidic rain; Claron Formation).", "url": "https://www.nps.gov/brca/learn/nature/hoodoos.htm"},
+    {"id": "S4", "tag": "[BOOK]", "cite": "Harris D.V. (1999) Geology of U.S. Parklands, 5th ed. Wiley (cited by NPS S3)."},
+    {"id": "S5", "tag": "[POP]", "cite": "UNESCO World Heritage: Goreme National Park and the Rock Sites of Cappadocia.", "url": "https://whc.unesco.org/en/list/357/"},
+    {"id": "S6", "tag": "[PEER]", "cite": "Mustoe G.E. (1982) The origin of honeycomb weathering. GSA Bulletin 93, 108.", "doi": "10.1130/0016-7606(1982)93<108:TOOHW>2.0.CO;2"},
+    {"id": "S7", "tag": "[PEER]", "cite": "Rodriguez-Navarro C., Doehne E., Sebastian E. (1999) Origins of honeycomb weathering: the role of salts and wind. GSA Bulletin 111, 1250.", "doi": "10.1130/0016-7606(1999)111<1250:OOHWTR>2.3.CO;2"},
+    {"id": "S8", "tag": "[PEER]", "cite": "Folk R.L., Roberts H.H., Moore C.H. (1973) Black phytokarst from Hell, Cayman Islands, British West Indies. GSA Bulletin 84, 2351.", "doi": "10.1130/0016-7606(1973)84<2351:BPFHCI>2.0.CO;2"},
+    {"id": "S9", "tag": "[INFERRED]", "cite": "Standard fluvial geomorphology of slot canyons (flash-flood abrasion along joints in massive sandstone); no single verified primary source pulled in this pass."},
+    {"id": "S10", "tag": "[BOOK]", "cite": "Standard scarp-retreat model for Colorado Plateau mesas/buttes (e.g., Harris 1999, S4)."},
+    {"id": "S11", "tag": "[BOOK]", "cite": "Sunamura T. (1992) Geomorphology of Rocky Coasts. Wiley; Trenhaile A.S. (2010) Geomorphology 114, 30-41 (Holocene sea level and rocky coasts).", "doi": "10.1016/j.geomorph.2009.02.003"},
+    {"id": "S12", "tag": "[PEER]", "cite": "Hammer O., Dysthe D.K., Jamtveit B. (2007) The dynamics of travertine dams. Earth and Planetary Science Letters 256, 258-263.", "doi": "10.1016/j.epsl.2007.01.033"},
+    {"id": "S13", "tag": "[REVIEW]", "cite": "Hammer O., Dysthe D.K. (2010) Travertine terracing: patterns and mechanisms. Geol. Soc. London Spec. Publ. 336.", "doi": "10.1144/SP336.18"},
+    {"id": "S14", "tag": "[REVIEW]", "cite": "Viles H., Pentecost A. (2007) Tufa and Travertine. In Geochemical Sediments and Landscapes, Wiley.", "doi": "10.1002/9780470712917.ch6"},
+    {"id": "S15", "tag": "[PEER]", "cite": "Konhauser K.O. et al. (2001) Microbial-silica interactions in Icelandic hot spring sinter. Sedimentology 48, 415-433.", "doi": "10.1046/j.1365-3091.2001.00372.x"},
+    {"id": "S16", "tag": "[PEER]", "cite": "Orange F. et al. (2013) Experimental simulation of evaporation-driven silica sinter formation and microbial silicification. Astrobiology 13.", "doi": "10.1089/ast.2012.0887"},
+    {"id": "S17", "tag": "[PEER]", "cite": "Council T.C., Bennett P.C. (1993) Geochemistry of ikaite formation at Mono Lake, California. Geology 21, 971.", "doi": "10.1130/0091-7613(1993)021<0971:GOIFAM>2.3.CO;2"},
+    {"id": "S18", "tag": "[PEER]", "cite": "Scholl D.W., Taft W.H. (1964) Algae, contributors to the formation of calcareous tufa, Mono Lake, California. J. Sed. Petrology 34.", "doi": "10.1306/74D71041-2B21-11D7-8648000102C1865D"},
+    {"id": "S19", "tag": "[BOOK]", "cite": "Ford D., Williams P. (2007) Karst Hydrogeology and Geomorphology. Wiley.", "doi": "10.1002/9781118684986"},
+    {"id": "S20", "tag": "[BOOK]", "cite": "Waltham T. (2009) Guangxi Karst: The Fenglin and Fengcong Karst of Guilin and Yangshuo. In Geomorphological Landscapes of the World, Springer.", "doi": "10.1007/978-90-481-3055-9_30"},
+    {"id": "S21", "tag": "[PEER]", "cite": "Goehring L., Mahadevan L., Morris S.W. (2009) Nonequilibrium scale selection mechanism for columnar jointing. PNAS 106, 387-392.", "doi": "10.1073/pnas.0805132106"},
+    {"id": "S22", "tag": "[PEER]", "cite": "Wasson R.J., Hyde R. (1983) Factors determining desert dune type. Nature 304, 337-339.", "doi": "10.1038/304337a0"},
+    {"id": "S23", "tag": "[PEER]", "cite": "Courrech du Pont S., Narteau C., Gao X. (2014) Two modes for dune orientation. Geology 42, 743-746.", "doi": "10.1130/G35657.1"},
+    {"id": "S24", "tag": "[BOOK]", "cite": "Bagnold R.A. (1941/1971) The Physics of Blown Sand and Desert Dunes. Springer reprint.", "doi": "10.1007/978-94-009-5682-7"},
+    {"id": "S25", "tag": "[PEER]", "cite": "Kessler M.A., Werner B.T. (2003) Self-organization of sorted patterned ground. Science 299, 380-383.", "doi": "10.1126/science.1077309"},
+    {"id": "S26", "tag": "[PEER]", "cite": "Lachenbruch A.H. (1962) Mechanics of thermal contraction cracks and ice-wedge polygons in permafrost. GSA Special Paper 70.", "doi": "10.1130/SPE70-p1"},
+    {"id": "S27", "tag": "[PEER]", "cite": "Dorn R.I., Oberlander T.M. (1981) Microbial origin of desert varnish. Science 213, 1245-1247.", "doi": "10.1126/science.213.4513.1245"},
+    {"id": "S28", "tag": "[PEER]", "cite": "Liu T., Broecker W.S. (2000) How fast does rock varnish grow? Geology 28, 183-186.", "doi": "10.1130/0091-7613(2000)028<0183:HFDRVG>2.3.CO;2"},
+    {"id": "S29", "tag": "[PEER]", "cite": "Lingappa U.F. et al. (2021) An ecophysiological explanation for manganese enrichment in rock varnish. PNAS 118, e2025188118.", "doi": "10.1073/pnas.2025188118"},
+    {"id": "S30", "tag": "[BOOK]", "cite": "Peng H. (2020) The Basic Questions on Danxia Landform. In China's Danxia Landform, Springer Geography.", "doi": "10.1007/978-981-13-5959-0_1"},
+    {"id": "S31", "tag": "[PEER]", "cite": "Chan M.A., Parry W.T., Bowman J.R. (2000) Diagenetic hematite and manganese oxides and fault-related fluid flow in Jurassic sandstones, southeastern Utah. AAPG Bulletin 84; Beitler B., Chan M.A., Parry W.T. (2003) Bleaching of Jurassic Navajo Sandstone. Geology 31.", "doi": "10.1306/A9673E82-1738-11D7-8645000102C1865D"},
+    {"id": "S32", "tag": "[PEER]", "cite": "Lowenstein T.K., Hardie L.A. (1985) Criteria for the recognition of salt-pan evaporites. Sedimentology 32, 627-644.", "doi": "10.1111/j.1365-3091.1985.tb00478.x"},
+    {"id": "S33", "tag": "[PEER]", "cite": "Lasser J. et al. (2023) Salt polygons and porous media convection. Physical Review X 13, 011025.", "doi": "10.1103/PhysRevX.13.011025"},
+    {"id": "S34", "tag": "[INFERRED]", "cite": "Kansas Mushroom Rock caps are sandstone concretions (Dakota Formation) per Kansas Geological Survey [POP], not verified in this pass."}
+  ]
+}
