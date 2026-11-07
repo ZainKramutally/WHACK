@@ -1,7 +1,8 @@
 // Click-to-inspect card: what it is, details, why, and "this world" beside the other world's targets.
 // Holds a transparent window for the render layer's counterpart view and reports its rect on inspect:window.
 import { el } from './dom';
-import { formatValue, midpoint } from './format';
+import { formatValue } from './format';
+import { statsAtStart } from './otherWorld';
 import { listen, type UiBus } from './uiBus';
 import { ORGANISM_STRIDE, OrganismField as F, readOrganism, type OrganismRecord } from '../sim/organismLayout';
 import type { BodyPlan } from '../sim/develop';
@@ -65,6 +66,7 @@ export function mountInspectCard(
   let lastRect = '';
 
   const otherName = other ? `A ${other.id} world` : '';
+  const otherStart = other ? statsAtStart(other) : undefined;
 
   function describe(t: InspectTarget, s: SimSnapshot): { rows: Rows; dead: boolean; name: string } {
     const feat = world.features[t.kind];
@@ -117,10 +119,8 @@ export function mountInspectCard(
       const def = world.stats.find((x) => x.id === id);
       if (!def) continue;
       const mine = s.stats[id];
-      // Slider-controlled stats show the other world's default start (what the sliders give it); the rest, its target midpoint.
-      const range = other?.targets[id];
-      const start = other?.startDefaults[id as keyof WorldConfig['startDefaults']];
-      const otherToday = start !== undefined ? start : range ? midpoint(range) : undefined;
+      // The other world at its own starting conditions, from its derived models (not its end-of-build target midpoints).
+      const otherToday = otherStart && other?.stats.some((x) => x.id === id) ? otherStart[id] : undefined;
       out.push([
         def.label,
         mine !== undefined ? formatValue(mine, def.unit) : '–',
@@ -156,7 +156,7 @@ export function mountInspectCard(
 
     cmpTitle.textContent = 'Compared';
     const head = el('tr');
-    for (const h of ['', 'This world', otherName ? `${otherName} (today)` : '', 'Earth']) head.append(el('th', undefined, h));
+    for (const h of ['', 'This world', otherName ? `${otherName} (at start)` : '', 'Earth']) head.append(el('th', undefined, h));
     const body = compareRows(target, last).map((r) => {
       const tr = el('tr');
       r.forEach((c, i) => tr.append(el('td', i === 0 ? 'wu-stat-name' : 'wu-num', c)));
