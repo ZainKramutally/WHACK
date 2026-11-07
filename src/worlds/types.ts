@@ -160,7 +160,7 @@ export interface BusEvents {
   'build:complete': { worldId: WorldId };
   'sim:snapshot': SimSnapshot;
   'control:set': { controlId: ControlId; value: number };
-  'control:blocked': { controlId: ControlId; limitId: string };
+  'control:blocked': { controlId: ControlId; limitId: string; start?: true };   // start: moved by startingConditions at world start
   'guide:newForm': NewFormEvent;
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };
   'inspect:window': { x: number; y: number; width: number; height: number } | null;
