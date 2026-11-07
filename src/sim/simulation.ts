@@ -26,6 +26,7 @@ export const TICK_HZ = 20;
 export const TICK_DT = 1 / TICK_HZ;
 
 const BAND_EVERY = 10;        // ticks between band refreshes used for edge stress (0.5 ecology s)
+const EDGE_POWER = 3;         // edge stress ramps as (1 − distance/zone)^3, so life persists in band and dies at the edge
 const EDGE_ZONE = 0.1;        // share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1
 const BLOCKED_REPEAT = 20;    // ticks before the same control may report "blocked" again while pinned at an edge
 const EPS = 1e-6;             // slack so float sums of frame times never lose a tick
@@ -478,8 +479,9 @@ export class WorldSimulation {
       const width = f(b.high) - f(b.low);
       if (!(width > 0)) continue;
       const pos = (f(c[id]) - f(b.low)) / width;
-      if (b.lowLimitId) stress = Math.max(stress, 1 - pos / EDGE_ZONE);
-      if (b.highLimitId) stress = Math.max(stress, 1 - (1 - pos) / EDGE_ZONE);
+      // Cubed ramp: negligible until the last few per cent of the band, then a cliff at the edge itself.
+      if (b.lowLimitId) stress = Math.max(stress, clamp01(1 - pos / EDGE_ZONE) ** EDGE_POWER);
+      if (b.highLimitId) stress = Math.max(stress, clamp01(1 - (1 - pos) / EDGE_ZONE) ** EDGE_POWER);
     }
     return clamp01(stress);
   }

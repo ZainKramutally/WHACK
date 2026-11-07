@@ -302,6 +302,15 @@ export class Ecology {
     return Math.exp(-0.5 * z * z);
   }
 
+  /**
+   * Effective climate fit: the comfort-band match lifted by CLIMATE_FLOOR, so a mismatched animal inside the living band
+   * eats less and is stressed but does not die of mismatch alone. Death at the band's edge comes from env.edgeStress.
+   */
+  private climateFit(cl: ClimateGenes, temperature: number, sh: number): number {
+    const f = CONSTANTS.CLIMATE_FLOOR.value;
+    return f + (1 - f) * this.climateMatch(cl, temperature, sh);
+  }
+
   /** Banks the genome of an animal that is dying, keeping the best fit to the conditions right now (ties go to the newest). */
   private bankSpore(i: number): void {
     const g = this.genome[i];
@@ -504,7 +513,7 @@ export class Ecology {
     const cl = this.genome[i].climate;
     const sh = this.shelter(cell);
     const ct = rules.chemTrait;
-    const match = this.climateMatch(cl, env.temperature, sh);
+    const match = this.climateFit(cl, env.temperature, sh);
     let stress = 1 - match + rules.edgeStressWeight * clamp01(env.edgeStress);
     let efficiency = 1;
     if (ct.kind === 'oxygenNeed') {

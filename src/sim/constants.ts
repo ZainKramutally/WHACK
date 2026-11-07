@@ -49,6 +49,8 @@ export const CONSTANTS = deepFreeze({
   TSR_LAND: c(0.1, 'sci'),
   /** Spores (owner ruling, issue #6; overrides the no-rescue guardrail): a dormant genome germinates only if its climate fit is at least this. */
   SPORE_VIABILITY: c(0.5, 'game'),
+  /** Climate fit never drops below this inside the living band (CLAUDE.md "Condition sliders": stressed near an edge, dead only at it); prefTemp still selects who thrives. */
+  CLIMATE_FLOOR: c(0.9, 'game'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;

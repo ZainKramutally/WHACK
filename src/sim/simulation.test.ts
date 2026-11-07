@@ -360,36 +360,72 @@ describe('WorldSimulation', () => {
       return { sim, before, lowest, extinctAt, atHoldEnd, backAt };
     };
 
-    it('carbon at 70 °C dies out, then animals reappear within seconds of returning to 15 °C', () => {
-      const r = spike(carbon, 70, 15, 30);
+    it('carbon at the hot edge of its band dies out, then animals reappear within seconds of returning to 15 °C', () => {
+      const r = spike(carbon, 150, 15, 30); // the sim clamps the drag to the edge, where the kill condition sits
       expect(r.before).toBeGreaterThan(10);
       expect(r.extinctAt).toBeGreaterThanOrEqual(0);
       expect(r.atHoldEnd).toBe(0);
       expect(r.backAt).toBeGreaterThanOrEqual(0);
       expect(r.backAt).toBeLessThanOrEqual(5);
     });
-    it('silicon collapses near the warm edge of its band, and life is back (or never left) after returning to −183 °C', () => {
-      const r = spike(silicon, -162, -183, 30);
+    it('silicon at the warm edge of its band collapses, and life is back (or never left) after returning to −183 °C', () => {
+      const r = spike(silicon, -100, -183, 30); // clamped to the edge
       expect(r.lowest).toBeLessThan(r.before / 2);
       expect(r.backAt).toBeGreaterThanOrEqual(0);
       expect(r.backAt).toBeLessThanOrEqual(5);
       expect(consumers(r.sim)).toBeGreaterThan(0);
     });
     it('is deterministic with spores', () => {
-      const a = spike(carbon, 70, 15, 20);
-      const b = spike(carbon, 70, 15, 20);
+      const a = spike(carbon, 150, 15, 20);
+      const b = spike(carbon, 150, 15, 20);
       expect(fingerprint(b.sim)).toEqual(fingerprint(a.sim));
       expect([b.extinctAt, b.backAt]).toEqual([a.extinctAt, a.backAt]);
     });
     it('never germinates while conditions are lethal', () => {
       const sim = new WorldSimulation(quick(carbon), EARTH);
       sim.advance(5);
-      sim.setControl('temperature', 70);
+      sim.setControl('temperature', 150); // clamped to the hot edge
       sim.advance(20); // everything is dead by now (see the first test)
       expect(consumers(sim)).toBe(0);
       for (let i = 0; i < 80; i++) {
         sim.advance(0.5);
         expect(consumers(sim)).toBe(0);
+      }
+    });
+  });
+
+  describe('life persists anywhere inside the living band (CLAUDE.md "Condition sliders")', () => {
+    // Held for 30 s after the build: stressed near the edges, but not dead. Death is only at or beyond the edge.
+    const FAST = new Set(['carbon 55', 'carbon -35', 'silicon -163']);
+    const points: [WorldConfig, number][] = [
+      ...[-35, 40, 55, 70, 110].map((t): [WorldConfig, number] => [carbon, t]),
+      ...[-205, -175, -165, -163].map((t): [WorldConfig, number] => [silicon, t]),
+    ];
+    const hold = (w: WorldConfig, t: number) => {
+      const sim = new WorldSimulation(quick(w), EARTH);
+      sim.advance(5);
+      sim.setControl('temperature', t);
+      expect(sim.conditions().temperature).toBeCloseTo(t, 3); // really inside the band
+      sim.advance(30);
+      return sim.snapshot().population.consumers;
+    };
+    it.each(points.filter(([w, t]) => FAST.has(`${w.id} ${t}`)))('%# keeps animals alive for 30 s at an in-band temperature', (w, t) => {
+      expect(hold(w, t), `${w.id} ${t} °C`).toBeGreaterThan(0);
+    });
+    it.skipIf(!slow).each(points)('keeps animals alive for 30 s at %# in band (SLOW)', { timeout: 60000 }, (w, t) => {
+      expect(hold(w, t), `${w.id} ${t} °C`).toBeGreaterThan(0);
+    });
+  });
+
+  describe('a full population holds in band for minutes (SLOW)', () => {
+    it.skipIf(!slow).each([[carbon, 70], [carbon, -35], [silicon, -163]] as [WorldConfig, number][])('%# keeps a full-size ecology alive for 90 s at %# °C', { timeout: 120000 }, (w, t) => {
+      const sim = new WorldSimulation(w, EARTH);
+      sim.advance(w.build.durationSec);
+      expect(sim.snapshot().population.consumers).toBeGreaterThan(900);
+      sim.setControl('temperature', t);
+      for (let i = 0; i < 6; i++) {
+        sim.advance(15);
+        expect(sim.snapshot().population.consumers, `${w.id} ${t} °C after ${(i + 1) * 15} s`).toBeGreaterThan(0);
       }
     });
   });
