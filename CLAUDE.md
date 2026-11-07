@@ -1,4 +1,4 @@
-# Life Is ▢ Based (working title)
+# Life Is ▢ Based
 
 Hackathon project for WHACK 26, targeting the Marshall Wace "New Worlds" challenge. This file is the source of truth for what we are building, the rules the science must follow, and how the code is organised. Read it fully before making changes.
 
@@ -55,7 +55,7 @@ Each world is procedurally generated from its seed. The three sliders set the st
 | Mean surface temperature | 5 to 25 °C at the end of the build | about 15 °C | Water must be liquid; carbon chemistry in water works well in this band. Set by star brightness and the CO₂ greenhouse. |
 | Surface pressure | About 1 bar by default; derived from the gases and gravity | about 1 bar | At 1 bar, water is liquid between 0 and 100 °C. |
 | Gravity | 0.8 to 1.3 g | 1 g | Enough to hold an atmosphere; within the range of rocky planets. |
-| Oxygen | 21% by default, nudged by life | 21% | Set by the Oxygen slider. Photosynthesis raises it, and consumers pull it back down. |
+| Oxygen | 21% by default, nudged by life (the default is `assumption: true`) | 21% | Set by the Oxygen slider. Photosynthesis raises it, and consumers pull it back down. The start is Earth's value; at 0% bodies would sit at the oxygen size cap, with nothing in the build to raise it. |
 | Nitrogen | 1 × Earth's by default | 1 × | Set by the Nitrogen slider. Life needs it for proteins and DNA. |
 | Main gas | Nitrogen | Nitrogen | Unreactive bulk gas that persists over billions of years. |
 | Carbon dioxide | Starts high, falls as life grows | about 0.04% | Drawn down by photosynthesis, and returned by consumers. |
@@ -88,16 +88,16 @@ The reasoning chain the UI tells, one step at a time:
 | Sea cover | Derived from nitrogen inventory minus what the air holds | about 71% | Seas shrink when life locks nitrogen into bodies, or when warming moves more nitrogen into the air. |
 | Solvent | Liquid nitrogen | Water | Cold, unreactive and does not attack silicon compounds. |
 | Star | Sun-like star about 10 times farther away than the Sun is from Earth | The Sun | Explains the cold; at Saturn's distance, Titan's surface is about −180 °C. |
-| Pace of chemistry | Shown as the Arrhenius estimate from the config's activation energy (around 10⁻²⁰ × Earth with a typical activation energy), labelled "compressed in the time-lapse" | 1 | Reactions slow sharply in the cold. The sim compresses this so evolution is visible, and says so. |
+| Pace of chemistry | Shown as the Arrhenius estimate from the config's activation energy (32 kJ/mol, so around 10⁻¹³ × Earth), labelled "compressed in the time-lapse"; in the sim about 0.42 of carbon's pace | 1 | Reactions slow sharply in the cold. Weaker Si–Si bonds lower the barrier. The sim compresses this so evolution is visible, and says so. |
 | Pace of life (shown as the generation count, not a panel stat) | Slower than carbon life, fewer generations in the same time | n/a | Comes from the metabolism rule in config, not a hardcoded speed. |
 
-We assume an oxygen-poor (reduced) planet where silicon is available in forms life can use (`assumption: true`). Making silanes from silica rock costs a lot of energy, so where this world's silicon feedstock and energy come from is an open question.
+We assume an oxygen-poor (reduced) planet where silicon is available in forms life can use (`assumption: true`). Making silanes from silica rock costs a lot of energy, so life does not start from silica. Its feedstock is reduced silicon already in the crust and shallows, as silicon-nitride and silicide minerals, which form on oxygen-poor bodies: nierite (Si₃N₄) occurs naturally in enstatite chondrites (Lee 1995). In the sim this is the per-cell silicon supply. Its energy is the dim starlight, through the same producer rule as carbon's (DECISIONS Rule 1). Both are `assumption: true`, shown as a feedstock fact. Caveat: turning N₂ into body nitrogen is costly (Earth's nitrogenase spends about 16 ATP per N₂; Burgess and Lowe 1996), and the sim folds that cost into upkeep.
 
 ## Life changes the planet
 
 Conditions and life are coupled in both directions. The stats shape which organisms survive, and the population in turn shifts the stats. This two-way loop runs during the build and keeps running live after it. Apart from the sliders, it is the only source of change, and it is what makes the world feel alive rather than scripted. These feedbacks are light nudges, not slow geological processes: there is no deep time to run those over.
 
-On the carbon world, photosynthetic organisms produce oxygen and draw down carbon dioxide. Consumers breathe oxygen and release carbon dioxide, so a booming animal population pulls oxygen back down. Oxygen starts at the slider value (21% by default) and moves from there. Rising oxygen makes larger body sizes viable. Falling carbon dioxide weakens the greenhouse effect and cools the climate, which favours cold-tolerant traits. This is a simplification: on the real Earth, oxygen accumulates mainly because some organic carbon gets buried instead of decomposing, not simply because a lot is alive, and it took billions of years. The model treats net production as a stand-in for that, at rates set per ecology second, and the config marks it `assumption: true`.
+On the carbon world, photosynthetic organisms produce oxygen and draw down carbon dioxide. Consumers breathe oxygen and release carbon dioxide, so a booming animal population pulls oxygen back down. Oxygen starts at the slider value (21% by default) and moves from there. Rising oxygen makes larger body sizes viable. Falling carbon dioxide weakens the greenhouse effect and cools the climate, which favours cold-tolerant traits. Carbon's radiative balance carries this as about 3 K of cooling per halving of CO₂ from a reference of 0.04% (`referenceCo2` 0.04, `co2PerDoublingK` 3; Myhre 1998, Sherwood 2020). The real response takes centuries; the sim applies it at once, as an instant equilibrium, and marks that `assumption: true`. This is a simplification: on the real Earth, oxygen accumulates mainly because some organic carbon gets buried instead of decomposing, not simply because a lot is alive, and it took billions of years. The model treats net production as a stand-in for that, at rates set per ecology second, and the config marks it `assumption: true`.
 
 On the silicon world, any feedback is speculative and labelled so. Organisms build their bodies from silicon–nitrogen compounds, so a growing population locks nitrogen away. Because the air is held at the seas' vapour pressure, the nitrogen comes out of the seas: sea level falls and the shallow, habitable margins shrink, which limits the population that caused it. When organisms die, their bodies return the nitrogen (`assumption: true`). Growth against decay gives a self-limiting cycle that follows from the world's own chemistry. The config's targets keep the temperature well below nitrogen's critical point, so the seas never vanish in the demo.
 
@@ -146,7 +146,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 - **Animals:** up to 1,024 agents, never fewer than 1,000 in the demo, because smaller populations went extinct in Caden's tests. There is no lower quality tier for the population. Protect 60 fps by cutting render detail instead.
   - Each animal carries the 12 genes of DECISIONS G.1: size, segments, limbPairs, limbLen, plates, horns, gape, diet, eyes, buoy, glow and sociality. It also inherits its body composition {c, si, o}, which is not a gene.
   - It also carries our three climate genes from `population.ts`, used as built: preferred temperature, tolerance, and oxygen need (carbon) or cold stability (silicon). The genome is 15 genes in total.
-- **Plants:** **per-cell flora biomass** on the 64² grid (mat and canopy), not individual agents. These are the producers. Plant shapes (L-system twigs and caps, and forms such as lantern cups or jellyshroom domes) are drawn by the art layer as a pure function of each cell's biomass, composition and conditions.
+- **Plants:** **per-cell flora biomass** on the 64² grid (mat and canopy), not individual agents. These are the producers. Plant shapes (L-system twigs and caps, and forms such as lantern cups or jellyshroom domes) are drawn by the art layer as a pure function of each cell's composition, light, `heatBand` and mat/canopy biomass (see "Logic → art interface"). There is no flora genome: plants do not evolve as agents, and the gene budget is full.
 - **Development:** a pure `develop()` turns the genes plus body composition plus conditions into a body plan. It is the only place genes become traits. Chemistry is the grammar:
   - Silicon bodies grow hexagonal faceted segments, straight rod limbs with joints snapped to 15°, and clusters of dot eyes.
   - Carbon bodies grow round, curling, many-jointed shapes with ring eyes.
@@ -168,16 +168,19 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 | Sea | The world's solvent: water or liquid nitrogen | F's "water dissolves bare silicon" lever doesn't arise in either world, so plates pay only as defence against hunters. |
 | Heat | `heatBand`: temperature normalised within the world's living band (0 = lower edge, 1 = upper edge) | Drives F's temperature–size rule (cold makes giants) and heat stress. |
 | rate(heat) | Our pace rule ("Metabolism" below) | One pace rule for everything alive. |
-| Air density | Real gas density, P·M/(R·T), scaled into F's range | Earth's air is about 1.2 kg/m³. The silicon world's 3.6 bar at −183 °C is about 13 kg/m³, so F's floaters (bells, sky whales) have a physical reason to appear there. Titan's air is about 4× denser than Earth's. On carbon, the Nitrogen slider changes it. |
+| Air density | Real gas density, P·M/(R·T), scaled into F's range by `airDensity.scale` 0.05, the same on both worlds | Earth's air is about 1.2 kg/m³. The silicon world's 3.6 bar at −183 °C is about 13 kg/m³, so F's floaters (bells, sky whales) have a physical reason to appear there. Titan's air is about 4× denser than Earth's. On carbon, the Nitrogen slider changes it. One shared scale keeps the real 11× ratio between the worlds. Lift is compressed so gas bags can be built (real ones need about 99% gas by volume), and that is declared, `assumption: true`. |
 | Light | Starlight at the surface (star brightness and orbital distance) | The silicon world gets about 1% of Earth's sunlight, so F's rules give it big eyes and glow. |
 | Hunger | Derived, not a control: plant scarcity (demand ÷ supply) | A declared game rule; Caden's tests needed it for hunters to exist. Cold, dim light, low nitrogen or a population boom all raise it. |
 | Time | The build's fast-forward and the ecology clock (below) | |
 | Air oxygen (new, ours) | The Oxygen stat and slider | Aerobic metabolism, and the largest body that can breathe (the rule already in `population.ts`). Pinned at 0 on silicon. |
 
+Other world quantities: the solvent's liquid band already feeds the sim, through `heatBand`, and absolute temperature drives the pace rule. The liquid fraction is live too: sea cover sets sea level, and the liquid grid follows it. The light spectrum is render-only, because both stars are Sun-like and only the intensity differs. Gravity enters only Rule 10's walk and hover costs (× g), pending its A/B; if it fails, creatures ignore gravity, and we say so.
+
 **Silicon-world specifics** (speculative, labelled as such):
 - **Plates are silicon-nitride ceramic**, not silica stone, because there's no oxygen. Silicon nitride is a real, very hard ceramic. `assumption: true`.
 - **No builders.** F's builders need silicon plus oxygen to lay stone, and this world has no oxygen. The builder pathway is hard-off on silicon (it's gated on `o`, not on preset code), so life raises no spires and no glowing pores here.
 - **Relic ice landmarks.** The silicon world's arches and spires are **water-ice bedrock** left over from formation. Water exists on this world only as frozen bedrock (reasoning step 3). They are part of the seeded starting terrain, not grown by any process, and are marked `assumption: true` (see "Terrain and landforms").
+- **Producers saturate at 1% sunlight.** The world gets about 1% of Earth's sunlight, so silicon flora sees light × `floraLightGain` 100, capped at 1: its light curve saturates at 1% of Earth's (gain = 1 ÷ saturation). Saturating light curves are standard (Jassby and Platt 1976), and real phototrophs live far below 1% of surface light (Manske 2005). Eyes and glow still read the real light. Real low-light phototrophs grow slowly, and ours grow at full rate once saturated, so say so. `assumption: true`.
 - **Leaving the sea.** Life starts in the shallows. As the seas shrink, some lineages go deeper, some take to the thick air, and some colonise the shore. Ceramic skins hold their internal nitrogen in, as waxy skins hold water. `assumption: true`.
 
 **What is already built.** `src/sim/population.ts` is the climate core that F's ecology grows from: extend it, don't start a second model. It already has:
@@ -188,7 +191,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 
 Its tests show the comfort band following a warming climate, oxygen-rich air evolving bigger aerobic consumers, silicon life surviving slow warming, and fewer generations in the cold. Each step it takes an `Environment` (temperature, oxygen, light, habitat share, edge stress) and returns producer and consumer biomass as the drivers for the feedbacks.
 
-**The ecology clock.** Caden measured that about 340 sim-seconds of ecology produce legs, plates, horns and hunters. So during the build the worker fast-forwards the ecology: it runs many fixed 20 Hz ticks per frame, on a fixed tick schedule that depends only on build time, never on frame rate, so the run stays deterministic. On carbon the schedule reaches about 340 ecology-seconds (`build.ecologySec`) by the end of the build. After the build, the ecology drops to the live `timeScale` in config, the same for both worlds, and keeps evolving. If CPU is tight during the fast-forward, reduce render detail, not the tick schedule. Silicon still gets fewer generations through its pace rule, so in the default run its creatures stay simpler: capsule worms, and perhaps legs and floaters. See issue #5.
+**The ecology clock.** Caden measured that about 340 sim-seconds of ecology produce legs, plates, horns and hunters. So during the build the worker fast-forwards the ecology: it runs many fixed 20 Hz ticks per frame, on a fixed tick schedule that depends only on build time, never on frame rate, so the run stays deterministic. On carbon the schedule reaches about 340 ecology-seconds (`build.ecologySec`) by the end of the build. After the build, the ecology drops to the live `timeScale` in config, the same for both worlds, and keeps evolving. If CPU is tight during the fast-forward, reduce render detail, not the tick schedule. Silicon still gets fewer generations through its pace rule, so in the default run its creatures stay simpler: capsule worms, and perhaps legs and floaters. We accept that as honest: slow chemistry means slow evolution. The only help is silicon's lower activation energy (about 1.6× more generations; see "Metabolism"). There is no silicon-only clock, and no silicon founders seeded further along.
 
 **Presentation, under the clean-screen rule.**
 - **No camera pull-out:** the camera follows the player.
@@ -196,7 +199,7 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
 - **Field guide tab:** next to Conditions, closed by default. It lists the forms found so far.
 - **What counts as a form:** the DECISIONS §A definition. A form is a cluster on the 12 genes plus composition (c, si), at radius 0.25, with at least 4 live animals, labelled by functional type (look attractor × trophic role × locomotion mode). `guide:newForm` fires when a cluster first reaches 4 live animals. Names come from a trait-based name generator.
 
-**Metabolism (pace of life).** Each world's `life.rules.metabolism` holds an activation energy, a reference temperature and a compression exponent. With a typical activation energy (about 50 kJ/mol), the real Arrhenius factor at −183 °C is around 10⁻²⁰ of Earth's, which would mean no generations at all in a demo. The sim raises that factor to the compression exponent, roughly 0.03, to land near a quarter of carbon's pace. The same exponent applies to both worlds, so their paces compare fairly. It also stops carbon running away when the Temperature slider is pushed hot. The silicon activation energy may be set lower than carbon's to reflect step 6 of the reasoning chain. Both the exponent and any lowered activation energy are `assumption: true`, and the pace stat shows the uncompressed estimate with the label "compressed in the time-lapse". Silicon's slower generations come out of these rules, never from a hardcoded speed.
+**Metabolism (pace of life).** Each world's `life.rules.metabolism` holds an activation energy, a reference temperature and a compression exponent. With a typical activation energy (about 50 kJ/mol), the real Arrhenius factor at −183 °C is around 10⁻²⁰ of Earth's, which would mean no generations at all in a demo. The sim raises that factor to the compression exponent, 0.03. The same exponent applies to both worlds, so their paces compare fairly. It also stops carbon running away when the Temperature slider is pushed hot (about 1.2× at 122 °C). Silicon's activation energy is lower than carbon's, to reflect steps 2 and 6 of the reasoning chain: 32 kJ/mol, which is 50 × Si–Si ÷ C–C (222 ÷ 346), on the idea that weaker bonds have lower barriers (Bell–Evans–Polanyi). That puts silicon's pace at −183 °C at about 0.42 of carbon's, and its uncompressed estimate at around 10⁻¹³. Bell–Evans–Polanyi holds within one reaction family, so applying it across elements is our extrapolation. Both the exponent and the lowered activation energy are `assumption: true`, and the pace stat shows the uncompressed estimate with the label "compressed in the time-lapse". Silicon's slower generations come out of these rules, never from a hardcoded speed.
 
 The simulation runs in a Web Worker so rendering never stutters. It posts snapshots at 20 Hz, with the organism buffer as a transferable, and posts each new body plan once, at birth.
 
@@ -215,7 +218,7 @@ Three sliders, and only these three, let the player change the conditions life d
 - **The carbon and silicon cells show live whether their life could survive at the current settings.** A cell lights up when it can. It turns red, with the reason on hover, when it can't. This is a small puzzle with real physics behind it:
   1. Drag Temperature down to −183 °C, and carbon goes red ("Too cold for surface life").
   2. Silicon stays red ("Too little nitrogen for seas") until Nitrogen goes up, because a nitrogen sea can only exist if the planet has more nitrogen than its air can hold. It then stays red for oxygen until Oxygen comes down to a trace.
-- **Generate is never blocked.** When Generate is clicked, any slider sitting in the selected world's red zone glides to that world's default starting value, and a caption says why, for example "Silicon life can't survive at 15 °C, so this world starts at −183 °C". Sliders already inside the band keep the player's value. With untouched sliders, both worlds start from fixed values, so both demo runs stay deterministic.
+- **Generate is never blocked.** When Generate is clicked, any slider sitting in the selected world's red zone glides to that world's default starting value (`startDefaults`), not to the nearest in-band value: the nearest value sits right at the edge, where life is stressed and the founders would die. A caption says why, for example "Silicon life can't survive at 15 °C, so this world starts at −183 °C". Sliders already inside the band keep the player's value. With untouched sliders, both worlds start from fixed values, so both demo runs stay deterministic.
 
 **Once a world is running**, from the first second of the build, the rules below apply. Before life appears, a red zone means "life could never start here".
 
@@ -225,6 +228,8 @@ Three sliders, and only these three, let the player change the conditions life d
 - **red zones** outside the band, each labelled with why life dies there (for example "Too little nitrogen for seas"); on the silicon world these labels are marked speculative
 - a small Earth marker at Earth's value
 - the thumb at the live value
+
+**Changes ease in.** In a running world, the sim does not jump to a new slider value. It eases there linearly over 1 s on the demo clock, between in-band values (`CONTROL_EASE_SEC`, an implementation constant in DECISIONS §G.2). The ease is deterministic, so the demo run stays reproducible.
 
 **The thumb cannot enter a red zone.** Dragging into one stops the thumb at the edge, pulses the zone and shows its reason. Approaching an edge, life is visibly stressed: the population falls, because the fitness rules read the same limits. The edge is exactly where the sim's kill condition sits. The slider and the sim read one list of limits from config, so they can never disagree.
 
@@ -626,11 +631,17 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 **Rules for the art layer:**
 - Everything that carries meaning must follow these inputs (see "Visuals are stylised but never contradict the stats").
 - Decoration is allowed, but only as a pure function of these inputs. For example, plant shapes come from flora biomass, composition and conditions, and body templates are look attractors applied to `develop()` output.
+- **Plant form is `floraForm(cell, VisualInputs)`**, a pure render function. There is no flora genome; the seed picks only variant and jitter.
+  - Composition: si gives straight stems, 60° branching and faceted caps; c gives curl.
+  - Light: bright light gives wide caps; dim light gives lantern pods and glow.
+  - `heatBand` sets maximum height (cold makes tall, as for creatures).
+  - Mat against canopy biomass picks ground cover or a tall species, and sets size and density.
+  - Shapes are cached per quantised input bin and rebuilt when a bin changes.
 - The only messages from art back to logic are the `inspect:*` bus events.
 
 ## Honesty box (say it if asked)
 
-- **Emergent:** which body plans appear and which traits spread, population sizes, and how the air and seas change as life feeds back on them.
+- **Emergent:** which body plans appear and which traits spread, population sizes, and how the air and seas change as life feeds back on them. On carbon, hunters rise and crash in predator–prey cycles; that is real and emergent (Huffaker 1958), so no rule steadies them.
 - **Seeded:** the founders (at least 24 capsule worms when life appears, with standing variation), the RNG seed, and the starting terrain, including silicon's relic ice arches and spires.
 - **Designed, not emergent:**
   - `develop()` and its chemistry rules, the 12-gene layout, the trait-ledger coefficients and the locomotion costs
@@ -640,7 +651,9 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - the build timings, and the years counter, which is illustrative
 - **Tuning cheats:**
   - always-on raised mutation (`SIGMA` 0.075, about ×1.5)
-  - the compressed pace rule
+  - the compressed pace rule, and silicon's lowered activation energy (32 kJ/mol)
+  - a base lifespan of 40 ecology-seconds (scaling with mass^0.25), raised from 6 so generations turn over
+  - silicon producers that saturate at 1% sunlight (`floraLightGain` 100), and then grow at full rate
   - the build fast-forward (about 340 ecology-seconds in 20 s) and the live timeScale
   - Hunger as plant scarcity
   - grazing that takes only a share
