@@ -49,3 +49,4 @@
 - 19:33: rw-move drift damp merged (75961d2, capture identical). USER fauna feedback: one body colour + one accent per animal, smoother forms (smooth default, ?facet=1 A/B) -> rw-fauna.
 - 19:34: flora capture cleanup fix merged (02a3258). Killed idle rw-scene orphan vite.
 - 19:43: fauna colour round merged (10df139): one gene-chosen body colour + one accent, smooth by default (?facet=1). 98 tests. Note: dark-bodied walkers read as flat silhouettes (little shading range on maroon).
+- 20:15: check-in: all 4 agents idle, clean, merged. Load 3.6; hero re-measured 60.0 fps (30 earlier was machine load).
