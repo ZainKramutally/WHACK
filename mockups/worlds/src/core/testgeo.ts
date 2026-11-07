@@ -28,3 +28,22 @@ export function createTestGeo(ctx: WorldContext) {
   ctx.scene.add(grp);
   return { dispose() { ctx.scene.remove(grp); grp.traverse((o: any) => o.geometry?.dispose()); } };
 }
+
+export const PROBE_COLORS = [0xf94b1e, 0xece4d6, 0x8badc5, 0x093f1b, 0x27aaa6, 0xda1b58, 0x303b51, 0xa47c68];
+
+/** #probe: two rows of flat patches on the camera. Top = unlit basic (pipeline colour fidelity), bottom = world material, lit. */
+export function createProbe(ctx: WorldContext) {
+  const grp = new THREE.Group();
+  const geo = new THREE.PlaneGeometry(1, 1);
+  PROBE_COLORS.forEach((c, i) => {
+    const x = (i - (PROBE_COLORS.length - 1) / 2) * 1.05;
+    const top = new THREE.Mesh(geo, new THREE.MeshBasicNodeMaterial({ color: c }));
+    top.position.set(x, 0.6, -8);
+    const bot = new THREE.Mesh(geo, ctx.materials.create({ color: c }));
+    bot.position.set(x, -0.6, -8);
+    grp.add(top, bot);
+  });
+  ctx.camera.add(grp);
+  ctx.scene.add(ctx.camera);
+  return { dispose() { ctx.camera.remove(grp); } };
+}

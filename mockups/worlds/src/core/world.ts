@@ -13,15 +13,15 @@ import { createPost } from './post';
 import { CameraRig } from './camera';
 import { Morph, cloneDials } from './morph';
 import { createFigure } from './figure';
-import { createTestGeo } from './testgeo';
+import { createTestGeo, createProbe } from './testgeo';
 import { makeRng } from './rng';
 import landforms from '../landforms';
 import flora from '../flora';
 
-export interface Flags { capture: boolean; testgeo: boolean; nofigure: boolean; debug: boolean; stats: boolean; orbit: boolean }
+export interface Flags { capture: boolean; testgeo: boolean; probe: boolean; nofigure: boolean; debug: boolean; stats: boolean; orbit: boolean }
 export const parseFlags = (): Flags => {
   const tok = new Set(location.hash.slice(1).split(/[&,#]/).filter(Boolean));
-  return { capture: tok.has('capture'), testgeo: tok.has('testgeo'), nofigure: tok.has('nofigure'), debug: tok.has('debug'), stats: tok.has('stats'), orbit: tok.has('orbit') };
+  return { capture: tok.has('capture'), testgeo: tok.has('testgeo'), probe: tok.has('probe'), nofigure: tok.has('nofigure'), debug: tok.has('debug'), stats: tok.has('stats'), orbit: tok.has('orbit') };
 };
 
 export class World {
@@ -65,7 +65,7 @@ export class World {
     sh.mapSize.set(this.quality === 'low' ? 1024 : 2048, this.quality === 'low' ? 1024 : 2048);
     sh.camera.left = -75; sh.camera.right = 75; sh.camera.top = 75; sh.camera.bottom = -75;
     sh.camera.near = 1; sh.camera.far = 700;
-    sh.bias = -0.0004; sh.normalBias = 0.05;
+    sh.bias = -0.0008; sh.normalBias = 0.15;
     this.sun.castShadow = true;
 
     this.post = createPost(this.renderer, this.scene, this.camera);
@@ -99,6 +99,7 @@ export class World {
     this.modules = [landforms(), flora()];
     for (const m of this.modules) await m.build(this.ctx);
     if (this.flags.testgeo) this.extras.push(createTestGeo(this.ctx));
+    if (this.flags.probe) this.extras.push(createProbe(this.ctx));
     if (!this.flags.nofigure) { const f = createFigure(this.ctx); if (f) this.extras.push(f); }
     this.updateLights(derived);
     this.onDerived?.();
@@ -134,14 +135,14 @@ export class World {
     const c = (hex: number) => new THREE.Color().setHex(hex, THREE.SRGBColorSpace);
     // sun: warm-neutral key from the haze colour; fill: sky (top) over ground bounce
     this.sun.color.copy(c(p.haze)).lerp(new THREE.Color(1, 0.97, 0.92), 0.55);
-    this.sun.intensity = Math.PI * 0.85;
+    this.sun.intensity = Math.PI * 0.95;
     // fill = shadow hue lifted to a mid luminance (keeps its chroma), a little sky mixed in
     const sh = c(p.shadow);
     const lum = Math.max(0.004, 0.2126 * sh.r + 0.7152 * sh.g + 0.0722 * sh.b);
-    sh.multiplyScalar(Math.min(12, 0.3 / lum));
+    sh.multiplyScalar(Math.min(12, 0.26 / lum));
     this.hemi.color.copy(sh).lerp(c(p.skyHorizon), 0.3);
     this.hemi.groundColor.copy(c(p.ground)).lerp(this.hemi.color, 0.5);
-    this.hemi.intensity = Math.PI * 0.65;
+    this.hemi.intensity = Math.PI * 0.5;
     const [r, g, b] = hexToLinear(p.skyHorizon);
     this.post.setPalette(0.2126 * r + 0.7152 * g + 0.0722 * b);
   }
