@@ -11,6 +11,7 @@ import { mountControlsHint } from './controlsHint';
 import { el } from './dom';
 import { mountFieldGuide } from './fieldGuide';
 import { mountInspectCard } from './inspectCard';
+import { mountLifeRegistry } from './lifeRegistry';
 import { mountSummaryCard } from './summaryCard';
 import { listen, type UiBus } from './uiBus';
 import type { ControlDef, SimSnapshot, WorldConfig } from '../worlds/types';
@@ -36,12 +37,12 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   host.dataset.world = world.id;
   root.append(host);
 
-  const formNames = new Map<number, string>();
+  const registry = mountLifeRegistry(bus);
   const captions = mountCaptions(host, bus, world, opts.controls ?? controlList);
-  const summary = mountSummaryCard(host, world);
+  const summary = mountSummaryCard(host, world, registry);
   const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
-  const guide = mountFieldGuide(bus, formNames, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
-  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, formNames);
+  const guide = mountFieldGuide(registry, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
+  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry);
 
   // Tabs: closed by default.
   const tabs = el('nav', 'wu-tabs');
@@ -130,6 +131,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
       guide.dispose();
       inspect.dispose();
       summary.dispose();
+      registry.dispose();
       host.remove();
     },
   };

@@ -1,9 +1,17 @@
 // Summary card: the world's stats now, beside Earth's, plus the dominant life form's traits. Opened on demand only.
 import { el } from './dom';
 import { formatValue } from './format';
+import { dominantRows } from './lifeText';
+import type { LifeRegistry } from './lifeRegistry';
 import type { SimSnapshot, WorldConfig } from '../worlds/types';
 
-export function mountSummaryCard(root: HTMLElement, world: WorldConfig) {
+function paceCell(d: { id: string; label: string }): HTMLElement {
+  const td = el('td', 'wu-stat-name', d.label);
+  if (d.id === 'pace') td.append(el('em', 'wu-tag', 'compressed in the time-lapse'));
+  return td;
+}
+
+export function mountSummaryCard(root: HTMLElement, world: WorldConfig, registry: LifeRegistry) {
   const card = el('aside', 'wu-card wu-summary');
   card.hidden = true;
   const x = el('button', 'wu-x', '×');
@@ -28,7 +36,7 @@ export function mountSummaryCard(root: HTMLElement, world: WorldConfig) {
     const rows = world.stats.map((d) => {
       const tr = el('tr');
       tr.append(
-        el('td', 'wu-stat-name', d.label),
+        paceCell(d),
         el('td', 'wu-num', s.stats[d.id] !== undefined ? formatValue(s.stats[d.id], d.unit) : '–'),
         el('td', 'wu-num wu-dim', formatValue(d.earthValue, d.unit)),
       );
@@ -43,10 +51,12 @@ export function mountSummaryCard(root: HTMLElement, world: WorldConfig) {
 
     const t = s.traitAverages;
     const oxy = world.id === 'silicon' ? 'Cold stability' : 'Oxygen need';
+    const dom = registry.dominant();
     const items: [string, string | undefined][] = [
+      ...(dom ? dominantRows({ name: dom.info.name, alive: dom.info.alive, type: dom.info.type }, dom.plan) : []),
       ['Animals', String(s.population.consumers)],
       ['Plants', String(s.population.producers)],
-      ['Generations', String(s.generation)],
+      ['Generations', String(Math.round(s.generation))],
       ['Animal size', t.consumerSize !== undefined ? `${t.consumerSize.toFixed(2)} × typical` : undefined],
       ['Preferred temperature', t.prefTemp !== undefined ? formatValue(t.prefTemp, '°C') : undefined],
       ['Temperature tolerance', t.tolerance !== undefined ? `± ${t.tolerance.toFixed(1)} °C` : undefined],

@@ -79,24 +79,34 @@ async function smoke(world) {
     }
     return null;
   }, id);
-  const c = await findCreature();
-  console.log('nearest land creature', JSON.stringify(c && { ...c, d: Math.round(Math.sqrt(c.d)) }));
   // Stand 6 m in front of the creature's far side along the camera's current heading, so it ends up in view.
-  await p.evaluate((c) => {
-    const cam = window.app.camera, d = cam.getWorldDirection(new cam.position.constructor());
-    const len = Math.hypot(d.x, d.z) || 1;
-    window.player.respawn(c.x - (d.x / len) * 6, c.z - (d.z / len) * 6);
-  }, c);
-  await p.waitForTimeout(2500);
+  const approach = async () => {
+    const c = await findCreature();
+    console.log('nearest land creature', JSON.stringify(c && { ...c, d: Math.round(Math.sqrt(c.d)) }));
+    await p.evaluate((c) => {
+      const cam = window.app.camera, d = cam.getWorldDirection(new cam.position.constructor());
+      const len = Math.hypot(d.x, d.z) || 1;
+      window.player.respawn(c.x - (d.x / len) * 6, c.z - (d.z / len) * 6);
+    }, c);
+    await p.waitForTimeout(2500);
+    return c;
+  };
+  let c = await approach();
   let hit = null;
-  for (let k = 0; k < 6 && !hit; k++) {
+  const OFFSETS = [[0, 0], [0, -25], [25, 0], [-25, 0], [0, 25], [40, 20], [-40, -20], [0, -50]];
+  for (let k = 0; k < OFFSETS.length && !hit; k++) {
     const sc = await screenOf(c.id);
     if (sc?.front && sc.sx > 0 && sc.sx < 1920 && sc.sy > 0 && sc.sy < 1080) {
-      await p.mouse.click(sc.sx, sc.sy); await p.waitForTimeout(1200);
-      const card = await p.evaluate(() => { const c = document.querySelector('.wu-inspect'); return c && !c.hidden ? { text: c.textContent.slice(0, 160), win: (() => { const w = c.querySelector('.wu-window'); const r = w?.getBoundingClientRect(); return w && !w.hidden ? { w: Math.round(r.width), h: Math.round(r.height) } : null; })() } : null; });
+      await p.mouse.click(sc.sx + OFFSETS[k][0], sc.sy + OFFSETS[k][1]); await p.waitForTimeout(1200);
+      const card = await p.evaluate(() => { const c = document.querySelector('.wu-inspect'); return c && !c.hidden ? { text: c.textContent.slice(0, 400), win: (() => { const w = c.querySelector('.wu-window'); const r = w?.getBoundingClientRect(); return w && !w.hidden ? { w: Math.round(r.width), h: Math.round(r.height) } : null; })() } : null; });
       console.log('click try', k, JSON.stringify(sc), card ? 'CARD ' + JSON.stringify(card) : 'no card');
-      if (card && card.text.length) { hit = card; if (!/organism|worm|swimmer|walker|drifter|crawler|body/i.test(card.text)) console.log('(card may be non-creature)'); }
-    } else console.log('creature off-screen', JSON.stringify(sc));
+      // An organism card lists a Role row; a sky/ground/sea/plant card does not.
+      if (card && /Role/.test(card.text)) hit = card;
+      else if (card) await p.keyboard.press('Escape');
+    } else {
+      console.log('creature off-screen or gone', JSON.stringify(sc));
+      if (!sc) c = await approach(); // it died or left the buffer: pick the nearest one again
+    }
     if (!hit) await p.waitForTimeout(500);
   }
   if (!hit) problems.push('clicking a creature did not open an inspect card');

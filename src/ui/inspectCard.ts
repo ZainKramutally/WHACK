@@ -3,7 +3,12 @@
 import { el } from './dom';
 import { formatValue, midpoint } from './format';
 import { listen, type UiBus } from './uiBus';
-import { ORGANISM_STRIDE, OrganismField as F } from '../sim/organismLayout';
+import { ORGANISM_STRIDE, OrganismField as F, readOrganism, type OrganismRecord } from '../sim/organismLayout';
+import type { BodyPlan } from '../sim/develop';
+import { floraBin, formForBin } from '../render/floraForm';
+import { heatBand } from '../render/visualInputs';
+import { organismRows, producerRows, speciesName } from './lifeText';
+import type { LifeRegistry } from './lifeRegistry';
 import type { InspectTarget, SimSnapshot, WorldConfig } from '../worlds/types';
 
 const CARD_W = 300;
@@ -12,15 +17,21 @@ const GAP = 16;
 type Rows = [string, string][];
 
 export function findOrganism(buf: Float32Array, id: number): Float32Array | null {
+  const i = indexOfOrganism(buf, id);
+  return i < 0 ? null : buf.subarray(i * ORGANISM_STRIDE, (i + 1) * ORGANISM_STRIDE);
+}
+
+/** Record number of organism `id` in the buffer, or -1 if it is gone. */
+export function indexOfOrganism(buf: Float32Array, id: number): number {
   for (let i = 0; i + ORGANISM_STRIDE <= buf.length; i += ORGANISM_STRIDE) {
-    if (buf[i + F.id] === id) return buf.subarray(i, i + ORGANISM_STRIDE);
+    if (buf[i + F.id] === id) return i / ORGANISM_STRIDE;
   }
-  return null;
+  return -1;
 }
 
 export function mountInspectCard(
   root: HTMLElement, bus: UiBus, world: WorldConfig, other: WorldConfig | undefined,
-  formNames: Map<number, string>,
+  registry: LifeRegistry,
 ) {
   const card = el('aside', 'wu-card wu-inspect');
   card.hidden = true;
@@ -42,7 +53,9 @@ export function mountInspectCard(
   let target: InspectTarget | null = null;
   let anchor = { x: 0, y: 0 };
   let last: SimSnapshot | null = null;
-  let lastRec: Float32Array | null = null; // last known organism record, kept after death
+  let lastRec: OrganismRecord | null = null; // last known organism record, kept after death
+  let lastPlan: BodyPlan | undefined;
+  let lastForm: { name: string; recognised: boolean } | undefined;
   let lastRect = '';
 
   const otherName = other ? `A ${other.id} world` : '';
@@ -54,25 +67,27 @@ export function mountInspectCard(
     const rows: Rows = [];
     const st = s.stats;
     if (t.kind === 'organism') {
-      let rec = findOrganism(s.organisms, t.organismId);
-      if (rec) lastRec = Float32Array.from(rec);
-      else { dead = true; rec = lastRec; }
-      const formName = formNames.get(t.organismId);
-      if (formName) name = formName;
-      if (rec) {
-        const producer = rec[F.role] === 0;
-        rows.push(['Role', producer ? 'Plant (producer)' : 'Animal (consumer)']);
-        rows.push(['Size', `${rec[F.size].toFixed(2)} × typical`]);
-        rows.push(['Preferred temperature', `${formatValue(rec[F.prefTemp], '°C')} ± ${rec[F.tolerance].toFixed(1)} °C`]);
-        rows.push([world.id === 'silicon' ? 'Cold stability' : 'Oxygen need', `${Math.round(rec[F.chem] * 100)}%`]);
-        rows.push(['Generation', String(rec[F.generation])]);
-        if (!dead) rows.push(['Energy', rec[F.energy] >= 1 ? 'Ready to copy itself' : `${Math.round(rec[F.energy] * 100)}% of the way to copying`]);
+      const idx = indexOfOrganism(s.organisms, t.organismId);
+      if (idx >= 0) {
+        lastRec = readOrganism(s.organisms, idx);
+        lastPlan = registry.planOf(t.organismId) ?? lastPlan;
+        lastForm = registry.formOf(t.organismId) ?? lastForm;
+      } else dead = true;
+      if (lastForm?.recognised) name = lastForm.name;
+      if (lastRec) {
+        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', form: lastForm, alive: !dead }));
       }
     } else if (t.kind === 'producer') {
       const mat = s.flora[t.cell * 2] ?? 0;
       const canopy = s.flora[t.cell * 2 + 1] ?? 0;
-      rows.push(['Ground cover', mat.toFixed(2)], ['Taller growth', canopy.toFixed(2)]);
-      if (mat + canopy <= 0) dead = true;
+      dead = mat + canopy <= 0;
+      const form = dead ? null : formForBin(floraBin(mat, canopy, {
+        world: { composition: world.life.composition, solvent: world.solvent },
+        light: s.stats.light ?? 1,
+        heatBand: heatBand(s),
+      } as Parameters<typeof floraBin>[2]));
+      if (form) name = speciesName(form.species);
+      rows.push(...producerRows(mat, canopy, form));
     } else if (t.kind === 'sea') {
       const temp = st.temperature;
       if (temp !== undefined) {
@@ -197,6 +212,8 @@ export function mountInspectCard(
     target = t;
     anchor = at;
     lastRec = null;
+    lastPlan = undefined;
+    lastForm = undefined;
     lastRect = '';
     card.hidden = false;
     render();

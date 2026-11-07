@@ -177,6 +177,7 @@ export function mountConditions(
     const name = el('td', 'wu-stat-name');
     name.append(el('span', undefined, s.label));
     if (s.assumption) name.append(el('em', 'wu-tag', 'assumption'));
+    if (s.id === 'pace') name.append(el('em', 'wu-tag', 'compressed in the time-lapse'));
     const now = el('td', 'wu-num', '–');
     statCells.set(s.id, now);
     tr.append(name, now, el('td', 'wu-num wu-dim', formatValue(s.earthValue, s.unit)));
