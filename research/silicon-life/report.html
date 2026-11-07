@@ -130,7 +130,7 @@ footer ul{margin:0;padding-left:18px}
 
   <section class="card" id="s1">
     <p class="eyebrow">01 · The hook</p>
-    <h2>Silicon outnumbers carbon 1,410 to 1 in the rock under your feet, yet your body runs the other way: 9,000 carbon atoms’ worth of mass for every silicon.</h2>
+    <h2>By mass, the rock under your feet holds hundreds to over a thousand times more silicon than carbon (the ratio depends on the source). Your body runs the other way: about 9,000 to 1 carbon over silicon.</h2>
     <div class="legend"><span><i class="sw" style="background:var(--c)"></i>Carbon (C)</span><span><i class="sw" style="background:var(--si)"></i>Silicon (Si)</span></div>
     <div class="chart" id="c1"></div>
     <p class="caption">Share of mass, log scale. Source: data/timeline.json relatable_facts (Wikipedia “Abundance of elements in Earth’s crust”, RSC; “Composition of the human body”). [POP]</p>
@@ -296,7 +296,7 @@ function c1(){
   [0.001,0.01,0.1,1,10,100].forEach(function(t){ var xx=x(t);
     b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*2)+'"/>';
     b+=txt(xx, top+rowH*2+18, (t<1?String(t):fmt(t))+"%", "tick", 'text-anchor="middle"'); });
-  var rows=[{lab:narrow?"Crust":"Earth’s crust",sub:"by mass",a:["C",A.crust.C],b:["Si",A.crust.Si],ratio:fmt(A.ratio_crust)+"× more Si"},
+  var rows=[{lab:narrow?"Crust":"Earth’s crust",sub:"by mass",a:["C",A.crust.C],b:["Si",A.crust.Si],ratio:"~75–1,400× more Si (by source)"},
             {lab:narrow?"Body":"Human body",sub:"by mass",a:["Si",A.body.Si],b:["C",A.body.C],ratio:fmt(A.ratio_body)+"× more C"}];
   rows.forEach(function(r,i){
     var y=top+rowH*i+rowH/2, xa=x(r.a[1]), xb=x(r.b[1]);
@@ -310,7 +310,7 @@ function c1(){
   document.getElementById("c1").innerHTML=svg(w,h,b,"Paired dot plot of carbon and silicon mass share in Earth's crust and the human body, log scale");
 }
 table("t1",["Where","Silicon (% mass)","Carbon (% mass)","Ratio"],[
-  ["Earth’s crust",D.abundance.crust.Si,D.abundance.crust.C,fmt(D.abundance.ratio_crust)+"× Si over C"],
+  ["Earth’s crust",D.abundance.crust.Si,D.abundance.crust.C,"~75–1,400× Si over C (source-dependent; CRC gives ~1,400×)"],
   ["Human body",D.abundance.body.Si,D.abundance.body.C,fmt(D.abundance.ratio_body)+"× C over Si"]],[1,2]);
 
 /* ---------- 2 bonds ---------- */
