@@ -25,7 +25,7 @@ const worley = Fn(([p]: TSLNode[]) => {
   return vec4(sqrt(f1), cid);
 });
 
-interface Layer { inside: TSLNode; depth: TSLNode; rim: TSLNode; cid: TSLNode; metres: TSLNode }
+interface Layer { inside: TSLNode; depth: TSLNode; rim: TSLNode; halo: TSLNode; cid: TSLNode; metres: TSLNode }
 
 function poreLayer(q: TSLNode, size: TSLNode, dens: TSLNode, rLo: number, rHi: number, off: number): Layer {
   const w = worley(q.div(size).add(off));
@@ -37,6 +37,7 @@ function poreLayer(q: TSLNode, size: TSLNode, dens: TSLNode, rLo: number, rHi: n
     inside: float(1).sub(smoothstep(0.8, 1.0, dn)).mul(exists),
     depth: float(1).sub(dn.mul(dn)).max(0).mul(exists),
     rim: smoothstep(0.78, 1.0, dn).mul(float(1).sub(smoothstep(1.0, 1.35, dn))).mul(exists),
+    halo: smoothstep(1.0, 1.08, dn).mul(float(1).sub(smoothstep(1.08, 1.5, dn))).mul(exists),
     cid,
     metres: rad.mul(size),
   };
@@ -55,20 +56,26 @@ export interface PoreOpts {
 export function poreNodes(u: WorldUniforms, o: PoreOpts) {
   const q = positionGeometry;
   const dens = clamp(u.pores.mul(o.porousMul), 0, 1);
-  const A = poreLayer(q, o.scale.mul(18), dens.mul(0.7), 0.22, 0.36, 0);
-  const B = poreLayer(q, o.scale.mul(5), dens.mul(0.8), 0.22, 0.38, 11.3);
+  const A = poreLayer(q, o.scale.mul(11), dens.mul(0.85), 0.3, 0.46, 0);
+  const B = poreLayer(q, o.scale.mul(4.6), dens.mul(0.9), 0.26, 0.42, 11.3);
   const layers: Layer[] = [A, B];
   if (o.fine) layers.push(poreLayer(q, o.scale.mul(o.fineSize ?? 1.8), dens, 0.2, 0.38, 27.1));
 
   // albedo: dark inside, slight lip, warty speckle
-  let dark = float(0), lip = float(0);
-  for (const l of layers) { dark = max(dark, l.inside.mul(float(0.55).add(l.depth.mul(0.45)))); lip = max(lip, l.rim); }
-  const speck = mx_fractal_noise_float(q.div(o.scale.mul(0.9)), 3, 2.0, 0.5, 1.0);
-  const tint = mix(vec3(1, 1, 1).mul(float(1).add(lip.mul(0.07)).sub(speck.abs().mul(0.14))), u.shadowColor.mul(0.3), dark.mul(0.92));
+  let dark = float(0), lip = float(0), halo = float(0);
+  for (const l of layers) {
+    dark = max(dark, l.inside.mul(float(0.55).add(l.depth.mul(0.45))));
+    lip = max(lip, l.rim);
+    halo = max(halo, l.halo);
+  }
+  const speck = mx_fractal_noise_float(q.div(o.scale.mul(0.7)), 3, 2.0, 0.5, 1.0);
+  const warts = mx_fractal_noise_float(q.div(o.scale.mul(0.22)), 2, 2.0, 0.5, 1.0);
+  const surface = float(1).add(lip.mul(0.1)).sub(halo.mul(0.28)).sub(speck.abs().mul(0.2)).sub(warts.abs().mul(0.18));
+  const tint = mix(vec3(1, 1, 1).mul(surface), u.shadowColor.mul(0.3), dark.mul(0.92));
 
   // emissive: orange glow seated in the deepest pores, each cell breathing on its own 4-9s clock
   const gate = u.niches.poreDwellers.mul(float(0.5).add(u.glow.mul(0.5)));
-  let glow = float(0);
+  let glow = float(0), wall = float(0);
   layers.forEach((l, i) => {
     const period = mix(float(4), float(9), hash13(l.cid.add(vec3(5.1, 8.3, 2.7))));
     const phase = hash13(l.cid.add(vec3(1.9, 4.4, 7.7))).mul(6.2832);
@@ -76,14 +83,18 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
     const shape = float(0.18).add(l.depth.pow(0.8).mul(0.82));
     const lit = i < 2 ? 1 : step(0.55, hash13(l.cid.add(vec3(3.3, 6.6, 9.9)))).mul(0.55);
     glow = max(glow, l.inside.mul(shape).mul(breathe).mul(lit));
+    wall = max(wall, l.depth);
   });
-  const emissive = u.poreGlowColor.mul(glow.mul(gate).mul(o.glow === false ? 0 : 4.2));
+  // walls of the cavity glow deep orange-red, the back of it burns yellow-orange
+  const glowCol = mix(u.poreGlowColor.mul(vec3(0.8, 0.32, 0.22)), u.poreGlowColor.mul(vec3(1.0, 1.12, 1.0)), wall.pow(0.7));
+  const emissive = glowCol.mul(glow.mul(gate).mul(o.glow === false ? 0 : 4.2));
 
   let position: TSLNode;
   if (o.vertex) {
-    const push = A.depth.pow(0.7).mul(A.metres).add(B.depth.pow(0.7).mul(B.metres)).mul(0.75);
-    const bump = A.rim.mul(A.metres).add(B.rim.mul(B.metres)).mul(0.12);
-    position = positionGeometry.add(normalGeometry.mul(bump.sub(push)));
+    const push = A.depth.pow(0.7).mul(A.metres).add(B.depth.pow(0.7).mul(B.metres)).mul(0.55);
+    const bump = A.rim.mul(A.metres).add(B.rim.mul(B.metres)).mul(0.14);
+    const lumps = mx_fractal_noise_float(q.div(o.scale.mul(0.9)), 3, 2.0, 0.5, 1.0).mul(o.scale).mul(0.35).mul(float(1).sub(A.inside).sub(B.inside).max(0));
+    position = positionGeometry.add(normalGeometry.mul(bump.sub(push).add(lumps)));
   }
   return { tint, emissive, position };
 }

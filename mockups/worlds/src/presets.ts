@@ -119,13 +119,14 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [1, -60], [-3, -160], [0, -300]],
       valleyWidth: 18,
       landmarks: [
-        { kind: 'spire', pos: [-25, -32], height: 160, radius: 14, porous: true },
-        { kind: 'spire', pos: [26, -22], height: 185, radius: 16, porous: true },
-        { kind: 'spire', pos: [-6, -150], height: 120, radius: 10, porous: true },
-        { kind: 'spire', pos: [14, -220], height: 150, radius: 11, porous: true },
+        { kind: 'spire', pos: [21, -17], height: 185, radius: 14, porous: true },   // right giant, fills the right half
+        { kind: 'spire', pos: [-23, -30], height: 160, radius: 12, porous: true },
+        { kind: 'spire', pos: [4, -62], height: 150, radius: 10, porous: true },
+        { kind: 'spire', pos: [-14, -150], height: 120, radius: 10, porous: true },
+        { kind: 'spire', pos: [16, -220], height: 150, radius: 11, porous: true },
         { kind: 'spire', pos: [-28, -260], height: 100, radius: 9, porous: true },
-        { kind: 'wall', pos: [-9.5, -7], height: 3, width: 5, depth: 4 },     // crust lumps bottom-left
-        { kind: 'wall', pos: [-12.5, -13], height: 4.5, width: 6.5, depth: 5.5 },
+        { kind: 'wall', pos: [-5.5, -6], height: 3.2, width: 4, depth: 3.5 },     // crust lumps bottom-left
+        { kind: 'wall', pos: [-9, -11], height: 5, width: 7, depth: 6 },
       ],
       figure: { pos: [1.5, -48], height: 1.75 },
     },

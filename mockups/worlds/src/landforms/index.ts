@@ -112,7 +112,7 @@ export default function landforms(): WorldModule {
           const f = segFactor(lm.pos[0], lm.pos[1]);
           const g = buildSpire({
             H: lm.height, R: lm.radius, erosion: d.erosion, lean: lm.lean, horns: lm.horns,
-            radial: Math.round(96 * f) & ~1, rings: Math.round(300 * f), seed: seed + i * 7,
+            radial: Math.max(40, Math.round(Math.min(220, (2 * Math.PI * lm.radius) / 0.55) * f)) & ~1, rings: Math.round(380 * f), seed: seed + i * 7,
           });
           const porous = lm.porous ? 1 : 0.4;
           const mesh = addGeo(toGeometry(g), stoneMat(lm.radius / 14, porous, f > 0.5, true), lm.pos[0], lm.pos[1]);
