@@ -1,14 +1,22 @@
 # Life Is ▢ Based — Backend MVP Implementation Plan
 
+> **Synced to CLAUDE.md on 2026-11-07, with Caden's rulings, by the session/logic team lead.**
+> - `CLAUDE.md` is the spec. There is no `CLAUDE.md`.
+> - The genome has 15 genes: 12 body genes plus the 3 climate genes already in `population.ts`.
+> - The animal cap is 1,024 (never fewer than 1,000).
+> - Terrain is one analytic height function with a formation `rise` (CLAUDE.md "Terrain and landforms"), not a stored heightmap.
+> - World configs carry no visual metadata, only `starType` and `terrain`. The look lives in the art layer, behind CLAUDE.md "Logic → art interface".
+> - **Task 5 is split.** Caden's session builds `genome.ts`, `develop.ts`, `constants.ts` and `guide.ts`. The engineering lead keeps `grid.ts`, `ecology.ts`, `relationships.ts` and `metrics.ts`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the deterministic, config-driven simulation backend and worker API that powers both carbon and speculative silicon worlds, with Caden's minimal, spatial, body-plan ecology at its core.
 
-**Architecture:** Keep all world-specific facts in `src/worlds/` and make simulation models pure where possible. A `WorldSimulation` owns seeded state, timeline progression, atmosphere/sea/life feedback, a 64² ecosystem grid and control clamping; a Web Worker only paces that engine and transfers snapshots. The ecosystem uses Caden's one shared utility loop, derived relationships and 12-gene body plan; the renderer is read-only and consumes snapshots without duplicating physics.
+**Architecture:** Keep all world-specific facts in `src/worlds/` and make simulation models pure where possible. A `WorldSimulation` owns seeded state, timeline progression, atmosphere/sea/life feedback, a 64² ecosystem grid and control clamping; a Web Worker only paces that engine and transfers snapshots. The ecosystem uses Caden's one shared utility loop, derived relationships and 15-gene body plan (12 body + 3 climate); the renderer is read-only and consumes snapshots without duplicating physics.
 
 **Tech Stack:** TypeScript strict mode, Vitest, Vite, browser Web Worker, three.js r187 (renderer integration owned by Caden).
 
-**Spec:** `AGENTS.md` for world chemistry, phases, controls and data contract; `docs/emergence/DECISIONS.md` for the agreed ecosystem direction; `docs/NOT_NOW.md`; `research/silicon-life/REPORT.md`.
+**Spec:** `CLAUDE.md` for world chemistry, phases, controls and data contract; `docs/emergence/DECISIONS.md` for the agreed ecosystem direction; `docs/NOT_NOW.md`; `research/silicon-life/REPORT.md`.
 
 ## Global Constraints
 
@@ -18,7 +26,7 @@
 - No impacts, eruptions, flares, random disasters, preset-specific branches, or rendering-to-simulation feedback.
 - Carbon and silicon use the same slider ranges; the worker clamps every running-world control to its computed living band.
 - Default timeline reaches its present phase at 130 demo seconds and continues as a stable state.
-- Caden's ecology direction is binding for this plan: 12 genome genes, one 64² grid, fixed 20 Hz ticks, ≤3,000 agents, ≤12 ecological rules and ≤25 constants. The initial 18 constants are the set in `DECISIONS.md` §G.2.
+- Caden's ecology direction is binding for this plan: 15 genes (12 body genes from DECISIONS G.1 plus the 3 climate genes from `population.ts`), one 64² grid, fixed 20 Hz ticks, ≤1,024 animals (never fewer than 1,000 in the demo), ≤12 ecological rules and ≤25 constants. The initial 18 constants are the set in `DECISIONS.md` §G.2.
 - Derive roles, relationships, locomotion, litter size, body-detail and look-attractor identity; do not author species, named basin behavior, per-role state machines or preset branches.
 - No storms, day/night, seasons, tides, global cycles, seeded lineages, midwives, rescue logic or pre-evolved menagerie in the normal demo path. Respect `docs/NOT_NOW.md`.
 - Rendering is read-only: gait, IK, L-system flora shapes, glow, field-guide look-attractors and discovery classification must not affect simulation state.
@@ -42,7 +50,7 @@
 | `src/worlds/types.ts` | Shared sourced data, world config, controls, limits, phases and snapshot contract. |
 | `src/worlds/sources.ts` | Stable source IDs and citation metadata referenced by configs. |
 | `src/worlds/controls.ts` | The three shared slider ranges/defaults and display-unit helpers. |
-| `src/worlds/carbon.ts`, `src/worlds/silicon.ts` | Complete data-only world definitions, targets, phases, limits, rules and visual metadata. |
+| `src/worlds/carbon.ts`, `src/worlds/silicon.ts` | Complete data-only world definitions, targets, phases, limits, rules, `terrain` and `starType`. No visual metadata: the look lives in the art layer. |
 | `src/worlds/index.ts` | World registry and `worldFor(id)` lookup. |
 | `src/sim/models.ts` | Pure equations: interpolation, radiative balance, partial pressure, nitrogen vapour pressure, sea volume and gas density. |
 | `src/sim/limits.ts` | Pure viability, band-search and world-start correction functions shared by selection UI and worker. |
@@ -50,23 +58,24 @@
 | `src/sim/simulation.ts` | Seeded authoritative state, configured processes/feedbacks and snapshot creation. |
 | `src/sim/workerProtocol.ts` | Strict messages exchanged by main thread and sim worker. |
 | `src/sim/worker.ts` | Wall-clock pacing, catch-up, control messages and transferable snapshot posting. |
-| `src/sim/constants.ts` | The 18 initial ecology constants, tagged as game/science and guarded by a constant-budget test. |
-| `src/sim/genome.ts`, `src/sim/develop.ts` | The 12-gene genome plus inherited composition and pure chemistry-to-body-plan grammar. |
+| `src/sim/constants.ts` | **Caden's session.** The 18 initial ecology constants, tagged as game/science and guarded by a constant-budget test. |
+| `src/sim/genome.ts`, `src/sim/develop.ts` | **Caden's session.** The 15-gene genome (12 body + 3 climate) plus inherited composition, and the pure chemistry-to-body-plan grammar. |
 | `src/sim/grid.ts` | One 64² grid of C/Si/O nutrients, light, flora mat/canopy biomass, stone, liquid depth and derived risk. |
 | `src/sim/ecology.ts`, `src/sim/relationships.ts` | Shared utility loop, body-derived food-web relationships, births/deaths, nutrient cycling and movement costs. |
-| `src/sim/metrics.ts`, `src/sim/guide.ts` | OTU/food-web/diversity measures and renderer-only look-attractor/discovery payloads. |
+| `src/sim/metrics.ts` | Food-web and diversity measures. It imports OTU clusters from `guide.ts`. |
+| `src/sim/guide.ts` | **Caden's session.** OTU clustering (DECISIONS §A: radius 0.25, ≥ 4 live animals), `guide:newForm` detection and the trait-based name generator. |
 | `src/sim/organismLayout.ts` | Versioned packed organism snapshot layout, extended only after the genome decision. |
-| `src/gen/terrain.ts` | Seeded heightmap, spawn-shore guarantee and `seaLevelForCover()` for renderer consumption. |
+| `src/gen/terrain.ts` | One analytic `height(x, z, progress)` with a formation `rise`, written as a TSL node and as a CPU sampler with the same maths. Also the spawn-shore guarantee and `seaLevelForCover()` (CLAUDE.md "Terrain and landforms"). |
 | `src/bus.ts` | Typed event map and browser event bus shared with Caden's UI/render code. |
 
 ## Task 0: Align the shared contract to Caden's ecology direction
 
 **Files:**
-- Modify: `AGENTS.md` and `docs/emergence/DECISIONS.md` only to record the agreed contract
+- Modify: `CLAUDE.md` and `docs/emergence/DECISIONS.md` only to record the agreed contract
 - Reference: `docs/emergence/DECISIONS.md`, `docs/NOT_NOW.md`
 
 **Interfaces:**
-- Produces: an agreed 12-gene `Genome`, inherited `Composition`, `EcologyConstants`, 64² `GridState`, ≤3,000 agent cap, flora-as-grid-biomass model, and versioned `SimSnapshot`/packed-organism contract.
+- Produces: an agreed 15-gene `Genome`, inherited `Composition`, `EcologyConstants`, 64² `GridState`, a 1,024 animal cap, flora-as-grid-biomass model, and versioned `SimSnapshot`/packed-organism contract.
 
 - [ ] **Step 1: Replace the obsolete F-specific backend contract**
 
@@ -83,7 +92,7 @@ git add AGENTS.md docs/emergence/DECISIONS.md
 git commit -m "docs: reconcile ecology contract"
 ```
 
-**Stop condition:** Do not start Task 5 until `AGENTS.md`, the snapshot layout and Caden's renderer expectations name the same 12-gene payload.
+**Status:** done in `CLAUDE.md` (the session/logic logic pass). Caden's session defines `Genome`, `Composition` and `EcologyConstants` in `genome.ts` and `constants.ts`, and the grid and ecology build against those.
 
 ### Task 1: Establish the shared backend contract and source registry
 
@@ -108,11 +117,11 @@ Expected: FAIL because the modules do not exist.
 
 - [ ] **Step 3: Define the contract in `src/worlds/types.ts`**
 
-Use the interfaces in `AGENTS.md` as names and field ownership. Add `WorldId = 'carbon' | 'silicon'`; keep `stats`, `controls`, `bands`, `organisms`, `births`, and inspect fields represented exactly once.
+Use the interfaces in `CLAUDE.md` as names and field ownership. Add `WorldId = 'carbon' | 'silicon'`; keep `stats`, `controls`, `bands`, `organisms`, `births`, and inspect fields represented exactly once.
 
 - [ ] **Step 4: Implement source lookup, shared controls, world registry, and the typed bus**
 
-`sourceFor(id)` throws for an unknown ID. The event map includes every event listed in `AGENTS.md`; `off` removes precisely the supplied listener.
+`sourceFor(id)` throws for an unknown ID. The event map includes every event listed in `CLAUDE.md`; `off` removes precisely the supplied listener.
 
 - [ ] **Step 5: Run the focused suite**
 
@@ -158,7 +167,7 @@ Encode liquid-nitrogen solvent and vapour-pressure lookup data, oxygen trace lim
 
 - [ ] **Step 5: Add every cited ID to `sources.ts` and label unresolved quantities**
 
-Use `assumption: true` for every number identified as open in `AGENTS.md`; do not convert an unresolved claim into a citation placeholder.
+Use `assumption: true` for every number identified as open in `CLAUDE.md`; do not convert an unresolved claim into a citation placeholder.
 
 - [ ] **Step 6: Run the focused suite and commit**
 
@@ -248,11 +257,11 @@ git commit -m "feat: add shared viability limits and slider bands"
 ### Task 5: Build Caden's minimal spatial ecosystem
 
 **Files:**
-- Create: `src/sim/constants.ts`, `src/sim/grid.ts`, `src/sim/relationships.ts`, `src/sim/genome.ts`, `src/sim/develop.ts`, `src/sim/ecology.ts`, `src/sim/metrics.ts`, `src/sim/guide.ts` and their tests
+- **Split:** Caden's session creates `src/sim/constants.ts`, `src/sim/genome.ts`, `src/sim/develop.ts` and `src/sim/guide.ts` with their tests (Steps 2 constants half, 3 genome/develop half, and 6 guide half). The engineering lead creates `src/sim/grid.ts`, `src/sim/relationships.ts`, `src/sim/ecology.ts` and `src/sim/metrics.ts`, and builds against those exports.
 - Modify: `src/sim/population.ts`, `src/sim/population.test.ts`, `src/sim/organismLayout.ts`
 
 **Interfaces:**
-- Consumes: Task 0's 12-gene contract, `EcologyConstants`, `Environment`, seeded RNG and world chemistry.
+- Consumes: the 15-gene contract from `genome.ts`, `EcologyConstants`, `Environment`, seeded RNG and world chemistry.
 - Produces: `createGrid()`, `Genome`, pure `develop(genome, composition, conditions)`, `relationship(a, b, context)`, `Ecology.step(environment, dt)`, organism birth plans, grid summaries, variety metrics and renderer-only guide discoveries.
 - Consumed by: `WorldSimulation`, worker and Caden's fauna/field-guide renderer.
 
@@ -268,7 +277,7 @@ Assert exactly the 18 initial named constants from `DECISIONS.md` §G.2, a 64×6
 
 - [ ] **Step 3: Write pure genome/development and relationship tests**
 
-Use fixed 12-gene genomes to assert `develop()` is referentially transparent; carbon outputs curved/curl-capable plans; silicon outputs faceted segments and 15°-quantized joints. Assert a new mutant's Eats, Afraid, Rival and Kin relations come only from size/gape/defence, diet, lineage and sociality; no species name or role input is accepted.
+Use fixed 15-gene genomes to assert `develop()` is referentially transparent; carbon outputs curved/curl-capable plans; silicon outputs faceted segments and 15°-quantized joints. Assert a new mutant's Eats, Afraid, Rival and Kin relations come only from size/gape/defence, diet, lineage and sociality; no species name or role input is accepted.
 
 - [ ] **Step 4: Write grid-ecology and variety tests**
 
@@ -342,8 +351,8 @@ git commit -m "feat: add deterministic world timeline simulation"
 - Create: `src/gen/terrain.ts`, `src/gen/terrain.test.ts`
 
 **Interfaces:**
-- Consumes: demo seed, terrain visual config and `seaCover`.
-- Produces: `generateTerrain(seed, options)`, `heightAt(x, y)`, `seaLevelForCover(heightmap, cover)`, `spawnPointNearShore(heightmap, seaLevel)`.
+- Consumes: demo seed, the world's `TerrainConfig` (CLAUDE.md), `seaCover` and formation `rise`.
+- Produces: an analytic `height(x, z, progress)` (TSL node plus CPU sampler, same maths), `seaLevelForCover(cover)` computed numerically from the sampler, and `spawnPointNearShore(seaLevel)`.
 - Consumed by: Caden's terrain, sea, player and Generate-transition render code.
 
 - [ ] **Step 1: Write terrain contract tests**
@@ -356,9 +365,9 @@ Run: `npx vitest run src/gen/terrain.test.ts`
 
 Expected: FAIL because the terrain module does not exist.
 
-- [ ] **Step 3: Implement seeded heightmap generation**
+- [ ] **Step 3: Implement the analytic height function**
 
-Use a named terrain RNG stream and configuration-provided shape parameters. Keep it CPU-pure and renderer-independent; the renderer only samples its immutable output.
+Use a named terrain RNG stream and the `TerrainConfig` parameters. The CPU sampler is pure and renderer-independent. The TSL node uses the same formula, and a test checks the two agree. Silicon's relic ice arches and spires are seeded features of this function.
 
 - [ ] **Step 4: Run the focused suite and commit**
 
@@ -451,14 +460,14 @@ git commit -m "docs: hand off simulation backend integration"
 ## Sequencing and Ownership
 
 1. You can start Tasks 1–4 immediately; send Caden the types/limits exports as soon as Task 4 lands so the selection screen can use the real green/red logic.
-2. Complete Task 0 before Task 5 so the backend and Caden's renderer use the same 12-gene snapshot payload.
+2. Complete Task 0 before Task 5 so the backend and Caden's renderer use the same 15-gene snapshot payload.
 3. Tasks 5–6 are the critical path to a real demo. The ecosystem is accepted only when its headless A/B results meet Caden's feature gate; Task 7 can run in parallel only after its terrain configuration boundary is agreed with Caden.
 4. Task 8 comes after Task 6; Caden can initially render a manually stepped simulation, then swap to the worker without changing UI semantics.
 5. Do not start polish, new dials, extra worlds, day/night cycles, storms, or a rescue menagerie. Follow `docs/NOT_NOW.md`.
 
 ## Self-review
 
-- **Spec coverage:** Tasks 1–4 cover data ownership, sliders and physical models; Task 5 covers Caden's 12-rule, 12-gene spatial ecology and feature gate; Task 6 covers climate feedback and the timeline; Tasks 7–8 cover deterministic generation and performance isolation; Task 9 covers the demo and UI integration boundary.
+- **Spec coverage:** Tasks 1–4 cover data ownership, sliders and physical models; Task 5 covers Caden's 12-rule, 15-gene spatial ecology and feature gate; Task 6 covers climate feedback and the timeline; Tasks 7–8 cover deterministic generation and performance isolation; Task 9 covers the demo and UI integration boundary.
 - **Known gap intentionally outside scope:** DOM UI, WebGPU/WebGL rendering, character movement, particles, materials and inspect-card visuals remain Caden's work. This plan supplies their data and events.
 - **Contract consistency:** The selection UI and worker share `canLive`, `livingBands`, `startingConditions`, `Conditions`, `SimSnapshot`, and event payloads; only `WorldSimulation` mutates world state.
 - **Risk coverage:** Every Review Focus item is pinned by Tasks 0, 4, 6, or 8 before the demo handoff.
