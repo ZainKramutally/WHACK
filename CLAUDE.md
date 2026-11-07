@@ -722,6 +722,7 @@ TypeScript and Vitest are set up at the repo root for `src/`, and Vitest only lo
 - `npm run typecheck`: typecheck
 - `npm test`: full unit suite
 - `npx vitest related --run <files>`: tests for changed files only
+- `npm run smoke [carbon|silicon]`: headless real-GPU smoke of the whole app (`scripts/smoke.mjs`; dev-only, not part of any tier). It starts its own dev server, or reuses `SMOKE_URL`. It reports fps, console errors, creature counts and checks a creature click, the slider red zones and swimming. Screenshots go to `/tmp/{card,slider,swim}-{world}.png`. Playwright is not a dependency: it uses `playwright` if installed, else `PLAYWRIGHT_PATH=/abs/path/to/playwright/index.mjs`, and exits 2 with a message if neither is found. Exits 1 on any error or failed check
 
 ## Testing (fast tiers)
 
