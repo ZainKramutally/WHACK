@@ -52,8 +52,11 @@ def _on_signal(sig, _frame):
 def start_server():
     global _server
     port = free_port()
-    # New session = own process group, so stop_server() takes the children with it.
-    _server = subprocess.Popen(["npx", "vite", "--host", "127.0.0.1", "--port", str(port), "--strictPort"], cwd=ROOT,
+    # New session = own process group, so stop_server() takes the children with it. The shell also watches this
+    # process and kills its group if we die without cleanup (SIGKILL, a killed terminal), so vite never outlives us.
+    watch = (f"npx vite --host 127.0.0.1 --port {port} --strictPort & "
+             f"while kill -0 {os.getpid()} 2>/dev/null; do sleep 1; done; kill 0")
+    _server = subprocess.Popen(["sh", "-c", watch], cwd=ROOT,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     url = f"http://127.0.0.1:{port}"
     for _ in range(200):
