@@ -1,7 +1,7 @@
 // Landforms: terrain rings, spires (+horns, pores, glow), arches, walls/crust, procedural filler.
 // Everything reads WorldUniforms in the shaders, so the dials morph it live. Geometry is fixed per preset.
 import * as THREE from 'three/webgpu';
-import { float, mix as tmix, uniform, vec3 } from 'three/tsl';
+import { float, uniform } from 'three/tsl';
 import type { Landmark, TSLNode, Vec2, WorldContext, WorldModule } from '../contracts';
 import { buildArch, buildSpire, buildWall, type Geo } from './geo';
 import { archNodes, poreNodes, terrainColor } from './nodes';
@@ -43,6 +43,7 @@ export default function landforms(): WorldModule {
   const fillers: Array<{ mesh: any; items: Array<{ x: number; y: number; z: number; yaw: number; sx: number; sy: number; r: number; f: number }> }> = [];
   let archSurvive: TSLNode;
   let dummy: any;
+  let uRock: TSLNode;
 
   return {
     id: 'landforms',
@@ -61,7 +62,8 @@ export default function landforms(): WorldModule {
       const halfW = Math.max(4, comp.valleyWidth / 2);
 
       const uCrust = uniform(tp.acid);
-      const terrainMat = ctx.materials.create({ color: terrainColor(u, uCrust), snowCover: true });
+      uRock = uniform(smoothstep(0.4, 0.8, d.builders));
+      const terrainMat = ctx.materials.create({ color: terrainColor(u, uCrust, uRock), snowCover: true });
       disposables.push(terrainMat);
       for (const spec of ringSpecs(ctx.quality)) {
         const r = buildRing(height, spec);
@@ -114,7 +116,7 @@ export default function landforms(): WorldModule {
             H: lm.height, R: lm.radius, erosion: d.erosion, lean: lm.lean, horns: lm.horns,
             radial: Math.max(40, Math.round(Math.min(220, (2 * Math.PI * lm.radius) / 0.55) * f)) & ~1, rings: Math.round(380 * f), seed: seed + i * 7,
           });
-          const porous = lm.porous ? 1 : 0.4;
+          const porous = lm.porous ? 1 : 0.15;
           const mesh = addGeo(toGeometry(g), stoneMat(lm.radius / 14, porous, f > 0.5, true), lm.pos[0], lm.pos[1]);
           heroSpires.push(mesh);
         } else if (lm.kind === 'wall') {
@@ -130,8 +132,8 @@ export default function landforms(): WorldModule {
         } else if (lm.kind === 'arch') {
           const ha = height(lm.a[0], lm.a[1]), hb = height(lm.b[0], lm.b[1]);
           const g = buildArch({ a: lm.a, b: lm.b, ha, hb, apex: lm.apex, R: lm.radius, radial: low ? 20 : 32, rings: low ? 90 : 150, seed: seed + i * 5 });
-          const an = archNodes(archSurvive, lm.radius);
-          const mat = ctx.materials.create({ stone: true, snowCover: true, color: tmix(vec3(1, 1, 1), vec3(0.62, 0.8, 0.93), u.snow).mul(an.streak.mul(0.3).add(0.82)), positionNode: an.position });
+          const an = archNodes(u, archSurvive, lm.radius);
+          const mat = ctx.materials.create({ snowCover: true, color: an.tone, positionNode: an.position });
           mat.opacityNode = an.opacity; mat.alphaTest = 0.5; mat.transparent = false;
           disposables.push(mat);
           const geo = toGeometry(g); disposables.push(geo); tris += geo.index.count / 3;
@@ -142,11 +144,11 @@ export default function landforms(): WorldModule {
       }
 
       // ------------------------------------------------ filler spires (instanced, low-poly, far away)
-      const nFill = Math.round((low ? 14 : 30) * smoothstep(0.1, 0.5, d.builders));
+      const nFill = Math.round((low ? 14 : 30) * smoothstep(0.5, 0.85, d.builders));
       if (nFill > 0) {
         const VARIANTS = 3, Hv = 100, Rv = 8;
         const far = comp.valleyWidth > 200 ? 1400 : 700;
-        const fmat = stoneMat(Rv / 14, 0.5, false, false);
+        const fmat = stoneMat(Rv / 14, 0.25, false, false);
         const per = Math.ceil(nFill / VARIANTS);
         for (let v = 0; v < VARIANTS; v++) {
           const geo = toGeometry(buildSpire({ H: Hv, R: Rv, erosion: d.erosion, radial: low ? 10 : 14, rings: low ? 24 : 40, seed: seed + 100 + v, bury: 6, horns: false }));
@@ -171,7 +173,7 @@ export default function landforms(): WorldModule {
       }
 
       // ------------------------------------------------ crust lumps (acid sponge) along the path edge
-      if (tp.acid > 0.4) {
+      if (tp.acid > 0.4 || tp.snow > 0.3) {
         const geos = [0, 1, 2].map((v) => toGeometry(buildWall({ H: 6, w: 7 + v, d: 6 + v * 0.5, overhang: false, radial: 40, rings: 28, seed: seed + 300 + v })));
         const cmat = stoneMat(0.3, 1.5, false, true, 0.9, false);
         const dummy = new THREE.Object3D();
@@ -205,6 +207,7 @@ export default function landforms(): WorldModule {
 
     update(ctx: WorldContext, dt: number) {
       // arches thin and crumble as derived.arches drops (derived is already morphing)
+      if (uRock) uRock.value = smoothstep(0.4, 0.8, ctx.derived.builders);
       if (archSurvive) archSurvive.value = smoothstep(0.08, 0.55, ctx.derived.arches);
       // spire heights follow the dial
       const sh = ctx.derived.spireHeight;

@@ -25,9 +25,10 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [0, -400]],
       valleyWidth: 400,                 // open plain
       landmarks: [
-        { kind: 'spire', pos: [-38, -170], height: 150, radius: 9 },
-        { kind: 'spire', pos: [62, -260], height: 120, radius: 7, horns: true },
-        { kind: 'spire', pos: [-120, -320], height: 60, radius: 6 },
+        { kind: 'spire', pos: [-38, -170], height: 135, radius: 5 },
+        { kind: 'spire', pos: [62, -260], height: 100, radius: 3.5, horns: true },
+        { kind: 'spire', pos: [-6, -230], height: 60, radius: 3 },
+        { kind: 'spire', pos: [-120, -320], height: 60, radius: 4 },
         { kind: 'spire', pos: [25, -360], height: 45, radius: 4 },
         { kind: 'spire', pos: [-70, -420], height: 35, radius: 4 },
         { kind: 'monolith', pos: [-4.5, -13], height: 6.2 },   // the pin's big left figure
@@ -56,12 +57,12 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [-2, -60], [4, -140], [0, -260]],
       valleyWidth: 34,
       landmarks: [
-        { kind: 'arch', a: [-28, -140], b: [22, -205], apex: 110, radius: 7 },
-        { kind: 'arch', a: [-12, -225], b: [34, -150], apex: 85, radius: 5.5 },
-        { kind: 'wall', pos: [-24, -28], height: 70, width: 22, depth: 30, overhang: true },
-        { kind: 'wall', pos: [26, -40], height: 80, width: 24, depth: 34, overhang: true },
-        { kind: 'wall', pos: [-30, -95], height: 45, width: 18, depth: 40 },
-        { kind: 'wall', pos: [30, -110], height: 50, width: 18, depth: 40 },
+        { kind: 'arch', a: [-28, -140], b: [22, -205], apex: 80, radius: 6 },
+        { kind: 'arch', a: [-12, -225], b: [34, -150], apex: 62, radius: 4.8 },
+        { kind: 'wall', pos: [-11, -28], height: 26, width: 8, depth: 8, overhang: true },
+        { kind: 'wall', pos: [11, -34], height: 30, width: 9, depth: 9, overhang: true },
+        { kind: 'wall', pos: [-44, -100], height: 45, width: 14, depth: 40 },
+        { kind: 'wall', pos: [46, -115], height: 50, width: 14, depth: 40 },
         { kind: 'cluster', species: 'lanternCups', pos: [-2.5, -6], radius: 5, count: 40, scale: 1.4 },
         { kind: 'cluster', species: 'lanternCups', pos: [4, -14], radius: 6, count: 60 },
         { kind: 'cluster', species: 'lanternCups', pos: [-9, -35], radius: 8, count: 80 },
@@ -121,7 +122,7 @@ export const PRESETS: Preset[] = [
       landmarks: [
         { kind: 'spire', pos: [21, -17], height: 185, radius: 14, porous: true },   // right giant, fills the right half
         { kind: 'spire', pos: [-23, -30], height: 160, radius: 12, porous: true },
-        { kind: 'spire', pos: [4, -62], height: 150, radius: 10, porous: true },
+        { kind: 'spire', pos: [10, -78], height: 150, radius: 10, porous: true },
         { kind: 'spire', pos: [-14, -150], height: 120, radius: 10, porous: true },
         { kind: 'spire', pos: [16, -220], height: 150, radius: 11, porous: true },
         { kind: 'spire', pos: [-28, -260], height: 100, radius: 9, porous: true },

@@ -105,23 +105,23 @@ export function buildSpire(o: SpireOpts): Geo {
   });
   if (o.horns) {
     const arms: Array<{ t0: number; sign: number; len: number; up: number }> = [
-      { t0: 0.8, sign: -1, len: 0.55, up: 0.07 }, { t0: 0.75, sign: 1, len: 0.65, up: 0.085 },
+      { t0: 0.84, sign: -1, len: 1.5, up: 2.2 }, { t0: 0.8, sign: 1, len: 1.7, up: 2.6 },
     ];
     for (const a of arms) {
       const y0 = a.t0 * H, r0 = spireProfile(a.t0, e) * R;
       const c0 = centre((y0 + bury) / (H + bury));
-      const L = R * 2.4 * a.len * 2.2, U = H * a.up;
-      const p0: V3 = [c0[0] + a.sign * r0 * 0.5, y0, c0[2]];
+      const L = Math.max(R * a.len, r0 * 2.2), U = R * a.up;
+      const p0: V3 = [c0[0] + a.sign * r0 * 0.4, y0, c0[2]];
       const p1: V3 = [p0[0] + a.sign * L, p0[1] + U * 0.05, p0[2]];
-      const p2: V3 = [p0[0] + a.sign * L * 1.15, p0[1] + U, p0[2]];
-      const rA = r0 * 0.34;
+      const p2: V3 = [p0[0] + a.sign * L * 1.05, p0[1] + U, p0[2]];
+      const rA = Math.max(r0 * 0.5, R * 0.3);
       addTube(g, {
-        rings: Math.max(6, o.rings >> 3), radial: Math.max(6, o.radial >> 2), tag: 1, n0: [0, 0, 1],
+        rings: Math.max(8, o.rings >> 3), radial: Math.max(8, o.radial >> 2), tag: 1, n0: [0, 0, 1],
         center: (s) => {
           const q = 1 - s;
           return [q * q * p0[0] + 2 * q * s * p1[0] + s * s * p2[0], q * q * p0[1] + 2 * q * s * p1[1] + s * s * p2[1], q * q * p0[2] + 2 * q * s * p1[2] + s * s * p2[2]];
         },
-        radius: (s) => rA * (1 - 0.35 * s) * Math.sqrt(Math.max(0, 1 - Math.pow(smoothstep(0.88, 1, s), 2))) * (s < 0.1 ? 1 + (0.1 - s) * 6 : 1),
+        radius: (s) => rA * (1 - 0.3 * s) * Math.sqrt(Math.max(0, 1 - Math.pow(smoothstep(0.86, 1, s), 2))),
       });
     }
   }

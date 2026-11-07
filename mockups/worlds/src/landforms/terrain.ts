@@ -63,7 +63,7 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
   const path = extendPath(p.valley, p.valleyWidth);
   const halfW = Math.max(4, p.valleyWidth / 2);
   const s = p.seed;
-  const wallH = clamp(p.valleyWidth * 0.45, 7, 40) * mix(1, 0.3, p.hot);
+  const wallH = clamp(p.valleyWidth * 0.45, 7, 40) * mix(1, 0.3, p.hot) * (1 + 1.1 * p.life);
   const wsum = Math.max(1, p.hot + p.snow + p.life + p.acid);
   const wBase = Math.max(0, 1 - (p.hot + p.snow + p.life + p.acid) / wsum) + 0.0;
 
@@ -80,13 +80,14 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
       const wx = x + 40 * noise2(x / 170, z / 170, s + 3), wz = z + 40 * noise2(x / 170 + 9, z / 170, s + 4);
       const n = fbm2(wx / 150, wz / 150, 3, s) * 0.5 + 0.5;
       const rip = Math.sin((x * 0.5 + z * 0.22 + 6 * noise2(x / 22, z / 22, s + 5)) * 1.1) * 0.12;
-      h += p.hot * (5.5 * terrace(n, 6, 0.28) * amp + rip * (0.4 + 0.6 * smoothstep(0.1, 0.5, floor)));
+      const hotAmp = mix(0.12, 1, smoothstep(0.08, 0.5, uu));
+      h += p.hot * (14 * terrace(n, 7, 0.22) * hotAmp + rip * (0.4 + 0.6 * smoothstep(0.1, 0.5, floor)));
     }
     if (p.snow > 0) {
       const wx = x + 12 * noise2(x / 60, z / 60, s + 6);
       h += p.snow * (fbm2(wx / 34, z / 34, 3, s + 7) * 1.5 + 0.35 * noise2(x / 9, z / 9, s + 8)) * amp;
     }
-    if (p.life > 0) h += p.life * (fbm2(x / 11, z / 11, 3, s + 9) * 1.0 + 0.5 * noise2(x / 4, z / 4, s + 10)) * amp;
+    if (p.life > 0) h += p.life * (fbm2(x / 8, z / 8, 3, s + 9) * 1.7 + 0.6 * noise2(x / 3, z / 3, s + 10)) * amp;
     if (p.acid > 0) {
       const rough = 1 - floor; // path stays pale and flat, crust rises outside
       h += p.acid * (ridged3(x / 7, 0.5, z / 7, 3, s + 11) * 1.9 + fbm2(x / 2.2, z / 2.2, 2, s + 12) * 0.35) * rough * rough
@@ -95,7 +96,7 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
     h += wBase * fbm2(x / 30, z / 30, 2, s + 14) * 0.6 * amp;
 
     // valley sides
-    const side = smoothstep(0.75, 2.4, uu);
+    const side = smoothstep(0.8, 2.4, uu);
     const rough = 0.72 + 0.55 * ridged3(x / 90, 0.2, z / 90, 3, s + 15);
     h += wallH * Math.pow(side, 1.35) * rough + wallH * 0.35 * Math.max(0, uu - 2.4) * 0.5;
     // far ridges: huge mountains at the edge of the world so the horizon is never flat or empty

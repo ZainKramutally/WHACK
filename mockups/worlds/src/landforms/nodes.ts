@@ -1,6 +1,6 @@
 // TSL node builders: Worley pores (fake depth + vertex push-in + breathing glow), arch dissolve, terrain colour.
 import {
-  Fn, If, float, vec3, vec4, uniform, attribute, mix, smoothstep, step, sin, fract, floor, dot, sqrt, max, clamp,
+  Fn, If, float, vec3, vec4, uniform, color, saturate, attribute, mix, smoothstep, step, sin, fract, floor, dot, sqrt, max, clamp,
   positionGeometry, normalGeometry, positionWorld, normalWorld, normalView, positionViewDirection,
   mx_fractal_noise_float,
 } from 'three/tsl';
@@ -71,7 +71,10 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
   const speck = mx_fractal_noise_float(q.div(o.scale.mul(0.7)), 3, 2.0, 0.5, 1.0);
   const warts = mx_fractal_noise_float(q.div(o.scale.mul(0.22)), 2, 2.0, 0.5, 1.0);
   const surface = float(1).add(lip.mul(0.1)).sub(halo.mul(0.28)).sub(speck.abs().mul(0.2)).sub(warts.abs().mul(0.18));
-  const tint = mix(vec3(1, 1, 1).mul(surface), u.shadowColor.mul(0.3), dark.mul(0.92));
+  // pull the factory's bone→stone gradient further toward the stain where age/heat have stained hard
+  const boost = mix(vec3(1, 1, 1), u.stoneColor.div(vec3(0.925, 0.894, 0.839)), u.stainAmount.mul(0.75));
+  const frost = float(1).add(u.snow.mul(0.4));
+  const tint = mix(boost.mul(surface).mul(frost), u.shadowColor.mul(0.3), dark.mul(0.92));
 
   // emissive: orange glow seated in the deepest pores, each cell breathing on its own 4-9s clock
   const gate = u.niches.poreDwellers.mul(float(0.5).add(u.glow.mul(0.5)));
@@ -94,13 +97,16 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
     const push = A.depth.pow(0.7).mul(A.metres).add(B.depth.pow(0.7).mul(B.metres)).mul(0.55);
     const bump = A.rim.mul(A.metres).add(B.rim.mul(B.metres)).mul(0.14);
     const lumps = mx_fractal_noise_float(q.div(o.scale.mul(0.9)), 3, 2.0, 0.5, 1.0).mul(o.scale).mul(0.35).mul(float(1).sub(A.inside).sub(B.inside).max(0));
-    position = positionGeometry.add(normalGeometry.mul(bump.sub(push).add(lumps)));
+    // never dig deeper than a third of the local radius (thin tops would invert)
+    const localR = positionGeometry.xz.length();
+    const dent = push.min(localR.mul(0.33));
+    position = positionGeometry.add(normalGeometry.mul(bump.sub(dent).add(lumps)));
   }
   return { tint, emissive, position };
 }
 
 /** Arch: thinning + crumble driven by a CPU-written survival uniform (derived.arches remapped to 0..1). */
-export function archNodes(survive: TSLNode, radiusM: number) {
+export function archNodes(u: WorldUniforms, survive: TSLNode, radiusM: number) {
   const crown = sin(attribute('aT', 'float').mul(3.14159));
   const n = mx_fractal_noise_float(positionGeometry.div(radiusM * 1.6), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   const d = n.mul(0.6).add(crown.mul(0.4));
@@ -109,18 +115,20 @@ export function archNodes(survive: TSLNode, radiusM: number) {
   const position = positionGeometry.sub(normalGeometry.mul(thin));
   const rim = float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(2.5);
   const streak = mx_fractal_noise_float(vec3(positionWorld.x.mul(0.5), positionWorld.y.mul(0.05), positionWorld.z.mul(0.5)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
-  return { opacity, position, rim, streak };
+  const ice = mix(color(0x5f9fc4), color(0xe6f3fa), streak.pow(1.4));
+  const tone = mix(u.stoneColor, ice, saturate(u.snow.mul(1.8)));
+  return { opacity, position, rim, streak, tone: tone.mul(float(1).add(rim.mul(0.35))) };
 }
 
 /** Terrain albedo from the ground uniform, with brush streaks, stone on slopes, and an acid-crust path split. */
-export function terrainColor(u: WorldUniforms, crust: TSLNode) {
+export function terrainColor(u: WorldUniforms, crust: TSLNode, rock: TSLNode) {
   const aU = attribute('aU', 'float');
   const aC = attribute('aCrust', 'float');
   const wp = positionWorld;
-  const stripe = mx_fractal_noise_float(vec3(wp.x.mul(0.22), wp.y.mul(0.7), wp.z.mul(0.03)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
-  let base = u.ground.mul(float(0.82).add(stripe.mul(0.36)));
+  const stripe = mx_fractal_noise_float(vec3(wp.x.mul(0.22), wp.y.mul(0.3), wp.z.mul(0.03)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
+  let base = u.ground.mul(mix(float(0.78), float(1.15), smoothstep(0.3, 0.7, stripe)));
   const slope = float(1).sub(normalWorld.y);
-  base = mix(base, u.stoneColor.mul(0.92), smoothstep(0.28, 0.6, slope).mul(0.85));
+  base = mix(base, u.stoneColor.mul(0.92), smoothstep(0.28, 0.6, slope).mul(0.85).mul(rock));
   // acid world: pale path in the middle, darker rough crust outside
   const outside = smoothstep(0.35, 0.85, aU).mul(crust);
   base = mix(base, u.stoneColor.mul(float(0.62).add(aC.mul(0.5))), outside.mul(0.9));
