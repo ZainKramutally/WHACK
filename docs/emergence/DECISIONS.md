@@ -3,6 +3,8 @@
 > **Proxy decisions by an agent acting for the owner. Override any line.**
 > 2026-11-07. **Revised the same day after an owner override: no Storm, and no global or periodic cycle of any kind** (no day/night, no seasons-as-rule). The jobs the Storm did are now done by space, chemistry and predation.
 >
+> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Open, owner + research:** the gene budget, since `population.ts`'s 3 climate genes plus these 12 makes 15.
+>
 > **Second revision, same day: the owner's 10 simplicity guardrails are applied throughout (§G).** Limits: 12 rules, 12 genes, ≤ 25 sim constants in `sim/constants.ts`, no preset code, read-only render, and a `→ NOT_NOW` parking lot at the end of §4.
 >
 > Goal (the owner's words): *"as emergent as possible, so simple rules create very complex ecosystems, a bit like how Rain World's ecosystems work."* Where options tie, the more emergent one wins, as long as it stays buildable in 24 h and honest (seeded or authored things are declared). Nothing here has been built or run. Every constant is `[game]` until a headless run says otherwise.
@@ -16,7 +18,7 @@ Inputs: `research/body-plans/REPORT.md` §9–10, `EXECUTIVE_SUMMARY.md`, `notes
 ## 0. The answer in five lines
 
 1. **Relationships, not roles.** Who eats, fears, ignores or contests whom is *computed from bodies* (size × gape vs defence). It is never written per species or per niche slot, so a mutant joins the food web the tick it is born.
-2. **Chemistry is food.** C, Si and O are separate limiting nutrients in every cell of one 64² grid. Bodies need them in different ratios: Si for plates and spicules, C for soft tissue, O for metabolism and glow. Under Tilman's resource-ratio rule (R*), different body chemistries win at different supply ratios, so they coexist instead of one winning.
+2. **Chemistry is food.** C, Si and O are separate limiting nutrients in every cell of one 64² grid. Bodies need them in different ratios: Si for plates and spicules, C for soft tissue, O for metabolism. Under Tilman's resource-ratio rule (R*), different body chemistries win at different supply ratios, so they coexist instead of one winning.
 3. **Place, not clock.** Encounters concentrate at food hotspots and refuges: the watering-hole effect plus a landscape of fear. Stone dens are worth having because they are predator refuges and microclimates.
 4. **The niche table sizes food, nothing else.** The apex is honest rarity and emergent: 1–3 animals, which can die out and re-evolve.
 5. **Same rules everywhere.** Off-camera animals and ⏩ run the same sim with rendering skipped. A pre-evolved menagerie is only a declared kill switch.
@@ -132,14 +134,14 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 
 - **Decision:** **honest rarity, and the apex is emergent.**
   - No authored mass step: gape-limited predation lets the ratio evolve (Brose 2006, `[recalled]`).
-  - No refuge. Cap stays 3,000.
+  - No refuge. Cap stays 1,024 (owner ruling: never fewer than 1,000, no lower tier).
   - "Apex" is a label for a lineage that Eats a lineage that Eats animals.
   - Lifespan ∝ M^0.25 makes it K-selected. When it dies, its food goes unclaimed until something re-evolves to eat it.
 - **Why:** Rain World's top predators are rare and dramatic. Protecting N ≥ 4 would be steering. "The last violet hunter died; 6 generations later a new one rose" is free drama.
 - **Cost:** S.
 - **Declare:** "1–3 apex animals is what this much food can feed."
 - **Test:** M6.
-- **Fallback:** no apex, and say so. Guardrail 6 fixes the cap at ≤ 3,000.
+- **Fallback:** no apex, and say so. Guardrail 6 fixes the cap at 1,024.
 
 ### Q5 (§10.5). Generation compression (~4 sim-s generations)?
 
@@ -163,7 +165,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 - **Why:** relationships, nutrients and the fear term add per-tick work. The cap decides Q4 and the monoculture fix.
 - **Cost:** S.
 - **Test:** at 20 Hz, ⏩ ×20 = 400 ticks/s × 3k agents = 1.2M agent-ticks/s. **Pass is ≤ 0.5 µs per agent-tick (≤ 60% of one Worker core).**
-- **Fallback:** cap 2,000 + menagerie.
+- **Fallback:** the declared menagerie. The cap does not move (1,024).
 
 ### Q7 (§10.7). Verify recalled sources before slides
 
@@ -226,7 +228,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 3 | **Derive, don't author** | Roles, relationships, niches, channel shares, bulk forage, boldness, range and litter size are all *derived*. The 7 named basins leave the sim: they become **anonymous look attractors in the renderer**, and names come from a trait-based name generator |
 | 4 | **Small genome** | 12 genes (below), down from F's 32. The other 20 become derived look or behaviour, or go to NOT_NOW |
 | 5 | **Tunables cap** | 18 sim constants in `sim/constants.ts` (below): 9 `[game]`, 9 `[sci]`. That leaves 7 slots of headroom, and every addition costs one removal |
-| 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. ≤ 3,000 agents. ⏩ = more 20 Hz ticks per frame |
+| 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. **1,024 animals** (owner ruling; never fewer than 1,000, no 512 tier). ⏩ = more 20 Hz ticks per frame |
 | 7 | **Feature gate** | A rule or feature ships only if a headless A/B raises a §A variety metric or the readability metric (§5 acceptance rule) |
 | 8 | **No cheats, no preset code** | No midwives, no rescues, no `if preset ==`, no seeded lineages. Presets = dial values only. Fallbacks that broke this were removed (Q3, Q4, hunters). The menagerie is flagged for the owner |
 | 9 | **Render is read-only** | Eyes drawn, gait/IK, glow shading, flora L-system shapes (from per-cell biomass + comp), basin look-snap, plate age stain, pore glow and the discovery classifier are pure functions of sim state. Nothing visual is read back |
@@ -246,7 +248,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 8 | `diet` t | g24 | plant gain ∝ (1 − t)² | meat gain ∝ t² (convex trade-off) | claws, mouth colour (render) |
 | 9 | `eyes` | g19 | `EYE_FRAC` of upkeep at full eyes | vision ∝ light (R5) | eye size; eyeless in the dark |
 | 10 | `buoy` | g25 | volume ↑, defence ↓ | body density ↓ → swim/hover cost ↓ (R10) | gas bells, bloated drifters |
-| 11 | `glow` | g26 | uses O (R2) at the B0 price | lure in the dark (R5: grazers seek glow) | magenta glow ∝ glow·o |
+| 11 | `glow` | g26 | energy at the B0 price | lure that pays only when light is scarce (R5: grazers seek glow), on **both** worlds. On silicon it's chemiluminescence, `assumption: true` | glow ∝ glow·(1 − light) |
 | 12 | `sociality` | g27 | food sharing among kin | risk ÷ (1 + n_kin) (dilution, Hamilton 1971) | shoals, packs |
 
 **Derived, not genes** (render-only unless noted):
@@ -276,7 +278,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 17 | `AIR_RHO[sea]` | from notes/02 | [sci] `[INFERRED]` | R1, R10 |
 | 18 | `TISSUE_RHO` {C 1.05, Si 2.2} | — | [sci] `[recalled]` | R10 |
 
-**Structure, not tunable (guardrail 6):** `GRID 64`, `TICK 20 Hz`, `CAP 3000`. Render constants (κ 0.5 look-snap, discovery thresholds) live in the renderer and can't touch the sim.
+**Structure, not tunable (guardrail 6):** `GRID 64`, `TICK 20 Hz`, `CAP 1024`. Render constants (κ 0.5 look-snap, discovery thresholds) live in the renderer and can't touch the sim.
 
 ---
 
@@ -294,7 +296,7 @@ The bold text is the rule's name. The ≤ 2 sentences follow it. `[sci]` constan
 | 6 | **Relationships come from bodies.** Per lineage pair: Eats, Afraid (×2 for one generation after a survived attack), Rival (shared pools), Kin (same lineage × sociality), else Ignore, cached every 2 s. Newborn plates thicken by `INDUCE`·Hunger·Afraid | `INDUCE` | A new armoured mutant is ignored. Then: hunters switch to the next commonest prey, and shoals form | P2, Murdoch `[recalled]`, Agrawal `[verified]` |
 | 7 | **Stone, canopy and deep liquid are shelter.** Shelter cuts catchability and pulls heat toward mild, both by `REFUGE`·shelter. Every animal keeps a home cell, and builders' excess Si+O becomes stone | `REFUGE` | Builders make stone. Then: refuges get contested, more builders, spires rise | P3′, P4 |
 | 8 | **Bud with mutation.** Bud at E > 2·M, so generation time ∝ M^0.25 and litter size emerge from intake. Every gene mutates by `SIGMA` | `SIGMA` | More food → more babies. Then: drift opens new bodies | Brown 2004 `[verified]` |
-| 9 | **Bodies grow from 12 genes + comp + conditions.** `develop()` applies the chemistry grammar and the §B reaction norms (TSR by medium, eye cost in the dark, glow ∝ o). It is the only place genes become traits | `TSR` | Recipe → Si: cyan hex newborns in 2 s. Then: Si in Water dissolves unless plated | F §3.3, Atkinson, Forster `[verified]` |
+| 9 | **Bodies grow from 12 genes + comp + conditions.** `develop()` applies the chemistry grammar and the §B reaction norms (TSR by medium, eye cost in the dark, glow ∝ darkness). It is the only place genes become traits | `TSR` | Recipe → Si: cyan hex newborns in 2 s. Then: Si in Water dissolves unless plated | F §3.3, Atkinson, Forster `[verified]` |
 | 10 | **Move by the medium's physics.** Each animal uses the cheapest of walk, swim, fly, hover or sessile. Swim cost depends on \|ρ_body − ρ_liq\| and Re, and fly/hover cost on ρ_air | `FLY_K` | Methane: swimmers sink. Then: lakebed walkers and drifting bells | Purcell `[recalled]`, Pontzer `[verified]` |
 | 11 | **Death becomes ground.** Si+O corpses become stone (terrain, shelter). C returns to the cell | — | Many deaths → reefs. Then: reefs become refuges | F §7 |
 | 12 | **Same rules everywhere.** Off-camera agents and ⏩ run identical ticks with render skipped. The render reads the sim and never writes it | — | Nothing pauses. Then: you return to a changed world | P7, guardrail 9 |
@@ -351,7 +353,7 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 |---|---|---|---|---|---|
 | **C fraction** (comp c) | C need per unit of growth (R2). Grammar: 12-sided smooth loft, curl, tentacle limbs, ring eyes, frills | [game] grammar; [sci] direction (flexible organics) | develop, R2 · — | coral curling soft bodies | LIVE + NEW (stoichiometry) |
 | **Si fraction** (comp si) | Si need (R2). Joint stiffness, hex facets, 15° joints, rod limbs. Body density via `TISSUE_RHO` | [game] grammar; [sci] silica skeletons (diatom glass ≈ 2% of energy, Raven 1983 `[verified]`) | develop, R2, R10 · `TISSUE_RHO` | cyan hex ticking bodies, glass plates | LIVE |
-| **O fraction / availability** (comp o, cell O) | O need scales with upkeep (R2). Oxygen–size: adult scale × (1 + o). Glow output = `glow`·o (luciferase needs O₂) | [sci] Verberk & Atkinson 2013, Chapelle & Peck 1999 `[verified]` | develop, R2 · gene `glow` | magenta glow, bigger animals in O-rich worlds | LIVE (speed × O dropped → NOT_NOW) |
+| **O fraction / availability** (comp o, cell O) | O need scales with upkeep (R2). Oxygen–size: adult scale × (1 + o). Glow does **not** depend on O (owner ruling: glow comes from darkness on both worlds) | [sci] Verberk & Atkinson 2013, Chapelle & Peck 1999 `[verified]` | develop, R2 | bigger, more active animals in O-rich worlds | LIVE (speed × O dropped → NOT_NOW) |
 | **C, Si, O supply per cell** (Recipe × Sea × history) | Liebig `min` over the three. R* differs by comp, so the winner tracks the supply ratio | [sci] Tilman, Sterner & Elser `[recalled]` | R1, R2 · `P0` | plated forms on Si-rich ground, soft forms on C-rich ground; shifts as stone locks Si | NEW |
 | **Solvent density ρ_liq** (Water 1.00, NH₃ 0.68, CH₄ 0.42, H₂SO₄ 1.83 g/cm³) | swim cost ∝ \|ρ_body − ρ_liq\|. ρ_body = (1 − `buoy`)·(comp-weighted `TISSUE_RHO` + plate mass) | [sci] `[recalled]` | R10 · `buoy`, `plates`, `SOLVENT`, `TISSUE_RHO` | methane: swimmers sink, giving lakebed walkers and gas bells. Acid: plated bodies still bob | NEW |
 | **Solvent viscosity μ** (0.89, 0.25, 0.12, ≈ 25 mPa·s) → Re = ρ·v·S/μ (vs Water ×2.4, ×3.1, ×3.1, ×0.065) | the weight on form drag rises with log Re, anchored to Water. At high Re, `segments` (elongation) cuts swim cost; at low Re, drag ∝ surface favours compact bodies | [sci] Purcell 1977 `[recalled]` | R10 · `segments`, `size`, `SOLVENT` | methane/ammonia: torpedo eels. Acid: compact swimmers with a cilia fringe (fringe is **render-only**, from Re) | NEW |
@@ -359,7 +361,7 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 | **Liquid temperature range** (0–100, −78 to −33, −182 to −162, 10–337 °C) | Heat = position inside the solvent's liquid band. Absolute T is unused | [game], declared (real Arrhenius at 90 K would freeze methane life) | — | — | **FLAG** feeds nothing → NOT_NOW (ℓ from band edges, frost fringe) |
 | **Temperature** (Heat) | rate(heat) via `Q10` → upkeep, speed, tempo, generation time. Adult scale × (1 + `TSR`·(1 − 2·heat)), ×`TSR_LAND` for walkers. Lifespan ∝ M^0.25/rate | [sci] Gillooly 2001, Atkinson 1994, Forster 2012 `[verified]`; [game] magnitude | R3, R9 · `Q10`, `TSR`, `TSR_LAND`, `GEN_EXP` | everything speeds up when hot; big slow swimmers in cold seas | LIVE |
 | **Microclimate** (shelter) | heat pulled toward mild by `REFUGE`·shelter | [sci] direction (burrow buffering); [game] | R7 · `REFUGE` (shared) | in extreme-heat worlds the big and slow cluster in dens | NEW (no new constant) |
-| **Light intensity** (Light) | flora ∝ light (R1). Eye benefit = vision ∝ light vs cost `EYE_FRAC`, so eyes regress in the dark *without a rule*. Glow lures pay when dim | [sci] Moran 2015, Nilsson 2012, Warrant & Locket 2004, Martini & Haddock 2017 `[verified]` | R1, R3, R5, R9 · `eyes`, `glow`, `EYE_FRAC` | big eyes at dusk, eyeless den-dwellers, glow lures; caps vs glow bulbs | LIVE (the `o > 0.3` threshold dropped) |
+| **Light intensity** (Light) | flora ∝ light (R1). Eye benefit = vision ∝ light vs cost `EYE_FRAC`, so eyes regress in the dark *without a rule*. Glow lures pay when dim, on both worlds: glow output = `glow`·(1 − light). On carbon it's luciferase-style bioluminescence; on silicon, chemiluminescence (`assumption: true`) | [sci] Moran 2015, Nilsson 2012, Warrant & Locket 2004, Martini & Haddock 2017 `[verified]` | R1, R3, R5, R9 · `eyes`, `glow`, `EYE_FRAC` | big eyes at dusk, eyeless den-dwellers, glow lures; caps vs glow bulbs | LIVE (the `o > 0.3` threshold dropped) |
 | **Light spectrum** (tholin orange) | sky/stain colour; skin hue tinted by ambient spectrum | [game] | render only | orange-tinted skins | **FLAG** no sim effect (render-only, allowed by guardrail 9) |
 | **Pigment / UV** (bright light) | dorsal darkening ∝ Light | [game] | render only | darker backs in bright worlds | **FLAG** no sim effect (render-only). A pigment gene → NOT_NOW |
 | **Atmospheric density ρ_air** (`AIR_RHO[sea]`; methane ≈ 4× Earth `[INFERRED]`) | fly cost = `FLY_K`·(1 − ρ_air)·S^0.5. Hover cost = `FLY_K`·max(0, ρ_body − ρ_air). Air food ∝ ρ_air·light. Wing area drawn ∝ M/ρ_air | [sci] direction; [game] scale | R1, R10 · `buoy`, `FLY_K`, `AIR_RHO` | big wings in thin air; gas bells in thick air | LIVE (share), NEW (smooth costs) |
@@ -392,7 +394,7 @@ None needs a new gene or constant to stay as it is. Anything more goes to NOT_NO
 | Stress mutagenesis bursts after dial moves | F §10 | A second mutation rule | Rule 8 + Q5 |
 | Trophic levels, `massScale`, `targetN`, apex pooling *as inputs* | REPORT §9.2–9.3 | They steer and invite authored species | Rules 4 and 6. The table becomes a forecast |
 | `role` field and per-role FSM unlocks | REPORT §9.6 | Authored per-niche behaviour | Rule 5. Role is *read* from diet over 60 s |
-| Apex refuge; cap raise just for the apex | §9.4 options | Steering | Honest rarity (Q4) |
+| Apex refuge; cap change just for the apex | §9.4 options | Steering | Honest rarity (Q4) |
 | Hard gates: `buoy ≥ 0.6`, `Hunger > 0.6` armour | round 2 | Valleys; they hide dial ranges | Smooth costs (Q3, §B) |
 | Separate "pore refuge" rule | F §7 | Duplicates shelter | Rule 7 |
 | Seeded buoyant founder lineage | round 2 recipe 5a | A seed / preset code (guardrail 8) | — (NOT_NOW) |
@@ -413,7 +415,7 @@ Keep, though authored: the `develop()` grammar, the ledger, render-side look att
 2. Midwives: Hox shift, "grazer tasted meat"; stress-mutagenesis bursts.
 3. Seeded buoyant founder lineage for thick-air worlds.
 4. `Hunger > 0.6` inducible-armour gate; `buoy ≥ 0.6` gas-bag gate.
-5. Apex refuge; animal cap above 3,000.
+5. Apex refuge; any animal cap other than 1,024.
 6. Trophic levels, `massScale`, `targetN`, apex realm pooling as sim inputs (kept as forecast only); per-role FSM unlocks (§9.6).
 7. Canopy pool hand-set to 0.3 K (Q1 fallback; costs a constant).
 8. Litter ∝ S as a rule; lifespan × (1 + (1 − heat)) bonus.
@@ -430,7 +432,7 @@ Keep, though authored: the `develop()` grammar, the ledger, render-side look att
 
 ## 5. Next experiment: round 3 headless spec
 
-**Where:** add an `r3=True` path to `research/body-plans/prototype/f_ecology.py` (Python toy), and port to TS/Vitest only on a pass. Budget about 3 h of build and 1 h of sweeps. Runs: 5 presets × 3 seeds × T = 1,300 sim-s, cap 3,000.
+**Where:** add an `r3=True` path to `research/body-plans/prototype/f_ecology.py` (Python toy), and port to TS/Vitest only on a pass. Budget about 3 h of build and 1 h of sweeps. Runs: 5 presets × 3 seeds × T = 1,300 sim-s, cap 1,024.
 
 | Config | Contents | Purpose |
 |---|---|---|
@@ -468,7 +470,7 @@ Anything else goes to NOT_NOW, including features after H8.
 | M7 | Forecast vs emergent channel abundance | Spearman 0.6 ≤ ρ ≤ 0.95 (must be able to surprise) | n/a |
 | M8 | Beta diversity (functional-type Bray–Curtis) | ≥ 0.6 between, ≤ 0.4 within | 0.59–0.63 / 0.18–0.22 |
 | M9 | One-body legs + horns + plates ≥ 5% | ≤ 400 sim-s in ≥ 2 presets | 601–863 |
-| M10 | Stability | no extinction; N ∈ [1,500, 3,000] after 100 sim-s | stable |
+| M10 | Stability | no extinction; N ∈ [700, 1,024] after 100 sim-s | stable |
 | M11 | Kill-the-winner: corr(prey OTU share, per-capita predation) | > 0.3 | n/a |
 | M12 | Drifters (frozen) / small fliers (thin air) / low-Re fringed swimmers (acid) | ≥ 50 / ≥ 5% / ≥ 1 OTU | ≤ 13 / — / — |
 | M13 | Landscape of fear: slope of prey foraging rate vs distance to refuge | < 0 when H ≥ 0.5; ≈ 0 with predators removed | n/a |
@@ -476,7 +478,7 @@ Anything else goes to NOT_NOW, including features after H8.
 | M15 | Readability: "formed" share / unnamed share (render classifier) | ≥ 30% / 5–25% in every preset | κ 0.5, strider-dominated |
 
 **JS bench (parallel, Q6):**
-- 3,000 agents in a Worker, all 12 rules, fixed 20 Hz tick.
+- 1,024 agents in a Worker, all 12 rules, fixed 20 Hz tick.
 - Pass: ≤ 0.5 µs per agent-tick (⏩ ×20 = 400 ticks/s fits in ≤ 60% of a core), cache refresh ≤ 1 ms.
 
 **Report back:**

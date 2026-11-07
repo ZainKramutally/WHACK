@@ -7,13 +7,13 @@ Ideas that are good but **not in the 12 rules**. They wait here so they don't cr
 | Date | Who | Idea | Would raise | Status |
 |---|---|---|---|---|
 | 2026-11-07 | owner | Storm / any global periodic cycle (rain, day-night, seasons as a rule) | size selection, encounter rate | **Rejected by owner**: don't revisit |
-| 2026-11-07 | research | GPU heightfield + log-scale geological clock (`docs/features/terrain-plan.md`) | terrain morphs live, geology-in-motion | Deferred by art lead until v2 lands |
+| 2026-11-07 | research | Terrain plan **L1/L2** only: GPU heightfield simulation + log-scale geological clock (`docs/features/terrain-plan.md`). L0 (analytic heights with a formation rise) is **un-parked**; see `CLAUDE.md` "Terrain and landforms" | terrain morphs live, geology-in-motion | L1/L2 deferred |
 | 2026-11-07 | research | Hydraulic erosion, Werner dunes, rimstone/DLA growth sims | canyon, dunes, terraces realism | Deferred: cheap analytic fakes first |
 | 2026-11-07 | research | Pre-evolved menagerie run before the demo | atlas fauna reach | Declared kill switch only, if the owner doesn't rule it a rescue (guardrail 8) |
 | 2026-11-07 | decisions | Midwives: Hox shift, "grazer tasted meat", stress-mutagenesis bursts | hunter tier, horns | Cut (guardrail 8) |
 | 2026-11-07 | decisions | Seeded buoyant founder lineage for thick-air worlds | sky whales, drifters | Parked |
 | 2026-11-07 | decisions | `Hunger > 0.6` inducible-armour gate; `buoy ≥ 0.6` gas-bag gate | hunter persistence, floaters | Parked: smooth costs instead |
-| 2026-11-07 | decisions | Apex refuge; animal cap above 3,000 | apex persistence | Parked: apex stays honestly rare |
+| 2026-11-07 | decisions | Apex refuge; any animal cap other than 1,024 | apex persistence | Parked: apex stays honestly rare |
 | 2026-11-07 | decisions | Trophic levels, `massScale`, `targetN`, apex pooling as sim inputs (forecast only); per-role FSM unlocks | readability | Parked: the table sizes food only |
 | 2026-11-07 | decisions | Canopy pool hand-set to 0.3 K | strider monoculture | Fallback only |
 | 2026-11-07 | decisions | Litter ∝ S rule; lifespan × (1 + (1 − heat)) bonus | size selection | Parked |
