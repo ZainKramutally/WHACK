@@ -40,8 +40,8 @@ export function groundCover(rng: Rng, variant: number) {
         { r: r * 1.6, y: 0, key: 'maroon', sway: 0 },
         { r: r * 0.8, y: h * 0.55, key: 'crimson', sway: sw(h * 0.55) },
         { r: r * 1.7, y: h, key: 'blush', sway: sw(h), crease: true },
-        { r: r * 1.1, y: h * 1.02, key: 'ink', sway: sw(h) },
-        { r: 0, y: h * 0.8, key: 'ink', sway: sw(h) },
+        { r: r * 1.1, y: h * 1.02, key: 'maroon', sway: sw(h) },
+        { r: 0, y: h * 0.8, key: 'maroon', sway: sw(h) },
       ], 7, rng.range(0, 1));
     }
   } else if (variant === 2) {

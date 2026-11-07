@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Capture the flora lab (flora.html) to design/iteration/{YYYY-MM-DD-HHMM}-red-flora/.
 
-Writes lineup.png (true scale), grid.png (one cell per archetype) and grid-sil.png (ink silhouettes).
+Writes lineup.png (true scale), grid.png (one cell per archetype), grid-sil.png (ink silhouettes),
+lineup-low.png and grid-low.png (2 m eye height looking up, ?cam=low), and lineup-low-trans.png
+(&trans=1: proposed translucency term for pale bands, a scene-material suggestion).
 Usage (from mockups/red-world):
   python3 scripts/flora_capture.py                 # starts its own vite on 127.0.0.1
   python3 scripts/flora_capture.py --url http://127.0.0.1:5183 --seed 7 --tag r2
@@ -51,6 +53,9 @@ def main():
                 ("lineup", "view=lineup", (1920, 1080)),
                 ("grid", "view=grid", (1920, 1440)),
                 ("grid-sil", "view=grid&sil=1", (1920, 1440)),
+                ("lineup-low", "view=lineup&cam=low", (1920, 1080)),
+                ("grid-low", "view=grid&cam=low", (1920, 1440)),
+                ("lineup-low-trans", "view=lineup&cam=low&trans=1", (1920, 1080)),
             ]:
                 pg = b.new_page(viewport={"width": vp[0], "height": vp[1]}, device_scale_factor=1)
                 errs = []

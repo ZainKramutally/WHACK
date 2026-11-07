@@ -28,10 +28,14 @@ export function coilSpire(rng: Rng, variant: number) {
     return [Math.cos(a) * Rh(t), t * hTop, Math.sin(a) * Rh(t)];
   };
   const bands = rng.int(9, 13);
+  // value inverts with height: ink/maroon stripes low, crimson/blush stripes high
   const keyAt = (t: number): PaletteKey => {
-    if (t < 0.05) return 'ink';
-    if (t > 0.9) return 'blush';
-    return Math.floor(t * bands) % 2 ? 'crimson' : 'maroon';
+    if (t < 0.06) return 'ink';
+    if (t > 0.92) return 'blush';
+    const odd = Math.floor(t * bands) % 2 === 1;
+    if (t < 0.4) return odd ? 'maroon' : 'ink';
+    if (t < 0.7) return odd ? 'crimson' : 'maroon';
+    return odd ? 'blush' : 'crimson';
   };
   const n = Math.round(c.turns * 22);
   for (let k = 0; k < c.strands; k++) {

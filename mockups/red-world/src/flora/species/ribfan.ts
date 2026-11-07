@@ -1,15 +1,18 @@
-// Rib fan (10-40 m): a cupped, flat fan of radial ribs joined by concentric rungs (radiolarian
-// lattice / sea fan), or a dichotomous gorgonian branching fan. Tips carry knobs, a few glow.
+// Rib fan (10-40 m), four distinct body plans:
+//  0 fan: cupped radial ribs + rungs + scalloped membrane web (radiolarian lattice / sea fan)
+//  1 whorl: a vertical pinwheel of in-plane spiral arms around a ribbed hub, on a stalk
+//  2 sheaf: a splayed bundle of spatulate, cupped paddles on narrow stems
+//  3 crinoid: sea-lily stalk, calyx cup and inward-curling pinnulate arms
 import type { PaletteKey } from '../../contracts';
-import { MeshBuilder, add, bead, clamp01, cross, curl, norm, revolve, scl, sheet, sub, sweep, type V3 } from '../mesh';
+import { MeshBuilder, add, bead, bezier, clamp01, cross, curl, norm, revolve, scl, sheet, sub, sweep, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
-interface Cfg { H: number; span: number; ribs: number; rungs: number; fans: number; branching: boolean; cup: number; web: number }
+interface Cfg { H: number; form: 'fan' | 'whorl' | 'sheaf' | 'crinoid'; span: number; ribs: number; rungs: number; fans: number; cup: number; web: number }
 const VARIANTS: Cfg[] = [
-  { H: 32, span: 0.7, ribs: 9, rungs: 3, fans: 1, branching: false, cup: 0.18, web: 0.66 },
-  { H: 20, span: 1.35, ribs: 13, rungs: 3, fans: 1, branching: false, cup: 0.12, web: 0 },
-  { H: 40, span: 0.55, ribs: 7, rungs: 2, fans: 2, branching: false, cup: 0.2, web: 0.72 },
-  { H: 24, span: 0, ribs: 7, rungs: 0, fans: 0, branching: true, cup: 0, web: 0 },
+  { H: 32, form: 'fan', span: 0.75, ribs: 9, rungs: 3, fans: 1, cup: 0.18, web: 0.66 },
+  { H: 28, form: 'whorl', span: 0, ribs: 9, rungs: 0, fans: 0, cup: 0.1, web: 0 },
+  { H: 34, form: 'sheaf', span: 0, ribs: 9, rungs: 0, fans: 0, cup: 0.45, web: 0 },
+  { H: 24, form: 'crinoid', span: 0, ribs: 7, rungs: 0, fans: 0, cup: 0, web: 0 },
 ];
 
 export function ribFan(rng: Rng, variant: number) {
@@ -17,7 +20,9 @@ export function ribFan(rng: Rng, variant: number) {
   const H = c.H * rng.range(0.94, 1.06);
   const b = new MeshBuilder();
   const swayY = (y: number) => clamp01(Math.pow(Math.max(0, y) / H, 1.4));
-  if (c.branching) return crinoid(b, rng, c, H, swayY);
+  if (c.form === 'crinoid') return crinoid(b, rng, c, H, swayY);
+  if (c.form === 'whorl') return whorl(b, rng, c, H, swayY);
+  if (c.form === 'sheaf') return sheaf(b, rng, c, H, swayY);
   const trunkH = H * 0.16;
   const rT = H * 0.022;
   const yaw0 = Math.PI / 2 + rng.range(-0.25, 0.25); // fan faces +z by default; instances yaw it
@@ -137,6 +142,103 @@ function crinoid(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number)
       }
     }
     bead(b, pts[22], norm(sub(pts[22], pts[21])), rS * 0.55, 6, 3, k % 2 ? 'glow' : 'maroon', k % 2 ? 1 : 0, 1);
+  }
+  return b.build();
+}
+
+/** Vertical pinwheel: arms spiral in one plane out of a ribbed hub on a curved stalk. */
+function whorl(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) => number) {
+  const R = H * 0.4, hubY = H - R - H * 0.04, rS = H * 0.02;
+  const yaw = Math.PI / 2 + rng.range(-0.25, 0.25);
+  const nrm: V3 = [Math.cos(yaw), 0, Math.sin(yaw)], side: V3 = [-nrm[2], 0, nrm[0]];
+  const hub: V3 = add(scl(side, rng.range(-1, 1) * H * 0.04), [0, hubY, 0]);
+  const stalk: V3[] = [];
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16;
+    stalk.push(add(scl(hub, t), [0, (-0.2 + t * hubY) - hub[1] * t, 0]));
+  }
+  sweep(b, stalk, {
+    segs: 8, radius: (s, i) => rS * (1.5 - 0.7 * s) * (i === 0 ? 1.6 : 1), key: (s) => (s < 0.12 ? 'ink' : s < 0.6 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]),
+  });
+  // hub: ribbed lens facing +/- nrm, glowing core on both faces
+  const Rh = H * 0.065, s0 = swayY(hubY);
+  const ribs = (j: number) => 1 + (j % 2 ? 0.1 : -0.1);
+  revolve(b, add(hub, scl(nrm, -Rh * 0.55)), nrm, [
+    { r: 0, y: 0, key: 'glowDeep', glow: 1, sway: s0 },
+    { r: Rh * 0.35, y: Rh * 0.1, key: 'crimson', sway: s0, crease: true },
+    { r: Rh, y: Rh * 0.4, key: 'blush', sway: s0, mod: ribs },
+    { r: Rh, y: Rh * 0.7, key: 'crimson', sway: s0, mod: ribs },
+    { r: Rh * 0.35, y: Rh * 1.0, key: 'glowDeep', glow: 1, sway: s0, crease: true },
+    { r: 0, y: Rh * 1.1, key: 'glowDeep', glow: 1, sway: s0 },
+  ], 14);
+  const m = c.ribs, turn = rng.range(2.0, 2.6) * rng.sign();
+  for (let k = 0; k < m; k++) {
+    const a0 = (k / m) * Math.PI * 2 + rng.range(-0.08, 0.08);
+    const L = R * rng.range(1.15, 1.35);
+    const pts: V3[] = [];
+    let x = Math.cos(a0) * Rh * 0.9, y = Math.sin(a0) * Rh * 0.9;
+    const n = 16;
+    for (let i = 0; i <= n; i++) {
+      const s = i / n;
+      if (i > 0) {
+        const ang = a0 + turn * Math.pow(s, 1.3);
+        x += (Math.cos(ang) * L) / n; y += (Math.sin(ang) * L) / n;
+      }
+      const d = Math.hypot(x, y) / R;
+      pts.push(add(add(hub, add(scl(side, x), [0, y, 0])), scl(nrm, c.cup * R * d * d)));
+    }
+    sweep(b, pts, {
+      segs: 6, radius: (s) => rS * 0.75 * (1 - 0.7 * s),
+      key: (s) => (s < 0.3 ? 'maroon' : s < 0.7 ? 'crimson' : 'blush'), sway: (_s, p) => swayY(p[1]),
+    });
+    const tip = pts[n];
+    bead(b, tip, norm(sub(tip, pts[n - 1])), rS * 0.7, 6, 3, k % 3 === 0 ? 'glow' : 'maroon', k % 3 === 0 ? 1 : 0, swayY(tip[1]));
+  }
+  return b.build();
+}
+
+/** Splayed bundle of spatulate paddles: narrow stems widening into cupped, rounded blades. */
+function sheaf(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) => number) {
+  const m = c.ribs, W = H * 0.085, rS = H * 0.011;
+  revolve(b, [0, -0.2, 0], [0, 1, 0], [
+    { r: H * 0.07, y: 0, key: 'ink', sway: 0 },
+    { r: H * 0.05, y: H * 0.03, key: 'ink', sway: swayY(H * 0.03) },
+    { r: 0, y: H * 0.06, key: 'maroon', sway: swayY(H * 0.06) },
+  ], 9);
+  const sm = (a: number, b2: number, x: number) => { const t = clamp01((x - a) / (b2 - a)); return t * t * (3 - 2 * t); };
+  for (let k = 0; k < m; k++) {
+    const a = (k / m) * Math.PI * 2 + rng.range(-0.3, 0.3);
+    const out: V3 = [Math.cos(a), 0, Math.sin(a)];
+    const lean = k === 0 ? 0.1 : rng.range(0.7, 1.5);
+    const h = H * (k === 0 ? 0.97 : rng.range(0.5, 0.85));
+    const p0 = scl(out, H * 0.03);
+    const C = bezier(p0, add(p0, [0, h * 0.4, 0]), add(scl(out, h * 0.22 * lean), [0, h * 0.75, 0]), add(scl(out, h * 0.45 * lean), [0, h, 0]), 11);
+    const sideK: V3 = [-out[2], 0, out[0]];
+    const Wk = W * rng.range(0.8, 1.15) * (k === 0 ? 1.2 : 1);
+    const G: V3[][] = [];
+    const cols = 7;
+    for (let i = 0; i < C.length; i++) {
+      const s = Math.min(0.985, i / (C.length - 1));
+      const T = norm(sub(C[Math.min(C.length - 1, i + 1)], C[Math.max(0, i - 1)]));
+      const nK = norm(cross(sideK, T));
+      const tipRound = s > 0.8 ? Math.sqrt(Math.max(0, 1 - Math.pow((s - 0.8) / 0.2, 2))) : 1;
+      const w = Wk * (0.06 + 0.94 * sm(0.55, 0.8, s)) * tipRound;
+      const row: V3[] = [];
+      for (let j = 0; j < cols; j++) {
+        const x = -1 + (2 * j) / (cols - 1);
+        row.push(add(add(C[i], scl(sideK, x * w)), scl(nK, c.cup * w * x * x)));
+      }
+      G.push(row);
+    }
+    sheet(b, G, (i) => { const s = i / (C.length - 1); return s < 0.12 ? 'ink' : s < 0.4 ? 'maroon' : s < 0.62 ? 'crimson' : 'blush'; }, (p) => swayY(p[1]), rS * 0.15);
+    sweep(b, C.slice(0, 10), {
+      segs: 5, radius: (s) => rS * (1.2 - 0.8 * s), key: (s) => (s < 0.15 ? 'ink' : s < 0.5 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]),
+    });
+    if (k % 3 === 1) {
+      const T = norm(sub(C[9], C[7]));
+      const nK = norm(cross(sideK, T));
+      bead(b, add(C[8], scl(nK, Wk * 0.08)), nK, Wk * 0.12, 6, 3, 'glow', 1, swayY(C[8][1]));
+    }
   }
   return b.build();
 }

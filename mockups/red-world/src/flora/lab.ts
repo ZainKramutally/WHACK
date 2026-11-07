@@ -8,6 +8,9 @@ import { buildFloraLibrary, SPECIES } from './index';
 const q = new URLSearchParams(location.search);
 const view = q.get('view') ?? 'lineup';
 const sil = q.get('sil') === '1';
+const low = q.get('cam') === 'low'; // explorer eye height (~2 m) looking up
+// proposal for the scene material: pale (thin) bands transmit light, so undersides keep their pale steps
+const trans = q.get('trans') === '1';
 const seed = Number(q.get('seed') ?? 1234);
 
 const t0 = performance.now();
@@ -22,9 +25,11 @@ plantMat.colorNode = sil
     const base = attribute('color', 'vec3');
     const g = attribute('aGlow', 'float');
     const n = normalWorld;
-    const lit = smoothstep(-0.05, 0.3, n.dot(L));
+    const direct = smoothstep(-0.05, 0.3, n.dot(L));
+    const lum = base.dot(vec3(0.2126, 0.7152, 0.0722));
+    const lit = trans ? max(direct, lum.mul(0.8).mul(max(n.y.negate(), float(0)))) : direct;
     const shade = mix(base.mul(color(PALETTE.shadow)).mul(1.6), base, lit);
-    const bounce = color(PALETTE.red).mul(max(n.y.negate(), float(0)).mul(0.25));
+    const bounce = color(PALETTE.red).mul(max(n.y.negate(), float(0)).mul(0.4)); // red ground bounce on undersides
     const c = shade.add(bounce.mul(base.add(0.2)));
     return mix(c, color(PALETTE.glow).mul(1.4), g);
   })();
@@ -72,15 +77,22 @@ if (view === 'grid') {
   const scene = makeScene();
   const fig = figure();
   scene.add(fig);
-  const cam = new THREE.PerspectiveCamera(32, cw / ch, 0.05, 50000);
+  const cam = new THREE.PerspectiveCamera(low ? 58 : 32, cw / ch, 0.05, 50000);
   for (const a of lib.archetypes) {
     const col = SPECIES.findIndex((s) => s.id === a.species), row = a.variant;
     const mesh = new THREE.Mesh(a.geometry, plantMat);
     scene.add(mesh);
     const h = a.height, r = Math.max(a.radius, h * 0.3);
     const fit = Math.max(h * 1.3, r * 2.4 * (ch / cw)) / 2 / Math.tan((cam.fov * Math.PI) / 360);
-    cam.position.set(0, h * 0.18, fit * 1.0);
-    cam.lookAt(0, h * 0.55, 0);
+    if (low) {
+      // stand ~0.7 h away at eye height 2 m (or half the plant for ground cover) and look up
+      const eye = Math.min(2, h * 0.45);
+      cam.position.set(0, eye, Math.max(h * 0.62, r * 1.25) + r * 0.3);
+      cam.lookAt(0, h * 0.62, 0);
+    } else {
+      cam.position.set(0, h * 0.18, fit * 1.0);
+      cam.lookAt(0, h * 0.55, 0);
+    }
     fig.position.set(Math.max(r * 0.9, 1.2), 0, r * 0.4);
     renderer.render(scene, cam);
     ctx.drawImage(renderer.domElement, col * cw, row * ch);
@@ -99,22 +111,31 @@ if (view === 'grid') {
   const scene = makeScene();
   let x = 0;
   const gap = 6;
+  const xs: number[] = [];
   for (const a of lib.archetypes) {
     const r = Math.max(a.radius, 0.6);
     x += r;
     const m = new THREE.Mesh(a.geometry, plantMat);
     m.position.x = x;
+    xs.push(x);
     scene.add(m);
     const f = figure();
     f.position.set(x + r * 0.7 + 0.5, 0, r * 0.6 + 1);
     scene.add(f);
     x += r + gap;
   }
-  const cam = new THREE.PerspectiveCamera(24, innerWidth / innerHeight, 1, 60000);
-  const cx = x / 2;
-  const dist = (x * 1.04) / 2 / Math.tan((cam.fov * Math.PI) / 360) / cam.aspect;
-  cam.position.set(cx, 12, dist);
-  cam.lookAt(cx, 75, 0);
+  const cam = new THREE.PerspectiveCamera(low ? 62 : 24, innerWidth / innerHeight, 1, 60000);
+  if (low) {
+    // 2 m eye height, close under the titans + coil spires, looking up at the caps
+    const x0 = xs[0] - 40, x1 = xs[7] + 20, cx = (x0 + x1) / 2;
+    cam.position.set(cx, 2, 210);
+    cam.lookAt(cx, 70, 0);
+  } else {
+    const cx = x / 2;
+    const dist = (x * 1.04) / 2 / Math.tan((cam.fov * Math.PI) / 360) / cam.aspect;
+    cam.position.set(cx, 12, dist);
+    cam.lookAt(cx, 75, 0);
+  }
   renderer.render(scene, cam);
   renderer.setAnimationLoop(() => renderer.render(scene, cam));
   (window as any).__ready = true;

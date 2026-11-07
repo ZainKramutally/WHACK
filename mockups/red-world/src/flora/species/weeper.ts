@@ -28,9 +28,10 @@ export function weeper(rng: Rng, variant: number) {
     const dir: V3 = [Math.cos(a), 0, Math.sin(a)];
     const hk = H * (k === 0 ? 1 : rng.range(0.7, 0.9));
     // crozier spine: tangent angle sweeps up -> over -> down -> curls back into a spiral (fiddlehead)
-    const bend = 2.3 * c.reach, coil = 5.5 + c.curl * 5;
-    const theta = (u: number) => Math.PI / 2 - bend * Math.pow(u, 1.6) - coil * Math.pow(u, 7);
-    const raw = curl([0, 0, 0], dir, 1, 44, theta);
+    // rise and arch over (bend), then from u0 a tightening spiral (~1.5 turns) curling back under the arc
+    const bend = 3.9 + 0.3 * c.reach, u0 = 0.65, coil = 50 + 30 * c.curl;
+    const theta = (u: number) => Math.PI / 2 - bend * Math.pow(u, 1.5) - coil * Math.pow(Math.max(0, u - u0), 2);
+    const raw = curl([0, 0, 0], dir, 1, 56, theta);
     const top = Math.max(...raw.map((p) => p[1]));
     const pts = raw.map((p) => scl(p, hk / top));
     // spine: vertebral bands (collar every few rings)
@@ -42,17 +43,19 @@ export function weeper(rng: Rng, variant: number) {
     const vert = (i: number) => i > 2 && i % 3 === 0 && i < nPts - 6;
     sweep(b, pts, {
       segs: 9,
-      radius: (s, i) => rBase * (1 - 0.8 * s) * (vert(i) ? 1.35 : 1),
+      radius: (s, i) => rBase * (1 - 0.72 * s) * (vert(i) ? 1.35 : 1),
       key: (s, i) => (vert(i) ? (s < 0.4 ? 'blush' : 'maroon') : s < 0.08 ? 'ink' : s < 0.45 ? 'maroon' : 'crimson'),
       sway: (s) => swayS(s),
     });
     // tip droplet pod
     const tip = pts[nPts - 1];
     bead(b, add(tip, [0, -rBase * 0.7, 0]), norm(sub(tip, pts[nPts - 2])), rBase * 0.9, 8, 4, 'glow', 1, 1);
-    // curtain of threads hanging from the arch (s in 0.35..0.97)
+    // curtain of threads hanging from the outer arc only: apex -> where the crozier starts
+    const apex = pts.reduce((m, p, q) => (p[1] > pts[m][1] ? q : m), 0);
+    const sA = Math.max(0.3, S[apex] / Ltot - 0.06), sB = u0 - 0.03;
     const threads = Math.round(c.threads / Math.max(1, k === 0 ? 1 : 1.5));
     for (let t = 0; t < threads; t++) {
-      const sT = 0.32 + 0.48 * (t + rng.range(0, 1)) / threads;
+      const sT = sA + (sB - sA) * (t + rng.range(0, 1)) / threads;
       let i = 1;
       while (i < nPts - 1 && S[i] / Ltot < sT) i++;
       const f = (sT * Ltot - S[i - 1]) / (S[i] - S[i - 1] || 1);
@@ -70,7 +73,7 @@ export function weeper(rng: Rng, variant: number) {
       sweep(b, tp, {
         segs: 3,
         radius: (u) => H * 0.011 * (1 - 0.55 * u),
-        key: (u) => (u < 0.3 ? 'maroon' : u < 0.75 ? 'crimson' : 'blush'),
+        key: (u) => (u < 0.3 ? 'blush' : u < 0.7 ? 'crimson' : 'maroon'), // pale at the arc, dark tips over red ground
         sway: (u) => s0 + (1 - s0) * u,
       });
       if (t % 7 === 3) bead(b, tp[6], [0, -1, 0], H * 0.011, 5, 3, 'glow', 1, 1);

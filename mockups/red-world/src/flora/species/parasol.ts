@@ -4,16 +4,16 @@ import type { PaletteKey } from '../../contracts';
 import { MeshBuilder, add, bead, clamp01, lerp3, norm, revolve, sub, sweep, type ProfilePt, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
-interface Disc { t: number; R: number; cup: number; dome: number; fringe?: number }
+interface Disc { t: number; R: number; cup: number; dome: number; fringe?: number; glowLine?: boolean }
 interface Cfg { H: number; r0: number; lean: number; discs: Disc[]; neckGlow: boolean; crown: boolean; collars: number }
 
 const VARIANTS: Cfg[] = [
   // monarch: one vast cupped cap with a dangling fringe
-  { H: 150, r0: 3.2, lean: 0.10, discs: [{ t: 1, R: 58, cup: 0.08, dome: 0.2, fringe: 22 }], neckGlow: false, crown: false, collars: 4 },
+  { H: 150, r0: 3.2, lean: 0.10, discs: [{ t: 1, R: 58, cup: 0.08, dome: 0.2, fringe: 22, glowLine: true }], neckGlow: false, crown: false, collars: 4 },
   // pagoda: three tiers shrinking upward
   { H: 170, r0: 3.6, lean: 0.05, discs: [{ t: 0.6, R: 50, cup: 0.07, dome: 0.03 }, { t: 0.8, R: 36, cup: 0.09, dome: 0.03 }, { t: 1, R: 22, cup: 0.12, dome: 0.12 }], neckGlow: true, crown: false, collars: 3 },
   // sapling twin: lean, two caps
-  { H: 72, r0: 1.5, lean: 0.18, discs: [{ t: 0.78, R: 22, cup: 0.12, dome: 0.03 }, { t: 1, R: 12, cup: 0.16, dome: 0.14 }], neckGlow: false, crown: false, collars: 3 },
+  { H: 72, r0: 1.5, lean: 0.18, discs: [{ t: 0.78, R: 22, cup: 0.12, dome: 0.03, glowLine: true }, { t: 1, R: 12, cup: 0.16, dome: 0.14 }], neckGlow: false, crown: false, collars: 3 },
   // sentinel: needle stalk with four plates and a glowing crown
   { H: 180, r0: 2.4, lean: 0.04, discs: [{ t: 0.55, R: 26, cup: 0.05, dome: 0.02 }, { t: 0.7, R: 32, cup: 0.06, dome: 0.02 }, { t: 0.84, R: 24, cup: 0.08, dome: 0.02 }, { t: 0.95, R: 14, cup: 0.12, dome: 0.06 }], neckGlow: true, crown: true, collars: 5 },
 ];
@@ -49,9 +49,9 @@ export function parasolTitan(rng: Rng, variant: number) {
   ts.sort((a, b) => a - b);
   const bandKey = (t: number): PaletteKey => {
     if (bump.has(t) && bump.get(t)! > 1.2) return t < 0.45 ? 'blush' : 'maroon';
-    if (t < 0.045) return 'ink';
-    if (t < 0.32) return 'maroon';
-    if (t < 0.7) return 'crimson';
+    if (t < 0.09) return 'ink';
+    if (t < 0.36) return 'maroon';
+    if (t < 0.68) return 'crimson';
     return 'blush';
   };
   const pts = ts.map(path);
@@ -92,27 +92,30 @@ export function parasolTitan(rng: Rng, variant: number) {
   return b.build();
 }
 
+const FLARE = 0.2; // rim upturn as a fraction of disc radius
+
 function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, swayY: (y: number) => number, H: number) {
   const { R, cup, dome } = d;
   const th = R * 0.035;
-  const K = 6;
   const gill = R * 0.045;
   const pleat = (amp: number) => (j: number) => (j % 2 ? amp : -amp);
   const zig = (amp: number) => (j: number) => 1 + (j % 2 ? amp : -amp);
   const sw = (r: number, y: number) => clamp01(swayY(o[1] + y) + 0.25 * (r / R));
   const prof: ProfilePt[] = [];
-  // underside, outward
-  for (let k = 0; k <= K; k++) {
-    const f = k / K;
+  // underside, outward: stepped bands darkest at the stalk, pale toward the rim (reads from a low camera)
+  const bands: [number, PaletteKey][] = [[0, 'maroon'], [0.14, 'crimson'], [0.3, 'crimson'], [0.47, 'blush'], [0.64, 'blush'], [0.78, 'bone'], [0.9, 'bone'], [1, 'maroon']];
+  if (d.glowLine) bands.splice(3, 0, [0.452, 'glow']);
+  bands.forEach(([f, key], k) => {
     const r = rs * 0.9 + (R - rs * 0.9) * f;
-    const y = -0.12 * R * Math.pow(1 - f, 1.6) + cup * R * f * f;
-    prof.push({ r, y, key: k <= 1 ? 'maroon' : k === K ? 'maroon' : k === K - 1 ? 'blush' : 'crimson', sway: sw(r, y), lift: k > 0 ? pleat(gill * f) : undefined, crease: k === K });
-  }
+    const y = -0.12 * R * Math.pow(1 - f, 1.6) + cup * R * f * f + FLARE * R * Math.pow(f, 5); // rim flares up so the pale band catches light from below
+    const g = key === 'glow' ? 1 : 0;
+    prof.push({ r, y, key, glow: g, sway: sw(r, y), lift: k > 0 ? pleat(gill * f) : undefined, crease: f === 1 });
+  });
   // lip (zigzag rim)
-  prof.push({ r: R * 1.025, y: cup * R + th * 0.5, key: 'maroon', sway: sw(R, cup * R), crease: true, mod: zig(0.025), lift: pleat(gill) });
+  prof.push({ r: R * 1.025, y: cup * R + FLARE * R + th * 0.5, key: 'maroon', sway: sw(R, cup * R), crease: true, mod: zig(0.025), lift: pleat(gill) });
   // top, inward
   const tops: [number, PaletteKey][] = [[0.97, 'blush'], [0.86, 'bone'], [0.6, 'bone'], [0.35, 'bone'], [0.12, 'bone']];
-  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: th + cup * R * f * f + dome * R * (1 - f) * (1 - f), key, sway: sw(R * f, cup * R), crease: i === 0 }));
+  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: th + cup * R * f * f + FLARE * R * Math.pow(f, 5) + dome * R * (1 - f) * (1 - f), key, sway: sw(R * f, cup * R), crease: i === 0 }));
   prof.push({ r: 0, y: th + dome * R, key: 'bone', sway: sw(0, dome * R) });
   revolve(b, o, axis, prof, 48, rng.range(0, 1));
   // dangling fringe filaments from the rim underside
@@ -120,7 +123,8 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
     for (let k = 0; k < d.fringe; k++) {
       const a = (k / d.fringe) * Math.PI * 2 + rng.range(-0.1, 0.1);
       const rr = R * rng.range(0.82, 0.97);
-      const top: V3 = add(o, [Math.cos(a) * rr, cup * R * 0.8, Math.sin(a) * rr]);
+      const fu = (rr - rs * 0.9) / (R - rs * 0.9);
+      const top: V3 = add(o, [Math.cos(a) * rr, -0.12 * R * Math.pow(1 - fu, 1.6) + cup * R * fu * fu + FLARE * R * Math.pow(fu, 5) + gill * 0.5, Math.sin(a) * rr]);
       const L = H * rng.range(0.12, 0.3);
       const pts: V3[] = [];
       for (let i = 0; i <= 6; i++) {

@@ -89,4 +89,44 @@ describe('flora library', () => {
       expect(glowArea / area).toBeLessThan(0.08);
     });
   }
+
+  // value inverts with height: dark bases separate from red ground, lighter tops separate from white sky
+  const lum = (c: ArrayLike<number>, i: number) => 0.2126 * c[i * 3] + 0.7152 * c[i * 3 + 1] + 0.0722 * c[i * 3 + 2];
+  for (const arch of lib.archetypes) {
+    it(`value inverts with height: ${arch.species}#${arch.variant}`, () => {
+      const g = arch.geometry, pos = g.attributes.position.array, col = g.attributes.color.array;
+      const n = pos.length / 3, h = arch.height;
+      const bad: string[] = [];
+      let loSum = 0, loN = 0, hiSum = 0, hiN = 0;
+      for (let i = 0; i < n; i++) {
+        const y = pos[i * 3 + 1] / h, k = keyOf(col, i);
+        if (y < 0.04 && k !== 'ink' && k !== 'maroon') bad.push(`${i}: ${k} at base`);
+        if (y > 0.85 && k === 'ink') bad.push(`${i}: ink near top`);
+        if (y < 0.2) { loSum += lum(col, i); loN++; }
+        if (y > 0.5) { hiSum += lum(col, i); hiN++; }
+        if (bad.length > 5) break;
+      }
+      expect(bad).toEqual([]);
+      if (loN && hiN) expect(loSum / loN).toBeLessThan(hiSum / hiN);
+    });
+  }
+
+  it('parasol undersides step pale toward the rim, with glow under 5% of area', () => {
+    for (const arch of lib.bySpecies('parasolTitan')) {
+      const g = arch.geometry, nor = g.attributes.normal.array, col = g.attributes.color.array, pos = g.attributes.position.array;
+      const glow = g.attributes.aGlow.array, idx = g.index.array;
+      const down = new Set<PaletteKey>();
+      for (let i = 0; i < pos.length / 3; i++) if (nor[i * 3 + 1] < -0.5 && pos[i * 3 + 1] > arch.height * 0.3) down.add(keyOf(col, i)!);
+      for (const k of ['maroon', 'crimson', 'blush', 'bone'] as PaletteKey[]) expect(down.has(k), `${arch.variant}: no down-facing ${k}`).toBe(true);
+      let area = 0, glowArea = 0;
+      for (let t = 0; t < idx.length; t += 3) {
+        const [a, b, c] = [idx[t], idx[t + 1], idx[t + 2]];
+        const u = [0, 1, 2].map((q) => pos[b * 3 + q] - pos[a * 3 + q]), v = [0, 1, 2].map((q) => pos[c * 3 + q] - pos[a * 3 + q]);
+        const ar = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2;
+        area += ar;
+        if (glow[a] > 0 && glow[b] > 0 && glow[c] > 0) glowArea += ar;
+      }
+      expect(glowArea / area).toBeLessThan(0.05);
+    }
+  });
 });
