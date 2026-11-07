@@ -1,11 +1,11 @@
 // App wiring: one runnable flow. Boots straight into a world (carbon by default, ?world=silicon) until the
 // selection screen lands. Order matters: build and subscribe everything, THEN emit world:selected.
 import { bus, type Bus } from './bus';
-import { createTerrain, spawnPoint, type Terrain } from './gen/terrain';
+import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { buildVisualInputs, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
-import { startStubSim } from './stubSim';
+import { startStubSim, type StubSimOptions } from './stubSim';
 import { mountWorldUI } from './ui';
 import { controlList, worldFor } from './worlds';
 import type { Conditions, InspectTarget, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
@@ -13,7 +13,7 @@ import type { Conditions, InspectTarget, SimSnapshot, VisualInputs, WorldConfig,
 // ---- injection points (swap each with one line) ----
 
 /** Sim: replace with `import { startSim } from './sim/client'` when the real client lands. Must return a stop function. */
-const startSim: (b: Bus) => () => void = startStubSim;
+const startSim: (b: Bus, opts?: StubSimOptions) => () => void = startStubSim;
 
 /** Terrain: the real analytic sampler (gen/terrain.ts); falls back to flat ground if its config is rejected. */
 function createTerrainSampler(world: WorldConfig): TerrainSampler | Terrain {
@@ -38,6 +38,23 @@ type PickResult = { target: InspectTarget; at: { x: number; y: number } } | null
 type PickFn = (at: { x: number; y: number } | 'reticle') => PickResult;
 function createPicker(_app: Awaited<ReturnType<typeof createApp>>): PickFn {
   return () => null;
+}
+
+/** Stub-sim sea level from the terrain (cached per 2% of build progress and whole % of sea cover). The real sim does this itself. */
+function stubSeaLevel(terrain: TerrainSampler | Terrain, world: WorldConfig) {
+  if (!('relics' in terrain)) return undefined;
+  const cache = new Map<string, number>();
+  return (progress: number, stats: Record<string, number>) => {
+    const snap = { buildProgress: progress, stats } as SimSnapshot;
+    const cover = Math.round(stats.seaCover ?? 0);
+    const key = `${Math.round(progress * 50)}:${cover}`;
+    let v = cache.get(key);
+    if (v === undefined) {
+      v = seaLevelForCover(terrain, terrainState(snap, world), cover / 100);
+      cache.set(key, v);
+    }
+    return v;
+  };
 }
 
 // ---- boot ----
@@ -120,7 +137,7 @@ async function boot() {
   (window as unknown as { player: unknown }).player = player;
 
   // Everything is subscribed: start the sim, then select the world.
-  startSim(bus);
+  startSim(bus, { seaLevel: stubSeaLevel(terrain, world) });
   bus.emit('world:selected', { worldId, requested });
 }
 

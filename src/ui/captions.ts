@@ -29,7 +29,7 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig)
   const limitReason = (id: string) => {
     const l = world.limits.find((x) => x.id === id);
     if (!l) return null;
-    return world.status === 'speculative' ? `${l.reason} (speculative)` : l.reason;
+    return world.status === 'speculative' && !/speculative/i.test(l.reason) ? `${l.reason} (speculative)` : l.reason;
   };
 
   const offs = [

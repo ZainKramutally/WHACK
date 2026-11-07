@@ -42,7 +42,7 @@ export function mountConditions(
   const limitReason = (id?: string): string => {
     const l = world.limits.find((x) => x.id === id);
     if (!l) return 'Life cannot survive there';
-    return speculative ? `${l.reason} (speculative)` : l.reason;
+    return speculative && !/speculative/i.test(l.reason) ? `${l.reason} (speculative)` : l.reason;
   };
 
   function showReason(v: SliderView, text: string) {

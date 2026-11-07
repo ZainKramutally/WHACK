@@ -10,7 +10,12 @@ import type { Conditions, SimSnapshot, WorldConfig } from './worlds/types';
 const DT = 1 / 20;
 const LIMITS_ENV = { controls: controlList };
 
-export function startStubSim(bus: Bus): () => void {
+export interface StubSimOptions {
+  /** Sea level in metres for the current build progress and stats (the real sim uses seaLevelForCover). Default 0. */
+  seaLevel?(buildProgress: number, stats: Record<string, number>): number;
+}
+
+export function startStubSim(bus: Bus, opts: StubSimOptions = {}): () => void {
   let timer: ReturnType<typeof setInterval> | undefined;
   let world: WorldConfig | undefined;
   let cond: Conditions;
@@ -21,7 +26,7 @@ export function startStubSim(bus: Bus): () => void {
   function snapshot(): SimSnapshot {
     const w = world!;
     const p = Math.min(1, ticks * DT / w.build.durationSec);
-    const stats: Record<string, number> = { seaLevel: 0 };
+    const stats: Record<string, number> = {};
     for (const s of w.stats) {
       const t = w.targets[s.id];
       const start = s.id in cond ? cond[s.id as keyof Conditions] : s.earthValue;
@@ -29,6 +34,7 @@ export function startStubSim(bus: Bus): () => void {
     }
     // Sliders are the live conditions: temperature/nitrogen/oxygen read straight from them.
     Object.assign(stats, { temperature: cond.temperature, nitrogen: cond.nitrogen, oxygen: cond.oxygen });
+    stats.seaLevel = opts.seaLevel?.(p, stats) ?? 0;
     return {
       worldId: w.id,
       timeSec: ticks * DT,
