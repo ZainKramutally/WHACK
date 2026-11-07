@@ -137,7 +137,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 - 15 genes: the 12 body genes (DECISIONS G.1) plus the 3 climate genes already built in `population.ts`. A new gene costs a removal.
 - ≤ 25 sim constants, all in `src/sim/constants.ts`.
 - One 64² world grid, ticking at a fixed 20 Hz.
-- No cheats and no preset code.
+- No cheats and no preset code. One declared exception, by owner ruling (issue #6): **spores**. A dormant bank of up to 24 recent-survivor genomes germinates when conditions become viable again after a population crash.
 - Rendering is read-only.
 - A new rule or feature ships only if a headless A/B raises a §A variety or readability metric.
 - Parked ideas go to `docs/NOT_NOW.md`.
@@ -645,6 +645,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - Hunger as plant scarcity
   - grazing that takes only a share
   - consumer interference
+  - spores: a dormant bank of recent survivors that germinates after a crash (owner override of the no-rescue guardrail, `assumption: true`)
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
 - **Illustrations (render-only):** the particle box, the counterpart render in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 3.5 m × (size ÷ 0.15)^0.6, so a 0.18 m founder worm draws about 4 m long; the size order is kept but the ~64× real range is compressed to ~9× so creatures read from the follow camera.
 
