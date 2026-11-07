@@ -50,6 +50,13 @@ export function baseHeight(x: number, z: number): number {
   h += fbm(x / 520, z / 520, 4, SEED) * 13 * smoothstep(80, 600, camD);            // broad swells away from camera
   h += Math.max(0, fbm(x / 260, z / 180, 3, SEED + 5)) * 34 * smoothstep(520, 1100, camD) * (1 - smoothstep(2500, 4000, camD)); // far dune ridges
   h += Math.max(0, fbm(x / 70, z / 45, 3, SEED + 6)) * 11 * smoothstep(160, 300, camD) * (1 - smoothstep(520, 720, camD)); // hummocks break the crest
+  {
+    // a low wind-cut fold on the right bank in the hero frame's bottom-right: its lit crest breaks the dark foreground
+    const ax = 4, az = -4, bx = 22, bz = -34, dx = bx - ax, dz = bz - az;
+    const u = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    const dl = Math.hypot(x - ax - dx * u, z - az - dz * u);
+    if (dl < 8) h += 1.3 * Math.sin(Math.PI * u) ** 0.6 * Math.max(0, 1 - dl / 3.2) ** 1.5;
+  }
   h += fbm(x / 110, z / 110, 4, SEED + 3) * 3.2;                                    // medium ripples
   h += fbm(x / 22, z / 22, 3, SEED + 9) * 0.55;                                     // small lumps
   h += smoothstep(600, 4500, camD) * 70;                                              // far ground rises into the ranges

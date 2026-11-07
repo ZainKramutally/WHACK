@@ -153,7 +153,7 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   { species: 'lanternPods', variant: 2, x: -3.5, z: -88, h: 5, yaw: 0.4 },
   { species: 'lanternPods', variant: 0, x: -12.0, z: -72.2, h: 3.4, yaw: 2.4 }, // right beside him
   // one clean foreground silhouette on the right: a big rib fan cropped by the frame edge
-  { species: 'ribFan', variant: 1, x: 8.3, z: -11.2, h: 3.9, yaw: -0.3 },
+  { species: 'ribFan', variant: 1, x: 8.3, z: -11.2, h: 3.0, yaw: -0.3 },
   { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
 ];
 
