@@ -65,6 +65,8 @@ export const PRESETS: Preset[] = [
         { kind: 'cluster', species: 'lanternCups', pos: [-2.5, -6], radius: 5, count: 40, scale: 1.4 },
         { kind: 'cluster', species: 'lanternCups', pos: [4, -14], radius: 6, count: 60 },
         { kind: 'cluster', species: 'lanternCups', pos: [-9, -35], radius: 8, count: 80 },
+        { kind: 'cluster', species: 'lanternCups', pos: [-2.6, -7], radius: 2.2, count: 22, scale: 1.25 },   // pin: left foreground colony
+        { kind: 'cluster', species: 'lanternCups', pos: [2.8, -8], radius: 2.4, count: 26, scale: 1.25 },    // pin: right foreground colony
       ],
       figure: { pos: [1, -62], height: 1.75 },
     },
@@ -87,8 +89,8 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [3, -30], [0, -80]],
       valleyWidth: 30,
       landmarks: [
-        { kind: 'cluster', species: 'glowStalks', pos: [6, -34], radius: 8, count: 150, scale: 1 },
-        { kind: 'cluster', species: 'glowStalks', pos: [-2, -24], radius: 5, count: 36, scale: 0.15 },
+        { kind: 'cluster', species: 'glowStalks', pos: [7, -50], radius: 9, count: 240, scale: 1 },
+        { kind: 'cluster', species: 'glowStalks', pos: [-2, -26], radius: 5, count: 36, scale: 0.15 },
         { kind: 'dome', pos: [16, -48], radius: 18, stack: 3 },
         { kind: 'dome', pos: [-14, -58], radius: 26, stack: 2 },
         { kind: 'dome', pos: [30, -70], radius: 22, stack: 2 },

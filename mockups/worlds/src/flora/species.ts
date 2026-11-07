@@ -8,7 +8,7 @@ import type { Landmark, SpeciesId, Vec2, WorldContext } from '../contracts';
 import * as S from './shapes';
 import type { MeshData } from './meshdata';
 import { Inst, FloraMesh, buildInstanced } from './build';
-import { Rng, Valley, gauss, makeValley, powerLaw, thomas, valleyPoint } from './placement';
+import { Rng, Valley, distToValley, gauss, makeValley, powerLaw, thomas, valleyPoint } from './placement';
 import { aAux, aRand, boost, floraPosition } from './nodes';
 
 export interface Env { ctx: WorldContext; rng: Rng; valley: Valley; q: number; lm: Landmark[]; vw: number; ownUniforms: { capWidth: any; stalkHeight: any } }
@@ -58,7 +58,7 @@ function scatter(env: Env, o: ScatterOpts): Inst[] {
 }
 
 /** Hero `cluster` landmarks for one species: always present, but persist longer as the niche shrinks (rand ≤ 0.6). */
-function clusters(env: Env, id: SpeciesId, size: (rng: Rng, mul: number) => number, group0 = 100): Inst[] {
+function clusters(env: Env, id: SpeciesId, size: (rng: Rng, mul: number) => number, group0 = 100, clearHalf = 0): Inst[] {
   const out: Inst[] = [];
   env.lm.forEach((l, li) => {
     if (l.kind !== 'cluster' || l.species !== id) return;
@@ -66,7 +66,7 @@ function clusters(env: Env, id: SpeciesId, size: (rng: Rng, mul: number) => numb
       total: n0(l.count, env), parents: Math.max(2, Math.ceil(l.count / 30)), sigma: l.radius * 0.14,
       parentAt: (r) => { const a = r() * TAU, d = Math.sqrt(r()) * l.radius * 0.75; return [l.pos[0] + Math.cos(a) * d, l.pos[1] + Math.sin(a) * d]; },
     });
-    for (const p of pts) out.push({ x: p.x, z: p.z, scale: size(env.rng, l.scale ?? 1), yaw: env.rng() * TAU, rand: env.rng() * 0.6, group: group0 + li * 40 + p.parent });
+    for (const p of pts) if (!clearHalf || distToValley(env.valley, p.x, p.z) > clearHalf || env.rng() < 0.15) out.push({ x: p.x, z: p.z, scale: size(env.rng, l.scale ?? 1), yaw: env.rng() * TAU, rand: env.rng() * 0.6, group: group0 + li * 40 + p.parent });
   });
   return out;
 }
@@ -83,9 +83,9 @@ export function lanternCups(env: Env): SpeciesBuild {
   const { ctx } = env, u = ctx.uniforms;
   const size = (r: Rng, mul: number) => Math.min(4.5, powerLaw(r, 0.3, 1.9, 2.6) * Math.min(mul, 1.25));
   const insts = [
-    ...clusters(env, 'lanternCups', size),
+    ...clusters(env, 'lanternCups', size, 100, 1.1),
     ...scatter(env, {
-      n: 280, parents: 22, sMin: 0, sMax: 80, sPow: 1.7, latMin: 1.0, latSpread: Math.max(6, env.vw * 0.3), sigma: 1.8,
+      n: 380, parents: 30, sMin: 0, sMax: 90, sPow: 1.5, latMin: 2.0, latSpread: Math.max(5, env.vw * 0.22), sigma: 1.2, wMax: 25,
       size: (r) => size(r, 1), clearHalf: 1.3, clearP: 0.85, yOff: () => -0.04,
     }),
   ];
@@ -101,9 +101,10 @@ export function lanternCups(env: Env): SpeciesBuild {
   const breath = float(0.8).add(sin(time.mul(0.9).add(phase.mul(TAU))).mul(0.2));
   const gk = mix(0.6, 1.0, saturate(u.glow.mul(1.5)));
   const hue = pink(u);
+  const hueTop = mix(hue, vec3(1.0, 0.7, 0.8), smoothstep(0.55, 1.0, positionGeometry.y).mul(0.55));
   const bodyMask = smoothstep(0.3, 0.62, positionGeometry.y); // stalk dimmer than cup
   const e = mix(0.6, 2.7, vein).mul(mix(1.0, 1.45, inside)).mul(mix(0.25, 1.0, bodyMask)).add(rim.mul(1.6));
-  const emissive = hue.mul(e).mul(breath).mul(gk);
+  const emissive = hueTop.mul(e).mul(breath).mul(gk);
   const col = mix(hue.mul(0.35), hue.mul(0.7), bodyMask.mul(0.6).add(inside.mul(0.4)));
   const mat = ctx.materials.create({
     color: col, emissive,
@@ -134,15 +135,15 @@ export function frostFans(env: Env): SpeciesBuild {
 
 export function glowStalks(env: Env): SpeciesBuild {
   const { ctx, ownUniforms } = env, u = ctx.uniforms;
-  const size = (r: Rng, mul: number) => (r() < 0.16 ? 0.8 + r() * 3 : powerLaw(r, 8, 25, 1.35)) * Math.min(1.2, mul);
+  const size = (r: Rng, mul: number) => { const u = r(); return (u < 0.2 ? 0.8 + r() * 2.5 : u < 0.42 ? 3 + r() * 5 : powerLaw(r, 8, 25, 1.9)) * Math.min(1.2, mul); };
   const insts = [
-    ...clusters(env, 'glowStalks', size, 200),
+    ...clusters(env, 'glowStalks', size, 200, 1.5),
     ...scatter(env, {
       n: 260, parents: 11, sMin: 6, sMax: 100, sPow: 1.3, latMin: 2, latSpread: Math.max(7, env.vw * 0.35), sigma: 2.4, group0: 300,
       size: (r) => size(r, 1), clearHalf: 2.5, clearP: 0.7, yOff: () => -0.05,
     }),
   ];
-  for (const i of insts) if (i.scale > 3 && Math.hypot(i.x - ctx.camera.position.x, i.z - ctx.camera.position.z) < 18) i.scale = 0.8 + env.rng() * 2.4;
+  for (const i of insts) if (i.scale > 3 && Math.hypot(i.x - ctx.camera.position.x, i.z - ctx.camera.position.z) < 26) i.scale = 0.8 + env.rng() * 2.4;
   const aux = aAux();
   const capMask = smoothstep(0.2, 0.5, aux.w), under = smoothstep(0.75, 1.0, aux.w);
   const v = fract(aRand().mul(37.3));
@@ -224,11 +225,11 @@ export function mossDomes(env: Env): SpeciesBuild {
 export function shadeRibbons(env: Env): SpeciesBuild {
   const { ctx } = env, u = ctx.uniforms;
   const size = (r: Rng, mul: number) => powerLaw(r, 30, 70, 1.3) * mul;
-  const far = (i: Inst) => Math.hypot(i.x - env.ctx.camera.position.x, i.z - env.ctx.camera.position.z) > 40;
+  const far = (i: Inst) => Math.hypot(i.x - env.ctx.camera.position.x, i.z - env.ctx.camera.position.z) > 75;
   const insts = [
     ...clusters(env, 'shadeRibbons', size, 600).filter(far),
     ...scatter(env, {
-      n: 170, parents: 20, sMin: 50, sMax: 220, sPow: 0.8, latMin: env.vw * 0.35, latSpread: 45, sigma: 9, group0: 700,
+      n: 110, parents: 16, sMin: 60, sMax: 220, sPow: 0.8, latMin: env.vw * 0.35, latSpread: 45, sigma: 9, group0: 700,
       size: (r) => size(r, 1), yOff: () => -1,
     }).filter(far),
   ];

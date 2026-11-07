@@ -7,7 +7,7 @@ import { MB, MeshData, V3, fbm, lathe, merge, tube, vnoise, ProfilePt } from './
 const TAU = Math.PI * 2;
 
 /** eco-04 hero: stalked goblet with flared cup and rolled rim. mask 1 = interior, 0.5 = rim. */
-export function lanternCup(segs = 22): MeshData {
+export function lanternCup(segs = 16): MeshData {
   const mb = new MB();
   const prof: ProfilePt[] = [
     [0, 0, 0], [0.085, 0, 0], [0.07, 0.1, 0], [0.06, 0.2, 0], [0.07, 0.3, 0],
@@ -56,7 +56,7 @@ export function glowStalk(seed = 1): MeshData {
   for (let i = 0; i <= N; i++) {
     const t = i / N, u = 1 - t;
     path.push([2 * u * t * bx + t * t * tx, t * 0.985, 2 * u * t * bz + t * t * tz]);
-    radii.push(0.0058 * (1 - 0.55 * t) * (1 + 1.8 * Math.pow(1 - t, 14)));
+    radii.push(0.0058 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
   }
   tube(mb, path, radii, 5, () => 0);
   const R = 0.034;
