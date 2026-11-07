@@ -143,6 +143,23 @@ resize();
 
 const cycle = P0.cadence > 0 ? 1 / P0.cadence : P0.mode === 'crawl' ? (0.55 * P0.scale) / Math.max(1e-3, P0.speed) : P0.form === 'bell' ? 1 / (P0.breathHz * 0.6) : 4;
 function placeCamera(t: number, mode: 'orbit' | 'side', tc = t) {
+  placeCamera0(t, mode, tc);
+  if (view !== 'sky') besideSubject();
+}
+// the explorer stands beside the subject, off to the side of the view and a little behind it: never between it and the camera
+let explorerPlaced = false;
+function besideSubject() {
+  if (explorerPlaced || !explorers[0]) return;
+  const c = centreOf(0) as number[];
+  const e = Math.max(ext(P0), P0.mode === 'hover' ? 0 : height(P0));
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+  const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  const side = P0.mode === 'hover' ? 0.6 * P0.scale : e * 0.75 + 1.2;
+  explorers[0].position.set(c[0] + right.x * side + dir.x * e * 0.35, -0.05, c[2] + right.z * side + dir.z * e * 0.35);
+  explorers[0].rotation.y = Math.atan2(-dir.x, -dir.z);
+  explorerPlaced = true;
+}
+function placeCamera0(t: number, mode: 'orbit' | 'side', tc = t) {
   const c = centreOf(0) as number[];
   const e = Math.max(ext(P0), height(P0));
   const hh = height(P0);
