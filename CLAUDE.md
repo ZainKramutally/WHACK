@@ -184,7 +184,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 
 Its tests show the comfort band following a warming climate, oxygen-rich air evolving bigger aerobic consumers, silicon life surviving slow warming, and fewer generations in the cold. Each step it takes an `Environment` (temperature, oxygen, light, habitat share, edge stress) and returns producer and consumer biomass as the drivers for the feedbacks.
 
-**The ecology clock.** Caden measured that F needs about 340 sim-seconds for legs, plates, horns and hunters. So the ecology runs about ×4 faster than demo time, set by `timeScale` in config and the same for both worlds. At a quarter of carbon's pace, silicon gets about a quarter of that. In the default run, silicon creatures therefore stay simpler: capsule worms, and perhaps legs and floaters. See open questions.
+**The ecology clock.** Caden measured that F needs about 340 sim-seconds for legs, plates, horns and hunters. So the ecology runs about ×4 faster than demo time, set by `timeScale` in config and the same for both worlds. At a quarter of carbon's pace, silicon gets about a quarter of that. In the default run, silicon creatures therefore stay simpler: capsule worms, and perhaps legs and floaters. See issue #5.
 
 **Presentation, under the clean-screen rule.**
 - **No camera pull-out:** the camera follows the player.
@@ -367,7 +367,7 @@ type WorldStatus = 'known' | 'speculative';
 interface Sourced {
   why: string;             // one plain sentence shown in the UI
   sources: string[];       // ids into sources.ts; may be empty only if assumption is true
-  assumption?: boolean;    // true if not directly sourced; also listed under open questions
+  assumption?: boolean;    // true if not directly sourced; tracked in a GitHub issue
 }
 
 interface StatDef extends Sourced {

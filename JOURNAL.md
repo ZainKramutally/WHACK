@@ -12,3 +12,4 @@
 - ~17:50: session/logic created (.sandboxes/session-logic, from origin/main). CLAUDE.md logic pass + 15-gene budget + backend plan synced (Task 5 split: Caden = genome/develop/constants/guide; eng lead = grid/ecology/relationships/metrics). Red World is the art layer. Contract src/sim/genome.ts. Spawned genome-develop, field-guide.
 - ~17:48: field-guide merged (3186b98), 18 tests green; sandbox removed. genome-develop running.
 - ~17:55: genome-develop merged (38 tests), sandbox removed. Rebased onto 56's DECISIONS (15 constants); life.inputs typed; constants-inputs agent running.
+- ~18:10: open questions + follow-ups moved to GitHub issues #1–#24 (labels: decision, sim, worlds, terrain, player, ui, art-layer, coordination, eng-lead). CLAUDE.md links them.
