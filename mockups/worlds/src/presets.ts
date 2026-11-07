@@ -29,6 +29,12 @@ export const PRESETS: Preset[] = [
         { kind: 'spire', pos: [62, -260], height: 100, radius: 3.5, horns: true },
         { kind: 'spire', pos: [-6, -230], height: 60, radius: 3 },
         { kind: 'spire', pos: [-120, -320], height: 60, radius: 4 },
+        { kind: 'spire', pos: [95, -330], height: 40, radius: 3 },
+        { kind: 'spire', pos: [-190, -400], height: 38, radius: 3 },
+        { kind: 'spire', pos: [140, -440], height: 52, radius: 3.5 },
+        { kind: 'spire', pos: [-60, -500], height: 30, radius: 2.5 },
+        { kind: 'spire', pos: [30, -560], height: 36, radius: 3 },
+        { kind: 'spire', pos: [-250, -520], height: 44, radius: 3.5 },
         { kind: 'spire', pos: [25, -360], height: 45, radius: 4 },
         { kind: 'spire', pos: [-70, -420], height: 35, radius: 4 },
         { kind: 'monolith', pos: [-4.5, -13], height: 6.2 },   // the pin's big left figure
@@ -57,8 +63,8 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [-2, -60], [4, -140], [0, -260]],
       valleyWidth: 34,
       landmarks: [
-        { kind: 'arch', a: [-28, -140], b: [22, -205], apex: 80, radius: 6 },
-        { kind: 'arch', a: [-12, -225], b: [34, -150], apex: 62, radius: 4.8 },
+        { kind: 'arch', a: [-24, -92], b: [18, -142], apex: 66, radius: 5.2 },
+        { kind: 'arch', a: [-10, -158], b: [30, -102], apex: 52, radius: 4.2 },
         { kind: 'wall', pos: [-11, -28], height: 26, width: 8, depth: 8, overhang: true },
         { kind: 'wall', pos: [11, -34], height: 30, width: 9, depth: 9, overhang: true },
         { kind: 'wall', pos: [-44, -100], height: 45, width: 14, depth: 40 },

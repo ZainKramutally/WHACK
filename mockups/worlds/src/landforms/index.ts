@@ -81,8 +81,8 @@ export default function landforms(): WorldModule {
       }
 
       // ------------------------------------------------ materials
-      const stoneMat = (scale: number, porousMul: number, vertex: boolean, fine: boolean, fineSize = 1.8, glow = true) => {
-        const n = poreNodes(u, { scale: float(scale), porousMul, vertex: vertex && !location.search.includes('nopush'), fine, fineSize, glow });
+      const stoneMat = (scale: number, porousMul: number, vertex: boolean, fine: boolean, fineSize = 1.8, glow = true, heightRef?: number, darken?: number) => {
+        const n = poreNodes(u, { scale: float(scale), porousMul, vertex: vertex && !location.search.includes('nopush'), fine, fineSize, glow, heightRef, darken });
         const m = ctx.materials.create({ stone: true, snowCover: true, color: n.tint, emissive: n.emissive, positionNode: n.position });
         disposables.push(m);
         return m;
@@ -117,7 +117,7 @@ export default function landforms(): WorldModule {
             radial: Math.max(40, Math.round(Math.min(220, (2 * Math.PI * lm.radius) / 0.55) * f)) & ~1, rings: Math.round(380 * f), seed: seed + i * 7,
           });
           const porous = lm.porous ? 1 : 0.15;
-          const mesh = addGeo(toGeometry(g), stoneMat(lm.radius / 14, porous, f > 0.5, true), lm.pos[0], lm.pos[1]);
+          const mesh = addGeo(toGeometry(g), stoneMat(lm.radius / 14, porous, f > 0.5, true, 1.8, true, lm.height), lm.pos[0], lm.pos[1]);
           heroSpires.push(mesh);
         } else if (lm.kind === 'wall') {
           const crust = lm.height < 14;
@@ -151,7 +151,7 @@ export default function landforms(): WorldModule {
         const fmat = stoneMat(Rv / 14, 0.25, false, false);
         const per = Math.ceil(nFill / VARIANTS);
         for (let v = 0; v < VARIANTS; v++) {
-          const geo = toGeometry(buildSpire({ H: Hv, R: Rv, erosion: d.erosion, radial: low ? 10 : 14, rings: low ? 24 : 40, seed: seed + 100 + v, bury: 6, horns: false }));
+          const geo = toGeometry(buildSpire({ H: Hv, R: Rv, erosion: d.erosion, radial: low ? 12 : 18, rings: low ? 32 : 56, seed: seed + 100 + v, bury: 6, horns: false }));
           disposables.push(geo);
           const mesh = new THREE.InstancedMesh(geo, fmat, per);
           mesh.frustumCulled = false; mesh.castShadow = false;
@@ -174,21 +174,23 @@ export default function landforms(): WorldModule {
 
       // ------------------------------------------------ crust lumps (acid sponge) along the path edge
       if (tp.acid > 0.4 || tp.snow > 0.3) {
+        const snowyG = tp.snow > tp.acid;
         const geos = [0, 1, 2].map((v) => toGeometry(buildWall({ H: 6, w: 7 + v, d: 6 + v * 0.5, overhang: false, radial: 40, rings: 28, seed: seed + 300 + v })));
-        const cmat = stoneMat(0.3, 1.5, false, true, 0.9, false);
+        const snowy = tp.snow > tp.acid;
+        const cmat = stoneMat(0.3, snowy ? 0.6 : 1.5, false, true, 0.9, false, undefined, snowy ? 0.5 : 1);
         const dummy = new THREE.Object3D();
-        const nC = low ? 30 : 66, per = Math.ceil(nC / 3);
+        const nC = low ? 18 : snowy ? 36 : 66, per = Math.ceil(nC / 3);
         geos.forEach((geo, v) => {
           disposables.push(geo);
           const mesh = new THREE.InstancedMesh(geo, cmat, per);
           mesh.castShadow = true; mesh.receiveShadow = true;
           for (let k = 0; k < per; k++) {
-            const along = 4 + rnd() * 110;
+            const along = snowy ? 14 + rnd() * 120 : 4 + rnd() * 110;
             const { p, dir } = pathAt(comp.valley, along);
             const side = rnd() < 0.5 ? -1 : 1;
-            const lat = side * (halfW * (0.5 + rnd() * 0.9));
+            const lat = side * (halfW * (snowy ? 0.45 + rnd() * 0.6 : 0.5 + rnd() * 0.9));
             const x = p[0] + -dir[1] * lat, z = p[1] + dir[0] * lat;
-            const s = 0.18 + rnd() * rnd() * 0.5;
+            const s = snowy ? 0.45 + rnd() * rnd() * 1.4 : 0.18 + rnd() * rnd() * 0.5;
             dummy.position.set(x, height(x, z), z);
             dummy.rotation.set(0, rnd() * 6.28, 0);
             dummy.scale.set(s, s * (0.7 + rnd() * 0.5), s);
