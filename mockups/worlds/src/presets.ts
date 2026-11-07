@@ -31,7 +31,7 @@ export const PRESETS: Preset[] = [
         { kind: 'spire', pos: [-120, -320], height: 60, radius: 4 },
         { kind: 'spire', pos: [25, -360], height: 45, radius: 4 },
         { kind: 'spire', pos: [-70, -420], height: 35, radius: 4 },
-        { kind: 'monolith', pos: [-4.5, -13], height: 6.2 },   // the pin's big left figure
+        { kind: 'monolith', pos: [-2.7, -14], height: 5.6 },   // the pin's big left figure
         { kind: 'monolith', pos: [3, -62], height: 10 },       // the pin's centre figure
         { kind: 'cluster', species: 'ashScrub', pos: [-9, -22], radius: 12, count: 7, scale: 3 },   // the pin's dark smears, foreground
         { kind: 'cluster', species: 'ashScrub', pos: [18, -45], radius: 16, count: 8, scale: 4 },
@@ -68,6 +68,10 @@ export const PRESETS: Preset[] = [
         { kind: 'cluster', species: 'lanternCups', pos: [-9, -35], radius: 8, count: 80 },
         { kind: 'cluster', species: 'lanternCups', pos: [-2.6, -7], radius: 2.2, count: 22, scale: 1.25 },   // pin: left foreground colony
         { kind: 'cluster', species: 'lanternCups', pos: [2.8, -8], radius: 2.4, count: 26, scale: 1.25 },
+        { kind: 'cluster', species: 'lanternCups', pos: [-5.5, -16], radius: 3, count: 40, scale: 1 },    // side mounds along the valley
+        { kind: 'cluster', species: 'lanternCups', pos: [6.5, -18], radius: 3, count: 44, scale: 1 },
+        { kind: 'cluster', species: 'lanternCups', pos: [-7, -28], radius: 4, count: 50, scale: 1 },
+        { kind: 'cluster', species: 'lanternCups', pos: [8, -30], radius: 4, count: 50, scale: 1 },
         { kind: 'cluster', species: 'lanternCups', pos: [1.9, -5.2], radius: 1.6, count: 16, scale: 1.1 },    // pin: right foreground colony
       ],
       figure: { pos: [1, -62], height: 1.75 },
@@ -93,10 +97,10 @@ export const PRESETS: Preset[] = [
       landmarks: [
         { kind: 'cluster', species: 'glowStalks', pos: [7, -50], radius: 9, count: 240, scale: 1 },
         { kind: 'cluster', species: 'glowStalks', pos: [-2, -26], radius: 5, count: 36, scale: 0.15 },
-        { kind: 'dome', pos: [16, -48], radius: 18, stack: 3 },
-        { kind: 'dome', pos: [-14, -58], radius: 26, stack: 2 },
-        { kind: 'dome', pos: [30, -70], radius: 22, stack: 2 },
-        { kind: 'dome', pos: [-4, -36], radius: 6 },
+        { kind: 'dome', pos: [20, -78], radius: 18, stack: 3 },
+        { kind: 'dome', pos: [-24, -92], radius: 26, stack: 2 },
+        { kind: 'dome', pos: [40, -100], radius: 22, stack: 2 },
+        { kind: 'dome', pos: [-10, -62], radius: 6 },
         { kind: 'cluster', species: 'shadeRibbons', pos: [0, -95], radius: 60, count: 120, scale: 1 },
       ],
       figure: { pos: [-1.5, -22], height: 1.75 },

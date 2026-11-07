@@ -11,7 +11,7 @@ interface Kind {
 const KINDS: Kind[] = [
   { name: 'frost', n: 380, box: [90, 24, 110], drift: [0.35, -0.5, 0.2], size: 0.07, hue: [0.9, 0.97, 1.0], hdr: 0.9, additive: true, forward: 0.4, gate: (c) => c.derived.snow },
   { name: 'spark', n: 240, box: [44, 6, 56], drift: [0.1, 0.25, 0.05], size: 0.09, hue: [1.0, 0.25, 0.55], hdr: 2.2, additive: true, flicker: 1, forward: 0.45, gate: (c) => c.derived.niches.lanternCups },
-  { name: 'spore', n: 200, box: [70, 12, 80], drift: [0.15, 0.35, 0.1], size: 0.1, hue: [0.85, 1.0, 0.7], hdr: 1.4, additive: true, flicker: 0.5, forward: 0.4, gate: (c) => c.derived.life * (1 - c.derived.snow) },
+  { name: 'spore', n: 200, box: [60, 8, 70], drift: [0.1, 0.25, 0.08], size: 0.1, hue: [0.85, 1.0, 0.7], hdr: 1.4, additive: true, flicker: 0.5, forward: 0.4, gate: (c) => c.derived.life * (1 - c.derived.snow) * 0.22 },
   { name: 'ash', n: 220, box: [110, 14, 130], drift: [1.4, -0.25, 0.5], size: 0.1, hue: [0.2, 0.22, 0.22], hdr: 1, additive: false, forward: 0.4, gate: (c) => THREE.MathUtils.smoothstep(c.uniforms.heat.value, 0.55, 0.95) },
 ];
 

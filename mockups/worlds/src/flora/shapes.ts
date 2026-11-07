@@ -18,6 +18,17 @@ export function lanternCup(segs = 16): MeshData {
   return mb.data();
 }
 
+/** eco-04 hero: squat mushroom-dome variant, big cracked glowing top (mask 1 = glowing top). */
+export function lanternDome(segs = 20): MeshData {
+  const mb = new MB();
+  const prof: ProfilePt[] = [
+    [0, 0, 0], [0.09, 0, 0], [0.075, 0.12, 0], [0.07, 0.26, 0], [0.12, 0.36, 0], [0.26, 0.43, 0], [0.4, 0.48, 0], [0.49, 0.55, 0.5],
+    [0.5, 0.64, 1], [0.45, 0.76, 1], [0.35, 0.86, 1], [0.2, 0.94, 1], [0.08, 0.98, 1], [0, 1.0, 1],
+  ];
+  lathe(mb, prof, segs, { radial: (th, i) => 1 + (i > 5 ? 0.05 * Math.sin(6 * th + i) : 0) });
+  return mb.data();
+}
+
 /** eco-04 new: 3 planar coral fans sharing a base at different yaws. Unit height 1. mask = branch level / levels. */
 export function frostFan(seed = 3): MeshData {
   const mb = new MB();
@@ -51,16 +62,16 @@ export function frostFan(seed = 3): MeshData {
 export function glowStalk(seed = 1): MeshData {
   const rng = mulberry32(seed * 977);
   const mb = new MB();
-  const bx = (rng() - 0.5) * 0.14, bz = (rng() - 0.5) * 0.14, tx = bx * 1.6, tz = bz * 1.6;
+  const bx = (rng() - 0.5) * 0.3, bz = (rng() - 0.5) * 0.3, tx = bx * 1.5, tz = bz * 1.5;
   const N = 14, path: V3[] = [], radii: number[] = [];
   for (let i = 0; i <= N; i++) {
     const t = i / N, u = 1 - t;
     path.push([2 * u * t * bx + t * t * tx, t * 0.985, 2 * u * t * bz + t * t * tz]);
-    radii.push(0.0058 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
+    radii.push(0.0072 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
   }
   tube(mb, path, radii, 5, () => 0);
-  const R = 0.034;
-  const cap: ProfilePt[] = [[0.003, -0.01, 1], [0.014, -0.008, 1], [0.028, -0.003, 1], [R, 0.001, 1], [R * 0.96, 0.004, 0.5], [0.022, 0.009, 0.5], [0.009, 0.012, 0.5], [0, 0.0128, 0.5]];
+  const R = 0.04;
+  const cap: ProfilePt[] = [[0.003, -0.012, 1], [0.015, -0.012, 1], [0.03, -0.006, 1], [R, 0.0, 1], [R * 0.95, 0.007, 0.5], [0.033, 0.017, 0.5], [0.02, 0.023, 0.5], [0.008, 0.026, 0.5], [0, 0.027, 0.5]];
   const top = path[N];
   lathe(mb, cap, 12, { center: [top[0], top[1] + 0.005, top[2]] });
   return mb.data();
@@ -114,7 +125,7 @@ export function shadeRibbon(seed = 1): MeshData {
 }
 
 /** eco-14 new: tuft of hair-thin straight cilia, ~1 m unit. mask = t along the hair. */
-export function glassWhiskers(seed = 1, hairs = 22): MeshData {
+export function glassWhiskers(seed = 1, hairs = 22, thick = 1): MeshData {
   const rng = mulberry32(seed * 53);
   const mb = new MB();
   for (let k = 0; k < hairs; k++) {
@@ -124,7 +135,7 @@ export function glassWhiskers(seed = 1, hairs = 22): MeshData {
     const d: V3 = [Math.sin(tilt) * Math.cos(dir), Math.cos(tilt), Math.sin(tilt) * Math.sin(dir)];
     const o: V3 = [Math.cos(a) * rr, 0, Math.sin(a) * rr];
     const path: V3[] = [0, 0.5, 1].map((t) => [o[0] + d[0] * len * t, d[1] * len * t, o[2] + d[2] * len * t] as V3);
-    tube(mb, path, [0.006, 0.0035, 0], 3, (t) => t);
+    tube(mb, path, [0.006 * thick, 0.0035 * thick, 0], 3, (t) => t);
   }
   return mb.data();
 }
@@ -178,13 +189,13 @@ export function blackMonolith(seed = 1): MeshData {
 export function ashMat(seed = 1): MeshData {
   const mb = new MB();
   const S = 26, RING = 5, rows: number[][] = [];
-  const stretch = 0.5 + 0.2 * vnoise(seed, 1, 2);
+  const stretch = 0.38 + 0.14 * vnoise(seed, 1, 2);
   rows.push([mb.v([0, 0.045, 0], [0, 1, 0], 0)]);
   for (let r = 1; r <= RING; r++) {
     const row: number[] = [];
     for (let j = 0; j <= S; j++) {
       const th = (j / S) * TAU, cs = Math.cos(th), sn = Math.sin(th);
-      const edge = 0.5 * (0.72 + 0.55 * fbm(cs * 1.6 + seed, sn * 1.6, seed * 0.7, 3));
+      const edge = 0.5 * (0.45 + 1.0 * fbm(cs * 2.6 + seed, sn * 2.6, seed * 0.7, 4)) * (1 + 0.2 * Math.sin(th * 5 + seed));
       const rho = r / RING, rad = edge * rho;
       const h = 0.045 * (1 - rho * rho * 0.9) + 0.012 * vnoise(cs * rho * 6 + seed, sn * rho * 6, 3) - (r === RING ? 0.03 : 0);
       row.push(mb.v([cs * rad, Math.max(0.003, h), sn * rad * stretch], [0, 1, 0], rho));
