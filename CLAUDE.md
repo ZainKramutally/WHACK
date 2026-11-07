@@ -135,7 +135,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 - ≤ 12 sim rules, one in and one out.
 - One of every system: one utility loop, one `develop()`, one ledger, and no per-species code.
 - 15 genes: the 12 body genes (DECISIONS G.1) plus the 3 climate genes already built in `population.ts`. A new gene costs a removal.
-- ≤ 25 sim constants, all in `src/sim/constants.ts`.
+- ≤ 25 sim **tunables**, all in `src/sim/constants.ts`. A tunable is any value where ×0.5–×2 moves a pass-bar metric beyond seed noise. Implementation constants (cadences, caps, search resolution, refresh triggers, physics constants, field-guide label thresholds) are exempt but listed in DECISIONS §G.2. World facts go in world config, not here.
 - One 64² world grid, ticking at a fixed 20 Hz.
 - No cheats and no preset code. One declared exception, by owner ruling (issue #6): **spores**. A dormant bank of up to 24 recent-survivor genomes germinates when conditions become viable again after a population crash.
 - Rendering is read-only.
