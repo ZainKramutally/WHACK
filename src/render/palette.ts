@@ -47,10 +47,11 @@ export function skyStyle(starType: string, light: number, pressureBar: number, t
   const haze = clamp01(Math.log10(Math.max(0.05, pressureBar)) * 0.6);
   const horizonHazed = mixHex(horizon, mixHex(C.haze, S.haze, cold), haze * 0.5);
   const dim = 0.12 + 0.88 * brightness;
+  const k = Math.pow(dim, 1 / 2.2);   // dim is a linear-light factor; hex colours are sRGB
   return {
-    zenith: scaleHex(zenith, dim),
-    horizon: scaleHex(horizonHazed, dim),
-    fog: scaleHex(horizonHazed, dim),
+    zenith: scaleHex(zenith, k),
+    horizon: scaleHex(horizonHazed, k),
+    fog: scaleHex(horizonHazed, k),
     starColour: STAR_COLOUR[starType[0]?.toUpperCase()] ?? STAR_COLOUR.G,
     brightness,
     sunIntensity: 3 * brightness,
@@ -94,16 +95,19 @@ export function groundColour(comp: { c: number; si: number; o: number }, lifeBle
 
 export type Tone = 0 | 1 | 2 | 3 | 4;
 
-/** Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn. */
+/** Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn. Red World: carbon grazers are pale
+ *  blush-bone and hunters dark maroon silhouettes; silicon grazers ice-bone and hunters violet. Silicon dot eyes take
+ *  the glow accent (dark world), carbon ring eyes are ink. */
 export function creatureColour(silicon: boolean, diet: number, tone: Tone): number {
+  const p = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
   const base = silicon
-    ? mixHex(0xd6ecff, 0xe0b8ff, clamp01(diet))      // glassy blue → violet hunters
-    : mixHex(0xc4ee4a, 0xff8a2c, clamp01(diet));     // green grazers → orange hunters
+    ? mixHex(mixHex(p.bone, p.blush, 0.3), p.crimson, clamp01(diet))
+    : mixHex(mixHex(p.bone, p.blush, 0.5), p.maroon, clamp01(diet));
   switch (tone) {
-    case 1: return silicon ? 0xfaffff : 0x161616;
+    case 1: return silicon ? p.glow : p.ink;
     case 2: return scaleHex(base, 0.62);
     case 3: return scaleHex(base, 0.82);
-    case 4: return mixHex(base, 0xf0f0e0, 0.5);
+    case 4: return mixHex(base, p.bone, 0.5);
     default: return base;
   }
 }
@@ -139,12 +143,13 @@ export const LOOK_PALETTES: Record<'carbon' | 'silicon', LookColours> = {
     redLight: 0xff5a36, red: 0xe8331f, crimson: 0xa8122a, maroon: 0x5c0a1e, ink: 0x22060f,
     bone: 0xf4e6dc, blush: 0xf2a2a0, shadow: 0x5a1040, glow: 0x3ff5e0, glowDeep: 0x0f8f9a,
   },
-  // Silicon: the same two-family structure turned cold. Pale bone-violet stone ground under a violet-lilac sky,
-  // indigo-ink darks, ice-blue highlights, indigo shadow, and an ice-cyan accent (glow from darkness).
+  // Silicon: the same two-family structure turned cold, with the value order inverted so it reads apart at thumbnail
+  // size: pale bone-lilac stone ground under a deeper violet-lilac sky (thick nitrogen air, distant star), indigo-ink
+  // darks, ice-blue highlights, indigo shadow, and an ice-cyan accent (glow from darkness).
   silicon: {
-    skyZenith: 0xe2def4, skyHorizon: 0xece4f8, haze: 0xcdbfe8,
-    redLight: 0xf0ebf6, red: 0xc3b6dc, crimson: 0x7660a8, maroon: 0x34245e, ink: 0x0e0822,
-    bone: 0xf4f6fc, blush: 0xa8c4f0, shadow: 0x221c5e, glow: 0x7af2ff, glowDeep: 0x3a6ee0,
+    skyZenith: 0x6450b0, skyHorizon: 0xbca8ea, haze: 0xab98e2,
+    redLight: 0xf4eefa, red: 0xd8c8ee, crimson: 0x7c5cc8, maroon: 0x3a2478, ink: 0x100828,
+    bone: 0xf6f8ff, blush: 0x9fcff2, shadow: 0x2a2272, glow: 0x6ff4ff, glowDeep: 0x2f7fe0,
   },
 };
 
@@ -187,8 +192,9 @@ export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>):
   const st = skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, i.stats.temperature ?? 15);
   const dim = 0.12 + 0.88 * st.brightness;
   const starTint = ratioHex(st.starColour, STAR_COLOUR.G);
+  const k = Math.pow(dim, 1 / 2.2);   // dim is linear light (as the material applies it); hexes are sRGB
   const tint = (hex: number) => {
-    const t = scaleHex(hex, dim);
+    const t = scaleHex(hex, k);
     const r = Math.round((((t >> 16) & 255) * ((starTint >> 16) & 255)) / 255);
     const g = Math.round((((t >> 8) & 255) * ((starTint >> 8) & 255)) / 255);
     const b = Math.round(((t & 255) * (starTint & 255)) / 255);

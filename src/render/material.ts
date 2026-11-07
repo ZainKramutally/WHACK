@@ -67,8 +67,8 @@ export const LOOK: Record<string, N> = {
   hazeHeight: uniform(24),
   hazeAmount: uniform(0.42),
   camAlt: uniform(0),        // camera height above the ground under it
-  // light (reference sun: warm white, upper left behind the viewer)
-  lightDir: uniform(new THREE.Vector3(-0.62, 0.5, -0.6).normalize()),
+  // light: the star's direction (matches the star disc in sky.ts; whoever moves the star sets this), reference warm white
+  lightDir: uniform(new THREE.Vector3(0.55, 0.7, 0.45).normalize()),
   lightColor: uniform(new THREE.Color(1.0, 0.97, 0.93)),
   ambient: uniform(1),       // star dimming on the shadow side (0.12..1)
   shadowTint: uniform(lin(LOOK_PALETTES.carbon.shadow)),
