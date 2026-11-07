@@ -562,7 +562,8 @@ describe('WorldSimulation', () => {
   });
 
   describe('field guide events', () => {
-    it.each([carbon, silicon])('announces each form once, not once per snapshot ($id)', (w: WorldConfig) => {
+    // The silicon case takes over a second, so it only runs with SLOW=1; carbon (under a second) covers the same code in the default run.
+    const announcesOnce = (w: WorldConfig) => {
       // 6 s build with 100 ecology-seconds of life, snapshotted at 20 Hz as the worker does.
       const sim = new WorldSimulation({ ...w, build: { ...w.build, durationSec: 6, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 100 } }, EARTH);
       const forms: { binId: number; name: string }[] = [];
@@ -575,7 +576,9 @@ describe('WorldSimulation', () => {
       expect(forms.length).toBeLessThanOrEqual(30);
       expect(new Set(forms.map((f) => f.name)).size).toBe(forms.length);
       expect(new Set(forms.map((f) => f.binId)).size).toBe(forms.length);
-    });
+    };
+    it('announces each form once, not once per snapshot (carbon)', () => announcesOnce(carbon));
+    it.skipIf(!slow)('announces each form once, not once per snapshot (silicon) (SLOW)', { timeout: 60000 }, () => announcesOnce(silicon));
   });
 
   describe('end of the build, demo seeds', () => {

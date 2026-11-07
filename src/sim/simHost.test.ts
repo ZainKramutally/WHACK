@@ -6,6 +6,8 @@ import { SimHost } from './simHost';
 import { parseToWorker, snapshotTransferables, type FromWorker, type ToWorker } from './workerProtocol';
 
 const EARTH = { temperature: 15, nitrogen: 1, oxygen: 21 };
+// Tests that take over a second only run with SLOW=1.
+const slow = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SLOW;
 
 /** A host on a fake clock. `step(ms)` advances the clock and pumps once. */
 function fakeHost(opts: { tickMs?: number; budgetMs?: number } = {}) {
@@ -83,7 +85,7 @@ describe('SimHost', () => {
     expect(snapshotTransferables((last.msg as { snapshot: SimSnapshot }).snapshot).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('reaches the same state at 60 fps, at 17 fps, and after a suspended tab', { timeout: 30000 }, () => {
+  it.skipIf(!slow)('reaches the same state at 60 fps, at 17 fps, and after a suspended tab (SLOW)', { timeout: 30000 }, () => {
     const end = (frames: number[]) => {
       const f = fakeHost();
       f.host.handle({ type: 'selectWorld', worldId: 'carbon', requested: EARTH });
