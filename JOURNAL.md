@@ -51,3 +51,4 @@
 - 19:43: fauna colour round merged (10df139): one gene-chosen body colour + one accent, smooth by default (?facet=1). 98 tests. Note: dark-bodied walkers read as flat silhouettes (little shading range on maroon).
 - 20:15: check-in: all 4 agents idle, clean, merged. Load 3.6; hero re-measured 60.0 fps (30 earlier was machine load).
 - 20:21: fog A/B merged (0c45629): ?fog=current|lilac|teal|apricot|ash|sulfur, sheet design/iteration/2026-11-07-2018-red-world-fog/. 60fps all. Agent pick lilac. Awaiting user choice.
+- 20:25: USER picked lilac fog -> rw-scene makes default (PALETTE haze/skyHorizon). ART_DIRECTION updated (lilac haze, cool shadow, 2 moons, no particles).
