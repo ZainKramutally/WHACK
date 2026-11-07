@@ -53,11 +53,8 @@ export function createDebug(world: World) {
     const d = world.ctx.derived as any;
     for (const k of Object.keys(R)) R[k] = k.startsWith('n_') ? d.niches[k.slice(2)] : d[k];
   };
-  world.onDerived = () => {
-    const cur = world.morph.target;
-    if (world.morph.current === world.morph.target || true) { acc = 0; hook(); }
-    void cur;
-  };
+  world.onDerived = hook;
+  world.onPreset = () => pull(world.preset.dials);
   pull(world.preset.dials);
   hook();
   return {
@@ -65,7 +62,6 @@ export function createDebug(world: World) {
       acc += dt;
       if (acc > 0.25) { acc = 0; hook(); pane.refresh(); }
     },
-    syncPreset() { pull(world.preset.dials); },
   };
 }
 

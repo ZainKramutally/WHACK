@@ -38,7 +38,7 @@ export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
       if (opts.stone) {
         const p = positionWorld;
         // vertical streaks: noise stretched along y
-        const streak = mx_fractal_noise_float(vec3(p.x.mul(0.35), p.y.mul(0.03), p.z.mul(0.35)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
+        const streak = mx_fractal_noise_float(vec3(p.x.mul(0.1), p.y.mul(0.02), p.z.mul(0.1)), 2, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
         // low = older = more stained; tips stay paler (bone)
         const low = float(1).sub(smoothstep(4, 220, p.y).mul(0.5));
         const t = saturate(low.mul(1.1).add(streak.sub(0.5).mul(0.6)));

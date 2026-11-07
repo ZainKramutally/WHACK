@@ -39,6 +39,7 @@ export class World {
   frozen = false; // capture: after the settle window, motion is frozen
   frames = 0;
   onDerived?: () => void;
+  onPreset?: () => void;
   private sun = new THREE.DirectionalLight(0xffffff, 1);
   private hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1);
   private fogDensity = uniform(0.005);
@@ -101,6 +102,7 @@ export class World {
     if (!this.flags.nofigure) { const f = createFigure(this.ctx); if (f) this.extras.push(f); }
     this.updateLights(derived);
     this.onDerived?.();
+    this.onPreset?.();
     this.elapsed = 0; this.frozen = false; this.frames = 0; (window as any).__ready = false;
   }
 
