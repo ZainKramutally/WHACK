@@ -291,8 +291,8 @@ describe('WorldSimulation', () => {
       return { before, after: sim.snapshot().stats };
     };
     describe('carbon air at the ecology steady state (#31)', () => {
-      // Late-build ecology: producers ≈ 3,250, consumers ≈ 170 biomass units.
-      const steady = { producerBiomass: 3250, consumerBiomass: 170, deadBiomass: 0 };
+      // Late-build ecology (after the aquatic change): producers ≈ 4,080, consumers ≈ 400 biomass units.
+      const steady = { producerBiomass: 4080, consumerBiomass: 400, deadBiomass: 0 };
       const over = (d: Partial<LifeDrivers>, sec = 300) => {
         const sim = new WorldSimulation(carbon, EARTH, { life: new FixedLife({ ...steady, ...d }) });
         const before = sim.snapshot().stats;

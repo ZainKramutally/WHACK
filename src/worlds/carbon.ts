@@ -135,16 +135,16 @@ export const carbon: WorldConfig = {
   },
   feedbacks: [
     // Rates are change in the stat per unit biomass per ecology second, scaled to the Ecology's biomass units
-    // (producerBiomass ≈ 3,250 flat, consumerBiomass swinging 700 → ~170 after the build boom); placeholders for the headless tuner (issues #31, #11).
+    // (producerBiomass ≈ 4,080 flat after the aquatic change (deeper water now carries flora), consumerBiomass swinging 1,000 → ~400 after the build boom); placeholders for the headless tuner (issues #31, #11).
     { id: 'photosynthesisOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: 2.5e-6, why: 'Photosynthesis releases oxygen.', sources: [], assumption: true },
-    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -1e-5, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
+    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -5.5e-6, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
     { id: 'photosynthesisCo2', statId: 'co2', driver: 'producerBiomass', rate: -2.5e-7, why: 'Photosynthesis draws carbon dioxide out of the air.', sources: [], assumption: true },
     // Decomposition: plant respiration and litter decay turn part of what photosynthesis fixed back into CO₂, using oxygen.
-    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 3,250, consumers ≈ 170), so the air holds still
+    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 4,080, consumers ≈ 400), so the air holds still
     // when idle and moves when the population shifts (issue #31).
     { id: 'decayOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: -1.91e-6, why: 'Plants and the litter they shed are respired and decay, using oxygen.', sources: [], assumption: true },
     { id: 'decayCo2', statId: 'co2', driver: 'producerBiomass', rate: 2.21e-7, why: 'Plants and the litter they shed are respired and decay, returning carbon dioxide.', sources: [], assumption: true },
-    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 5e-7, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
+    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 2.8e-7, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
   ],
   derived: [
     {
@@ -251,7 +251,7 @@ export const carbon: WorldConfig = {
       upkeepScale: 0.02, // converts B0·M^0.75 into matter per ecology second; sets generation time near 25 s
       cellMass: 40, // matter in a cell fully covered by flora
       shadeK: 1.2, // Beer–Lambert canopy shading of ground mats
-      waterAttn: 0.3, // light lost per metre of liquid depth, so flora lives in the shallows
+      waterAttn: 0.1, // light lost per metre of liquid depth. assumption: true (issue #31): 0.3 left deep cells at about half the food of the shallows and only 11–28% of animals in the sea; 0.1 gives 55% in water (41% deep) and 69% of swimmers in water on silicon with population and OTU unchanged
       canopyRate: 0.3, // canopy growth relative to mat growth
       floraDecay: 0.02, // share of flora lost per ecology second; returned as nutrients
       spread: 0.5, // how strongly neighbouring mats seed an empty cell, so flora colonises land from the shore

@@ -162,19 +162,27 @@ export class Ecology {
     for (const i of spots) this.plant(i, L.seedMat);
     let pool = spots.length ? spots : Array.from({ length: CELLS }, (_, i) => i);
     if (!spots.length) for (const i of pool) this.plant(i, 0.05);
-    if (near) {
-      // Nearest first (ties by cell index, so it is deterministic); founders use only the closest CONSTANTS.FOUNDER_CELLS cells.
+    // Nearest first (ties by cell index, so it is deterministic); with a spawn hint founders use only the closest FOUNDER_CELLS cells.
+    const nearest = (cells: number[]) => {
+      if (!near) return cells;
       const d2 = (c: number) => ((c % GRID) + 0.5 - near.x * GRID) ** 2 + (Math.floor(c / GRID) + 0.5 - near.y * GRID) ** 2;
-      pool = [...pool].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, CONSTANTS.FOUNDER_CELLS.value);
-    }
-    this.founderPool = pool;
+      return [...cells].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, CONSTANTS.FOUNDER_CELLS.value);
+    };
+    pool = nearest(pool);
+    // Half the founders start in the sea itself (deep enough to swim), half on the shore: both niches exist from the first second.
+    const sea: number[] = [];
+    for (let i = 0; i < CELLS; i++) if (g.liquid[i] > L.wadeDepth) sea.push(i);
+    const seaPool = nearest(sea);
+    for (const i of seaPool) this.plant(i, L.seedMat);
+    this.founderPool = seaPool.length ? [...pool, ...seaPool] : pool;
     const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
-    for (const gen of founders) {
-      const cell = pool[Math.floor(this.rnd() * pool.length)];
+    founders.forEach((gen, k) => {
+      const from = k % 2 === 1 && seaPool.length > 0 ? seaPool : pool;
+      const cell = from[Math.floor(this.rnd() * from.length)];
       const px = (cell % GRID) + this.rnd();
       const py = Math.floor(cell / GRID) + this.rnd();
       this.spawn(gen, px, py, 0, null, env);
-    }
+    });
   }
 
   private plant(cell: number, mat: number): void {
@@ -393,7 +401,7 @@ export class Ecology {
     let best = mc.sessile;
     if (liquid <= this.L.wadeDepth && mc.walk < best) { best = mc.walk; mode = LOCOMOTION.walk; }
     if (liquid > 0 && mc.swim < best) { best = mc.swim; mode = LOCOMOTION.swim; }
-    if (mc.hover < best) { mode = LOCOMOTION.hover; }
+    if (liquid <= this.L.wadeDepth && mc.hover < best) { mode = LOCOMOTION.hover; } // hover is flight: over land and the shore, never over the sea
     return mode;
   }
   private modeCost(p: BodyPlan, mode: number): number {
@@ -603,7 +611,7 @@ export class Ecology {
       this.returnMatter(here, m + e, clamp01(p.plateCover));
       return;
     }
-    if (act === ACT.bud) this.pendingBuds.push(i);
+    if (act === ACT.bud) { this.pendingBuds.push(i); this.act[i] = ACT.rest; } // one bud per decide window (act stays 'bud' for DECIDE_EVERY ticks otherwise)
   }
 
   /** Energy gain with food sharing: kin in the cell take a share of it, scaled by sociality. */
