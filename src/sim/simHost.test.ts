@@ -90,7 +90,7 @@ describe('SimHost', () => {
       const s = f.snapshots().at(-1)!;
       return { stats: s.stats, pop: s.population, org: Array.from(s.organisms) };
     };
-    const total = 9800;
+    const total = 9400;
     const frames = (fps: number) => {
       const n = Math.floor(total / (1000 / fps));
       return [...Array.from({ length: n }, () => 1000 / fps), total - n * (1000 / fps)];

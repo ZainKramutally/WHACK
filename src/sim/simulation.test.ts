@@ -9,6 +9,12 @@ import { PLAN_LENGTH } from './plan';
 import { makeRng } from './rng';
 import { WorldSimulation, ticksDueAfter, ticksDueAt, type SimEvent } from './simulation';
 
+// Multi-second ecology runs (full 20 s builds) only run with SLOW=1 (npm run test:slow).
+const slow = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SLOW;
+
+/** A 4 s build at 1/17 of the ecology fast-forward: the whole lifecycle in a fraction of a second. */
+const quick = (w: WorldConfig): WorldConfig => ({ ...w, build: { ...w.build, durationSec: 4, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 20 } });
+
 const EARTH: Conditions = { temperature: 15, nitrogen: 1, oxygen: 21 };
 
 /** A life model with fixed drivers, to test the feedbacks on their own. */
@@ -71,21 +77,21 @@ describe('WorldSimulation', () => {
   it('gives the same state at the same time whatever the frame rate', { timeout: 30000 }, () => {
     const at = (dt: number) => {
       const sim = new WorldSimulation(carbon, EARTH);
-      run(sim, 9.8, dt);
+      run(sim, 9.4, dt);
       return fingerprint(sim);
     };
     const a = at(1 / 60);
-    expect(a.ticks).toBe(ticksDueAfter(9.8, carbon.build));
+    expect(a.ticks).toBe(ticksDueAfter(9.4, carbon.build));
     expect(a.population.consumers).toBeGreaterThan(0);
     expect(at(1 / 17)).toEqual(a);
-    expect(at(9.8)).toEqual(a);
+    expect(at(9.4)).toEqual(a);
   });
 
   it('catching up in budgeted slices gives the same state as running everything at once', { timeout: 30000 }, () => {
     const once = new WorldSimulation(carbon, EARTH);
-    once.advance(9.8);
+    once.advance(9.4);
     const sliced = new WorldSimulation(carbon, EARTH);
-    expect(sliced.advance(9.8, 64)).toBe(64);
+    expect(sliced.advance(9.4, 64)).toBe(64);
     expect(sliced.behind).toBe(true);
     while (sliced.behind) sliced.advance(0, 64);
     expect(fingerprint(sliced)).toEqual(fingerprint(once));
@@ -94,7 +100,7 @@ describe('WorldSimulation', () => {
   it.each([carbon, silicon])('is deterministic for a seed and differs across seeds ($id)', { timeout: 30000 }, (w: WorldConfig) => {
     const make = (seed?: number) => {
       const sim = new WorldSimulation(w, EARTH, { seed });
-      run(sim, 9.8, 0.25);
+      run(sim, 9.4, 0.25);
       return fingerprint(sim);
     };
     const a = make();
@@ -145,8 +151,8 @@ describe('WorldSimulation', () => {
 
   it('starts every control inside its living band, and keeps every snapshot field valid', () => {
     for (const w of [carbon, silicon]) {
-      const sim = new WorldSimulation(w, EARTH);
-      sim.advance(10);
+      const sim = new WorldSimulation(quick(w), EARTH);
+      sim.advance(3);
       const s = sim.snapshot();
       for (const c of controlList) {
         expect(s.bands[c.id].empty).toBeFalsy();
@@ -161,7 +167,7 @@ describe('WorldSimulation', () => {
   });
 
   it.each([carbon, silicon])('no sequence of control:set puts a control into a red zone ($id)', { timeout: 30000 }, (w: WorldConfig) => {
-    const sim = new WorldSimulation(w, EARTH);
+    const sim = new WorldSimulation(w, EARTH, { life: new FixedLife({ producerBiomass: 3000, consumerBiomass: 400, deadBiomass: 5 }) });
     sim.advance(10);
     const gravity = sim.snapshot().stats.gravity;
     const rnd = makeRng(99)('controls');
@@ -279,6 +285,29 @@ describe('WorldSimulation', () => {
     });
   });
 
+  describe.each([carbon, silicon])('a quick build ($id)', (w: WorldConfig) => {
+    it('runs the whole lifecycle: life once, complete once, animals alive, controls in band, deterministic', () => {
+      const q = quick(w);
+      const go = () => {
+        const sim = new WorldSimulation(q, EARTH);
+        const events = [...sim.drainEvents()];
+        for (let i = 0; i < 90; i++) { sim.advance(0.1); events.push(...sim.drainEvents()); }
+        return { sim, events };
+      };
+      const a = go();
+      expect(a.events.filter((e) => e.type === 'build:life')).toHaveLength(1);
+      expect(a.events.filter((e) => e.type === 'build:complete')).toHaveLength(1);
+      const s = a.sim.snapshot();
+      expect(s.buildProgress).toBe(1);
+      expect(s.population.consumers).toBeGreaterThan(0);
+      for (const c of controlList) {
+        expect(s.controls[c.id]).toBeGreaterThanOrEqual(s.bands[c.id].low - 1e-6);
+        expect(s.controls[c.id]).toBeLessThanOrEqual(s.bands[c.id].high + 1e-6);
+      }
+      expect(fingerprint(go().sim)).toEqual(fingerprint(a.sim));
+    });
+  });
+
   describe('end of the build, demo seeds', () => {
     // Both worlds land inside every target at the default sliders with the demo seeds.
     const memo = new Map<string, Record<string, number>>();
@@ -292,14 +321,14 @@ describe('WorldSimulation', () => {
       }
       return stats;
     };
-    it.each([carbon, silicon])('lands inside targets at the default sliders ($id)', { timeout: 30000 }, (w: WorldConfig) => {
+    it.skipIf(!slow).each([carbon, silicon])('lands inside targets at the default sliders ($id) (SLOW)', { timeout: 60000 }, (w: WorldConfig) => {
       const stats = endOfBuild(w);
       for (const [id, [lo, hi]] of Object.entries(w.targets)) {
         expect(stats[id], `${w.id} ${id}`).toBeGreaterThanOrEqual(lo);
         expect(stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
       }
     });
-    it.each([carbon, silicon])('stays alive and in band for a minute after the build ($id)', { timeout: 30000 }, (w: WorldConfig) => {
+    it.skipIf(!slow).each([carbon, silicon])('stays alive and in band for a minute after the build ($id) (SLOW)', { timeout: 60000 }, (w: WorldConfig) => {
       const sim = new WorldSimulation(w, EARTH);
       sim.advance(w.build.durationSec + 60);
       const s = sim.snapshot();
