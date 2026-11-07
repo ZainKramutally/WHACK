@@ -292,8 +292,8 @@ describe('WorldSimulation', () => {
       return { before, after: sim.snapshot().stats };
     };
     describe('carbon air at the ecology steady state (#31)', () => {
-      // Late-build ecology (real, massive bodies): producers ≈ 3,960, consumers ≈ 960 biomass units.
-      const steady = { producerBiomass: 3960, consumerBiomass: 960, deadBiomass: 0 };
+      // Late-build ecology (roaming, with the high-mutation build's large bodies): producers ≈ 3,100, consumers ≈ 7,000 biomass units.
+      const steady = { producerBiomass: 3100, consumerBiomass: 7000, deadBiomass: 0 };
       const over = (d: Partial<LifeDrivers>, sec = 300) => {
         const sim = new WorldSimulation(carbon, EARTH, { life: new FixedLife({ ...steady, ...d }) });
         const before = sim.snapshot().stats;
@@ -310,7 +310,7 @@ describe('WorldSimulation', () => {
         const crash = over({ consumerBiomass: 0 });
         expect(crash.oxygen).toBeGreaterThan(0.3);
         expect(crash.co2).toBeLessThan(-0.01);
-        const boom = over({ consumerBiomass: 2500 });
+        const boom = over({ consumerBiomass: 20000 });
         expect(boom.oxygen).toBeLessThan(-0.3);
         expect(boom.co2).toBeGreaterThan(0.01);
       });

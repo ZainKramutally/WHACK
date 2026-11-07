@@ -155,7 +155,7 @@ export const silicon: WorldConfig = {
     // 'deadBiomass' is biomass of organisms that died per ecology second; the sim must expose it as a driver.
     { id: 'producerNitrogenLock', statId: 'nitrogen', driver: 'producerBiomass', rate: -3e-6, why: 'Bodies are built from silicon–nitrogen compounds, so a growing population locks nitrogen away.', sources: [], assumption: true },
     { id: 'consumerNitrogenLock', statId: 'nitrogen', driver: 'consumerBiomass', rate: -3e-6, why: 'Animals lock nitrogen into their bodies the same way.', sources: [], assumption: true },
-    { id: 'decayNitrogenReturn', statId: 'nitrogen', driver: 'deadBiomass', rate: 2.5e-3, why: 'When organisms die, their bodies return the nitrogen.', sources: [], assumption: true },
+    { id: 'decayNitrogenReturn', statId: 'nitrogen', driver: 'deadBiomass', rate: 1.2e-3, why: 'When organisms die, their bodies return the nitrogen.', sources: [], assumption: true },
   ],
   derived: [
     {

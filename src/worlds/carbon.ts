@@ -135,16 +135,16 @@ export const carbon: WorldConfig = {
   },
   feedbacks: [
     // Rates are change in the stat per unit biomass per ecology second, scaled to the Ecology's biomass units
-    // (producerBiomass ≈ 3,960 flat (deeper water carries flora), consumerBiomass ≈ 960 with real, massive bodies); placeholders for the headless tuner (issues #31, #11).
+    // (producerBiomass ≈ 3,100 flat; consumerBiomass ≈ 7,000 because the high-mutation build grows some very large bodies); placeholders for the headless tuner (issues #31, #11).
     { id: 'photosynthesisOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: 2.5e-6, why: 'Photosynthesis releases oxygen.', sources: [], assumption: true },
-    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -2.4e-6, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
+    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -2.6e-7, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
     { id: 'photosynthesisCo2', statId: 'co2', driver: 'producerBiomass', rate: -2.5e-7, why: 'Photosynthesis draws carbon dioxide out of the air.', sources: [], assumption: true },
     // Decomposition: plant respiration and litter decay turn part of what photosynthesis fixed back into CO₂, using oxygen.
-    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 3,960, consumers ≈ 960), so the air holds still
+    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 3,100, consumers ≈ 7,000), so the air holds still
     // when idle and moves when the population shifts (issue #31).
     { id: 'decayOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: -1.91e-6, why: 'Plants and the litter they shed are respired and decay, using oxygen.', sources: [], assumption: true },
     { id: 'decayCo2', statId: 'co2', driver: 'producerBiomass', rate: 2.21e-7, why: 'Plants and the litter they shed are respired and decay, returning carbon dioxide.', sources: [], assumption: true },
-    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 1.2e-7, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
+    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 1.3e-8, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
   ],
   derived: [
     {
