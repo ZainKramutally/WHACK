@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Worlds: one generator, four pins</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0a0d; overflow: hidden; font-family: system-ui, sans-serif; }
+    #stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    canvas { display: block; }
+    #fade { position: fixed; inset: 0; background: #0b0a0d; opacity: 0; pointer-events: none; transition: opacity .35s; }
+    #hud { position: fixed; left: 12px; bottom: 10px; color: #fff8; font-size: 12px; pointer-events: none; text-shadow: 0 1px 2px #0008; }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="fade"></div>
+  <div id="hud"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
