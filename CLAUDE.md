@@ -662,7 +662,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - consumer interference
   - spores: a dormant bank of recent survivors that germinates after a crash (owner override of the no-rescue guardrail, `assumption: true`)
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
-- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 3 m × (size ÷ 0.15)^0.4, so a founder worm draws about 3 m long and a 9.6 m giant about 16 m; the size order is kept but the ~64× real range is compressed to ~5× so creatures read from the follow camera.
+- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
 
 ## Demo script (to be rewritten)
 
