@@ -42,3 +42,4 @@
 - 18:51: fauna r2 merged (cherry-pick of bdd29b2): thigh/shin/claw legs, continuous hulls, skulls w/ sockets+brows, head look-ahead, weight drop, size-true lineup, translucent bell material, bigger bell body, wider tendrils. 15 draws, 98 tests, 60fps. Lab camera request pending.
 - 18:54: fauna lab free camera merged (c82242a): orbit/zoom/pan, WASD/QE, 1-0 jump, F follow, hint. Captures unchanged. 98 tests.
 - 18:57: fauna walker r3 merged (ebf5f2d): tapered crystal rods, low splayed many-legged stance. Bug: explorer occludes ?view=one close-up -> fix. Holding fauna for user feedback.
+- 18:59: fauna explorer occlusion fix merged (f8290ad). All agents on standby awaiting user feedback.
