@@ -2,6 +2,7 @@
 // ray marching for picking, and the bead layout of a body plan. Tested in layout.test.ts.
 import type { BodyPlan } from '../sim/develop';
 import type { InspectTarget } from '../worlds/types';
+import { SNAP_DEG, solveTwoBone } from './motion';
 
 export const FLORA_GRID = 64;
 const D2R = Math.PI / 180;
@@ -114,8 +115,33 @@ export type BeadTone = 0 | 1 | 2 | 3 | 4;
 /** One sphere of a creature, in body space (x forward, y up, z lateral), metres, resting on y = 0. */
 export interface Bead { x: number; y: number; z: number; r: number; tone: BeadTone }
 
+/** A leg for 2-bone IK: hip in body space (resting on y = 0 ground), two bones, and the beads it is drawn with. */
+export interface LimbRig {
+  hip: { x: number; y: number; z: number };
+  side: 1 | -1;
+  pair: number;
+  len1: number;
+  len2: number;
+  /** Bead radius at the hip; carbon limbs taper toward the foot. */
+  r: number;
+  taper: boolean;
+  /** Beads per bone. */
+  perBone: number;
+  /** Index of this limb's first bead in BeadLayout.beads. */
+  first: number;
+  /** Joint snap in degrees (15 for silicon rods, 0 for carbon). */
+  snap: number;
+  /** Horizontal distance from the hip to the foot at rest. */
+  restOut: number;
+}
+
 export interface BeadLayout {
+  /** Body beads first (nBody of them), then limb beads at their rest pose. */
   beads: Bead[];
+  nBody: number;
+  limbs: LimbRig[];
+  /** Half stride of the gait, in layout units. */
+  stride: number;
   /** Bounding radius around the layout's centre, for picking. */
   radius: number;
   /** Height of the layout's centre above the ground. */
@@ -129,7 +155,7 @@ export function capsuleLayout(length: number): BeadLayout {
   const n = 5, s = length / n, r = Math.min(s * 0.7, length * 0.17);
   const beads: Bead[] = [];
   for (let i = 0; i < n; i++) beads.push({ x: (i - (n - 1) / 2) * s, y: r, z: 0, r, tone: BEAD_BODY });
-  return { beads, radius: length * 0.6, centreY: r };
+  return { beads, nBody: beads.length, limbs: [], stride: 0, radius: length * 0.6, centreY: r };
 }
 
 /**
@@ -166,7 +192,7 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
     p.z = dx * sinR + dz * cosR;
   }
 
-  const body: Bead[] = [], eyes: Bead[] = [], horns: Bead[] = [], limbs: Bead[] = [], plates: Bead[] = [];
+  const body: Bead[] = [], eyes: Bead[] = [], horns: Bead[] = [], plates: Bead[] = [];
   for (const p of spine) body.push({ x: p.x, y: 0, z: p.z, r: p.r, tone: BEAD_BODY });
 
   // Plates: dorsal beads on the first plateCover share of segments.
@@ -197,44 +223,65 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
     }
   }
 
-  // Limbs: legPairs along the front two-thirds of the spine; each limb leaves the body sideways and goes down.
-  if (plan.legPairs > 0 && plan.limbSegments > 0) {
-    const segLen = plan.limbLength / plan.limbSegments;
+  // Limbs: legPairs along the front two-thirds of the spine, as 2-bone rigs. Hips sit at body-centre height, and the
+  // body is lifted so a slightly bent leg reaches the ground.
+  const rigs: LimbRig[] = [];
+  const nLegs = plan.legPairs > 0 && plan.limbLength > 0 ? plan.legPairs * 2 : 0;
+  const reach = plan.limbLength;
+  const lift = nLegs > 0 ? 0.75 * reach : rMax;
+  for (const bd of [body, eyes, horns, plates]) for (const b of bd) b.y += lift;
+  const bodyBeads = [...body, ...eyes, ...horns, ...plates].slice(0, MAX_BEADS_PER_ORGANISM - 2 * nLegs);
+  if (nLegs > 0) {
+    const budget = MAX_BEADS_PER_ORGANISM - bodyBeads.length;
+    const perBone = Math.max(1, Math.min(silicon ? 3 : 2, Math.floor(budget / (2 * nLegs))));
     const rl = Math.max(0.03 * L, rMax * 0.45);
+    const restOut = Math.sqrt(Math.max(1e-6, (0.9 * reach) ** 2 - lift * lift));
+    let first = bodyBeads.length;
     for (let pair = 0; pair < plan.legPairs; pair++) {
       const idx = Math.min(n - 1, Math.round((n - 1) * (0.2 + 0.75 * (plan.legPairs === 1 ? 0.5 : pair / (plan.legPairs - 1)))));
       const p = spine[idx];
-      for (const side of [1, -1]) {
-        let theta = 30 * D2R; // from straight down, outward positive
-        let lz = p.z + side * p.r * 0.7, ly = 0;
-        const perSeg = silicon ? 4 : 2;
-        for (let j = 0; j < plan.limbSegments; j++) {
-          theta += (plan.limbJointAngles[j] ?? 0) * D2R;
-          const dz = Math.sin(theta) * side, dy = -Math.cos(theta);
-          for (let k = 1; k <= perSeg; k++) {
-            const f = k / perSeg;
-            const taper = silicon ? 1 : 1 - 0.5 * ((j + f) / plan.limbSegments);
-            limbs.push({ x: p.x, y: ly + dy * segLen * f, z: lz + dz * segLen * f, r: rl * taper, tone: BEAD_LIMB });
-          }
-          lz += dz * segLen;
-          ly += dy * segLen;
-        }
+      for (const side of [1, -1] as const) {
+        rigs.push({
+          hip: { x: p.x, y: lift, z: p.z + side * p.r * 0.7 }, side, pair,
+          len1: reach / 2, len2: reach / 2, r: rl, taper: !silicon, perBone, first, snap: silicon ? SNAP_DEG : 0, restOut,
+        });
+        first += 2 * perBone;
       }
     }
   }
-
-  // Lift so the lowest bead rests on the ground. Priority order when truncating: body, eyes, horns, limbs, plates.
-  const all = [...body, ...eyes, ...horns, ...limbs, ...plates].slice(0, MAX_BEADS_PER_ORGANISM);
-  let minY = Infinity;
-  for (const b of all) minY = Math.min(minY, b.y - b.r);
-  let maxY = -Infinity;
-  for (const b of all) {
-    b.y -= minY;
-    maxY = Math.max(maxY, b.y + b.r);
+  const all: Bead[] = bodyBeads.slice();
+  for (const rig of rigs) {
+    const out: number[] = [];
+    limbChain(rig, rig.hip.x, rig.r, rig.hip.z + rig.side * rig.restOut, out);
+    for (let i = 0; i < out.length; i += 4) all.push({ x: out[i], y: out[i + 1], z: out[i + 2], r: out[i + 3], tone: BEAD_LIMB });
   }
+  let maxY = -Infinity;
+  for (const b of all) maxY = Math.max(maxY, b.y + b.r);
   let rad = 0;
   for (const b of all) rad = Math.max(rad, Math.hypot(b.x, b.y - maxY / 2, b.z) + b.r);
-  return { beads: all, radius: rad, centreY: maxY / 2 };
+  return { beads: all, nBody: bodyBeads.length, limbs: rigs, stride: 0.3 * reach, radius: rad, centreY: maxY / 2 };
+}
+
+/**
+ * Bead positions of a limb for a foot at (fx, fy, fz) in body space (fy is the foot-centre height). Solves the 2-bone
+ * IK in the vertical plane through hip and foot; silicon joints snap to 15°. Appends x, y, z, r for each bead to `out`.
+ */
+export function limbChain(rig: LimbRig, fx: number, fy: number, fz: number, out: number[]): void {
+  const dx = fx - rig.hip.x, dz = fz - rig.hip.z;
+  const u = Math.hypot(dx, dz) || 1e-6;
+  const ex = dx / u, ez = dz / u;
+  const sol = solveTwoBone(u, fy - rig.hip.y, rig.len1, rig.len2, rig.snap);
+  const total = rig.perBone * 2;
+  for (let bone = 0; bone < 2; bone++) {
+    const u0 = bone === 0 ? 0 : sol.kneeU, v0 = bone === 0 ? 0 : sol.kneeV;
+    const u1 = bone === 0 ? sol.kneeU : sol.footU, v1 = bone === 0 ? sol.kneeV : sol.footV;
+    for (let k = 1; k <= rig.perBone; k++) {
+      const f = k / rig.perBone, idx = bone * rig.perBone + k;
+      const uu = u0 + (u1 - u0) * f, vv = v0 + (v1 - v0) * f;
+      const r = rig.taper ? rig.r * (1 - 0.5 * (idx / total)) : rig.r;
+      out.push(rig.hip.x + ex * uu, rig.hip.y + vv, rig.hip.z + ez * uu, r);
+    }
+  }
 }
 
 /** Nearest sphere hit by a ray among n spheres held in parallel arrays (organism id + centre + radius). */

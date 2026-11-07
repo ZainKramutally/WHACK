@@ -272,7 +272,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     for (const id of ['carbon', 'silicon'] as const) {
       const other = deps.worldFor(id);
       seaContent(other); groundContent(other); producerContent(other); skyContent(other);
-      beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
+      beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], nBody: 2, limbs: [], stride: 0, radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
       backdropFor(other);
     }
     const all = [...backdrops.values()];

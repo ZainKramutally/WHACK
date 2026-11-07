@@ -84,7 +84,8 @@ describe('beadLayout', () => {
       const l = beadLayout(plan(w));
       expect(l.beads.length).toBeGreaterThan(2);
       expect(l.beads.length).toBeLessThanOrEqual(MAX_BEADS_PER_ORGANISM);
-      expect(Math.min(...l.beads.map((b) => b.y - b.r))).toBeCloseTo(0, 5);
+      // Legless bodies rest exactly on the ground; legged ones within a snapped joint's error of it.
+      expect(Math.abs(Math.min(...l.beads.map((b) => b.y - b.r)))).toBeLessThan(0.08 * plan(w).scale);
       expect(JSON.stringify(beadLayout(plan(w)))).toBe(JSON.stringify(l));
     }
   });
@@ -110,5 +111,16 @@ describe('display scale', () => {
     for (const s of [0.05, 0.15, 0.5, 1.5, 5, 10]) { const d = displayLength(s); expect(d).toBeGreaterThan(prev); prev = d; }
     expect(displayLength(9.6) / displayLength(0.15)).toBeLessThan(6);
     expect(displayFactor(0.15) * 0.15).toBeCloseTo(displayLength(0.15));
+  });
+});
+
+describe('limb rigs', () => {
+  it('gives each leg a rig whose beads sit at its rest pose; silicon snaps to 15°', () => {
+    for (const w of ['carbon', 'silicon'] as const) {
+      const p = plan(w), l = beadLayout(p);
+      expect(l.limbs.length).toBe(p.legPairs * 2);
+      expect(l.nBody + l.limbs.reduce((a, r) => a + 2 * r.perBone, 0)).toBe(l.beads.length);
+      for (const r of l.limbs) expect(r.snap).toBe(w === 'silicon' ? 15 : 0);
+    }
   });
 });
