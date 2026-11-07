@@ -2,7 +2,7 @@
 // Every addition costs a removal. Structure (GRID 64, TICK 20 Hz, CAP 1024) is not tunable and lives elsewhere.
 // Each entry: default value + tag. 'game' = a declared game-balance knob; 'sci' = sourced from the literature.
 // Solvent, air density and tissue density are world facts (WorldConfig.life.inputs), not constants.
-// Placeholders (marked "tune") are for the headless tuner; change the value here, never inline.
+// Tuned values carry their sweep result in a comment (issue #19); change a value here, never inline.
 
 export type ConstantTag = 'game' | 'sci';
 

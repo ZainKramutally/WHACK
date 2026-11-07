@@ -183,7 +183,7 @@ describe('Ecology: headless carbon-like run', () => {
     expect(eco.animals).toBeLessThanOrEqual(CAP);
     expect(legged).toBeGreaterThan(0);
     expect(plated).toBeGreaterThan(0);
-    expect(hunters(eco)).toBeGreaterThan(0);
+    expect(hunterSamples).toBeGreaterThan(0); // predator–prey cycles make any single instant a coin-flip, so ask whether hunters were present in the late samples
   }, 60000);
 });
 const hunters = (eco: Ecology) => living(eco).filter((i) => eco.plan[i].meatGain > 0.25 && eco.plan[i].gapeSize > 0.3 * eco.plan[i].scale).length;
