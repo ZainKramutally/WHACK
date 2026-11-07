@@ -2,7 +2,14 @@
 // itself with the trait-based generator). Each "why" ties the visible traits back to genes and chemistry.
 import type { BodyGenes, Composition } from './genome';
 
-export interface Variant { name: string; why: string; genes: BodyGenes; comp: Composition }
+export interface Variant { name: string; why: string; genes: BodyGenes; comp: Composition; age?: number }
+
+// The hero sky whale: one genome, two life stages (age is the only difference).
+const BELLWHALE: BodyGenes = {
+  size: 1.0, segments: 0.15, limbPairs: 0.1, limbLen: 0.7, plates: 0, horns: 0,
+  gape: 0.2, diet: 0.15, eyes: 0.6, buoy: 1.0, glow: 0.5, sociality: 0.4,
+};
+const BELL_COMP: Composition = { c: 0.8, si: 0.05, o: 0.15 };
 
 const G = (o: Partial<BodyGenes>): BodyGenes => ({
   size: 0.4, segments: 0.3, limbPairs: 0, limbLen: 0.3, plates: 0, horns: 0,
@@ -57,5 +64,15 @@ export const VARIANTS: Variant[] = [
     why: 'size .12 → a 30 cm critter on three pairs of curling carbon legs at a fast cadence; sociality 1.0 → it moves in a swarm; glow .5 adds a cyan tail spot.',
     genes: G({ size: 0.12, segments: 0.25, limbPairs: 0.75, limbLen: 0.45, plates: 0.1, gape: 0.2, diet: 0.2, eyes: 0.5, glow: 0.5, sociality: 1.0 }),
     comp: { c: 0.65, si: 0.2, o: 0.15 },
+  },
+  {
+    name: 'Bellwhale (adolescent)',
+    why: 'buoy 1.0 makes hovering the cheapest mode, and a body this short (segments .15) carries its gas as a radial bell instead of a hull; size 1.0 + cold → a ~22 m bell drifting ~90 m up; limbLen .7 → three grip arms; glow .5 in dim light → cyan points on the tendrils.',
+    genes: BELLWHALE, comp: BELL_COMP, age: 1,
+  },
+  {
+    name: 'Bellwhale (juvenile)',
+    why: 'The same genome at age .12: 2.6 m; growth is allometric, so the young bell is rounder and the eyes (∝ size^0.65) are relatively twice as big.',
+    genes: BELLWHALE, comp: BELL_COMP, age: 0.12,
   },
 ];

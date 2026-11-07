@@ -29,7 +29,7 @@ export interface FaunaPlan {
   segments: number;         // 3..16 (sim rule)
   radii: number[];          // per ring (segments + 1), metres; stepped for silicon
   aspect: number;           // cross-section height / width
-  sides: 6 | 12;
+  sides: number;           // 6 silicon prism, 12 carbon loft, 24 for a gas bell
   flat: boolean;            // faceted normals
   jointMaxDeg: number;      // body bend limit per joint
   jointSnapDeg: number;     // 15 for silicon, 0 for carbon
@@ -75,6 +75,12 @@ export interface FaunaPlan {
   tick: boolean;            // stiff, stepped heading/look updates (silicon)
   undulate: number;         // lateral wave amplitude share (carbon follow-through)
   breathHz: number;
+  // gas-bell form (hover + short body): the gas sac is a radial bell and the body hangs under it
+  form: 'body' | 'bell';
+  age: number;              // 0..1 life stage (1 = the genome's adult scale); growth is the only difference
+  bellR: number;            // bell radius, metres
+  bodyLen: number;          // body length under the bell, metres
+  gripArms: number;         // arms that wrap up and grip the bell
   social: number;           // group size for the lab
 }
 
@@ -95,7 +101,7 @@ export function gaitFor(legPairs: number): Gait {
 /** Stance share per gait: hoppers spend half the cycle airborne-ish; many legs keep more feet down. */
 export const DUTY: Record<Gait, number> = { hop: 0.45, trot: 0.6, wave: 0.65, none: 1 };
 
-export function develop(genes: BodyGenes, comp: Composition, seed: number, cond: DevelopConditions = LAB_CONDITIONS): FaunaPlan {
+export function develop(genes: BodyGenes, comp: Composition, seed: number, cond: DevelopConditions = LAB_CONDITIONS, age = 1): FaunaPlan {
   const g = genes;
   const rng = makeRng(genomeSeed(g, comp, seed));
   const jit = (k: number) => 1 + (rng() * 2 - 1) * k; // ±k proportional jitter
@@ -121,7 +127,10 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   let mode: Mode = hoverCost < walkCost ? 'hover' : legPairs > 0 ? 'walk' : 'crawl';
   if (radialOrder > 0 && mode !== 'hover') mode = 'sessile';
   const tsr = mode === 'walk' || mode === 'crawl' ? K.TSR_LAND : K.TSR;
-  const scale = baseScale * (1 + tsr * (1 - 2 * heat)) * jit(0.05);
+  const grow = Math.max(0.05, Math.min(1, age));
+  const scale = baseScale * (1 + tsr * (1 - 2 * heat)) * jit(0.05) * grow;
+  // render-derived: a floater too short to hold its gas in an elongated hull carries it as a radial bell (F: bells)
+  const bell = mode === 'hover' && g.segments < 0.35 && radialOrder === 0;
 
   // --- radius profile (F: quadratic Bézier head/mid/tail; si quantises to 3 steps, c smooths) ---------------
   const stout = 1 - g.segments;                      // short bodies are stout, serpents slim
@@ -207,7 +216,7 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   const belly: PaletteKey = silicon ? 'ink' : rng.pick(['maroon', 'ink'] as const);
   const mark: PaletteKey = back === 'crimson' ? 'bone' : 'crimson';
 
-  return {
+  const out: FaunaPlan = {
     seed, chemistry: silicon ? 'silicon' : 'carbon', comp: { ...comp }, mode,
     scale, segments, radii, aspect: mode === 'hover' ? 0.9 : silicon ? 0.85 : 0.8, sides: silicon ? 6 : 12, flat: comp.si > 0.45,
     jointMaxDeg: snap(55 + (14 - 55) * comp.si, silicon ? 15 : 0), jointSnapDeg: silicon ? 15 : 0, radialOrder, headLen,
@@ -220,5 +229,24 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
     back, belly, mark, plate: silicon ? 'bone' : 'blush', limbHi: 'maroon', limbLo: 'ink',
     tick: comp.si > 0.6, undulate: mode === 'crawl' ? 0.12 + 0.1 * comp.c : 0.03 * comp.c, breathHz: 0.5 / Math.max(0.5, scale) ** 0.25,
     social: Math.max(1, Math.round(1 + 7 * sstep(0.5, 1, g.sociality) * (1 - g.size))),
+    form: 'body', age: grow, bellR: 0, bodyLen: 0, gripArms: 0,
+  };
+  if (!bell) return out;
+  // ---- gas bell: an egg of gas (taller as it matures; juveniles are rounder with bigger eyes: eye ∝ size^0.65) ----
+  const nB = 8;
+  const aspect = 0.94 + 0.22 * grow; // juveniles round, adolescents a taller egg
+  const R = (0.5 * scale) / aspect;
+  const bradii: number[] = [];
+  for (let i = 0; i <= nB; i++) { const u = i / nB; bradii.push(R * Math.max(0.04, Math.sin(Math.PI * (0.12 + 0.88 * u ** 1.3)) ** 0.5)); } // round crown, narrower rim
+  bradii[nB] = 0.42 * R; // the crown closes with a dome cap, not a point
+  const bodyLen = scale * (0.4 - 0.16 * grow); // juveniles: relatively bigger body and head
+  return {
+    ...out, form: 'bell', segments: nB, radii: bradii, sides: 40, flat: false, aspect: 1, headLen: 0,
+    bellR: R, bodyLen, gripArms: 2 + Math.round(2 * g.limbLen),
+    eyeKind: eyeless ? 'none' : 'rings', eyeCount: eyeless ? 0 : 2,
+    eyeRadius: bodyLen * 0.11 * Math.sqrt(eyeArea) * grow ** -0.35,
+    tendrils: 3 + Math.round(3 * g.buoy), tendrilLen: scale * (0.8 + 0.45 * grow),
+    plates: [], dorsalCount: 0, glowSpots: 0, hornCount: 0,
+    back: 'blush', mark: 'crimson', belly: 'maroon', limbHi: 'maroon', limbLo: 'ink',
   };
 }

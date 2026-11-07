@@ -7,6 +7,7 @@ import { add, cross, dot, len, norm, rotate, scl, sub, lerp3, type V3 } from '..
 import type { FaunaPlan } from './develop';
 import { footAt, legPhase, plantDistance, twoBoneIK } from './ik';
 import type { Path } from './path';
+import { poseBell } from './bell';
 
 export type PartType = 'rodSi' | 'rodC' | 'plateSi' | 'plateC' | 'hornSi' | 'hornC' | 'frill' | 'eyeRing' | 'eyeDot';
 export const PART_TYPES: PartType[] = ['rodSi', 'rodC', 'plateSi', 'plateC', 'hornSi', 'hornC', 'frill', 'eyeRing', 'eyeDot'];
@@ -75,6 +76,7 @@ export interface PoseOut { spine: Spine; blink: number }
 
 /** Pose one individual at time t (seconds). Emits all limb/armour/sense parts into `sink` and returns the spine for the loft. */
 export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sink: Sink): PoseOut {
+  if (plan.form === 'bell') return poseBell(plan, t, path, inst, sink);
   const L = plan.scale, n = plan.segments, seg = L / n;
   const tt = t + inst.phase;
   const s = inst.s0 + plan.speed * t;

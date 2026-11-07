@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture the fauna lab (fauna.html) to design/iteration/{YYYY-MM-DD-HHMM}-red-fauna/.
 
-Writes lineup.png (all variants walking), one-{i}-{slug}.png (orbit close-up per creature, pixel), one-{i}-{slug}-smooth.png,
+Writes lineup.png (all variants walking), one-{i}-{slug}.png (orbit close-up per creature, pixel), one-{i}-{slug}-smooth.png, sky-{i}-{slug}.png (floaters: looking up from the ground, ?view=sky),
 strip-{i}-{slug}.png (6 frames over one gait cycle from a fixed side camera, to judge foot planting), and prints fps
 for the live lineup (best / median of N x 5 s windows).
 Usage (from mockups/red-world):
@@ -90,6 +90,9 @@ def main():
                     if r: r[0].close()
                 r = shot(f"strip-{i}-{s}", f"view=strip&i={i}", vp=(1920, 800))
                 if r: r[0].close()
+                if info["variants"][i]["mode"] == "hover":
+                    r = shot(f"sky-{i}-{s}", f"view=sky&i={i}&t=7")
+                    if r: r[0].close()
             if not a.no_fps:
                 pg = b.new_page(viewport={"width": 1920, "height": 1080}, device_scale_factor=1)
                 pg.goto(f"{url}/fauna.html?view=lineup&seed={a.seed}")

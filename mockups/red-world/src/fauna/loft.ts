@@ -6,13 +6,15 @@ import { LINEAR, add, cross, norm, scl, sub, type V3 } from '../flora/mesh';
 import type { PaletteKey } from '../contracts';
 import type { FaunaPlan } from './develop';
 import { hash01, spineAt, type Spine } from './rig';
+import { KEY_LIGHT } from './bell';
 
 interface Ring { x: number; rj: number; rf: number } // fractional joint index, joint radius to use (−1 = interpolate), factor
 
 export interface LoftTemplate {
   rings: Ring[];
   sides: number;
-  flat: boolean;
+  flat: boolean;          // face normals (silicon facets)
+  perFace: boolean;       // per-face colours (hard-edged spots), smooth or flat normals
   vertexCount: number;
   color: Float32Array;   // linear rgb per output vertex
   glow: Float32Array;    // per output vertex
@@ -36,14 +38,32 @@ function ringsFor(plan: FaunaPlan): Ring[] {
     const ch = Math.min(1.2, (plan.radii[0] * 1.05) / segL), ct = Math.min(1, (plan.radii[n] * 1.2) / segL);
     const dome: [number, number][] = [[1, 0.02], [0.86, 0.5], [0.6, 0.8], [0.3, 0.96]];
     if (plan.mode !== 'sessile') for (const [f, rf] of dome) R.push({ x: -ch * f, rj: 0, rf });
-    for (let k = 0; k <= 3 * n; k++) R.push({ x: k / 3, rj: -1, rf: 1 });
+    const per = plan.form === 'bell' ? 4 : 3;
+    for (let k = 0; k <= per * n; k++) R.push({ x: k / per, rj: -1, rf: 1 });
     for (const [f, rf] of [...dome].reverse()) R.push({ x: n + ct * f, rj: n, rf: plan.mode === 'sessile' ? 0.98 - f * 0.4 : rf });
   }
   return R;
 }
 
 /** Skin colour of ring band i, side j (d = sin θ: +1 dorsal, −1 ventral). */
-function skin(plan: FaunaPlan, x: number, j: number, d: number): { key: PaletteKey; glow: number } {
+function skin(plan: FaunaPlan, x: number, j: number, d: number, th = 0): { key: PaletteKey; glow: number } {
+  if (plan.form === 'bell') {
+    // gas bell: pale crown → blush → crimson → maroon rim in stepped bands, mottled with spots that grow denser lower
+    const u = x / plan.segments;
+    // round-ish mottling: fine spots, clustered by a coarser field (denser in some patches, like the reference)
+    const fine = hash01(plan.seed + Math.floor(x * 2) * 29, j); // ~square cells (2 rings × 1 side)
+    const coarse = hash01(plan.seed + 7 + Math.floor(x * 1.3) * 31, Math.floor(j / 5));
+    const cell = fine / (0.45 + coarse);
+    const band = u > 0.8 ? 4 : u > 0.56 ? 3 : u > 0.3 ? 2 : u > 0.12 ? 1 : 0;
+    const baseK: PaletteKey[] = ['maroon', 'crimson', 'blush', 'blush', 'bone'];
+    const spotK: PaletteKey[] = ['crimson', 'maroon', 'crimson', 'crimson', 'blush'];
+    const dens = [0.35, 0.4, 0.42, 0.2, 0.1][band];
+    // soft specular: a bone patch where the bell faces the key light (bell vertex dir = (sin θ, ·, cos θ))
+    const kl = Math.hypot(KEY_LIGHT[0], KEY_LIGHT[2]);
+    const face = (Math.sin(th) * KEY_LIGHT[0] + Math.cos(th) * KEY_LIGHT[2]) / kl;
+    if (face > 0.9 + ((u - 0.66) / 0.12) ** 2 * 0.1 && u > 0.5 && u < 0.8) return { key: 'bone', glow: 0 };
+    return { key: cell < dens ? spotK[band] : baseK[band], glow: 0 };
+  }
   const n = plan.segments;
   const seg = Math.floor(Math.max(0, x));
   const h = plan.seed;
@@ -62,13 +82,13 @@ function skin(plan: FaunaPlan, x: number, j: number, d: number): { key: PaletteK
 
 export function loftTemplate(plan: FaunaPlan): LoftTemplate {
   const rings = ringsFor(plan);
-  const S = plan.sides, flat = plan.flat;
+  const S = plan.sides, flat = plan.flat, perFace = flat || plan.form === 'bell';
   const theta = Array.from({ length: S }, (_, j) => (S === 6 ? Math.PI / 2 + ((j + 0.5) * 2 * Math.PI) / 6 : (j * 2 * Math.PI) / S));
   const nr = rings.length;
   const col: number[] = [], glw: number[] = [];
   const push = (k: PaletteKey, g: number) => { const c = LINEAR[k]; col.push(c[0], c[1], c[2]); glw.push(g); };
   let index: number[] | null = null;
-  if (!flat) {
+  if (!perFace) {
     for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) { const s = skin(plan, rings[i].x, j, Math.sin(theta[j])); push(s.key, s.glow); }
     index = [];
     for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
@@ -78,11 +98,11 @@ export function loftTemplate(plan: FaunaPlan): LoftTemplate {
   } else {
     for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
       const mid = (theta[j] + theta[(j + 1) % S] + (j === S - 1 ? 2 * Math.PI : 0)) / 2;
-      const s = skin(plan, (rings[i].x + rings[i + 1].x) / 2, j, Math.sin(mid));
+      const s = skin(plan, (rings[i].x + rings[i + 1].x) / 2, j, Math.sin(mid), mid);
       for (let v = 0; v < 6; v++) push(s.key, s.glow);
     }
   }
-  return { rings, sides: S, flat, vertexCount: col.length / 3, color: new Float32Array(col), glow: new Float32Array(glw), index, theta };
+  return { rings, sides: S, flat, perFace, vertexCount: col.length / 3, color: new Float32Array(col), glow: new Float32Array(glw), index, theta };
 }
 
 /** Place the template on a posed spine: writes positions and normals at vertex offset `off`. */
@@ -99,7 +119,7 @@ export function writeLoft(tp: LoftTemplate, plan: FaunaPlan, sp: Spine, pos: Flo
       G[i * S + j] = add(f.p, add(scl(f.R, Math.cos(th) * r), scl(f.U, Math.sin(th) * r * plan.aspect)));
     }
   }
-  if (!tp.flat) {
+  if (!tp.perFace) {
     for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) {
       const p = G[i * S + j];
       const dth = sub(G[i * S + ((j + 1) % S)], G[i * S + ((j - 1 + S) % S)]);
@@ -112,14 +132,23 @@ export function writeLoft(tp: LoftTemplate, plan: FaunaPlan, sp: Spine, pos: Flo
     return;
   }
   let v = off * 3;
+  // smooth per-vertex normals for per-face-coloured smooth bodies (the bell)
+  const VN: V3[] | null = tp.flat ? null : G.map((_, k) => {
+    const i = Math.floor(k / S), j = k % S;
+    const dth = sub(G[i * S + ((j + 1) % S)], G[i * S + ((j - 1 + S) % S)]);
+    const dx = sub(G[Math.min(nr - 1, i + 1) * S + j], G[Math.max(0, i - 1) * S + j]);
+    return norm(cross(dth, dx));
+  });
   for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
-    const a = G[i * S + j], b = G[i * S + ((j + 1) % S)], c = G[(i + 1) * S + j], d = G[(i + 1) * S + ((j + 1) % S)];
+    const ia = i * S + j, ib = i * S + ((j + 1) % S), ic = (i + 1) * S + j, id = (i + 1) * S + ((j + 1) % S);
+    const a = G[ia], b = G[ib], c = G[ic], d = G[id];
     let nn = cross(sub(b, a), sub(c, a));
     if (nn[0] * nn[0] + nn[1] * nn[1] + nn[2] * nn[2] < 1e-14) nn = cross(sub(d, b), sub(c, b));
     nn = norm(nn);
-    for (const p of [a, b, c, b, d, c]) {
+    for (const k of [ia, ib, ic, ib, id, ic]) {
+      const p = G[k], q = VN ? VN[k] : nn;
       pos[v] = p[0]; pos[v + 1] = p[1]; pos[v + 2] = p[2];
-      nor[v] = nn[0]; nor[v + 1] = nn[1]; nor[v + 2] = nn[2];
+      nor[v] = q[0]; nor[v + 1] = q[1]; nor[v + 2] = q[2];
       v += 3;
     }
   }

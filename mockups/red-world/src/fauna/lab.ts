@@ -20,7 +20,7 @@ const pick = Number(q.get('i') ?? 0);
 const seed = Number(q.get('seed') ?? 1);
 const fixedT = q.has('t') ? Number(q.get('t')) : null;
 
-const plans = VARIANTS.map((v) => develop(v.genes, v.comp, seed));
+const plans = VARIANTS.map((v) => develop(v.genes, v.comp, seed, undefined, v.age ?? 1));
 
 // ---- layout: each variant walks its own stadium loop (or roots / floats) ----------------------------------------
 const ext = (p: FaunaPlan) => Math.max(p.scale, p.legLen * 1.2, p.armLen * 2);
@@ -35,7 +35,7 @@ function individualsFor(i: number, cx: number, cz: number): Individual[] {
   for (let k = 0; k < p.social; k++) {
     const e = ext(p);
     const path = k === 0 ? loopFor(p, cx, cz) : stadium(cx, cz, loopA(p), loopB(p) + (k % 2 ? 1 : -1) * e * 0.35 * Math.ceil(k / 2));
-    out.push({ plan: k === 0 ? p : develop(VARIANTS[i].genes, VARIANTS[i].comp, seed + k * 101), path, inst: { s0: -k * e * 0.9, phase: k * 1.37 } });
+    out.push({ plan: k === 0 ? p : develop(VARIANTS[i].genes, VARIANTS[i].comp, seed + k * 101, undefined, VARIANTS[i].age ?? 1), path, inst: { s0: -k * e * 0.9, phase: k * 1.37 } });
   }
   return out;
 }
@@ -56,7 +56,14 @@ if (view === 'lineup') {
     let x = -total / 2;
     row.forEach((d, k) => { lanes.push({ i: d.i, cx: x + w[k] / 2, cz: -D }); x += w[k]; });
   });
-  plans.forEach((p, i) => { if (p.mode === 'hover') lanes.push({ i, cx: 0, cz: -150 }); });
+  // floaters at the back, each at a depth where it sits in the sky band: leviathan mid, adolescent bellwhale far right
+  // (~90 m up), juvenile low and near
+  plans.forEach((p, i) => {
+    if (p.mode !== 'hover') return;
+    if (p.form !== 'bell') lanes.push({ i, cx: 40, cz: -150 });
+    else if (p.age > 0.5) lanes.push({ i, cx: 150, cz: -360 });
+    else lanes.push({ i, cx: -14, cz: -48 });
+  });
   for (const l of lanes) individuals.push(...individualsFor(l.i, l.cx, l.cz));
 } else {
   lanes.push({ i: pick, cx: 0, cz: 0 });
@@ -111,7 +118,7 @@ const explorers = (view === 'lineup' ? lanes.filter((l) => l.i === 0) : lanes).m
   scene.add(m);
   return m;
 });
-const camera = new THREE.PerspectiveCamera(view === 'lineup' ? LINEUP_FOV : 34, innerWidth / innerHeight, 0.05, 4000);
+const camera = new THREE.PerspectiveCamera(view === 'lineup' ? LINEUP_FOV : view === 'sky' ? 75 : 34, innerWidth / innerHeight, 0.05, 4000);
 
 // ---- cameras -----------------------------------------------------------------------------------------------------
 const P0 = plans[pick];
@@ -130,13 +137,27 @@ const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect 
 addEventListener('resize', resize);
 resize();
 
-const cycle = P0.cadence > 0 ? 1 / P0.cadence : P0.mode === 'crawl' ? (0.55 * P0.scale) / Math.max(1e-3, P0.speed) : 4;
+const cycle = P0.cadence > 0 ? 1 / P0.cadence : P0.mode === 'crawl' ? (0.55 * P0.scale) / Math.max(1e-3, P0.speed) : P0.form === 'bell' ? 1 / (P0.breathHz * 0.6) : 4;
 function placeCamera(t: number, mode: 'orbit' | 'side', tc = t) {
   const c = centreOf(0) as number[];
   const e = Math.max(ext(P0), height(P0));
   const hh = height(P0);
   if (mode === 'orbit') {
     const a = 1.9 + 0.15 * (t - 7);
+    if (P0.form === 'bell') {
+      // orbit relative to the heading, starting at a front 3/4 view so the clinging body and its eyes read
+      const H = P0.scale;
+      const sp = herd.spines[0];
+      const fw = sp ? [sp.P[0][0] - sp.P[sp.P.length - 1][0], 0, sp.P[0][2] - sp.P[sp.P.length - 1][2]] : [1, 0, 0];
+      const hd0 = Math.atan2(individuals[0].path.at(individuals[0].inst.s0 + P0.speed * t).t[2], individuals[0].path.at(individuals[0].inst.s0 + P0.speed * t).t[0]);
+      void fw;
+      const Lx = U.lightDir.value.x, Lz = U.lightDir.value.z;
+      const lit = (a0: number) => Math.cos(a0) * Lx + Math.sin(a0) * Lz;
+      const ang = (lit(hd0 + 0.75) >= lit(hd0 - 0.75) ? hd0 + 0.75 : hd0 - 0.75) + 0.12 * (t - 7); // front 3/4, lit side
+      camera.position.set(c[0] + Math.cos(ang) * H * 3.4, c[1] - 0.35 * H, c[2] + Math.sin(ang) * H * 3.4);
+      camera.lookAt(c[0], c[1] - 0.45 * H, c[2]);
+      return;
+    }
     const hov = P0.mode === 'hover';
     camera.position.set(c[0] + Math.cos(a) * e * 1.9, hov ? c[1] * 0.35 : Math.max(0.4, hh * 0.55 + e * 0.35), c[2] + Math.sin(a) * e * 1.9);
     camera.lookAt(c[0], hov ? c[1] : Math.max(c[1] * 0.8, hh * 0.4), c[2]);
@@ -147,10 +168,35 @@ function placeCamera(t: number, mode: 'orbit' | 'side', tc = t) {
     const cc = f.p;
     const R = f.R[0] * U.lightDir.value.x + f.R[2] * U.lightDir.value.z < 0 ? [-f.R[0], 0, -f.R[2]] : f.R; // lit side
     const d = e * 1.7;
+    if (P0.form === 'bell') {
+      const H = P0.scale;
+      camera.position.set(cc[0] + R[0] * H * 3.4, cc[1] - 0.35 * H, cc[2] + R[2] * H * 3.4);
+      camera.lookAt(cc[0], cc[1] - 0.45 * H, cc[2]);
+      return;
+    }
     const hov = P0.mode === 'hover';
     camera.position.set(cc[0] + R[0] * d, hov ? cc[1] * 0.5 : Math.max(0.35, hh * 0.45), cc[2] + R[2] * d);
     camera.lookAt(cc[0], hov ? cc[1] : Math.max(cc[1] * 0.75, hh * 0.4), cc[2]);
   }
+}
+
+// sky view: standing on the ground beside the explorer, looking up at a floater against the white sky
+let skyBase: number[] | null = null;
+function skyCamera() {
+  const c = centreOf(0) as number[];
+  if (!skyBase) {
+    const L = U.lightDir.value;
+    const d = Math.max(10, c[1] * 0.55);
+    skyBase = [c[0] + L.x * d, 0.5, c[2] + L.z * d];
+    const ex = explorers[0];
+    const tx = c[0] - skyBase[0], tz = c[2] - skyBase[2], tl = Math.hypot(tx, tz);
+    ex.position.set(skyBase[0] + (tx / tl) * 5 - (tz / tl) * 1.6, -0.05, skyBase[2] + (tz / tl) * 5 + (tx / tl) * 1.6);
+    ex.rotation.y = Math.atan2(tx, tz) + Math.PI;
+  }
+  camera.position.set(skyBase[0], skyBase[1], skyBase[2]);
+  // look 26° up: the explorer stands at the bottom of the frame, the floater overhead
+  const hd = Math.hypot(c[0] - skyBase[0], c[2] - skyBase[2]);
+  camera.lookAt(skyBase[0] + (c[0] - skyBase[0]) / hd, skyBase[1] + Math.tan(0.66), skyBase[2] + (c[2] - skyBase[2]) / hd);
 }
 
 const info = document.getElementById('info')!;
@@ -189,6 +235,7 @@ if (view === 'strip') {
     U.time.value = t;
     herd.update(t);
     if (view === 'one') placeCamera(t, 'orbit');
+    if (view === 'sky') skyCamera();
     post.render();
     frames++;
     if (now - fpsT > 1000) { fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; (window as any).__fps = fps; }

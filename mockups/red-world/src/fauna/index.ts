@@ -13,8 +13,8 @@ export interface Creature {
   pose(t: number, path: Path, inst: Instance, sink: Sink): PoseOut;
 }
 
-export function buildCreature(genes: BodyGenes, comp: Composition, seed: number, cond: DevelopConditions = LAB_CONDITIONS): Creature {
-  const plan = develop(genes, comp, seed, cond);
+export function buildCreature(genes: BodyGenes, comp: Composition, seed: number, cond: DevelopConditions = LAB_CONDITIONS, age = 1): Creature {
+  const plan = develop(genes, comp, seed, cond, age);
   return { plan, loft: loftTemplate(plan), pose: (t, path, inst, sink) => pose(plan, t, path, inst, sink) };
 }
 
