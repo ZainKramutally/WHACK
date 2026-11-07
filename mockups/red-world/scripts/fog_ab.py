@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from capture import start_server, ROOT, FPS_JS  # noqa: E402
 
-NAMES = ["current", "lilac", "teal", "apricot", "ash", "sulfur"]
+NAMES = ["lilac", "current", "teal", "apricot", "ash", "sulfur"]
 FLY = ((-400, 200, -200), (1500, 0, -300))
 
 

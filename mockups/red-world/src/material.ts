@@ -16,12 +16,12 @@ const HERO_BASE_Y = heightAt(HERO.x, HERO.z);
 export const PIXEL = new URLSearchParams(location.search).get('style') !== 'smooth';
 
 /**
- * Air colour A/B (?fog=<name>, default 'current'). Each preset sets the fog/haze colour, the matching sky horizon stop
+ * Air colour A/B (?fog=<name>, default 'lilac' = PALETTE.haze/skyHorizon; 'current' = the original warm haze). Each preset sets the fog/haze colour, the matching sky horizon stop
  * (so sky and fog meet seamlessly) and a density multiplier. The zenith stays white; ground/flora/shadow are untouched.
  */
 export const FOG_PRESETS = {
-  current: { haze: PALETTE.haze, horizon: PALETTE.skyHorizon, density: 1 },
-  lilac: { haze: 0xe4daef, horizon: 0xf3eef8, density: 1 },
+  lilac: { haze: PALETTE.haze, horizon: PALETTE.skyHorizon, density: 1 },   // default (human pick): #e4daef / #f3eef8
+  current: { haze: 0xfde9e2, horizon: 0xfff6ee, density: 1 },              // the original warm white-pink haze
   teal: { haze: 0xd6ece8, horizon: 0xedf6f3, density: 1 },
   apricot: { haze: 0xfbd8c2, horizon: 0xfdede2, density: 1.05 },
   ash: { haze: 0xdcd6dc, horizon: 0xebe8eb, density: 1.3 },
@@ -29,7 +29,7 @@ export const FOG_PRESETS = {
 } as const;
 export type FogName = keyof typeof FOG_PRESETS;
 const fogParam = new URLSearchParams(location.search).get('fog') as FogName | null;
-export const FOG = FOG_PRESETS[fogParam && fogParam in FOG_PRESETS ? fogParam : 'current'];
+export const FOG = FOG_PRESETS[fogParam && fogParam in FOG_PRESETS ? fogParam : 'lilac'];
 
 const c3 = (hex: number) => { const c = new THREE.Color(hex); return vec3(c.r, c.g, c.b); };
 const lin = (hex: number) => new THREE.Color(hex);

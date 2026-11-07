@@ -6,8 +6,8 @@ import type { BufferGeometry } from 'three';
 export const PALETTE = {
   // sky / air (white family)
   skyZenith: 0xeef0f4,
-  skyHorizon: 0xfff6ee,
-  haze: 0xfde9e2,      // far fog: white with a breath of red
+  skyHorizon: 0xf3eef8,
+  haze: 0xe4daef,      // far fog: pale cool lilac (human pick 2026-11-07; warm original: ?fog=current)
   // ground (red family)
   redLight: 0xff5a36,  // sunlit ground
   red: 0xe8331f,       // base ground
