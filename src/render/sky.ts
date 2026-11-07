@@ -1,10 +1,17 @@
-// Sky, star, lights and fog from the stats: dim and cold when starlight is low, warm when it is high.
-// Underwater (camera below the sea surface) the whole scene takes the sea's tint and a short fog.
+// Sky, star, lights and fog from the stats, in the Red World look: a white zenith over a lilac horizon (the active
+// palette, dimmed and tinted by the star through PAL_LIT/LOOK), two pale moons (decoration, lit by the same star, never
+// over the star disc), and the real star disc along LOOK.lightDir, coloured by its spectral class and sized by `light`.
+// Underwater (camera below the sea surface) the sky, the scene fog and the world material's air all take the sea's
+// tint and a short fog.
 import * as THREE from 'three/webgpu';
-import { uniform, mix, pow, clamp, positionWorldDirection } from 'three/tsl';
+import { Fn, float, vec3, mix, smoothstep, positionWorldDirection, dot, normalize, floor, clamp, length, max, mx_noise_float, uniform } from 'three/tsl';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { seaStyle, skyStyle } from './palette';
+import { LOOK, PAL_LIT, PIXEL, bayer4 } from './material';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type N = any;
 
 export interface SkyPart {
   update(dt: number, inputs: VisualInputs, patch: number): void;
@@ -15,26 +22,64 @@ export interface SkyPart {
   dispose(): void;
 }
 
+/** Fixed moon directions (world space), each well clear of the star (LOOK.lightDir), so a moon never covers it. */
+const MOONS: { dir: [number, number, number]; radiusDeg: number; seed: number; strength: number }[] = [
+  { dir: [0.255, 0.174, -0.951], radiusDeg: 5, seed: 3.1, strength: 0.78 },   // ~10° up: in frame at walking pitch
+  { dir: [0.79, 0.276, -0.553], radiusDeg: 2.4, seed: 7.7, strength: 0.82 },
+];
+
+/** Composite one moon over `sky`: a lit sphere with a stepped terminator toward the star, maria and a horizon fade. */
+function moon(d: N, sky: N, under: N, m: (typeof MOONS)[number]): N {
+  const P = new THREE.Vector3(...m.dir).normalize();
+  const sinR = Math.sin((m.radiusDeg * Math.PI) / 180);
+  const Pn = vec3(P.x, P.y, P.z);
+  const cosA = dot(d, Pn);
+  const off = d.sub(Pn.mul(cosA));
+  const r = length(off).div(sinR);                                    // 0 centre → 1 limb
+  const front = cosA.greaterThan(0).select(float(1), float(0));
+  const inDisc = PIXEL ? r.lessThan(1).select(float(1), float(0)).mul(front) : smoothstep(1.0, 0.985, r).mul(front);
+  const z = max(float(1).sub(r.mul(r)), 0).sqrt();
+  const n = normalize(off.div(sinR).sub(Pn.mul(z)));                  // visible hemisphere faces the viewer
+  let lit: N = smoothstep(-0.12, 0.3, dot(n, LOOK.lightDir));         // lit by the same star as the land
+  if (PIXEL) lit = floor(lit.mul(4).add(0.5)).div(4);
+  let maria: N = smoothstep(0.05, 0.35, mx_noise_float(n.mul(2.3).add(m.seed)).add(mx_noise_float(n.mul(5.1).add(m.seed * 3)).mul(0.35)));
+  if (PIXEL) maria = floor(maria.mul(2).add(0.5)).div(2);
+  const limb = mix(0.86, 1.0, z.pow(0.6));
+  const bright = mix(vec3(PAL_LIT.bone), vec3(PAL_LIT.blush), maria.mul(0.28)).mul(limb);
+  const dark = mix(vec3(PAL_LIT.skyZenith), vec3(PAL_LIT.blush), 0.35).mul(0.84);
+  const body = mix(dark, bright, lit);
+  const fade = smoothstep(-0.01, 0.3, d.y).mul(m.strength).mul(float(1).sub(under));
+  return mix(sky, body, inDisc.mul(fade));
+}
+
 export function createSky(app: App): SkyPart {
   const { scene, camera } = app;
   // Remove app.ts's placeholder lights and fog; this module owns them now.
   for (const c of [...scene.children]) if ((c as THREE.Light).isLight) scene.remove(c);
   scene.background = null;
 
-  const uZenith = uniform(new THREE.Color(0x4f94d8));
-  const uHorizon = uniform(new THREE.Color(0xcfe6ef));
-  const up = clamp(positionWorldDirection.y, 0, 1);
-  scene.backgroundNode = mix(uHorizon, uZenith, pow(up, 0.5));
+  const uZenith: N = uniform(new THREE.Color(0xeef0f4));
+  const uHorizon: N = uniform(new THREE.Color(0xf3eef8));
+  const uHaze: N = uniform(new THREE.Color(0xe4daef));
+  const uUnder = uniform(0);
+  scene.backgroundNode = Fn(() => {
+    const d = normalize(positionWorldDirection);
+    let t: N = smoothstep(-0.02, 0.55, d.y);
+    if (PIXEL) t = floor(t.mul(14).add(bayer4())).div(14);           // dither only in the sky
+    const col = mix(vec3(uHaze), vec3(uHorizon), smoothstep(0, 0.12, t)).toVar();
+    col.assign(mix(col, vec3(uZenith), smoothstep(0.1, 1, t)));
+    for (const m of MOONS) col.assign(moon(d, col, uUnder, m));
+    return clamp(col, 0, 2);
+  })();
 
-  const fog = new THREE.Fog(0xcfe6ef, 60, 300);
+  const fog = new THREE.Fog(0xe4daef, 60, 300);                      // for any non-world material (world material does its own air)
   scene.fog = fog;
 
   const sun = new THREE.DirectionalLight(0xffffff, 3);
-  sun.position.set(0.55, 0.7, 0.45).multiplyScalar(100);
-  const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x554433, 0.6);
+  const hemi = new THREE.HemisphereLight(0xeef0f4, 0x5c0a1e, 0.6);
   scene.add(sun, sun.target, hemi);
 
-  // The star as a flat disc far away; it follows the camera so it never gets closer.
+  // The star as a flat disc far away along the key light; it follows the camera so it never gets closer.
   const starMat = new THREE.MeshBasicNodeMaterial({ color: 0xffffff, fog: false, depthWrite: false });
   const starMesh = new THREE.Mesh(new THREE.CircleGeometry(1, 32), starMat);
   starMesh.frustumCulled = false;
@@ -42,7 +87,7 @@ export function createSky(app: App): SkyPart {
   scene.add(starMesh);
 
   const STAR_DIST = 700;
-  const sunDir = new THREE.Vector3(0.55, 0.7, 0.45).normalize();
+  const sunDir = new THREE.Vector3();
   const tmp = new THREE.Color();
   let underwater = false;
 
@@ -54,28 +99,40 @@ export function createSky(app: App): SkyPart {
     update(_dt, inputs, patch) {
       const st = skyStyle(inputs.world.starType, inputs.light, inputs.stats.pressure ?? 1, inputs.stats.temperature ?? 15);
       underwater = camera.position.y < inputs.seaLevel && (inputs.stats.seaCover ?? 1) > 0.005;
+      sunDir.copy(LOOK.lightDir.value).normalize();
 
       if (underwater) {
         const sea = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks);
-        tmp.setHex(sea.underwater);
-        // Dim with the star so a dark world stays dark below the surface too.
-        tmp.multiplyScalar(0.3 + 0.7 * st.brightness);
+        // the tint in the look's palette (as sea.ts colours the surface): ice pale, nitrogen pale-clear, water violet-oxblood
+        if (inputs.frozen) tmp.copy(PAL_LIT.bone.value).multiplyScalar(0.55);
+        else if (/nitrogen/i.test(inputs.world.solvent.name)) tmp.copy(PAL_LIT.blush.value).lerp(PAL_LIT.shadow.value, 0.45);
+        else tmp.copy(PAL_LIT.shadow.value).lerp(PAL_LIT.crimson.value, 0.3);
         uZenith.value.copy(tmp);
         uHorizon.value.copy(tmp);
+        uHaze.value.copy(tmp);
+        uUnder.value = 1;
         fog.color.copy(tmp);
         fog.near = 0.5;
         fog.far = sea.underwaterFar;
+        // The world material's air (updateLook ran first this frame): short, tinted, ~95% at underwaterFar.
+        LOOK.fogColor.value.copy(tmp);
+        LOOK.fogStart.value = 0.5;
+        LOOK.fogDist.value = sea.underwaterFar / 3;
+        LOOK.hazeAmount.value = 0;
       } else {
-        uZenith.value.setHex(st.zenith);
-        uHorizon.value.setHex(st.horizon);
-        fog.color.setHex(st.fog);
+        uZenith.value.copy(LOOK.skyZenith.value);
+        uHorizon.value.copy(LOOK.skyHorizon.value);
+        uHaze.value.copy(PAL_LIT.haze.value);
+        uUnder.value = 0;
+        fog.color.copy(LOOK.fogColor.value);
         fog.near = patch * st.fogNearFrac;
-        fog.far = patch * st.fogFarFrac;
+        fog.far = patch * st.fogFarFrac * 2.5;
+        LOOK.hazeAmount.value = 0.42;
       }
       sun.color.setHex(st.starColour);
       sun.intensity = st.sunIntensity;
-      hemi.color.setHex(st.zenith === 0 ? 0x888899 : st.horizon);
-      hemi.groundColor.setHex(0x443c36);
+      hemi.color.copy(LOOK.skyHorizon.value);
+      hemi.groundColor.copy(PAL_LIT.crimson.value);
       hemi.intensity = st.ambientIntensity;
       sun.position.copy(camera.position).addScaledVector(sunDir, 100);
       sun.target.position.copy(camera.position);

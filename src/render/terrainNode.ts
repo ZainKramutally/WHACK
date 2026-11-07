@@ -1,13 +1,16 @@
 // GPU terrain: the same height formula as src/gen/terrain.ts `heightCore`, written as a TSL node.
 // MIRROR RULE: every block below matches the block of the same name in heightCore, line for line.
 // If you change one, change the other (and keep the f32 parity test in src/gen/terrain.test.ts green).
-// Custom TSL is limited to this height node and its normal; the material is a plain built-in node
-// material that the art layer re-skins (set colorNode etc. on `mesh.material`).
+// The look: worldMaterial({ kind: 'ground' }) with the Red World ground field as its colorNode (groundField below),
+// driven by GROUND uniforms that updateGround() sets from VisualInputs each frame. A skirt of square rings outside the
+// patch carries the same height and colour out to the far plane, so no view ends at an empty edge.
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, uint, uniform, positionLocal, normalize, transformNormalToView, vertexStage,
-  floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep,
+  floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp,
 } from 'three/tsl';
+import { worldMaterial, PAL } from './material';
+import type { VisualInputs } from '../worlds/types';
 import type { Terrain, TerrainState, MachineId } from '../gen/terrain';
 import { MACHINE_IDS } from '../gen/terrain';
 
@@ -154,9 +157,93 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
 
 export interface TerrainMeshOptions { segments?: number }
 
+/** Ground-look uniforms, set from VisualInputs by updateGround() (shared by every terrain mesh and its skirt). */
+export const GROUND = {
+  seaLevel: uniform(0),
+  hasSea: uniform(0),     // 1 when a sea is drawn (seaCover > 0.005), so shore bands never appear on a dry world
+  life: uniform(0),       // lifeOnLand, eased over ~3 s
+  build: uniform(1),      // buildProgress
+  frozen: uniform(0),     // 1 when the sea is frozen: no wet band or tide line on an ice shore
+};
+
+let lifeEase = 0;
+/** Drive GROUND from the inputs. Call once per frame (world.ts step). */
+export function updateGround(inputs: VisualInputs, dt: number): void {
+  lifeEase += ((inputs.lifeOnLand ? 1 : 0) - lifeEase) * (1 - Math.exp(-dt / 3));
+  GROUND.seaLevel.value = inputs.seaLevel;
+  GROUND.hasSea.value = (inputs.stats.seaCover ?? 1) > 0.005 ? 1 : 0;
+  GROUND.life.value = lifeEase;
+  GROUND.build.value = inputs.buildProgress;
+  GROUND.frozen.value = inputs.frozen ? 1 : 0;
+}
+
 /**
- * A patchSize² plane displaced by the height node. Vertex-stage normals by central differences.
- * Drive `uniforms` with setTerrainUniforms() each frame. The art layer sets colorNode etc. on mesh.material.
+ * The Red World ground field (colour roles from PAL; worldMaterial applies light, cel shadow and fog).
+ * Height above the sea sets the base ramp (crimson hollows → red → lit redLight crests), steep walls show strata banded
+ * at the M5 terrace height, shore bands sit at seaLevel (wet dark band, pale tide line, darker seabed), frost dusts flats
+ * only below the solvent's freezing point (heatSolvent < 0.5), heat bleaches, land life darkens the low flats, and the
+ * contrast grows with rise so freshly settled ground starts even.
+ */
+function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N): N {
+  const P = terrain.params;
+  const halfA = 0.5 * P.A;
+  const bandH = P.machines.M5?.bandH ?? Math.max(1, P.A * 0.08);
+  return Fn(() => {
+    const nn = normalize(n);
+    const x = positionLocal.x, z = positionLocal.z;
+    const rise = u.rise, hs = u.heatSolvent;
+    const d = h.sub(GROUND.seaLevel);                                   // metres above the sea
+    const e = clamp(d.div(rise.mul(halfA).add(1)), -1, 1);               // relative elevation
+    const flat = smoothstep(0.78, 0.95, nn.y);
+    const steep = float(1).sub(smoothstep(0.55, 0.85, nn.y));
+    const vary = mx_noise_float(vec3(x.mul(0.035), 0, z.mul(0.035))).mul(0.5).add(0.5);
+    const fine = mx_noise_float(vec3(x.mul(0.21), 1.7, z.mul(0.21)));
+
+    // base ramp on stepped elevation bands: shadowed hollows → base red → lit crests
+    const eS = floor(e.mul(5).add(vary.mul(0.6))).div(5);
+    const c = mix(vec3(PAL.crimson), vec3(PAL.red), smoothstep(-0.6, 0.0, eS)).toVar();
+    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.2, 0.8, eS).mul(flat.mul(0.6).add(0.4))));
+    // the reference's patchy ground: low-frequency crimson hollows and sunlit flats
+    const hollow = clamp(float(0.5).sub(mx_noise_float(vec3(x.div(60), 4.1, z.div(60))).mul(1.4)), 0, 1);
+    c.assign(mix(c, vec3(PAL.crimson), hollow.mul(0.6).mul(rise)));
+    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.62, 0.9, vary).mul(flat).mul(0.35)));
+
+    // strata: stepped bands on walls, keyed to the terrace height (index mod 3 → light / dark / mid)
+    const band = floor(h.div(bandH).add(fine.mul(0.35)));
+    const k = mod(band, 3);
+    const dark = k.lessThan(0.5).select(float(0.62), k.lessThan(1.5).select(float(0.15), float(0.38)));
+    c.assign(mix(c, mix(vec3(PAL.red), vec3(PAL.maroon), dark), steep.mul(0.85)));
+    c.assign(mix(c, mix(vec3(PAL.red), vec3(PAL.crimson), dark), float(1).sub(steep).mul(0.18)));
+
+    // heat: frost below freezing (on flats and crests), bleaching when hot and dry
+    const frost = smoothstep(0.5, 0.36, hs).mul(flat.mul(0.7).add(0.3)).mul(smoothstep(-0.3, 0.3, e));
+    c.assign(mix(c, vec3(PAL.bone), frost.mul(0.85)));
+    c.assign(mix(c, vec3(PAL.blush), smoothstep(0.78, 1.0, hs).mul(flat).mul(0.3)));
+
+    // land life darkens the low flats (soil under the groves)
+    c.assign(mix(c, vec3(PAL.maroon), GROUND.life.mul(flat).mul(float(1).sub(smoothstep(0.05, 0.55, e))).mul(0.4)));
+
+    // shore: a wet dark band just above the water and a pale tide line above it, both a few metres wide on the ground
+    // whatever the slope (height widths scale with tan(slope)); the seabed darkens with depth
+    const sea = GROUND.hasSea.mul(rise.greaterThan(0.02).select(float(1), float(0)));
+    const tanS = sqrt(max(float(1).sub(nn.y.mul(nn.y)), 0)).div(max(nn.y, 0.2));
+    const wetW = clamp(tanS.mul(3.0), 0.12, 1.6).mul(fine.mul(0.3).add(1));
+    const tideW = clamp(tanS.mul(1.0), 0.06, 0.5);
+    const wet = smoothstep(-0.2, 0.05, d).mul(float(1).sub(smoothstep(wetW.mul(0.8), wetW, d)));
+    const tide = smoothstep(wetW, wetW.add(tideW.mul(0.3)), d).mul(float(1).sub(smoothstep(wetW.add(tideW.mul(0.7)), wetW.add(tideW), d)));
+    c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), 0.45), wet.mul(sea).mul(float(0.75).sub(GROUND.frozen.mul(0.55)))));
+    c.assign(mix(c, mix(vec3(PAL.blush), vec3(PAL.bone), 0.5), tide.mul(sea).mul(float(0.5).sub(GROUND.frozen.mul(0.5)))));
+    c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), smoothstep(0, -8, d)), smoothstep(0.1, -0.6, d).mul(sea).mul(0.7)));
+
+    // freshly settled ground is even; relief and its colour arrive together
+    return mix(vec3(PAL.red), c, smoothstep(0.03, 0.45, rise));
+  })();
+}
+
+/**
+ * A patchSize² plane displaced by the height node, plus a skirt (child mesh) of square rings outside it out to
+ * ~3 patch widths, on the same height node and material, so the land continues to the far plane. Vertex-stage normals
+ * by central differences. Drive `uniforms` with setTerrainUniforms() each frame and GROUND with updateGround().
  */
 export function createTerrainMesh(terrain: Terrain, uniforms: TerrainUniforms, opts: TerrainMeshOptions = {}): THREE.Mesh {
   const segments = opts.segments ?? 192;
@@ -172,13 +259,46 @@ export function createTerrainMesh(terrain: Terrain, uniforms: TerrainUniforms, o
   const hD = height(x, z.sub(eps)), hU = height(x, z.add(eps));
   const nLocal = normalize(vec3(hL.sub(hR), 2 * eps, hD.sub(hU)));
 
-  const mat = new THREE.MeshStandardNodeMaterial();
+  const mat = worldMaterial({ kind: 'ground', colorNode: groundField(terrain, uniforms, vertexStage(h), vertexStage(nLocal)) });
   mat.positionNode = vec3(x, h, z);
   mat.normalNode = transformNormalToView(vertexStage(nLocal));
-  mat.roughness = 0.9;
-  mat.metalness = 0;
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;                        // displacement is not in the flat plane's bounds
+  const skirt = new THREE.Mesh(skirtGeometry(S, segments), mat);
+  skirt.frustumCulled = false;
+  skirt.name = 'terrainSkirt';
+  skirt.raycast = () => {};                           // decoration: never picked
+  mesh.add(skirt);
   return mesh;
+}
+
+/** Square rings from the patch edge outward; the inner ring matches the patch's edge vertices exactly (no seam). */
+function skirtGeometry(S: number, segments: number): THREE.BufferGeometry {
+  const half = S / 2;
+  const offs = [0, 3, 8, 15, 25, 40, 60, 90, 130, 180, 250, 340, 460, 620, 820, 1050].map((m) => (m * S) / 400);
+  const per = segments * 4;                          // vertices per ring (each side has `segments` steps)
+  const pos = new Float32Array(offs.length * per * 3);
+  let k = 0;
+  for (const o of offs) {
+    const hh = half + o;
+    for (let i = 0; i < per; i++) {
+      const side = Math.floor(i / segments), t = (i % segments) / segments;
+      const a = -hh + 2 * hh * t;
+      const [px, pz] = side === 0 ? [a, -hh] : side === 1 ? [hh, a] : side === 2 ? [-a, hh] : [-hh, -a];
+      pos[k++] = px; pos[k++] = 0; pos[k++] = pz;
+    }
+  }
+  const idx: number[] = [];
+  for (let r = 0; r < offs.length - 1; r++) {
+    for (let i = 0; i < per; i++) {
+      const a = r * per + i, b = r * per + ((i + 1) % per), c = a + per, d = b + per;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(pos.length).fill(0).map((_, j) => (j % 3 === 1 ? 1 : 0)), 3));
+  g.setIndex(idx);
+  return g;
 }
