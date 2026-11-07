@@ -11,3 +11,4 @@
 - ~16:00: core done + shut down (417983a). Flora r4 merged (2f1aab5). 49 tests, 60fps best+median. Awaiting landforms eco14 final + flora caps/floor.
 - ~17:50: session/logic created (.sandboxes/session-logic, from origin/main). CLAUDE.md logic pass + 15-gene budget + backend plan synced (Task 5 split: Caden = genome/develop/constants/guide; eng lead = grid/ecology/relationships/metrics). Red World is the art layer. Contract src/sim/genome.ts. Spawned genome-develop, field-guide.
 - ~17:48: field-guide merged (3186b98), 18 tests green; sandbox removed. genome-develop running.
+- ~17:55: genome-develop merged (38 tests), sandbox removed. Rebased onto 56's DECISIONS (15 constants); life.inputs typed; constants-inputs agent running.
