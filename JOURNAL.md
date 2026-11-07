@@ -44,3 +44,4 @@
 - 18:57: fauna walker r3 merged (ebf5f2d): tapered crystal rods, low splayed many-legged stance. Bug: explorer occludes ?view=one close-up -> fix. Holding fauna for user feedback.
 - 18:59: fauna explorer occlusion fix merged (f8290ad). All agents on standby awaiting user feedback.
 - 19:04: render-critique (via whack-2026-89 for Caden): hero 29/40. Skill imported (7775547), critique b5f477c. Fix round to rw-scene (clump ground cover, cool shadow #5a1040 approved, corner cap, moon size, cyan story, motion hierarchy) and rw-fauna (value separation, bell blotches, hide hint).
+- 19:10: fauna critique fixes merged (4487b13): pale backs on walkers, bell blotches, no hint under webdriver. 98 tests. rw-fauna holding for user bell feedback.
