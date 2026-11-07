@@ -107,7 +107,8 @@ async function boot() {
 
   // Exposed for other lanes and for debugging from the console.
   (window as unknown as { app: unknown; player: unknown }).app = app;
-  (window as unknown as { player: unknown }).player = player;
+  (window as unknown as { player: unknown; view: unknown }).player = player;
+  (window as unknown as { view: unknown }).view = view;
 
   // Everything is subscribed: start the sim, then select the world.
   startSim(bus);
