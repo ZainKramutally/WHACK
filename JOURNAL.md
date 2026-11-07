@@ -40,3 +40,4 @@
 - 18:39: Bellwhale merged (cherry-pick of 9ee16e6): adolescent ~22 m bell @90 m + juvenile 2.6 m, one genome + age. 98 tests (one timeout flake in placement determinism test, 2.8 s -> rw-scene to fix). Awaiting user feedback on whale.
 - 18:46: placement test speed fix merged (797ccbc): file 7 s -> 1.5 s, region-clipped determinism, shared full run. 98 tests.
 - 18:51: fauna r2 merged (cherry-pick of bdd29b2): thigh/shin/claw legs, continuous hulls, skulls w/ sockets+brows, head look-ahead, weight drop, size-true lineup, translucent bell material, bigger bell body, wider tendrils. 15 draws, 98 tests, 60fps. Lab camera request pending.
+- 18:54: fauna lab free camera merged (c82242a): orbit/zoom/pan, WASD/QE, 1-0 jump, F follow, hint. Captures unchanged. 98 tests.
