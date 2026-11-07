@@ -61,6 +61,24 @@ const list: Source[] = [
     note: 'Crossref. More nitrogen warms the planet a little through the CO2 greenhouse.',
   },
   {
+    id: 'lee1995',
+    citation: 'Lee MR, Russell SS, Arden JW, Pillinger CT (1995). Nierite (Si3N4), a new mineral from ordinary and enstatite chondrites. Meteoritics 30:387.',
+    doi: '10.1111/j.1945-5100.1995.tb01142.x',
+    note: 'Crossref. Silicon nitride occurs naturally in reduced (enstatite) chondrites: a plausible feedstock on a reduced, oxygen-free world.',
+  },
+  {
+    id: 'myhre1998',
+    citation: 'Myhre G, Highwood EJ, Shine KP, Stordal F (1998). New estimates of radiative forcing due to well mixed greenhouse gases. Geophysical Research Letters 25:2715.',
+    doi: '10.1029/98GL01908',
+    note: 'Crossref. CO2 forcing grows with the logarithm of concentration: a fixed warming per doubling.',
+  },
+  {
+    id: 'sherwood2020',
+    citation: "Sherwood SC et al. (2020). An assessment of Earth's climate sensitivity using multiple lines of evidence. Reviews of Geophysics 58:e2019RG000678.",
+    doi: '10.1029/2019RG000678',
+    note: 'Crossref. Best estimate of the warming per CO2 doubling (about 2.6 to 3.9 K likely range, central 3.1 K).',
+  },
+  {
     id: 'som2016',
     citation: "Som SM et al. (2016). Earth's air pressure 2.7 billion years ago constrained to less than half of modern levels. Nature Geoscience.",
     doi: '10.1038/ngeo2713',
