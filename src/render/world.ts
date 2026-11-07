@@ -13,16 +13,16 @@ import { worldFor as defaultWorldFor } from '../worlds';
 import type { InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
 import { createSky } from './sky';
 import { createSea } from './sea';
+import { createBackdrop } from './backdrop';
 import { createFauna } from './fauna';
 import { createFlora } from './flora';
 import { createPicker } from './pick';
 import { createCounterpart } from './counterpart';
 import { createLandmarksPart } from './landmarks';
 import type { LandmarkSet } from '../gen/landmarks';
-import { groundColour } from './palette';
 import { PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
-import { createTerrainMesh, createTerrainUniforms } from './terrainNode';
+import { createTerrainMesh, createTerrainUniforms, updateGround } from './terrainNode';
 import type { Terrain } from '../gen/terrain';
 
 type U = { value: number };
@@ -114,10 +114,10 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
 
   let terrain: THREE.Mesh | null = null;
   let uniforms: TerrainUniformsLike | undefined;
-  let lifeBlend = 0;
 
   const sky = createSky(app);
   const sea = createSea(app);
+  const backdrop = createBackdrop(app);
   const fauna = createFauna(app);
   const beforeFlora = new Set(app.scene.children);
   const flora = createFlora(app);
@@ -134,11 +134,9 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     latest = inputs;
     if (patchOverride === undefined) patch = worldFor(inputs.world.id).terrain.patchSize;
     updateLook(inputs, app.camera, dt, patch);
+    updateGround(inputs, dt);   // after updateLook, before sky.update (sky overrides LOOK fog underwater)
 
-    lifeBlend += ((inputs.lifeOnLand ? 1 : 0) - lifeBlend) * (1 - Math.exp(-dt / 3));
-    const ground = groundColour(inputs.world.composition, lifeBlend);
     if (terrain) {
-      (terrain.material as THREE.MeshStandardNodeMaterial).color.setHex(ground);   // only read if a colorNode is absent
       if (uniforms) {
         if (uniforms.rise) uniforms.rise.value = inputs.terrain.rise;
         if (uniforms.heatSolvent) uniforms.heatSolvent.value = inputs.heatSolvent;
@@ -147,13 +145,13 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     } else {
       placeholder.scale.set(patch, patch, 1);
       placeholder.position.y = 0;
-      placeholderMat.color.setHex(ground);
     }
 
     const t0 = performance.now();
     sky.update(dt, inputs, patch);
     const t1 = performance.now();
     sea.update(dt, t, inputs, patch);
+    backdrop.update(dt, t, inputs, patch);
     const t2 = performance.now();
     fauna.update(dt, t, inputs, patch);
     const t3 = performance.now();
@@ -226,6 +224,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       flora.dispose();
       landmarks.dispose();
       sea.dispose();
+      backdrop.dispose();
       sky.dispose();
       app.scene.remove(placeholder);
       placeholder.geometry.dispose();
