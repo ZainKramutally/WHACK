@@ -53,6 +53,7 @@ export function hslToHex(h: number, s: number, l: number): number {
 export function glowHueOf(recipe: Recipe): number {
   const r = [recipe.c, recipe.si, recipe.o], fam = [FAMILY.c, FAMILY.si, FAMILY.o].map(hexToHsl);
   const mx = Math.max(...r);
+  // soft-argmax, not recipe^4: near-ties (eco04 si .40 vs o .45) would average to purple (~280°) instead of the leader's pink
   const w = r.map((v) => Math.exp((v - mx) / 0.025));
   const ws = w[0] + w[1] + w[2];
   let sx = 0, sy = 0, S = 0, L = 0;
