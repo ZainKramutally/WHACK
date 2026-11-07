@@ -105,10 +105,8 @@ async function boot() {
   });
 
 
-  // Exposed for other lanes and for debugging from the console.
-  (window as unknown as { app: unknown; player: unknown }).app = app;
-  (window as unknown as { player: unknown; view: unknown }).player = player;
-  (window as unknown as { view: unknown }).view = view;
+  // Console handles for debugging and headless smoke tests, behind ?debug (like the fps readout).
+  if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view });
 
   // Everything is subscribed: start the sim, then select the world.
   startSim(bus);
