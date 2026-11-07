@@ -20,7 +20,7 @@ function sourcedItems(w: WorldConfig): [string, Sourced | { sources: string[]; a
   Object.entries(w.features).forEach(([k, s]) => items.push([`feature ${k}`, s]));
   items.push(['build', w.build], ['terrain', w.terrain]);
   const { solvent, airDensity, tissueDensity } = w.life.inputs;
-  items.push(['life.solvent', solvent], ['life.airDensity', airDensity], ['life.tissueDensity', tissueDensity]);
+  items.push(['life.solvent', solvent], ['life.airDensity', airDensity], ['life.tissueDensity', tissueDensity], ['life.founders', w.life.founders]);
   return items;
 }
 

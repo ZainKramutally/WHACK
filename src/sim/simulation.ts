@@ -150,7 +150,7 @@ export class WorldSimulation {
     this.refreshDerived();
 
     this.tickBands = livingBands(world, this.conditions(), this.limitsEnv);
-    this.life = opts.life ?? new EcologyLife(world, this.seed, { liquid: () => this.liquidNow(), founderTemperature: start.temperature });
+    this.life = opts.life ?? new EcologyLife(world, this.seed, { liquid: () => this.liquidNow() });
   }
 
   // ---- public API ---------------------------------------------------------------------------------------

@@ -46,6 +46,7 @@ function base(id: 'carbon' | 'silicon'): Omit<WorldConfig, 'solvent' | 'limits' 
     life: {
       rules: {} as LifeRules,
       composition: id === 'carbon' ? { c: 1, si: 0, o: 0.2 } : { c: 0, si: 1, o: 0 },
+      founders: { ...sourced, prefTemp: id === 'carbon' ? 15 : -183, tolerance: 8, chem: 0.5 },
       ledger: {},
       inputs: {
         solvent: { ...sourced, rho: 1, mu: 1, epsilonR: 1, liquidBandC: [0, 100] },

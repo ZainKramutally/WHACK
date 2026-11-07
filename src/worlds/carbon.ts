@@ -236,6 +236,14 @@ export const carbon: WorldConfig = {
       chemTrait: { kind: 'oxygenNeed', halfSaturation: 2, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1 },
     },
     composition: { c: 0.85, si: 0.0, o: 0.15 },
+    founders: {
+      prefTemp: 15, // °C: Earth's mean, the Temperature slider's default
+      tolerance: 8, // °C either side of prefTemp; wide enough that founders survive the whole living band, narrow enough for climate genes to matter
+      chem: 0.5, // oxygen need, 0..1: half-aerobic founders, so the oxygen cap on size bites but does not starve them
+      why: 'Founders start adapted to the starting climate with a moderate tolerance and oxygen need; mutation does the rest.',
+      sources: [],
+      assumption: true,
+    },
     // Ecology scalings (issue #19, all assumption: true). Tuned on the demo seed so legs, plates and hunters appear together by ~340 ecology-s.
     ledger: {
       massUnit: 1, // kg of develop() mass per matter unit (unit conversion)

@@ -33,7 +33,7 @@ export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: Ecolo
       tissueDensity: world.life.inputs.tissueDensity,
     },
     composition: world.life.composition,
-    founderClimate: { prefTemp: env.temperature, tolerance: 8, chem: 0.5 },
+    founderClimate: { prefTemp: world.life.founders.prefTemp, tolerance: world.life.founders.tolerance, chem: world.life.founders.chem },
     ledger: L,
   });
   return { eco, env };

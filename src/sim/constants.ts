@@ -23,7 +23,9 @@ export const CONSTANTS = deepFreeze({
   P0: c(1.0, 'game'),
   /** R2: dissolution attack at ε_r = 80 (attack = DISSOLVE·ε_r/80). */
   DISSOLVE: c(0.15, 'game'),
-  /** R3: basal upkeep. Placeholder ("round 2's b0"): tune. */
+  /** R3: basal upkeep. Swept ×0.25–×2 (issue #19; 4 seeds + demo seed per world, full 20 s build): 1.0 is the edge of what works.
+   *  ×1.5 halves carbon variety (OTUs 46 → 28, FDis 0.80 → 0.67) and ×2 starves carbon to <40 animals; ×0.75 and below keep carbon's
+   *  variety but push the carbon demo seed's end-of-build CO₂ out of target (0.41–0.50 %). Silicon prefers lower (OTUs 61 → 63–73) but shares the knob. */
   B0: c(1.0, 'game'),
   /** R4: mass of one unit of plate cover, as a share of body mass. */
   PLATE_MASS: c(0.15, 'game'),
@@ -35,8 +37,11 @@ export const CONSTANTS = deepFreeze({
   SIGMA: c(0.075, 'game'),
   /** R9: temperature–size magnitude (Atkinson 1994): adult scale × (1 + TSR·(1 − 2·heat)). */
   TSR: c(0.6, 'game'),
-  /** R10: flight/hover scale. Placeholder: tune. */
-  FLY_K: c(1.0, 'game'),
+  /** R10: flight/hover scale. Swept ×0.25–×4 (issue #19; 8 seeds + demo seed per world at ×0.5/×1/×2, 3 + demo at the rest).
+   *  Effects are small next to seed noise (carbon hunter counts swing 0–99 between seeds). ×2: carbon OTUs 46 → 47, hunters present in 8/8 seeds
+   *  (was 6/8), silicon OTUs 61 → 62, floaters ×2.6 (16 → 42); all demo-seed targets pass. ×0.5 gave more (carbon hunters 27 → 47, silicon FDis
+   *  0.47 → 0.57, floaters 155) but leaves the SLOW carbon gate with 0 hunters at its final instant, so it is not taken. ×0.25 and ×4 are worse or noise. */
+  FLY_K: c(2.0, 'game'),
   /** R3: Kleiber exponent (1932). */
   KLEIBER: c(0.75, 'sci'),
   /** R3: share of upkeep that full eyes cost (Moran 2015). */

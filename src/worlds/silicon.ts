@@ -268,6 +268,14 @@ export const silicon: WorldConfig = {
       chemTrait: { kind: 'coldStability', warmRelief: 0.5, cost: 0.2 },
     },
     composition: { c: 0.1, si: 0.9, o: 0.0 },
+    founders: {
+      prefTemp: -183, // °C: liquid nitrogen at about 3.6 bar, the Temperature slider's silicon default
+      tolerance: 8, // °C either side of prefTemp; the same spread as carbon, so the two worlds compare fairly
+      chem: 0.5, // cold stability, 0..1: moderately robust Si–Si chains
+      why: 'Founders start adapted to the starting climate with a moderate tolerance and cold stability; mutation does the rest.',
+      sources: [],
+      assumption: true,
+    },
     // Ecology scalings (issue #19, all assumption: true). Tuned on the demo seed so legs, plates and hunters appear together by ~340 ecology-s.
     ledger: {
       massUnit: 1, // kg of develop() mass per matter unit (unit conversion)

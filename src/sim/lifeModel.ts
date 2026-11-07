@@ -48,16 +48,12 @@ export interface LifeModel {
   setLiquid?(liquid: ArrayLike<number>): void;
 }
 
-// Founder climate genes until the config carries them (issue #7): tolerance and oxygen need / cold stability.
-const FOUNDER_TOLERANCE = 8; // implementation constant (DECISIONS §G.2 exempt)
-const FOUNDER_CHEM = 0.5; // implementation constant (DECISIONS §G.2 exempt)
 // Fallback nutrient supply per cell until the world configs carry it (read from life.ledger supplyC/supplySi/supplyO).
 const FALLBACK_SUPPLY = { c: 40, si: 0.4, o: 10 };
 
 export interface EcologyLifeContext {
   /** Static liquid depth per cell at the moment life appears. */
   liquid(): ArrayLike<number>;
-  founderTemperature: number;
 }
 
 const EMPTY: LifeDrivers = { producerBiomass: 0, consumerBiomass: 0, deadBiomass: 0 };
@@ -96,7 +92,7 @@ export class EcologyLife implements LifeModel {
         tissueDensity: fixed.tissueDensity,
       },
       composition: w.life.composition,
-      founderClimate: { prefTemp: this.ctx.founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: FOUNDER_CHEM },
+      founderClimate: { prefTemp: w.life.founders.prefTemp, tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },
       ledger: led as Partial<EcologyLedger>,
     });
     this.eco.seedLife(env, near);
