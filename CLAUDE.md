@@ -492,6 +492,7 @@ interface WorldConfig {
     rules: LifeRules;      // climate and metabolism rules (type in src/sim/population.ts)
     composition: { c: number; si: number; o: number };   // the world's fixed body recipe, F's Recipe
     ledger: unknown;       // F's trait-ledger coefficients for this world (typed when sim/ecology.ts lands)
+    founders: Sourced & { prefTemp: number; tolerance: number; chem: number };   // founder climate genes (world facts, assumption: true)
     inputs: {              // world facts the ecology reads (DECISIONS §G.2 moved them out of sim/constants.ts); each needs why + sources, or assumption: true
       solvent: { rho: number; mu: number; epsilonR: number; liquidBandC: [number, number] } & Sourced;   // density, viscosity, permittivity, liquid range
       airDensity: Sourced & { scale: number };       // multiplies the live P·M/(R·T) into develop()'s scale, where unbuoyed carbon tissue = 1
