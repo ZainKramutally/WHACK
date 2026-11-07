@@ -1,175 +1,229 @@
-// Plants from the per-cell flora grid ([mat, canopy] per cell, 64² cells). Density and height follow biomass; a cell
-// with no biomass draws nothing (so nothing appears before life). Carbon: curling stems with caps. Silicon: crystal
-// spikes with side branches at 60°. Chemistry comes from the world's body composition. Rebuilt a few times a second.
+// Plants from the per-cell flora grid ([mat, canopy] per cell, 64² cells). A cell with no biomass draws nothing, so
+// nothing appears before life. Shapes come from the Red World archetype library (floraLib/, built once at startup);
+// which archetype, how big and how many is a pure function of floraForm(cell, inputs), the biomass and the camera
+// position (floraLib/place.ts). Drawn as one InstancedMesh per (archetype × LOD × value × 100 m chunk), so far chunks
+// frustum-cull. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
 import * as THREE from 'three/webgpu';
+import { attribute, float } from 'three/tsl';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { FLORA_GRID, cellCentre, floraAt, floraShape, hash01 } from './layout';
-import { floraColours } from './palette';
-import { floraForm } from './floraForm';
+import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
+import { makeHeightCache, makePlantList, placePlants, resetHeightCache } from './floraLib/place';
 
-const STEM_CAP = 30000, CAP_CAP = 12000, SPIKE_CAP = 40000, CUP_CAP = 12000, DOME_CAP = 12000, LAMP_CAP = 20000, MAX_PLANTS = 10000;
+const LIB_SEED = 0x5eed_f10a;
 const REBUILD_EVERY = 0.25; // s while the world builds
-const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly, and a rebuild is a ~10 ms spike
+const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
+const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
+const CHUNKS = 4; // per side of the patch
 const UP = new THREE.Vector3(0, 1, 0);
+
+// TODO(art-look): replace with LOOK_PALETTES[lookKind(...)] from palette.ts once WP1's palette lands (same values).
+const PALETTES: Record<'carbon' | 'silicon', FloraPalette> = {
+  carbon: { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a },
+  silicon: { ink: 0x0e0822, maroon: 0x34245e, crimson: 0x7660a8, blush: 0xa8c4f0, bone: 0xf4f6fc, glow: 0x7af2ff, glowDeep: 0x3a6ee0 },
+};
 
 export interface FloraPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
   /** Number of plants drawn at the last rebuild. */
   plants: number;
+  /** Triangles submitted at the last rebuild (before frustum culling). */
+  triangles: number;
+  /** ms spent in the last rebuild. */
+  rebuildMs: number;
   dispose(): void;
 }
 
-function inst(geo: THREE.BufferGeometry, mat: THREE.Material, cap: number): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(geo, mat, cap);
-  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
-  m.frustumCulled = false;
-  m.count = 0;
+// TODO(art-look): swap for worldMaterial({ kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway',
+// translucent: true }) from ./material once WP1's stub lands. Until then: vertex colour + HDR glow from aGlow.
+function floraMaterial(): THREE.Material {
+  const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide });
+  const c = attribute('color', 'vec3');
+  m.colorNode = c;
+  m.emissiveNode = c.mul(attribute('aGlow', 'float').mul(float(3)));
   return m;
 }
 
+/** A painted geometry: one archetype × LOD × value step, shared by every chunk mesh that draws it. */
+interface Look {
+  arch: Archetype;
+  lod: 0 | 1;
+  dark: boolean;
+  geometry: THREE.BufferGeometry;
+  painted: { pal: FloraPalette | null; glow: number };
+}
+
+interface Bucket {
+  mesh: THREE.InstancedMesh;
+  scale: THREE.InstancedBufferAttribute;
+  cap: number;
+}
+
 export function createFlora(app: App): FloraPart {
-  const stems = inst(new THREE.CylinderGeometry(0.55, 1, 1, 6).translate(0, 0.5, 0), new THREE.MeshStandardNodeMaterial({ roughness: 0.8 }), STEM_CAP);
-  const caps = inst(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshStandardNodeMaterial({ roughness: 0.6 }), CAP_CAP);
-  const spikes = inst(
-    new THREE.ConeGeometry(1, 1, 4).translate(0, 0.5, 0),
-    new THREE.MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.1, flatShading: true }),
-    SPIKE_CAP,
-  );
-  // Lantern cups: open-topped hemispheres. Domes: translucent jellyshroom half-spheres. Lamps: small unlit HDR spheres
-  // for glow (from darkness), inside cups and domes and at silicon tips.
-  const cups = inst(
-    new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-    new THREE.MeshStandardNodeMaterial({ roughness: 0.5, side: THREE.DoubleSide }),
-    CUP_CAP,
-  );
-  const domeMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.15, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
-  domeMat.depthWrite = false;
-  const domes = inst(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), domeMat, DOME_CAP);
-  const lamps = inst(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicNodeMaterial({ fog: true }), LAMP_CAP);
-  app.scene.add(stems, caps, spikes, cups, domes, lamps);
-  const ALL = [stems, caps, spikes, cups, domes, lamps];
+  const lib = buildFloraLibrary(LIB_SEED);
+  const material = floraMaterial();
+  const group = new THREE.Group();
+  group.name = 'flora';
+  app.scene.add(group);
 
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), dir = new THREE.Vector3();
-  const colour = new THREE.Color();
+  const nA = lib.archetypes.length;
+  const looks: Look[] = [];
+  const lookOf = (arch: number, lod: number, dark: number): Look => {
+    const id = (arch * 2 + lod) * 2 + dark;
+    let L = looks[id];
+    if (!L) {
+      const a = lib.archetypes[arch];
+      const built = a.lod[lod];
+      // the dark (foreground) step needs its own colour array; everything else is shared
+      const geometry = dark ? built.geometry.clone() : built.geometry;
+      L = looks[id] = { arch: a, lod: lod as 0 | 1, dark: !!dark, geometry, painted: { pal: null, glow: -1 } };
+    }
+    return L;
+  };
+
+  const buckets = new Map<number, Bucket>();
+  function bucket(look: Look, lookId: number, chunk: number, need: number): Bucket {
+    const id = lookId * CHUNKS * CHUNKS + chunk;
+    let b = buckets.get(id);
+    if (b && b.cap >= need) return b;
+    const cap = Math.max(16, 1 << Math.ceil(Math.log2(need)));
+    // per-mesh geometry that shares every vertex attribute with the look, plus its own instanced aScale
+    const g = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(look.geometry.attributes)) g.setAttribute(name, attr);
+    g.setIndex(look.geometry.index);
+    const scale = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
+    scale.setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('aScale', scale);
+    const mesh = new THREE.InstancedMesh(g, material, cap);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.count = 0;
+    mesh.name = `${look.arch.key}/L${look.lod}${look.dark ? 'd' : ''}@${chunk}`;
+    if (b) group.remove(b.mesh); // its geometry shares the look's buffers: never dispose it here
+    group.add(mesh);
+    b = { mesh, scale, cap };
+    buckets.set(id, b);
+    return b;
+  }
+
+  // Warm-up: one carbon and one silicon mesh, a single invisible-sized instance far below ground, so world.ts's
+  // compileAsync builds the flora pipelines before Generate. Hidden at the first rebuild that draws plants.
+  const warm: THREE.InstancedMesh[] = [];
+  for (const chem of ['carbon', 'silicon'] as const) {
+    const ai = lib.archetypes.findIndex((a) => a.chem === chem);
+    const L = lookOf(ai, 0, 0);
+    paint(L.arch.lod[0], PALETTES[chem], 0);
+    L.painted = { pal: PALETTES[chem], glow: 0 };
+    const g = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
+    g.setIndex(L.geometry.index);
+    g.setAttribute('aScale', new THREE.InstancedBufferAttribute(new Float32Array([1e-4]), 1));
+    const w = new THREE.InstancedMesh(g, material, 1);
+    w.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0));
+    w.frustumCulled = false;
+    group.add(w);
+    warm.push(w);
+  }
+
+  const list = makePlantList();
+  const heights = makeHeightCache();
+  const lookIds = new Int32Array(list.arch.length);
+  const chunkOf = new Uint8Array(list.arch.length);
+  const counts = new Int32Array(nA * 4 * CHUNKS * CHUNKS);
+  const fill = new Int32Array(counts.length);
+  const maxH = new Float32Array(counts.length);
+  const lookGlow = new Float32Array(nA * 4);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
-
-  function push(mesh: THREE.InstancedMesh, base: THREE.Vector3, d: THREE.Vector3, len: number, rad: number, hex: number) {
-    const i = mesh.count;
-    if (i >= (mesh.instanceMatrix.count)) return;
-    q.setFromUnitVectors(UP, d);
-    sc.set(rad, len, rad);
-    m4.compose(base, q, sc);
-    m4.toArray(mesh.instanceMatrix.array as Float32Array, i * 16);
-    colour.setHex(hex).toArray((mesh.instanceColor as THREE.InstancedBufferAttribute).array as Float32Array, i * 3);
-    mesh.count = i + 1;
-  }
-  function pushBall(mesh: THREE.InstancedMesh, at: THREE.Vector3, rad: number, hex: number, squash = 1, hdr = 1) {
-    const i = mesh.count;
-    if (i >= mesh.instanceMatrix.count) return;
-    m4.makeScale(rad, rad * squash, rad).setPosition(at);
-    m4.toArray(mesh.instanceMatrix.array as Float32Array, i * 16);
-    colour.setHex(hex).multiplyScalar(hdr).toArray((mesh.instanceColor as THREE.InstancedBufferAttribute).array as Float32Array, i * 3);
-    mesh.count = i + 1;
-  }
+  let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
 
   const part: FloraPart = {
     plants: 0,
+    triangles: 0,
+    rebuildMs: 0,
     update(_dt, t, inputs, patch) {
+      const cam = app.camera.position;
+      const moved = Math.hypot(cam.x - lastCam.x, cam.z - lastCam.z) > CAMERA_MOVE;
       const needs =
-        inputs.flora !== lastBuf || Math.abs(inputs.terrain.rise - lastRise) > 0.02 ||
-        inputs.world.id !== lastWorld || patch !== lastPatch;
-      if (!needs || t - lastAt < (inputs.buildProgress < 1 ? REBUILD_EVERY : REBUILD_EVERY_LIVE)) return;
+        inputs.flora !== lastBuf || Math.abs(inputs.terrain.rise - lastRise) > 0.02 || inputs.world.id !== lastWorld ||
+        patch !== lastPatch || moved || inputs.lifeOnLand !== lastLand || !(Math.abs(inputs.seaLevel - lastSea) < 0.3);
+      const every = inputs.buildProgress < 1 || moved ? REBUILD_EVERY : REBUILD_EVERY_LIVE;
+      if (!needs || t - lastAt < every) return;
+      const t0 = performance.now();
+      if (inputs.world.id !== lastWorld || patch !== lastPatch) resetHeightCache(heights);
       lastBuf = inputs.flora; lastRise = inputs.terrain.rise; lastWorld = inputs.world.id; lastAt = t; lastPatch = patch;
+      lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
 
-      for (const m of ALL) m.count = 0;
-      let plants = 0;
-      const silicon = inputs.world.composition.si > 0.5;
-      const cell = patch / FLORA_GRID;
-      const n = Math.min(inputs.flora.length / 2, FLORA_GRID * FLORA_GRID);
-      for (let c = 0; c < n && plants < MAX_PLANTS; c++) {
-        const { mat, canopy } = floraAt(inputs.flora, c);
-        const shape = floraShape(mat, canopy);
-        const form = shape.count === 0 ? null : floraForm(c, inputs);
-        if (!form) continue;
-        const cc = cellCentre(c, patch);
-        const cols = floraColours(silicon, canopy);
-        const glowHex = silicon ? 0xbfe8ff : 0xfff2a0;
-        const hdr = 1 + 2.5 * form.glow;
-        for (let k = 0; k < shape.count && plants < MAX_PLANTS; k++) {
-          const x = cc.x + (hash01(c, k, 1) - 0.5) * cell * 0.9;
-          const z = cc.z + (hash01(c, k, 2) - 0.5) * cell * 0.9;
-          const h = shape.height * form.heightScale * (0.7 + 0.6 * hash01(c, k, 3));
-          const az = hash01(c, k, 4) * Math.PI * 2;
-          p.set(x, inputs.terrain.height(x, z), z);
-          plants++;
-          switch (form.species) {
-            case 'spire': {
-              // Straight trunk; branches leave it at form.branchDeg.
-              dir.set(Math.sin(0.12) * Math.cos(az), Math.cos(0.12), Math.sin(0.12) * Math.sin(az)).normalize();
-              push(spikes, p, dir, h, 0.07 * h + 0.02, cols.stem);
-              const tilt = (form.branchDeg * Math.PI) / 180;
-              const trunk = dir.clone();
-              const at = p.clone().addScaledVector(trunk, h * 0.45);
-              for (let b = 0; b < form.branches; b++) {
-                const a2 = az + (b * 2 * Math.PI) / form.branches + 0.5 * (hash01(c, k, 5) - 0.5);
-                dir.set(Math.sin(tilt) * Math.cos(a2), Math.cos(tilt), Math.sin(tilt) * Math.sin(a2));
-                push(spikes, at, dir, h * 0.55, 0.05 * h + 0.015, cols.tip);
-                if (form.glow > 0) pushBall(lamps, at.clone().addScaledVector(dir, h * 0.55), 0.04 * h + 0.03, glowHex, 1, hdr);
-              }
-              if (form.glow > 0) pushBall(lamps, at.clone().addScaledVector(trunk, h * 0.55), 0.05 * h + 0.03, glowHex, 1, hdr);
-              break;
-            }
-            case 'crust': {
-              // Low faceted fans: wide, short crystals lying close to the ground.
-              for (let b = 0; b < 3; b++) {
-                const a2 = az + (b * 2 * Math.PI) / 3;
-                dir.set(Math.sin(1.0) * Math.cos(a2), Math.cos(1.0), Math.sin(1.0) * Math.sin(a2)).normalize();
-                push(spikes, p, dir, h * 0.5, 0.09 * h + 0.03, b === 0 ? cols.stem : cols.tip);
-              }
-              if (form.glow > 0) pushBall(lamps, p.clone().setY(p.y + 0.1 * h), 0.04 * h + 0.03, glowHex, 1, hdr);
-              break;
-            }
-            case 'dome': {
-              // Translucent jellyshroom dome sitting on the ground.
-              const r = form.capScale * h + 0.3;
-              pushBall(domes, p, r, cols.tip, 0.8);
-              if (form.glow > 0) pushBall(lamps, p.clone().setY(p.y + 0.25 * r), 0.3 * r, glowHex, 1, hdr);
-              break;
-            }
-            default: {
-              // Carbon stems curl by form.curl per segment (tuft: short and capless).
-              const stemH = form.species === 'tuft' ? h * 0.6 : h;
-              const seg = stemH / 3, curl = form.curl * (0.7 + 0.6 * hash01(c, k, 6));
-              const cur = p.clone();
-              let phi = 0.05;
-              for (let j = 0; j < 3; j++) {
-                dir.set(Math.sin(phi) * Math.cos(az), Math.cos(phi), Math.sin(phi) * Math.sin(az)).normalize();
-                push(stems, cur, dir, seg, 0.06 * stemH * (1 - 0.25 * j) + 0.015, cols.stem);
-                cur.addScaledVector(dir, seg);
-                phi += curl;
-              }
-              const r = form.capScale * stemH + 0.25 * shape.cap + 0.04;
-              if (form.species === 'capped') pushBall(caps, cur, r, cols.tip);
-              else if (form.species === 'cup') {
-                pushBall(cups, cur, r * 1.3, cols.tip);
-                if (form.glow > 0) pushBall(lamps, cur.clone().setY(cur.y + 0.15 * r), 0.45 * r, glowHex, 1, hdr);
-              }
-            }
-          }
+      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights);
+      const pal = PALETTES[inputs.world.composition.si > 0.5 ? 'silicon' : 'carbon'];
+      counts.fill(0); maxH.fill(0); lookGlow.fill(0);
+      const half = patch / 2, chunkW = patch / CHUNKS;
+      for (let i = 0; i < list.n; i++) {
+        const look = (list.arch[i] * 2 + list.lod[i]) * 2 + list.dark[i];
+        const cx = Math.min(CHUNKS - 1, Math.max(0, Math.floor((list.x[i] + half) / chunkW)));
+        const cz = Math.min(CHUNKS - 1, Math.max(0, Math.floor((list.z[i] + half) / chunkW)));
+        const chunk = cz * CHUNKS + cx;
+        lookIds[i] = look; chunkOf[i] = chunk;
+        const id = look * CHUNKS * CHUNKS + chunk;
+        counts[id]++;
+        if (list.h[i] > maxH[id]) maxH[id] = list.h[i];
+        if (list.glow[i] > lookGlow[look]) lookGlow[look] = list.glow[i];
+      }
+      // hide every mesh; the ones in use are shown below
+      for (const b of buckets.values()) { b.mesh.count = 0; b.mesh.visible = false; }
+      let tris = 0;
+      for (let id = 0; id < counts.length; id++) {
+        fill[id] = 0;
+        if (!counts[id]) continue;
+        const look = Math.floor(id / (CHUNKS * CHUNKS)), chunk = id % (CHUNKS * CHUNKS);
+        const L = lookOf(look >> 2, (look >> 1) & 1, look & 1);
+        if (L.painted.pal !== pal || Math.abs(L.painted.glow - lookGlow[look]) > 0.01) {
+          paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[look], L.dark);
+          L.painted = { pal, glow: lookGlow[look] };
         }
+        const b = bucket(L, look, chunk, counts[id]);
+        b.mesh.visible = true;
+        b.mesh.frustumCulled = true;
+        // chunk bounds: the 100 m square plus the tallest plant (and a sway margin)
+        const ccx = -half + ((chunk % CHUNKS) + 0.5) * chunkW, ccz = -half + (Math.floor(chunk / CHUNKS) + 0.5) * chunkW;
+        const r = Math.hypot(chunkW / 2 + maxH[id] * 0.6, chunkW / 2 + maxH[id] * 0.6, maxH[id]);
+        b.mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(ccx, inputs.terrain.height(ccx, ccz) + maxH[id] * 0.5, ccz), r + 4);
+        tris += counts[id] * L.arch.lod[L.lod].triangles;
       }
-      part.plants = plants;
-      for (const m of ALL) {
-        m.instanceMatrix.needsUpdate = true;
-        (m.instanceColor as THREE.InstancedBufferAttribute).needsUpdate = true;
+      const arr = new Map<number, Float32Array>();
+      for (let i = 0; i < list.n; i++) {
+        const id = lookIds[i] * CHUNKS * CHUNKS + chunkOf[i];
+        const b = buckets.get(id)!;
+        const k = fill[id]++;
+        const a = lib.archetypes[list.arch[i]];
+        const s = list.h[i] / a.size;
+        q.setFromAxisAngle(UP, list.yaw[i]);
+        p.set(list.x[i], list.y[i] - 0.03 * list.h[i], list.z[i]);
+        sc.set(s, s, s);
+        m4.compose(p, q, sc);
+        let ma = arr.get(id);
+        if (!ma) { ma = b.mesh.instanceMatrix.array as Float32Array; arr.set(id, ma); }
+        m4.toArray(ma, k * 16);
+        (b.scale.array as Float32Array)[k] = s;
       }
+      for (const [id, b] of buckets) {
+        const n = fill[id] ?? 0;
+        if (!n) continue;
+        b.mesh.count = n;
+        b.mesh.instanceMatrix.needsUpdate = true;
+        b.scale.needsUpdate = true;
+      }
+      if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
+      part.plants = list.n;
+      part.triangles = tris;
+      part.rebuildMs = performance.now() - t0;
     },
     dispose() {
-      app.scene.remove(...ALL);
-      for (const m of ALL) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose(); }
+      app.scene.remove(group);
+      for (const b of buckets.values()) { b.mesh.geometry.dispose(); b.mesh.dispose(); }
+      for (const L of looks) L?.geometry.dispose();
+      material.dispose();
     },
   };
+  group.userData.flora = part; // debug/profiling: scene.getObjectByName('flora').userData.flora
   return part;
 }
