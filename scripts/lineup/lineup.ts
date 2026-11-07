@@ -38,7 +38,8 @@ for (let i = 0; i < n; i++) {
   // Mostly-uniform genes with a size bias toward small bodies so the lineup fits the frame.
   const body = {} as BodyGenes;
   for (const g of BODY_GENES) body[g] = rng();
-  body.size = 0.1 + 0.25 * rng();
+  // size=wide spreads the size gene over the whole range (tiny swarmers to giants); the default keeps the lineup in frame.
+  body.size = q.get('size') === 'wide' ? 0.9 * rng() ** 1.5 : 0.1 + 0.25 * rng();
   const genome: AnimalGenome = { body, climate: { prefTemp: 15, tolerance: 8, chem: 0.5 }, comp: { ...comp }, lineage: i };
   const plan = develop(genome, { light, heatBand: 0.5 }, inputsDev);
   births.push({ id: i + 1, plan: packBodyPlan(plan) });

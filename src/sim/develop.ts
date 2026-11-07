@@ -193,13 +193,17 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   }
 
   // --- segments (axial: spine length) / tiers (radial: facet tiers accreting as it grows) ----------------
-  const segmentCount = radial ? 0 : Math.min(16, 3 + Math.round(13 * body.segments));
-  const tiers = radial ? 1 + Math.round(4 * body.segments) : 0;
+  // Size extremes change the build: tiny bodies are simpler (fewer segments and tiers, fewer ornaments), giants have more
+  // segments and tiers, thicker bodies and heavier plating. Shape only: swim cost reads the unscaled counts below.
+  const tiny = 0.6 * clamp(1 - body.size / 0.06, 0, 1), giant = clamp((body.size - 0.2) / 0.4, 0, 1);
+  const baseSegments = 3 + 13 * body.segments, baseTiers = 1 + 4 * body.segments;
+  const segmentCount = radial ? 0 : clamp(Math.round(baseSegments * (1 - 0.45 * tiny + 0.4 * giant)), 3, 16);
+  const tiers = radial ? clamp(Math.round(baseTiers * (1 - 0.4 * tiny + 0.5 * giant)), 1, 5) : 0;
 
   // --- locomotion (R10): cheapest of walk / swim / hover / sessile ----------------
   const rhoBodyScaled = bodyDensity / tissueRho.C; // unbuoyed carbon = 1, same scale as AIR_RHO
   // Swim cost's elongation term: axial spine length; radial (rolling) hubs get more elongated as tiers accrete.
-  const elongation = radial ? 0.25 + 0.2 * tiers : segmentCount / 12;
+  const elongation = radial ? 0.25 + 0.2 * Math.round(baseTiers) : Math.min(16, Math.round(baseSegments)) / 12;
   const reRel = ((sea.rho / sea.mu) / (G.reRef.rho / G.reRef.mu)) * baseScale; // Re vs water, size-weighted
   const reWeight = clamp(1 + 0.25 * Math.log(reRel), 0, 2);
   const walk =
@@ -230,13 +234,13 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const eyeUpkeep = K.EYE_FRAC.value * (eyeArea / 1.5) ** 2;
   const eyeless = body.eyes < 0.05;
   // Axial: a pair of ring eyes at the head. Radial: a dot-eye cluster (1–3 dots) at the tip of every arm.
-  const eyePairs = f.eyes < 0.75 ? 1 : f.eyes < 0.92 ? 2 : 3; // axial: more pairs when the genes are strongly eyed
+  const eyePairs = tiny > 0.3 ? 1 : f.eyes < 0.75 ? 1 : f.eyes < 0.92 ? 2 : 3; // axial: more pairs when the genes are strongly eyed
   const eyeCount = eyeless ? 0 : radial ? symmetry * (f.eyes < 0.4 ? 1 : f.eyes < 0.7 ? 2 : 3) : 2 * eyePairs;
   const eyeKind: BodyPlan['eyeKind'] = eyeless ? 'none' : silicon ? 'dots' : 'rings';
   const glow = clamp(body.glow * (1 - light), 0, 1);
 
   // --- horns (axial: head horns; radial: apex spires), defence, diet -----------------------------
-  const hornCount = body.horns < 0.05 ? 0 : radial ? clamp(Math.round(f.horns * 7), 1, 7) : clamp(Math.round(f.horns * 6), 1, 6);
+  const hornCount = body.horns < 0.05 ? 0 : radial ? clamp(Math.round(f.horns * 7 * (1 - 0.5 * tiny)), 1, 7) : clamp(Math.round(f.horns * 6 * (1 - 0.5 * tiny)), 1, 6);
   // How the horns are laid out: tusks (big jaws, few horns), a pair, a crown ring, or branching antlers; radial: a spire crown.
   const hornKind: BodyPlan['hornKind'] =
     hornCount === 0 ? 'none'
@@ -280,12 +284,12 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
 
   // --- axial form: blends of the genes (pure; the ecology never reads these) ----------------------------------
   const axial = !radial;
-  const girth = axial ? clamp(0.32 + 0.85 * (1 - f.segments) ** 1.5 + 0.3 * f.buoy + 0.25 * f.plates * (1 - 0.5 * f.segments), 0.3, 1.5) : 0;
+  const girth = axial ? clamp((0.32 + 0.85 * (1 - f.segments) ** 1.5 + 0.3 * f.buoy + 0.25 * f.plates * (1 - 0.5 * f.segments)) * (1 + 0.35 * giant), 0.3, 1.8) : 0;
   const flatten = axial ? clamp(1 - 0.5 * f.plates * (1 - f.buoy) - 0.25 * (1 - f.limbPairs) * (1 - f.buoy) + 0.35 * f.buoy, 0.45, 1.3) : 0;
   const headScale = axial ? clamp(0.75 + 0.9 * f.gape + 0.35 * f.diet * f.gape + 0.25 * f.eyes, 0.75, 2) : 0;
   const gradient = axial ? clamp(0.9 * (f.sociality - 0.5) + 0.5 * (f.diet - 0.5) - 0.3 * (f.plates - 0.5), -0.5, 0.5) : 0;
-  const carapace = axial ? clamp((f.plates - 0.2) * 1.6, 0, 1) * (1 - 0.5 * f.segments) : 0;
-  const crest = axial ? clamp(1.6 * (0.5 * f.glow + 0.5 * f.sociality - 0.3), 0, 1) : 0;
+  const carapace = axial ? clamp(clamp((f.plates - 0.2) * 1.6, 0, 1) * (1 - 0.5 * f.segments) + 0.3 * giant, 0, 1) : 0;
+  const crest = axial ? clamp(1.6 * (0.5 * f.glow + 0.5 * f.sociality - 0.3), 0, 1) * (1 - 0.7 * tiny) : 0;
   const jaw = axial ? clamp((f.gape - 0.4) * 2, 0, 1) : 0;
   let tailKind: BodyPlan['tailKind'] = 'none';
   let tailSegments = 0;
@@ -299,7 +303,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     };
     tailKind = 'taper';
     for (const k of ['whip', 'fluke', 'club'] as const) if (tail[k] > tail[tailKind]) tailKind = k;
-    tailSegments = tailKind === 'whip' ? 3 + Math.round(3 * f.segments) : tailKind === 'club' ? 2 : tailKind === 'fluke' ? 1 : 2;
+    tailSegments = tailKind === 'whip' ? Math.max(2, Math.round((3 + 3 * f.segments) * (1 - 0.4 * tiny))) : tailKind === 'club' ? 2 : tailKind === 'fluke' ? 1 : 2;
   }
   // Mode follows form: swimmers get paddle fins, hoverers get membrane wings (sized by limb length).
   const finSpan = axial && mode === LOCOMOTION.swim ? clamp(0.25 + 0.9 * f.limbLen * (0.5 + 0.5 * (1 - f.segments)), 0, 1.2) : 0;
@@ -310,7 +314,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const hue = frac(1.7 * body.size + 2.9 * body.limbLen + 1.3 * body.horns + 0.7 * body.limbPairs + 3.1 * body.sociality + 0.37 * body.gape);
   const accent = frac(2.3 * body.plates + 1.1 * body.glow + 1.9 * body.eyes + 0.6 * body.buoy);
   const bands = Math.min(3, Math.floor(4 * frac(1.3 * body.diet + 2.1 * body.segments + 0.8 * body.plates)));
-  const spots = clamp(2 * frac(0.9 * body.sociality + 1.7 * body.gape + 1.1 * body.size) - 0.8, 0, 1);
+  const spots = clamp(2 * frac(0.9 * body.sociality + 1.7 * body.gape + 1.1 * body.size) - 0.8, 0, 1) * (1 - 0.6 * tiny);
 
   return {
     scale,
@@ -336,7 +340,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     limbLength: radial ? armLength : legPairs === 0 ? 0 : scale * limbLenRel,
     limbSegments,
     limbJointAngles,
-    plateCover: f.plates,
+    plateCover: clamp(f.plates + 0.35 * giant, 0, 1),
     hornCount,
     hornLength: hornCount === 0 ? 0 : f.horns * (radial ? 0.6 : hornCount > 2 ? 0.35 : 0.6) * scale,
     gapeSize: 2 * body.gape * scale,

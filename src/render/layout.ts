@@ -157,15 +157,19 @@ export function floraShape(mat: number, canopy: number): { count: number; height
 }
 
 // --- display scale (render-only illustration) ---------------------------------------------------------------
-// Real body lengths run from ~0.15 m worms to ~10 m giants, which makes typical animals invisible next to 1–2 m flora
-// from a 5 m follow camera. One rule for every creature: displayed length = DISPLAY_REF · (scale / BODY_REF)^DISPLAY_EXP.
-// It is monotonic, so bigger stays bigger; it compresses the ~64× real range to ~5×. Whole bodies scale together.
+// Real body lengths run from ~0.1 m worms to ~10 m giants (about 64×). One rule for every creature:
+//   displayed length = MAX · tanh( DISPLAY_REF · (scale / BODY_REF)^DISPLAY_EXP / MAX ).
+// Below ~20 m the tanh is nearly the plain power law (a 0.15 m worm draws 2 m, a 1 m body 9 m, a 3 m body 22 m); it only
+// bends the very top over so the biggest giants settle near 45 m instead of dwarfing the patch. Strictly monotonic, so size
+// order is kept, and the range is compressed to ~25× rather than the old ~5×. Whole bodies scale together.
 export const BODY_REF = 0.15;     // m: the smallest founder worm
-export const DISPLAY_REF = 3;   // m: how long that worm is drawn
-export const DISPLAY_EXP = 0.4;
+export const DISPLAY_REF = 2;     // m: how long that worm is drawn
+export const DISPLAY_EXP = 0.8;
+export const DISPLAY_MAX = 60;    // m: the soft ceiling
 
 export function displayLength(scale: number): number {
-  return DISPLAY_REF * Math.pow(Math.max(scale, 0.01) / BODY_REF, DISPLAY_EXP);
+  const raw = DISPLAY_REF * Math.pow(Math.max(scale, 0.01) / BODY_REF, DISPLAY_EXP);
+  return DISPLAY_MAX * Math.tanh(raw / DISPLAY_MAX);
 }
 
 /** Multiplier from a plan's real size to its drawn size. */

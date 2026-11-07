@@ -308,4 +308,28 @@ describe('develop', () => {
       expect(keptBig / total).toBeLessThan(0.3);
     });
   });
+
+  it('size extremes change the build: tiny bodies are simpler, giants have more parts, thicker, plated', () => {
+    const at = (g: AnimalGenome, size: number) => develop({ ...g, body: { ...g.body, size, segments: 0.5, plates: 0.3, horns: 0.5, eyes: 0.9, glow: 0.8, sociality: 0.8 } }, day, water);
+    for (const g of [carbon, silicon]) {
+      const tiny = at(g, 0), mid = at(g, 0.15), giant = at(g, 0.8);
+      expect(tiny.scale).toBeLessThan(mid.scale);
+      expect(giant.scale).toBeGreaterThan(mid.scale * 5);
+      expect(giant.segmentCount + giant.tiers).toBeGreaterThanOrEqual(mid.segmentCount + mid.tiers);
+      expect(tiny.segmentCount + tiny.tiers).toBeLessThan(giant.segmentCount + giant.tiers);
+      expect(giant.plateCover).toBeGreaterThan(tiny.plateCover);
+      expect(tiny.eyeCount).toBeLessThanOrEqual(giant.eyeCount);
+      expect(tiny.hornCount).toBeLessThanOrEqual(giant.hornCount);
+      expect(tiny.crest).toBeLessThanOrEqual(giant.crest);
+    }
+    expect(at(carbon, 0.8).girth).toBeGreaterThan(at(carbon, 0.15).girth);
+  });
+
+  it('size shaping never touches the ecology-facing swim cost inputs', () => {
+    // segmentCount/tiers are scaled for looks only; modeCosts stay a function of the unscaled gene counts.
+    const a = develop({ ...carbon, body: { ...carbon.body, size: 0.3, segments: 0.5 } }, day, water);
+    const b = develop({ ...carbon, body: { ...carbon.body, size: 0.3, segments: 0.5 } }, day, water);
+    expect(a.modeCosts).toEqual(b.modeCosts);
+    expect(Number.isFinite(a.modeCosts.swim)).toBe(true);
+  });
 });

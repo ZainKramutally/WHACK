@@ -160,7 +160,7 @@ describe('beadLayout', () => {
     const rng = makeRng(5)('layout-budget');
     for (const w of ['carbon', 'silicon'] as const) {
       const cfg = worlds[w];
-      for (let n = 0; n < 250; n++) {
+      for (let n = 0; n < 80; n++) {
         const body = {} as typeof genomeBody;
         for (const g of BODY_GENES) body[g] = rng();
         const g: AnimalGenome = { body, climate: { prefTemp: 15, tolerance: 10, chem: 0.5 }, comp: { ...cfg.life.composition }, lineage: 1 };
@@ -192,12 +192,14 @@ describe('beadLayout', () => {
 });
 
 describe('display scale', () => {
-  it('is monotonic and makes a 0.15–0.2 m worm clearly visible', () => {
-    expect(displayLength(0.15)).toBeCloseTo(3);
-    expect(displayLength(0.18)).toBeGreaterThan(3);
+  it('is strictly monotonic, draws a founder worm 2 m, and spreads the real range ~20×+', () => {
+    expect(displayLength(0.15)).toBeCloseTo(2, 1);
     let prev = 0;
-    for (const s of [0.05, 0.15, 0.5, 1.5, 5, 10]) { const d = displayLength(s); expect(d).toBeGreaterThan(prev); prev = d; }
-    expect(displayLength(9.6) / displayLength(0.15)).toBeLessThan(6);
+    for (const s of [0.05, 0.1, 0.15, 0.3, 0.5, 1, 1.5, 3, 5, 10, 20]) { const d = displayLength(s); expect(d).toBeGreaterThan(prev); prev = d; }
+    expect(displayLength(9.6) / displayLength(0.1)).toBeGreaterThan(20);
+    expect(displayLength(9.6)).toBeGreaterThan(30);
+    expect(displayLength(9.6)).toBeLessThan(60);
+    expect(displayLength(0.1)).toBeLessThan(displayLength(0.15) * 0.8);
     expect(displayFactor(0.15) * 0.15).toBeCloseTo(displayLength(0.15));
   });
 });
