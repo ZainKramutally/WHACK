@@ -2,11 +2,11 @@
 // Layout = [PLAN_VERSION, ...PLAN_FIELDS in order]. Append only; bump PLAN_VERSION when it changes.
 import type { Arm, BodyPlan, LocomotionMode } from './develop';
 
-export const PLAN_VERSION = 2;
+export const PLAN_VERSION = 3;
 /** limbJointAngles is variable-length (0..6 in practice); this many slots are reserved. */
 export const MAX_LIMB_JOINTS = 8;
-/** Radial bodies: up to 6 arms (6-fold symmetry) and 5 hub tiers. */
-export const MAX_ARMS = 6;
+/** Radial bodies: up to 8 arms (8-fold symmetry) and 5 hub tiers. */
+export const MAX_ARMS = 8;
 export const MAX_TIERS = 5;
 
 export const PLAN_FIELDS = [
@@ -29,6 +29,12 @@ export const PLAN_FIELDS = [
   ...Array.from({ length: MAX_LIMB_JOINTS }, (_, i) => `limbJointAngle${i}`),
   'plateCover', 'hornCount', 'hornLength', 'gapeSize',
   'dorsal', // 0 rods, 1 frills
+  'hornKind', // HORN_KINDS index
+  'girth', 'flatten', 'headScale', 'gradient', 'carapace', 'crest', 'jaw',
+  'tailKind', // TAIL_KINDS index
+  'tailSegments', 'finSpan', 'wingSpan', 'flare',
+  'armKind', // ARM_KINDS index
+  'tileLength', 'hue', 'accent', 'bands', 'spots',
   'eyeKind', // 0 none, 1 dots, 2 rings
   'eyeCount', 'eyeArea', 'eyeUpkeep', 'glow',
   'defence', 'diet', 'plantGain', 'meatGain',
@@ -44,7 +50,10 @@ const IDX = Object.fromEntries(PLAN_FIELDS.map((f, i) => [f, i + 1])) as Record<
 /** Index of a field in the packed buffer (for the renderer's direct reads). */
 export const planField = (f: PlanField): number => IDX[f];
 
-const LIMB_KINDS = ['none', 'rod', 'tentacle'] as const;
+const LIMB_KINDS = ['none', 'rod', 'tentacle', 'leg'] as const;
+const HORN_KINDS = ['none', 'pair', 'crown', 'antler', 'tusk', 'spire'] as const;
+const TAIL_KINDS = ['none', 'taper', 'whip', 'fluke', 'club'] as const;
+const ARM_KINDS = ['none', 'rod', 'branch', 'fan', 'whip'] as const;
 const EYE_KINDS = ['none', 'dots', 'rings'] as const;
 
 export function packBodyPlan(plan: BodyPlan): Float32Array {
@@ -73,6 +82,13 @@ export function packBodyPlan(plan: BodyPlan): Float32Array {
   set('plateCover', plan.plateCover); set('hornCount', plan.hornCount);
   set('hornLength', plan.hornLength); set('gapeSize', plan.gapeSize);
   set('dorsal', plan.dorsal === 'frills' ? 1 : 0);
+  set('hornKind', HORN_KINDS.indexOf(plan.hornKind));
+  set('girth', plan.girth); set('flatten', plan.flatten); set('headScale', plan.headScale); set('gradient', plan.gradient);
+  set('carapace', plan.carapace); set('crest', plan.crest); set('jaw', plan.jaw);
+  set('tailKind', TAIL_KINDS.indexOf(plan.tailKind)); set('tailSegments', plan.tailSegments);
+  set('finSpan', plan.finSpan); set('wingSpan', plan.wingSpan); set('flare', plan.flare);
+  set('armKind', ARM_KINDS.indexOf(plan.armKind)); set('tileLength', plan.tileLength);
+  set('hue', plan.hue); set('accent', plan.accent); set('bands', plan.bands); set('spots', plan.spots);
   set('eyeKind', EYE_KINDS.indexOf(plan.eyeKind)); set('eyeCount', plan.eyeCount);
   set('eyeArea', plan.eyeArea); set('eyeUpkeep', plan.eyeUpkeep); set('glow', plan.glow);
   set('defence', plan.defence); set('diet', plan.diet);
@@ -106,6 +122,13 @@ export function unpackBodyPlan(buf: Float32Array): BodyPlan {
     limbLength: g('limbLength'), limbSegments: g('limbSegments'), limbJointAngles,
     plateCover: g('plateCover'), hornCount: g('hornCount'), hornLength: g('hornLength'), gapeSize: g('gapeSize'),
     dorsal: g('dorsal') === 1 ? 'frills' : 'rods',
+    hornKind: HORN_KINDS[g('hornKind')],
+    girth: g('girth'), flatten: g('flatten'), headScale: g('headScale'), gradient: g('gradient'),
+    carapace: g('carapace'), crest: g('crest'), jaw: g('jaw'),
+    tailKind: TAIL_KINDS[g('tailKind')], tailSegments: g('tailSegments'),
+    finSpan: g('finSpan'), wingSpan: g('wingSpan'), flare: g('flare'),
+    armKind: ARM_KINDS[g('armKind')], tileLength: g('tileLength'),
+    hue: g('hue'), accent: g('accent'), bands: g('bands'), spots: g('spots'),
     eyeKind: EYE_KINDS[g('eyeKind')], eyeCount: g('eyeCount'),
     eyeArea: g('eyeArea'), eyeUpkeep: g('eyeUpkeep'), glow: g('glow'),
     defence: g('defence'), diet: g('diet'), plantGain: g('plantGain'), meatGain: g('meatGain'),

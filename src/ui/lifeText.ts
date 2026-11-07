@@ -34,25 +34,32 @@ export function roleWords(role: Role): string {
 }
 
 /** The body, one row per feature. `Role` and `Moves` are separate (see organismRows). */
+const ARM_WORDS: Record<BodyPlan['armKind'], string> = { none: 'rod', rod: 'straight rod', branch: 'branching', fan: 'fan-bladed', whip: 'whip-like' };
+const TAIL_WORDS: Record<BodyPlan['tailKind'], string> = { none: 'None', taper: 'Tapering', whip: 'Long whip', fluke: 'Flat fluke', club: 'Armoured club' };
+const HORN_WORDS: Record<BodyPlan['hornKind'], string> = { none: 'horn', pair: 'horn', crown: 'crown horn', antler: 'antler tine', tusk: 'tusk', spire: 'crystal spire' };
+
 export function planRows(plan: BodyPlan): Rows {
   const si = plan.chemistry === 'silicon';
   const radial = plan.architecture === 'radial';
   const rows: Rows = [
     radial
-      ? ['Body', `Radial crystal: ${plan.symmetry}-fold symmetry, ${plural(plan.tiers, 'facet tier')}, no head or tail`]
+      ? ['Body', `Radial crystal: ${plan.symmetry}-fold symmetry, ${plural(plan.tiers, 'facet tier')}, ${plan.flare > 0.3 ? 'flared' : plan.flare < -0.3 ? 'tapered' : 'straight-sided'}, no head or tail`]
       : ['Body', `${plural(plan.segmentCount, 'segment')}, ${plan.curl > 0.05 ? 'curling' : 'rounded'}`],
     ['Length', lengthWords(plan.scale)],
     radial
-      ? ['Arms', `${plan.symmetry} straight rod arms${plan.legPairs === 0 ? ' (short spikes)' : ''}`]
-      : ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of tentacles`],
+      ? ['Arms', `${plan.symmetry} ${ARM_WORDS[plan.armKind]} arms${plan.legPairs === 0 ? ' (short spikes)' : ''}`]
+      : ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of ${plan.limbKind === 'leg' ? 'jointed legs' : 'tentacles'}`],
     ['Plates', plan.plateCover < 0.05 ? 'None' : `${si ? 'Silicon-nitride ceramic tiles' : 'Shell'} over ${pct(plan.plateCover)} of the ${radial ? 'facets' : 'back'}`],
-    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, radial ? 'crystal spire' : 'horn')],
+    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, HORN_WORDS[plan.hornKind])],
     ['Eyes', plan.eyeKind === 'none' || plan.eyeCount === 0
       ? 'None'
       : radial
         ? `${plural(plan.eyeCount / plan.symmetry, 'dot eye')} at each arm tip`
         : plural(plan.eyeCount, 'ring eye')],
   ];
+  if (!radial && plan.tailKind !== 'none') rows.push(['Tail', TAIL_WORDS[plan.tailKind]]);
+  if (plan.finSpan > 0.05) rows.push(['Fins', 'Paddle fins for swimming']);
+  if (plan.wingSpan > 0.05) rows.push(['Wings', 'Membrane wings for hovering']);
   if (plan.glow > 0.1) rows.push(['Glow', `${plan.glow > 0.5 ? 'Bright' : 'Faint'}${si ? ' (non-oxygen chemiluminescence, speculative)' : ''}`]);
   return rows;
 }

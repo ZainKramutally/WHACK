@@ -91,19 +91,41 @@ export function groundColour(comp: { c: number; si: number; o: number }, lifeBle
   return mixHex(0x8a7960, 0x5b7d3d, clamp01(lifeBlend)); // bare rock → vegetated
 }
 
-export type Tone = 0 | 1 | 2 | 3 | 4;
+export type Tone = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn. */
-export function creatureColour(silicon: boolean, diet: number, tone: Tone): number {
-  const base = silicon
+/** Rotates a hex colour's hue by `deg` degrees (and shifts its lightness by `dl`), keeping saturation. */
+export function shiftHue(hex: number, deg: number, dl = 0): number {
+  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d > 1e-9) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + deg + 360) % 360;
+  const l = clamp01((mx + mn) / 2 + dl);
+  const sat = d < 1e-9 ? 0 : d / (1 - Math.abs(2 * ((mx + mn) / 2) - 1) || 1);
+  const c = (1 - Math.abs(2 * l - 1)) * clamp01(sat);
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [rr, gg, bb] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  const q = (v: number) => Math.round(clamp01(v + m) * 255);
+  return (q(rr) << 16) | (q(gg) << 8) | q(bb);
+}
+
+/**
+ * Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn, accent (bands, fins, crests), spot. The
+ * lineage's `hue` (0..1) turns the world's palette (±35° carbon, ±18° silicon, so glassy blue stays glassy) so related lineages share a colour and strangers differ, and
+ * `accent` (0..1) picks how far the accent tone sits from the body colour. Both come from the plan, never from a world id.
+ */
+export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5): number {
+  const band = shiftHue(silicon
     ? mixHex(0xd6ecff, 0xe0b8ff, clamp01(diet))      // glassy blue → violet hunters
-    : mixHex(0xc4ee4a, 0xff8a2c, clamp01(diet));     // green grazers → orange hunters
+    : mixHex(0xc4ee4a, 0xff8a2c, clamp01(diet)), (hue - 0.5) * (silicon ? 36 : 70));   // green grazers → orange hunters
   switch (tone) {
     case 1: return silicon ? 0xfaffff : 0x161616;
-    case 2: return scaleHex(base, 0.62);
-    case 3: return scaleHex(base, 0.82);
-    case 4: return mixHex(base, 0xf0f0e0, 0.5);
-    default: return base;
+    case 2: return scaleHex(band, 0.62);
+    case 3: return scaleHex(band, 0.82);
+    case 4: return mixHex(band, 0xf0f0e0, 0.5);
+    case 5: return shiftHue(band, silicon ? 25 + 35 * accent : 35 + 80 * accent, silicon ? -0.08 : -0.05);
+    case 6: return mixHex(shiftHue(band, silicon ? 40 : 150, 0.05), 0xffffff, 0.35);
+    default: return band;
   }
 }
 

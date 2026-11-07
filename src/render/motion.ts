@@ -102,9 +102,9 @@ export function swayOffset(hn: number, t: number, phase: number, amp: number): n
 }
 
 // --- radial bodies (silicon): arm stances, tripod phases and rolling ---------------------------------------------
-/** Tripod stepping: arms alternate in two groups (opposite arms together for 4- and 6-fold); a 3-fold body steps its arms in turn. */
+/** Tripod stepping: arms alternate in two groups (even folds); an odd-fold body (3, 5) steps its arms in turn. */
 export function armPhase(index: number, symmetry: number): number {
-  return symmetry === 3 ? index / 3 : (index & 1) * 0.5;
+  return symmetry % 2 === 1 ? index / symmetry : (index & 1) * 0.5;
 }
 
 export type ArmStance = 'spoke' | 'bell' | 'crystal';

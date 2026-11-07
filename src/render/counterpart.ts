@@ -25,7 +25,7 @@ export interface CounterpartDeps {
   worldFor: (id: WorldId) => WorldConfig;
   getInputs: () => VisualInputs;
   /** Bead layout of a creature as it lives in this world (from its BodyPlan), for the default 'self' view. */
-  layoutOf?: (id: number) => { layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number } | null;
+  layoutOf?: (id: number) => { layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number; hue: number; accent: number } | null;
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -92,7 +92,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   };
   // Radial (silicon) bodies are prisms: one n-gon cylinder per hub symmetry plus a hex one for arms, tiles and spires.
   const prism = (n: number) => { const g = new THREE.CylinderGeometry(1, 1, 1, n, 1); g.rotateY(Math.PI / 2); return g; };
-  const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0), p3: prism(3), p4: prism(4), p6: prism(6) };
+  const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0), p3: prism(3), p4: prism(4), p5: prism(5), p6: prism(6), p8: prism(8) };
   const geo = <T extends THREE.BufferGeometry>(g: T): T => { disposables.push(g); return g; };
 
   const backdrops = new Map<string, THREE.Mesh>();
@@ -125,15 +125,16 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   /** One InstancedMesh for all beads of a layout, framed so the whole body fills a window of this aspect. */
-  function beadsContent(lay: ReturnType<typeof beadLayout>, silicon: boolean, diet: number, aspect: number) {
+  function beadsContent(lay: ReturnType<typeof beadLayout>, silicon: boolean, diet: number, aspect: number, hue = 0.5, accent = 0.5) {
     const mesh = new THREE.InstancedMesh(silicon ? beadGeo.faceted : beadGeo.round, silicon ? beadMat.faceted : beadMat.round, lay.beads.length);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lay.beads.length * 3), 3);
     // Bounds: horizontal reach (turntable spins around y) and height.
     let reach = 0.05, minY = Infinity, maxY = -Infinity;
     for (const b of lay.beads) {
-      reach = Math.max(reach, Math.hypot(b.x, b.z) + b.r);
-      minY = Math.min(minY, b.y - b.r);
-      maxY = Math.max(maxY, b.y + b.r);
+      const e = b.r * Math.max(b.sx ?? 1, b.sz ?? 1);
+      reach = Math.max(reach, Math.hypot(b.x, b.z) + e);
+      minY = Math.min(minY, b.y - b.r * (b.sy ?? 1));
+      maxY = Math.max(maxY, b.y + b.r * (b.sy ?? 1));
     }
     const rods = lay.radial?.rods ?? [];
     for (const r of rods) {
@@ -146,30 +147,37 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const k = Math.min((halfH * aspect * 0.8) / reach, (halfH * 0.62) / Math.max(0.05, (maxY - minY) / 2), 1.4 / reach);
     const cy = (minY + maxY) / 2;
     const m4 = new THREE.Matrix4(), c = new THREE.Color();
+    const q0 = new THREE.Quaternion(), yAxis = new THREE.Vector3(0, 1, 0), pos0 = new THREE.Vector3(), sc0 = new THREE.Vector3();
     lay.beads.forEach((b, i) => {
-      m4.makeScale(b.r * k, b.r * k, b.r * k).setPosition(b.x * k, (b.y - cy) * k, b.z * k);
+      q0.setFromAxisAngle(yAxis, -(b.yaw ?? 0));
+      m4.compose(pos0.set(b.x * k, (b.y - cy) * k, b.z * k), q0, sc0.set(b.r * (b.sx ?? 1) * k, b.r * (b.sy ?? 1) * k, b.r * (b.sz ?? 1) * k));
       mesh.setMatrixAt(i, m4);
-      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, b.tone as Tone)));
+      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, b.tone as Tone, hue, accent)));
     });
     mesh.frustumCulled = false;
     mesh.position.y = 0.6; // a little above the look-at height so hanging limbs stay in frame
     turntable.add(mesh);
     if (lay.radial) {
       const R = lay.radial;
-      const hubGeo = R.hubSides === 3 ? beadGeo.p3 : R.hubSides === 4 ? beadGeo.p4 : beadGeo.p6;
+      const hubGeo = ({ 3: beadGeo.p3, 4: beadGeo.p4, 5: beadGeo.p5, 6: beadGeo.p6, 8: beadGeo.p8 } as Record<number, THREE.BufferGeometry>)[R.hubSides] ?? beadGeo.p6;
       const hub = new THREE.InstancedMesh(hubGeo, beadMat.faceted, R.nTiers);
       const hex = new THREE.InstancedMesh(beadGeo.p6, beadMat.faceted, Math.max(1, rods.length - R.nTiers));
-      const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), pos = new THREE.Vector3(), sc = new THREE.Vector3();
+      const ax = new THREE.Vector3(), p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), fwd = new THREE.Vector3(1, 0, 0), upV = new THREE.Vector3(0, 1, 0);
       rods.forEach((r, i) => {
-        d.set(r.bx - r.ax, r.by - r.ay, r.bz - r.az);
-        const len = Math.max(1e-5, d.length());
-        q.setFromUnitVectors(up, d.divideScalar(len));
-        pos.set(((r.ax + r.bx) / 2) * k, ((r.ay + r.by) / 2 - cy) * k, ((r.az + r.bz) / 2) * k);
-        m4.compose(pos, q, sc.set(r.r * k, len * k, r.r * k));
+        ax.set(r.bx - r.ax, r.by - r.ay, r.bz - r.az);
+        const len = Math.max(1e-5, ax.length());
+        ax.divideScalar(len);
+        if (r.up) p1.crossVectors(ax, upV); else p1.copy(fwd).addScaledVector(ax, -fwd.dot(ax));
+        if (p1.lengthSq() < 1e-8) p1.set(0, 0, 1);
+        p1.normalize();
+        p2.crossVectors(p1, ax);
+        const flat = r.flat ?? 1;
+        m4.makeBasis(p1.multiplyScalar(r.r * k), ax.clone().multiplyScalar(len * k), p2.multiplyScalar(r.r * flat * k));
+        m4.setPosition(((r.ax + r.bx) / 2) * k, ((r.ay + r.by) / 2 - cy) * k, ((r.az + r.bz) / 2) * k);
         const target = i < R.nTiers ? hub : hex;
         const idx = i < R.nTiers ? i : i - R.nTiers;
         target.setMatrixAt(idx, m4);
-        target.setColorAt(idx, c.setHex(creatureColour(true, diet, r.tone as Tone)));
+        target.setColorAt(idx, c.setHex(creatureColour(true, diet, r.tone as Tone, hue, accent)));
       });
       for (const m of [hub, hex]) { m.frustumCulled = false; m.position.y = 0.6; turntable.add(m); }
     }
@@ -197,7 +205,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   /** The clicked creature itself, in its own chemistry, from its own cached BodyPlan layout. */
   function organismContent(id: number) {
     const own = deps.layoutOf?.(id);
-    if (own) beadsContent(own.layout, own.silicon, own.diet, rect ? rect.width / rect.height : 2);
+    if (own) beadsContent(own.layout, own.silicon, own.diet, rect ? rect.width / rect.height : 2, own.hue, own.accent);
     else notScannedContent();
   }
 

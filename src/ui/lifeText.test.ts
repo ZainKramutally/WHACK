@@ -12,7 +12,9 @@ function plan(over: Partial<BodyPlan> = {}): BodyPlan {
     bodyJointMaxDeg: 40, jointSnapDeg: 0, curl: 0.3, legPairs: 2, limbKind: 'tentacle', limbLength: 0.2, limbSegments: 2,
     limbJointAngles: [0, 0], plateCover: 0.4, hornCount: 2, hornLength: 0.05, gapeSize: 0.1, dorsal: 'rods', eyeKind: 'rings',
     eyeCount: 2, eyeArea: 1, eyeUpkeep: 0.1, glow: 0, defence: 0.2, diet: 0.1, plantGain: 0.8, meatGain: 0.01,
-    mode: LOCOMOTION.walk, modeCosts: { walk: 1, swim: 2, hover: 3, sessile: 4 }, ...over,
+    mode: LOCOMOTION.walk, modeCosts: { walk: 1, swim: 2, hover: 3, sessile: 4 },
+    hornKind: 'pair', girth: 0.8, flatten: 1, headScale: 1, gradient: 0, carapace: 0, crest: 0, jaw: 0, tailKind: 'taper', tailSegments: 2,
+    finSpan: 0, wingSpan: 0, flare: 0, armKind: 'none', tileLength: 0, hue: 0.5, accent: 0.5, bands: 0, spots: 0, ...over,
   };
 }
 const rec = (over: Partial<OrganismRecord> = {}): OrganismRecord => ({
@@ -36,15 +38,27 @@ describe('planRows', () => {
   it('uses silicon words: radial crystal, ceramic tiles, arm-tip dot eyes, speculative glow', () => {
     const r = planRows(plan({
       chemistry: 'silicon', architecture: 'radial', symmetry: 6, segmentCount: 0, tiers: 3, sides: 6, flatShaded: true, curl: 0,
-      eyeKind: 'dots', eyeCount: 12, glow: 0.7, limbKind: 'rod', legPairs: 3, hornCount: 1,
+      eyeKind: 'dots', eyeCount: 12, glow: 0.7, limbKind: 'rod', legPairs: 3, hornCount: 1, hornKind: 'spire', armKind: 'rod', flare: 0,
     }));
-    expect(get(r, 'Body')).toBe('Radial crystal: 6-fold symmetry, 3 facet tiers, no head or tail');
+    expect(get(r, 'Body')).toBe('Radial crystal: 6-fold symmetry, 3 facet tiers, straight-sided, no head or tail');
     expect(get(r, 'Plates')).toMatch(/^Silicon-nitride ceramic tiles/);
     expect(get(r, 'Eyes')).toBe('2 dot eyes at each arm tip');
     expect(get(r, 'Arms')).toBe('6 straight rod arms');
     expect(get(r, 'Legs')).toBeUndefined();
     expect(get(r, 'Horns')).toBe('1 crystal spire');
     expect(get(r, 'Glow')).toMatch(/^Bright.*speculative/);
+  });
+  it('names the new forms: branching arms, tapered hubs, jointed legs, tails, fins and wings', () => {
+    const si = planRows(plan({ architecture: 'radial', chemistry: 'silicon', symmetry: 8, tiers: 2, armKind: 'branch', flare: -0.6, hornCount: 3, hornKind: 'spire', eyeKind: 'dots', eyeCount: 8 }));
+    expect(get(si, 'Body')).toContain('8-fold');
+    expect(get(si, 'Body')).toContain('tapered');
+    expect(get(si, 'Arms')).toBe('8 branching arms');
+    const c = planRows(plan({ limbKind: 'leg', tailKind: 'fluke', finSpan: 0.6, wingSpan: 0, hornKind: 'antler', hornCount: 5 }));
+    expect(get(c, 'Legs')).toBe('2 pairs of jointed legs');
+    expect(get(c, 'Tail')).toBe('Flat fluke');
+    expect(get(c, 'Fins')).toBeDefined();
+    expect(get(c, 'Wings')).toBeUndefined();
+    expect(get(c, 'Horns')).toBe('5 antler tines');
   });
   it('says None for a bare worm', () => {
     const r = planRows(plan({ legPairs: 0, plateCover: 0, hornCount: 0, eyeKind: 'none', eyeCount: 0, segmentCount: 1 }));

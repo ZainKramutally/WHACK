@@ -27,13 +27,13 @@ describe('develop', () => {
     const p = develop(silicon, day, water);
     expect(p.chemistry).toBe('silicon');
     expect(p.architecture).toBe('radial');
-    expect([3, 4, 6]).toContain(p.symmetry);
+    expect([3, 4, 5, 6, 8]).toContain(p.symmetry);
     expect(p.sides).toBe(p.symmetry);
     expect(p.segmentCount).toBe(0); // no spine
     expect(p.tiers).toBeGreaterThanOrEqual(1);
     expect(p.tierRadii).toHaveLength(p.tiers);
     expect(p.arms).toHaveLength(p.symmetry);
-    for (const a of p.arms) expect(a.azimuthDeg % 15).toBe(0);
+    for (const a of p.arms) expect(Number.isFinite(a.azimuthDeg)).toBe(true);
     expect(p.flatShaded).toBe(true);
     expect(p.limbKind).toBe('rod');
     expect(p.limbSegments).toBe(2);
@@ -60,7 +60,7 @@ describe('develop', () => {
     expect(p.limbSegments).toBeGreaterThan(2);
     expect(p.jointSnapDeg).toBe(0);
     expect(p.limbJointAngles.some((a) => a % 15 !== 0)).toBe(true);
-    expect(p.eyeCount).toBe(2);
+    expect(p.eyeCount % 2).toBe(0); // eyes come in pairs
     expect(p.eyeKind).toBe('rings');
   });
 
@@ -127,7 +127,7 @@ describe('develop', () => {
 
   it('limbPairs sets the symmetry order on silicon (arm count) and the leg pairs on carbon', () => {
     const at = (g: AnimalGenome, lp: number) => develop({ ...g, body: { ...g.body, limbPairs: lp } }, day, water);
-    expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(silicon, lp).symmetry)).toEqual([3, 3, 4, 6, 6]);
+    expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(silicon, lp).symmetry)).toEqual([3, 4, 5, 6, 8]);
     expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(carbon, lp).legPairs)).toEqual([0, 1, 2, 3, 4]);
     expect(at(carbon, 1).symmetry).toBe(2);
   });
@@ -176,17 +176,17 @@ describe('develop', () => {
         expect(c.arms).toHaveLength(0);
         expect(c.tiers).toBe(0);
         expect(c.segmentCount).toBeGreaterThanOrEqual(3);
-        expect(c.eyeCount).toBeLessThanOrEqual(2);
+        expect([2, 4, 6]).toContain(c.eyeCount === 0 ? 2 : c.eyeCount);
         const s = develop(randomGenome(siliconComp()), cond, inputs);
         expect(s.architecture).toBe('radial');
-        expect([3, 4, 6]).toContain(s.symmetry);
+        expect([3, 4, 5, 6, 8]).toContain(s.symmetry);
         expect(s.arms).toHaveLength(s.symmetry);
         expect(s.tierRadii).toHaveLength(s.tiers);
         expect(s.tiers).toBeGreaterThanOrEqual(1);
         expect(s.tiers).toBeLessThanOrEqual(5);
         expect(s.segmentCount).toBe(0);
         expect(s.eyeCount % s.symmetry).toBe(0);
-        expect(s.hornCount).toBeLessThanOrEqual(3);
+        expect(s.hornCount).toBeLessThanOrEqual(7);
       }
     });
 
@@ -225,5 +225,67 @@ describe('develop', () => {
     expect(bag.bodyDensity).toBeLessThan(0.1 * solid.bodyDensity);
     expect(bag.bodyDensity).toBeGreaterThan(0);
     expect(bag.mass).toBeGreaterThanOrEqual(solid.mass * 0.999);
+  });
+
+  describe('variety (No Man\'s Sky): the same 12 genes build many distinct forms, and mutation walks between them', () => {
+    const rng = makeRng(11)('variety');
+    const gen = (comp: AnimalGenome['comp']): AnimalGenome => {
+      const body = {} as BodyGenes;
+      for (const gene of BODY_GENES) body[gene] = rng();
+      return { ...base, body, comp };
+    };
+    const carbonComp = { c: 0.85, si: 0.05, o: 0.1 }, siliconComp = { c: 0.05, si: 0.9, o: 0.05 };
+    const form = (p: ReturnType<typeof develop>) =>
+      p.architecture === 'radial'
+        ? `R${p.symmetry}/${p.armKind}/${p.flare > 0.3 ? 'bowl' : p.flare < -0.3 ? 'cone' : 'stack'}/${p.hornCount > 3 ? 'crown' : p.hornCount > 0 ? 'spire' : 'bare'}/${p.tileLength > 0.4 ? 'geode' : 'tiles'}`
+        : `A/${p.tailKind}/${p.limbKind}/${p.hornKind}/${p.finSpan > 0 ? 'fin' : p.wingSpan > 0 ? 'wing' : 'plain'}/${p.carapace > 0.5 ? 'carapace' : 'soft'}/${p.crest > 0.4 ? 'crest' : 'smooth'}`;
+
+    it('random genomes cover dozens of distinct forms in each architecture', () => {
+      const seen = { carbon: new Set<string>(), silicon: new Set<string>() };
+      for (let n = 0; n < 400; n++) {
+        seen.carbon.add(form(develop(gen(carbonComp), { light: 0.6, heatBand: 0.5 }, water)));
+        seen.silicon.add(form(develop(gen(siliconComp), { light: 0.6, heatBand: 0.5 }, water)));
+      }
+      expect(seen.carbon.size).toBeGreaterThan(40);
+      expect(seen.silicon.size).toBeGreaterThan(40);
+    });
+
+    it('mode follows form: fins only on swimmers, wings only on hoverers', () => {
+      for (let n = 0; n < 400; n++) {
+        const p = develop(gen(carbonComp), { light: 0.6, heatBand: rng() }, water);
+        if (p.finSpan > 0) expect(p.mode).toBe(LOCOMOTION.swim);
+        if (p.wingSpan > 0) expect(p.mode).toBe(LOCOMOTION.hover);
+        expect(p.finSpan * p.wingSpan).toBe(0);
+      }
+    });
+
+    it('derived traits stay in range and lineage colour is a pure function of the genes', () => {
+      for (let n = 0; n < 300; n++) {
+        const g = gen(n % 2 ? siliconComp : carbonComp);
+        const p = develop(g, { light: rng(), heatBand: rng() }, water);
+        for (const v of [p.hue, p.accent, p.spots, p.crest, p.carapace, p.jaw, p.tileLength]) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
+        expect(p.bands).toBeGreaterThanOrEqual(0); expect(p.bands).toBeLessThanOrEqual(3);
+        expect(Math.abs(p.flare)).toBeLessThanOrEqual(1);
+        expect(p.hue).toBe(develop(structuredClone(g), { light: 0.2, heatBand: 0.9 }, water).hue); // conditions never recolour a lineage
+      }
+    });
+
+    it('a small mutation usually keeps the form (smooth walk), and large ones usually change it', () => {
+      let kept = 0, keptBig = 0;
+      const total = 300;
+      for (let n = 0; n < total; n++) {
+        const g = gen(carbonComp);
+        const nudge = (sigma: number): AnimalGenome => {
+          const body = { ...g.body };
+          for (const gene of BODY_GENES) body[gene] = Math.min(1, Math.max(0, body[gene] + sigma * (rng() - 0.5) * 2));
+          return { ...g, body };
+        };
+        const f0 = form(develop(g, { light: 0.6, heatBand: 0.5 }, water));
+        if (form(develop(nudge(0.03), { light: 0.6, heatBand: 0.5 }, water)) === f0) kept++;
+        if (form(develop(nudge(0.5), { light: 0.6, heatBand: 0.5 }, water)) === f0) keptBig++;
+      }
+      expect(kept / total).toBeGreaterThan(0.6);
+      expect(keptBig / total).toBeLessThan(0.3);
+    });
   });
 });

@@ -4,12 +4,13 @@ import { worlds } from '../worlds';
 import { developInputsFor } from './counterpart';
 import {
   armRods, beadLayout, capsuleLayout, cellAt, cellCentre, floraShape, hash01, marchRay, nearestSphere, patchToWorld,
-  worldToPatch, FLORA_GRID, displayLength, displayFactor, MAX_BEADS_PER_ORGANISM,
+  worldToPatch, FLORA_GRID, displayLength, displayFactor, MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE,
 } from './layout';
-import type { AnimalGenome } from '../sim/genome';
+import { BODY_GENES, type AnimalGenome } from '../sim/genome';
+import { makeRng } from '../sim/rng';
 
-const body = { size: 0.3, segments: 0.5, limbPairs: 0.5, limbLen: 0.5, plates: 0.4, horns: 0.6, gape: 0.3, diet: 0.5, eyes: 0.6, buoy: 0.1, glow: 0.3, sociality: 0.2 };
-const genome = (c: number, si: number): AnimalGenome => ({ body, climate: { prefTemp: 15, tolerance: 10, chem: 0.5 }, comp: { c, si, o: 1 - c - si }, lineage: 1 });
+const genomeBody = { size: 0.3, segments: 0.5, limbPairs: 0.5, limbLen: 0.5, plates: 0.4, horns: 0.6, gape: 0.3, diet: 0.5, eyes: 0.6, buoy: 0.1, glow: 0.3, sociality: 0.2 };
+const genome = (c: number, si: number): AnimalGenome => ({ body: genomeBody, climate: { prefTemp: 15, tolerance: 10, chem: 0.5 }, comp: { c, si, o: 1 - c - si }, lineage: 1 });
 const plan = (w: 'carbon' | 'silicon') => {
   const cfg = worlds[w];
   return develop(genome(cfg.life.composition.c, cfg.life.composition.si), { light: 0.5, heatBand: 0.5 }, developInputsFor(cfg));
@@ -104,19 +105,24 @@ describe('beadLayout', () => {
       expect(JSON.stringify(beadLayout(plan(w)))).toBe(JSON.stringify(l));
     }
   });
-  it('carbon is an axial bead chain that curls; silicon is a radial prism lattice with no spine', () => {
-    const c = beadLayout(plan('carbon')), s = beadLayout(plan('silicon'));
+  it('carbon is an axial ellipsoid chain that curls, with paired eyes; silicon is a radial prism lattice with no spine', () => {
+    const p = plan('carbon');
+    const c = beadLayout(p), s = beadLayout(plan('silicon'));
     expect(c.radial).toBeUndefined();
     expect(s.radial).toBeDefined();
-    const zs = c.beads.slice(0, plan('carbon').segmentCount).map((b) => b.z);
+    const trunk = c.beads.slice(0, p.segmentCount + p.tailSegments);
+    const zs = trunk.map((b) => b.z);
     expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(1e-4);
-    // The chain tapers to a tail and swells to a head.
-    const r = c.beads.slice(0, plan('carbon').segmentCount).map((b) => b.r);
-    expect(r[0]).toBeLessThan(r[r.length - 1]);
+    // Eyes are mirrored pairs about the body axis.
+    const eyes = c.beads.filter((b) => b.tone === 1);
+    expect(eyes.length).toBe(p.eyeCount);
+    const sumZ = eyes.reduce((a, b) => a + b.z, 0);
+    const headZ = trunk[trunk.length - 1].z;
+    expect(Math.abs(sumZ - headZ * eyes.length)).toBeLessThan(1e-9);
     expect(s.nBody).toBe(0);
     expect(s.limbs).toHaveLength(0);
   });
-  it('silicon: n-fold hub tiers, one arm per vertex at 15°-grid azimuths, eyes at the tips', () => {
+  it('silicon: n-fold hub tiers, one arm per vertex, eyes at the tips', () => {
     const p = plan('silicon'), l = beadLayout(p), R = l.radial!;
     expect(R.nTiers).toBe(p.tiers);
     expect(R.hubSides).toBe(p.symmetry);
@@ -124,25 +130,61 @@ describe('beadLayout', () => {
     expect(R.rods.length).toBeGreaterThanOrEqual(R.nHubRods + 2 * p.symmetry);
     for (const a of R.arms) {
       expect(a.snap).toBe(15);
-      expect(Math.abs(Math.round((Math.atan2(a.dirZ, a.dirX) * 180) / Math.PI) % 15)).toBe(0);
+      expect(a.nRods).toBeGreaterThanOrEqual(2);
+      expect(a.tipRod).toBeLessThan(a.nRods);
     }
-    // Tiers are stacked, widest-in-the-middle prisms about the vertical axis.
+    // Tiers are stacked prisms about the vertical axis.
     for (let i = 0; i < R.nTiers; i++) { expect(R.rods[i].ax).toBe(0); expect(R.rods[i].az).toBe(0); expect(R.rods[i].by).toBeGreaterThan(R.rods[i].ay); }
     expect(l.beads.length).toBe(p.eyeCount);
     for (const b of l.beads) expect(b.tone).toBe(1);
   });
-  it('silicon arms: IK keeps both bones joined and on the 15° grid', () => {
-    const l = beadLayout(plan('silicon')), R = l.radial!;
-    for (const rig of R.arms) {
-      for (const [fx, fy] of [[0.6, 0.02], [0.3, 0.5], [0.2, -0.4]]) {
-        const out: number[] = [];
-        armRods(rig, rig.hip.x + rig.dirX * fx * rig.restOut, fy, rig.hip.z + rig.dirZ * fx * rig.restOut, out);
-        expect(out).toHaveLength(14);
-        expect(out.slice(3, 6)).toEqual(out.slice(7, 10)); // knee shared
-        expect(Math.hypot(out[3] - out[0], out[4] - out[1], out[5] - out[2])).toBeCloseTo(rig.len1);
-        expect(Math.hypot(out[10] - out[7], out[11] - out[8], out[12] - out[9])).toBeCloseTo(rig.len2);
+  it('silicon arms: IK keeps both bones joined and the right number of rods per kind', () => {
+    for (const kind of ['rod', 'branch', 'fan', 'whip'] as const) {
+      const p = { ...plan('silicon'), armKind: kind };
+      const R = beadLayout(p).radial!;
+      for (const rig of R.arms) {
+        expect(rig.kind).toBe(kind);
+        for (const [fx, fy] of [[0.6, 0.02], [0.3, 0.5], [0.2, -0.4]]) {
+          const out: number[] = [];
+          armRods(rig, rig.hip.x + rig.dirX * fx * rig.restOut, fy, rig.hip.z + rig.dirZ * fx * rig.restOut, out);
+          expect(out).toHaveLength(rig.nRods * ROD_STRIDE);
+          expect(out.slice(3, 6)).toEqual(out.slice(9, 12)); // knee shared
+          expect(Math.hypot(out[3] - out[0], out[4] - out[1], out[5] - out[2])).toBeCloseTo(rig.len1);
+          expect(Math.hypot(out[12] - out[9], out[13] - out[10], out[14] - out[11])).toBeCloseTo(rig.len2);
+          expect(out.every(Number.isFinite)).toBe(true);
+        }
       }
     }
+  });
+  it('every random plan lays out within the bead and rod budgets with finite parts, in both architectures', () => {
+    const rng = makeRng(5)('layout-budget');
+    for (const w of ['carbon', 'silicon'] as const) {
+      const cfg = worlds[w];
+      for (let n = 0; n < 250; n++) {
+        const body = {} as typeof genomeBody;
+        for (const g of BODY_GENES) body[g] = rng();
+        const g: AnimalGenome = { body, climate: { prefTemp: 15, tolerance: 10, chem: 0.5 }, comp: { ...cfg.life.composition }, lineage: 1 };
+        const p = develop(g, { light: rng(), heatBand: rng() }, developInputsFor(cfg));
+        const l = beadLayout(p);
+        expect(l.beads.length).toBeLessThanOrEqual(MAX_BEADS_PER_ORGANISM);
+        expect((l.radial?.rods.length ?? 0) + (l.limbRods?.length ?? 0)).toBeLessThanOrEqual(MAX_RODS_PER_ORGANISM);
+        for (const b of l.beads) expect([b.x, b.y, b.z, b.r].every(Number.isFinite)).toBe(true);
+        for (const r of l.radial?.rods ?? l.limbRods ?? []) expect([r.ax, r.ay, r.az, r.bx, r.by, r.bz, r.r].every(Number.isFinite)).toBe(true);
+        expect(Number.isFinite(l.radius) && l.radius > 0).toBe(true);
+        if (l.radial) expect(l.radial.arms).toHaveLength(p.symmetry);
+        else expect(l.limbRods?.length ?? 0).toBe(2 * l.limbs.length);
+      }
+    }
+  });
+  it('layouts differ by form: different plans from one world give different part lists', () => {
+    const base = plan('carbon');
+    const a = beadLayout({ ...base, tailKind: 'whip', tailSegments: 5 }), b = beadLayout({ ...base, tailKind: 'fluke', tailSegments: 1 });
+    expect(a.beads.length).not.toBe(b.beads.length);
+    const w = beadLayout({ ...base, wingSpan: 1, finSpan: 0 }).beads.filter((x) => (x.flap ?? 0) > 0);
+    expect(w.length).toBeGreaterThanOrEqual(2);
+    const sBase = plan('silicon');
+    const kinds = (['rod', 'branch', 'fan', 'whip'] as const).map((k) => beadLayout({ ...sBase, armKind: k }).radial!.rods.length);
+    expect(new Set(kinds).size).toBeGreaterThan(2);
   });
   it('capsule fallback is a short worm', () => {
     expect(capsuleLayout(0.3).beads).toHaveLength(5);
@@ -161,10 +203,11 @@ describe('display scale', () => {
 });
 
 describe('limb rigs', () => {
-  it('carbon: each leg gets a tapering tentacle rig whose beads sit at its rest pose', () => {
+  it('carbon: each leg gets a rig with a knee bead, a foot bead and two bones at its rest pose', () => {
     const p = plan('carbon'), l = beadLayout(p);
     expect(l.limbs.length).toBe(p.legPairs * 2);
-    expect(l.nBody + l.limbs.reduce((a, r) => a + 2 * r.perBone, 0)).toBe(l.beads.length);
-    for (const r of l.limbs) { expect(r.snap).toBe(0); expect(r.taper).toBe(true); }
+    expect(l.nBody + 2 * l.limbs.length).toBe(l.beads.length);
+    expect(l.limbRods).toHaveLength(2 * l.limbs.length);
+    for (const r of l.limbs) { expect(r.snap).toBe(0); expect(r.taper).toBe(p.limbKind !== 'leg'); }
   });
 });
