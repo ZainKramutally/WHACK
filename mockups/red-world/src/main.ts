@@ -13,7 +13,6 @@ import { createPost } from './post';
 import { buildLandforms } from './landforms';
 import { placePlants } from './placement';
 import { buildInstances } from './scatter';
-import { buildAtmos } from './atmos';
 import { buildExplorer } from './explorer';
 import { buildFloraLibrary } from './flora/index';
 import { createPlayer } from './player/index';
@@ -58,7 +57,6 @@ const known = new Set(lib.archetypes.map((a) => `${a.species}:${a.variant}`));
 scene.add(buildInstances(lib, plants.filter((p) => known.has(`${p.species}:${p.variant}`))));
 const explorer = buildExplorer(EXPLORER.x, EXPLORER.z, 2.6);
 scene.add(explorer);
-scene.add(buildAtmos());
 
 const camera = new THREE.PerspectiveCamera(CAMERA.fov, innerWidth / innerHeight, 1, 14000);
 const eyeY = heightAt(0, 0) + CAMERA.eye;

@@ -1,9 +1,12 @@
-// Sky: white-family gradient on scene.backgroundNode + one huge, low-contrast pale ringed planet (white on white).
+// Sky: white-family gradient on scene.backgroundNode + two pale moons (one large, one ~2.5× smaller), white on white.
+// Each moon is a lit sphere: soft stepped terminator toward the sun, low-frequency maria, faint limb darkening, and an
+// atmospheric fade toward the horizon haze. Pixel mode quantises the terminator and maria into bands.
 import * as THREE from 'three/webgpu';
-import { Fn, float, vec2, vec3, mix, smoothstep, positionWorldDirection, dot, normalize, cross, floor, clamp, length, max } from 'three/tsl';
+import { Fn, float, vec3, mix, smoothstep, positionWorldDirection, dot, normalize, floor, clamp, length, max, mx_noise_float } from 'three/tsl';
 import { PALETTE } from './contracts';
 import { PIXEL, bayer4 } from './material';
 
+const MOON_SUN = vec3(-0.62, 0.42, 0.66).normalize();
 const c3 = (hex: number) => { const c = new THREE.Color(hex); return vec3(c.r, c.g, c.b); };
 
 function dirFrom(azDeg: number, elDeg: number) {
@@ -11,16 +14,34 @@ function dirFrom(azDeg: number, elDeg: number) {
   return new THREE.Vector3(-Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
 }
 
-export function skyNode(): any {
-  const P = dirFrom(11, 16); // planet centre: upper-left, away from the hero
-  const R = (6 * Math.PI) / 180;
-  const T1 = new THREE.Vector3().crossVectors(P, new THREE.Vector3(0, 1, 0)).normalize();
-  const T2 = new THREE.Vector3().crossVectors(T1, P).normalize();
-  const tilt = 0.32;
-  const r1 = T1.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(T2, Math.sin(tilt));
-  const r2 = T2.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(T1, -Math.sin(tilt));
-  const L = new THREE.Vector3(-0.62, 0.5, -0.6).normalize();
+/** Composite one moon over `sky`. az/el in degrees from the hero camera's -Z, radius in degrees. */
+function moon(d: any, sky: any, azDeg: number, elDeg: number, radiusDeg: number, seed: number, strength: number) {
+  const P = dirFrom(azDeg, elDeg), sinR = Math.sin((radiusDeg * Math.PI) / 180);
+  const Pn = vec3(P.x, P.y, P.z);
+  const cosA = dot(d, Pn);
+  const off = d.sub(Pn.mul(cosA));
+  const r = length(off).div(sinR);                                   // 0 centre → 1 limb
+  const inDisc = PIXEL ? r.lessThan(1).and(cosA.greaterThan(0)).select(float(1), float(0))
+    : smoothstep(1.0, 0.985, r).mul(cosA.greaterThan(0).select(float(1), float(0)));
+  const z = max(float(1).sub(r.mul(r)), 0).sqrt();
+  const n = normalize(off.div(sinR).sub(Pn.mul(z)));                // visible hemisphere faces the viewer
+  // terminator: the sun is off to the upper left (same side as the scene key), slightly behind the viewer, so the moons
+  // read gibbous: maria on the lit face, a soft dark crescent on the right
+  let lit: any = smoothstep(-0.12, 0.3, dot(n, MOON_SUN));
+  if (PIXEL) lit = floor(lit.mul(4).add(0.5)).div(4);
+  // maria: low-frequency noise on the sphere
+  let maria: any = smoothstep(0.05, 0.35, mx_noise_float(n.mul(2.3).add(seed)).add(mx_noise_float(n.mul(5.1).add(seed * 3)).mul(0.35)));
+  if (PIXEL) maria = floor(maria.mul(2).add(0.5)).div(2);
+  const limb = mix(0.86, 1.0, z.pow(0.6));
+  const bright = mix(c3(PALETTE.bone), c3(PALETTE.blush), maria.mul(0.28)).mul(limb);
+  const dark = mix(c3(PALETTE.skyZenith), c3(PALETTE.blush), 0.35).mul(0.84);
+  const body = mix(dark, bright, lit);
+  // atmospheric fade: low moons sink into the haze
+  const fade = smoothstep(-0.01, 0.3, d.y).mul(strength);
+  return mix(sky, body, inDisc.mul(fade));
+}
 
+export function skyNode(): any {
   return Fn(() => {
     const d = normalize(positionWorldDirection);
     const y = d.y;
@@ -28,31 +49,9 @@ export function skyNode(): any {
     if (PIXEL) t = floor(t.mul(14).add(bayer4())).div(14);
     const col = mix(c3(PALETTE.haze), c3(PALETTE.skyHorizon), smoothstep(0, 0.12, t)).toVar();
     col.assign(mix(col, c3(PALETTE.skyZenith), smoothstep(0.1, 1, t)));
-
-    // planet: tangent-plane coords around P (angular radians, small-angle)
-    const Pn = vec3(P.x, P.y, P.z);
-    const cosA = dot(d, Pn);
-    const off = d.sub(Pn.mul(cosA));
-    const u = dot(off, vec3(r1.x, r1.y, r1.z)), w = dot(off, vec3(r2.x, r2.y, r2.z));
-    const rad = length(vec2(dot(off, vec3(T1.x, T1.y, T1.z)), dot(off, vec3(T2.x, T2.y, T2.z))));
-    const inDisc = smoothstep(Math.sin(R) + 0.002, Math.sin(R) - 0.002, rad).mul(cosA.greaterThan(0));
-    // sphere normal for a soft terminator
-    const z = max(float(Math.sin(R)).mul(Math.sin(R)).sub(rad.mul(rad)), 0).sqrt().div(Math.sin(R));
-    const nx = off.div(Math.sin(R));
-    const sn = normalize(nx.add(Pn.mul(z)));
-    const lamb = clamp(dot(sn, vec3(L.x, L.y, L.z)).mul(0.5).add(0.5), 0, 1);
-    let lit: any = lamb;
-    if (PIXEL) lit = floor(lamb.mul(4)).div(4);
-    const planet = mix(c3(PALETTE.skyZenith).mul(0.8), c3(PALETTE.skyHorizon).mul(1.0), lit);
-    // thin ring: an ellipse in the tilted frame; the back half hides behind the disc
-    const er = length(vec2(u, w.div(0.2)));
-    const band = smoothstep(Math.sin(R) * 1.42, Math.sin(R) * 1.47, er).mul(smoothstep(Math.sin(R) * 1.78, Math.sin(R) * 1.7, er))
-      .sub(smoothstep(Math.sin(R) * 1.56, Math.sin(R) * 1.58, er).mul(smoothstep(Math.sin(R) * 1.62, Math.sin(R) * 1.6, er)).mul(0.7));
-    const behind = inDisc.mul(w.greaterThan(0));
-    const ring = clamp(band, 0, 1).mul(cosA.greaterThan(0)).mul(behind.oneMinus());
-    col.assign(mix(col, planet, inDisc));
-    col.assign(mix(col, col.mul(vec3(0.84, 0.83, 0.87)), ring));
-    return col;
+    // large moon centre-top between the arch and the hero; small moon high right, clear of the hero cap
+    col.assign(moon(d, col, 6, 17, 4.6, 3.1, 0.78));
+    col.assign(moon(d, col, -29, 15.5, 1.8, 7.7, 0.82));
+    return clamp(col, 0, 2);
   })();
 }
-
