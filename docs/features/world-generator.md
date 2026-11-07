@@ -156,11 +156,11 @@ Modules register in `src/main.ts` through one line each: `modules = [landforms()
 
 - Post: `RenderPipeline` (not `PostProcessing`), `pass()`, `bloom()` from `three/addons/tsl/display/BloomNode.js`. Call `.render()`.
 - Fog: `scene.fogNode = fog(colorNode, exponentialHeightFogFactor(density, height))`. Combine it with a range/density factor for distance haze. It applies to node materials only, not the background.
-- Sky: assign a node to `scene.background`. Use `positionWorldDirection`.
+- Sky: assign the node to **`scene.backgroundNode`** (`scene.background = node` errors in r187, verified by core). Use `positionWorldDirection`.
 - Noise: `mx_worley_noise_float(p, jitter, style)`, `mx_fractal_noise_float(p, octaves, lacunarity, diminish, amplitude)`, `hash(instanceIndex)`.
 - Coloured shadows: `material.receivedShadowNode = Fn(([s]) => s.mix(shadowColor, 1))`. `PCFSoftShadowMap` is removed, so use `PCFShadowMap`.
 - `await renderer.init()` before `render()`. `forceWebGL: true` is the fallback.
 - Fresnel: `float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(3)`.
 - **Verified by core (r187):** `material.positionNode` runs **after** instancing, so `positionLocal` is already instance-transformed. Sway = `positionLocal.add(offset)`. Use `instanceIndex` for per-instance hashes.
-- **Unverified, smoke-test first:** InstancedMesh shadow casting, `positionNode` sway in the shadow pass, fog vs background.
+- **Verified by core smoke test:** InstancedMesh castShadow works. `positionNode` sway carries into the shadow pass. `fogNode` affects meshes only, so the sky horizon band = `haze`. MeshToonNodeMaterial has no `flatShading`: facets come from a dFdx/dFdy `normalNode` (factory option).
 - Capture: Python Playwright `chromium.launch(headless=True, channel="chromium")` gives real Metal. Plain headless shell gives a null adapter. Use `device_scale_factor=1` and wait for `window.__ready`.
