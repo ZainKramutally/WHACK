@@ -161,5 +161,6 @@ Modules register in `src/main.ts` through one line each: `modules = [landforms()
 - Coloured shadows: `material.receivedShadowNode = Fn(([s]) => s.mix(shadowColor, 1))`. `PCFSoftShadowMap` is removed, so use `PCFShadowMap`.
 - `await renderer.init()` before `render()`. `forceWebGL: true` is the fallback.
 - Fresnel: `float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(3)`.
+- **Verified by core (r187):** `material.positionNode` runs **after** instancing, so `positionLocal` is already instance-transformed. Sway = `positionLocal.add(offset)`. Use `instanceIndex` for per-instance hashes.
 - **Unverified, smoke-test first:** InstancedMesh shadow casting, `positionNode` sway in the shadow pass, fog vs background.
 - Capture: Python Playwright `chromium.launch(headless=True, channel="chromium")` gives real Metal. Plain headless shell gives a null adapter. Use `device_scale_factor=1` and wait for `window.__ready`.
