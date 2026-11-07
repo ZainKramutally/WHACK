@@ -40,6 +40,7 @@ const worlds = arg === 'carbon' || arg === 'silicon' ? [arg] : ['carbon', 'silic
 const server = process.env.SMOKE_URL ? { url: process.env.SMOKE_URL, stop() {} } : await startDevServer();
 const BASE = server.url;
 let failed = false;
+const MIN_FPS = 50; // fail bar for the average fps after the build at 1920x1080 (only meaningful when the machine is quiet: check `uptime`)
 
 // Organism buffer layout (src/sim/organismLayout.ts): stride 28 floats, role at +2 (>0.5 = consumer), id at +8, x/y at +0/+1.
 async function smoke(world) {
@@ -146,7 +147,7 @@ async function smoke(world) {
   const avg = (a) => a.length ? Math.round(a.reduce((s, x) => s + x.fps, 0) / a.length) : null;
   const build = fps.filter((f) => f.prog < 1), after = fps.filter((f) => f.prog >= 1);
   console.log('fps@1920x1080 build avg', avg(build), 'min', Math.min(...build.map((f) => f.fps)), '| after avg', avg(after), 'min', Math.min(...after.map((f) => f.fps)), '| samples', build.length, after.length);
-  if (after.length && avg(after) < 30) problems.push(`fps after the build averaged ${avg(after)} (< 30)`);
+  if (after.length && avg(after) < MIN_FPS) problems.push(`fps after the build averaged ${avg(after)} (< ${MIN_FPS})`);
   console.log(errs.length ? errs.slice(0, 6) : 'no errors');
   if (problems.length) console.log('PROBLEMS:', problems);
   await b.close();
