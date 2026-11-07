@@ -650,7 +650,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 
 ## Demo script (to be rewritten)
 
-The three-minute demo script will be rewritten for the 20 s build, and that work is tracked in a GitHub issue. Until then, there are no fixed demo timings. The world is alive about 20 s after Generate, so the talk track has to fit around a living world rather than a slow time-lapse.
+The three-minute demo script will be rewritten for the 20 s build, and that work is tracked in GitHub issue #29. Until then, there are no fixed demo timings. The world is alive about 20 s after Generate, so the talk track has to fit around a living world rather than a slow time-lapse.
 
 Rehearse silicon as well, so we can switch to it if the judges ask "what about silicon?" Know the caveat line by heart. On silicon, the sliders are the fastest answer, and it can start on the selection screen:
 1. Select silicon. At 15 °C the box shows its nitrogen pool boiling off.
