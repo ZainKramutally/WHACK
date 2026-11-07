@@ -1,0 +1,90 @@
+// Third-person player: input → controller → follow camera → character mesh.
+// Decoupled from the scene: it needs a scene to add the mesh to, the camera to drive, the canvas for input,
+// and a PlayerEnv (terrain / sea samplers). Call update(dt) once per frame.
+import * as THREE from 'three/webgpu';
+import { createFollowCamera, type CameraTuning } from './camera';
+import { createCharacter } from './character';
+import { createPlayer, type PlayerEnv, type PlayerState, type PlayerTuning } from './controller';
+import { createInput, type InputCallbacks, type InputKind, type InputOptions } from './input';
+import { walkFloor } from './logic';
+
+export type { PlayerEnv, PlayerState, PlayerTuning, CameraTuning, InputCallbacks, InputKind };
+
+export interface AttachedPlayer {
+  update(dt: number): void;
+  dispose(): void;
+  readonly state: PlayerState;
+  /** Last device used: drives the controls hint and the gamepad reticle. */
+  readonly lastUsed: InputKind;
+  /** Show the centre reticle (gamepad is the last-used input). */
+  readonly reticleVisible: boolean;
+  /** Move the player (e.g. to the spawn point once the ground is solid) and snap the camera. */
+  respawn(x: number, z: number): void;
+  setVisible(v: boolean): void;
+}
+
+export interface AttachOptions {
+  callbacks?: InputCallbacks;
+  input?: InputOptions;
+  player?: Partial<PlayerTuning>;
+  camera?: Partial<CameraTuning>;
+}
+
+export function attachPlayer(
+  scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+  domElement: HTMLElement,
+  env: PlayerEnv,
+  opts: AttachOptions = {},
+): AttachedPlayer {
+  const input = createInput(domElement, opts.callbacks, opts.input);
+  const player = createPlayer(env, opts.player);
+  const follow = createFollowCamera(
+    { floorAt: (x, z) => walkFloor(env.heightAt(x, z), env.seaLevel(), env.frozen()) },
+    opts.camera,
+  );
+  const character = createCharacter();
+  scene.add(character.root);
+
+  const s = player.state;
+  follow.snap(s, s.mode === 'swim');
+  camera.position.set(follow.position.x, follow.position.y, follow.position.z);
+  camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
+
+  return {
+    state: s,
+    get lastUsed() {
+      return input.lastUsed;
+    },
+    get reticleVisible() {
+      return input.lastUsed === 'gamepad';
+    },
+    update(dt) {
+      const it = input.poll(dt);
+      follow.orbit(it.orbitYaw, it.orbitPitch);
+      player.update(dt, {
+        moveX: it.moveX,
+        moveZ: it.moveZ,
+        rise: it.rise,
+        camYaw: follow.yaw,
+        camPitch: follow.pitch,
+      });
+      follow.update(dt, s, s.mode === 'swim');
+      camera.position.set(follow.position.x, follow.position.y, follow.position.z);
+      camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
+      character.update(s, dt);
+    },
+    respawn(x, z) {
+      player.teleport(x, z);
+      follow.snap(s, s.mode === 'swim');
+    },
+    setVisible(v) {
+      character.root.visible = v;
+    },
+    dispose() {
+      input.dispose();
+      scene.remove(character.root);
+      character.dispose();
+    },
+  };
+}
