@@ -145,7 +145,7 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   { species: 'parasolTitan', variant: 0, x: 1100, z: -2600, h: 330, yaw: 2.2 },
   // foreground framing: a cropped, overhanging young titan cap in the top-left corner; pods + fan tips on the bottom corners
   { species: 'parasolTitan', variant: 0, x: -36, z: -44, h: 28, yaw: 0.3, tilt: [0, -0.4] },
-  { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
+  { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 3.4 },
   // spike-crown silhouettes rising from the bottom edge
   { species: 'groundCover', variant: 3, x: -4.6, z: -8, h: 2.6, yaw: 1.4 },
   // a small glowing pair beside the explorer: the accent sits on the story beat
