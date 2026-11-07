@@ -227,7 +227,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 2 | **One of everything** | One utility loop (R5), one relationship function (R6), one `develop()` (R9) and one ledger (R3). No per-species FSM, no basin special cases in the sim |
 | 3 | **Derive, don't author** | Roles, relationships, niches, channel shares, bulk forage, boldness, range and litter size are all *derived*. The 7 named basins leave the sim: they become **anonymous look attractors in the renderer**, and names come from a trait-based name generator |
 | 4 | **Small genome** | **15 genes: 12 body genes (below) + the 3 climate genes already built in `src/sim/population.ts`** (preferred temperature, tolerance width, and oxygen need on carbon / cold stability on silicon). Owner ruling 2026-11-07. Down from F's 32; the other 20 become derived look or behaviour, or go to NOT_NOW. A new gene costs a removal |
-| 5 | **Tunables cap** | 18 sim constants in `sim/constants.ts` (below): 9 `[game]`, 9 `[sci]`. That leaves 7 slots of headroom, and every addition costs one removal |
+| 5 | **Tunables cap** | 15 sim constants in `sim/constants.ts` (below): 9 `[game]`, 6 `[sci]`. That leaves 10 slots of headroom, and every addition costs one removal. Per-world facts (solvent, air and tissue density) live in each world's config (`life.inputs`), per `CLAUDE.md`'s "science lives in data" rule, and don't count here |
 | 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. **1,024 animals** (owner ruling; never fewer than 1,000, no 512 tier). ⏩ = more 20 Hz ticks per frame |
 | 7 | **Feature gate** | A rule or feature ships only if a headless A/B raises a §A variety metric or the readability metric (§5 acceptance rule) |
 | 8 | **No cheats, no preset code** | No midwives, no rescues, no `if preset ==`, no seeded lineages. Presets = dial values only. Fallbacks that broke this were removed (Q3, Q4, hunters). The menagerie is flagged for the owner |
@@ -242,7 +242,7 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 |---|---|---|---|---|---|
 | 1 | `size` (log) | g1 | upkeep M^0.75 (R3), slower generations (R8) | size refuge (R4), filter and bulk forage (R4), patch travel | body scale |
 | 2 | `segments` | g0 + g5 | mass | high-Re swim efficiency (R10) | worm ↔ serpent length |
-| 3 | `limbPairs` (0–4) | g9–g11 | limb mass (R3) | walk cost ↓ (R10) | legs appear |
+| 3 | `limbPairs` (float in [0, 1]; pairs = round(4·g), with a smooth limb-bud gradient below one pair) | g9–g11 | limb mass (R3) | walk cost ↓ (R10) | buds, then legs appear |
 | 4 | `limbLen` | g12 | mass ∝ len² | canopy access (R4), cost per stride ∝ 1/len (R10) | stilts, striders |
 | 5 | `plates` | g14 (+ g15) | Si and O built at the Rule 2 price, `PLATE_MASS` | bite defence (R4), blocks dissolution (R2) | stone plates |
 | 6 | `horns` | g21 (+ g22) | mass | prey defence (R4) | horns (count/curve from comp) |
@@ -254,10 +254,10 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 | 12 | `sociality` | g27 | food sharing among kin | risk ÷ (1 + n_kin) (dilution, Hamilton 1971) | shoals, packs |
 
 **Derived, not genes** (render-only unless noted):
-- radius profile, symmetry (radial when si high and limbPairs 0), axis, head length/width, joint bias, dorsal rods vs frills (from comp), low-Re cilia fringe (from Re), tail type, eye count, horn count, skin pattern
+- radius profile, symmetry (radial when si high and limbPairs 0), axis, head length/width, joint bias, dorsal rods vs frills (from comp), low-Re cilia fringe (from Re), tail type, eye count (from the `eyes` gene; F §3.3's `eyeCountBias` gene no longer exists), horn count, skin pattern
 - in the sim: boldness = defence/(defence + threat), range (from cost of transport), litter size (bud energy ÷ offspring mass), sessile mode (the cheapest mode when moving costs more than filtering)
 
-### G.2 `sim/constants.ts`: all 18
+### G.2 `sim/constants.ts`: all 15
 
 | # | Constant | Default | Tag | Rule |
 |---|---|---|---|---|
@@ -276,9 +276,8 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 | 13 | `EPS0` (ε = EPS0·(1 + 2·Hunger), 6–18%) | 0.06 | [sci] Lindeman 1942 `[recalled]` | R4 |
 | 14 | `GEN_EXP` | 0.25 | [sci] Brown 2004 `[verified]` | R8 |
 | 15 | `TSR_LAND` | 0.1 | [sci] Forster 2012 `[verified]` | R9 |
-| 16 | `SOLVENT[sea]` {ρ, μ, ε_r, band} | §B | [sci] handbook `[recalled]` | R2, R10 |
-| 17 | `AIR_RHO[sea]` | from notes/02 | [sci] `[INFERRED]` | R1, R10 |
-| 18 | `TISSUE_RHO` {C 1.05, Si 2.2} | — | [sci] `[recalled]` | R10 |
+
+**World facts, not sim constants** (moved to each world's config, `life.inputs`, each with a `why` and `sources`, per `CLAUDE.md`): `solvent` {ρ, μ, ε_r, liquid band} ([sci] handbook `[recalled]`; R2, R10), `airDensity` ([sci] `[INFERRED]`, P·M/(R·T); R1, R10; `develop()` already takes it as an input), `tissueDensity` {C 1.05, Si 2.2} ([sci] `[recalled]`; R10).
 
 **Structure, not tunable (guardrail 6):** `GRID 64`, `TICK 20 Hz`, `CAP 1024`. Render constants (κ 0.5 look-snap, discovery thresholds) live in the renderer and can't touch the sim.
 
@@ -354,10 +353,10 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 | Quantity (source in model) | Equation / direction | Tag | Feeds (genes · constants) | What you SEE | Status |
 |---|---|---|---|---|---|
 | **C fraction** (comp c) | C need per unit of growth (R2). Grammar: 12-sided smooth loft, curl, tentacle limbs, ring eyes, frills | [game] grammar; [sci] direction (flexible organics) | develop, R2 · — | coral curling soft bodies | LIVE + NEW (stoichiometry) |
-| **Si fraction** (comp si) | Si need (R2). Joint stiffness, hex facets, 15° joints, rod limbs. Body density via `TISSUE_RHO` | [game] grammar; [sci] silica skeletons (diatom glass ≈ 2% of energy, Raven 1983 `[verified]`) | develop, R2, R10 · `TISSUE_RHO` | cyan hex ticking bodies, glass plates | LIVE |
+| **Si fraction** (comp si) | Si need (R2). Joint stiffness, hex facets, 15° joints, rod limbs. Body density via the world's `tissueDensity` | [game] grammar; [sci] silica skeletons (diatom glass ≈ 2% of energy, Raven 1983 `[verified]`) | develop, R2, R10 · `TISSUE_RHO` | cyan hex ticking bodies, glass plates | LIVE |
 | **O fraction / availability** (comp o, cell O) | O need scales with upkeep (R2). Oxygen–size: adult scale × (1 + o). Glow does **not** depend on O (owner ruling: glow comes from darkness on both worlds) | [sci] Verberk & Atkinson 2013, Chapelle & Peck 1999 `[verified]` | develop, R2 | bigger, more active animals in O-rich worlds | LIVE (speed × O dropped → NOT_NOW) |
 | **C, Si, O supply per cell** (Recipe × Sea × history) | Liebig `min` over the three. R* differs by comp, so the winner tracks the supply ratio | [sci] Tilman, Sterner & Elser `[recalled]` | R1, R2 · `P0` | plated forms on Si-rich ground, soft forms on C-rich ground; shifts as stone locks Si | NEW |
-| **Solvent density ρ_liq** (Water 1.00, NH₃ 0.68, CH₄ 0.42, H₂SO₄ 1.83 g/cm³) | swim cost ∝ \|ρ_body − ρ_liq\|. ρ_body = (1 − `buoy`)·(comp-weighted `TISSUE_RHO` + plate mass) | [sci] `[recalled]` | R10 · `buoy`, `plates`, `SOLVENT`, `TISSUE_RHO` | methane: swimmers sink, giving lakebed walkers and gas bells. Acid: plated bodies still bob | NEW |
+| **Solvent density ρ_liq** (Water 1.00, NH₃ 0.68, CH₄ 0.42, H₂SO₄ 1.83 g/cm³) | swim cost ∝ \|ρ_body − ρ_liq\|. ρ_body = (1 − `buoy`)·(comp-weighted `tissueDensity` + plate mass) | [sci] `[recalled]` | R10 · `buoy`, `plates`, `SOLVENT`, `TISSUE_RHO` | methane: swimmers sink, giving lakebed walkers and gas bells. Acid: plated bodies still bob | NEW |
 | **Solvent viscosity μ** (0.89, 0.25, 0.12, ≈ 25 mPa·s) → Re = ρ·v·S/μ (vs Water ×2.4, ×3.1, ×3.1, ×0.065) | the weight on form drag rises with log Re, anchored to Water. At high Re, `segments` (elongation) cuts swim cost; at low Re, drag ∝ surface favours compact bodies | [sci] Purcell 1977 `[recalled]` | R10 · `segments`, `size`, `SOLVENT` | methane/ammonia: torpedo eels. Acid: compact swimmers with a cilia fringe (fringe is **render-only**, from Re) | NEW |
 | **Solvent polarity ε_r** (80, 22, 1.7, ≈ 100) | attack = `DISSOLVE`·ε_r/80 on unplated Si (Water, NH₃) or C shell/stone (Acid). Methane ≈ 0. Dissolved matter returns to cells (R2) | [sci] direction (sea silica mostly dissolves, Tréguer 1995 `[verified]` fact); [game] scale | R2 · `plates`, `DISSOLVE`, `SOLVENT` | plated forms in Water; bare Si in Methane | LIVE (Water, Acid), NEW (ε_r scaling) |
 | **Liquid temperature range** (0–100, −78 to −33, −182 to −162, 10–337 °C) | Heat = position inside the solvent's liquid band. Absolute T is unused | [game], declared (real Arrhenius at 90 K would freeze methane life) | — | — | **FLAG** feeds nothing → NOT_NOW (ℓ from band edges, frost fringe) |
@@ -366,7 +365,7 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 | **Light intensity** (Light) | flora ∝ light (R1). Eye benefit = vision ∝ light vs cost `EYE_FRAC`, so eyes regress in the dark *without a rule*. Glow lures pay when dim, on both worlds: glow output = `glow`·(1 − light). On carbon it's luciferase-style bioluminescence; on silicon, chemiluminescence (`assumption: true`) | [sci] Moran 2015, Nilsson 2012, Warrant & Locket 2004, Martini & Haddock 2017 `[verified]` | R1, R3, R5, R9 · `eyes`, `glow`, `EYE_FRAC` | big eyes at dusk, eyeless den-dwellers, glow lures; caps vs glow bulbs | LIVE (the `o > 0.3` threshold dropped) |
 | **Light spectrum** (tholin orange) | sky/stain colour; skin hue tinted by ambient spectrum | [game] | render only | orange-tinted skins | **FLAG** no sim effect (render-only, allowed by guardrail 9) |
 | **Pigment / UV** (bright light) | dorsal darkening ∝ Light | [game] | render only | darker backs in bright worlds | **FLAG** no sim effect (render-only). A pigment gene → NOT_NOW |
-| **Atmospheric density ρ_air** (`AIR_RHO[sea]`; methane ≈ 4× Earth `[INFERRED]`) | fly cost = `FLY_K`·(1 − ρ_air)·S^0.5. Hover cost = `FLY_K`·max(0, ρ_body − ρ_air). Air food ∝ ρ_air·light. Wing area drawn ∝ M/ρ_air | [sci] direction; [game] scale | R1, R10 · `buoy`, `FLY_K`, `AIR_RHO` | big wings in thin air; gas bells in thick air | LIVE (share), NEW (smooth costs) |
+| **Atmospheric density ρ_air** (world config `airDensity`; methane ≈ 4× Earth `[INFERRED]`) | fly cost = `FLY_K`·(1 − ρ_air)·S^0.5. Hover cost = `FLY_K`·max(0, ρ_body − ρ_air). Air food ∝ ρ_air·light. Wing area drawn ∝ M/ρ_air | [sci] direction; [game] scale | R1, R10 · `buoy`, `FLY_K`, `AIR_RHO` | big wings in thin air; gas bells in thick air | LIVE (share), NEW (smooth costs) |
 | **Gravity** | fixed at 1 g | [game], declared | — | — | **FLAG** by design: "all worlds share one gravity" (Titan's 0.14 g → NOT_NOW) |
 | **Dissolved Si per cell** | plate cost = plate mass × the local Si price (R2 scarcity). Grazed cells grow Si-rich, tough flora | [sci] Massey & Hartley 2009 `[verified]` | R2, R4 · `plates`, `PLATE_MASS` | spiny glassy grass where grazers crowd; cheap plates on Si-rich ground | LIVE (flora), NEW (price) |
 | **Predator density** (local Afraid) | newborn plates + `INDUCE`·Hunger·Afraid. Horns = prey defence. Eyes pay more where risk is high because vision buys escape (derived) | [sci] Agrawal 1999, Tollrian 1995 `[verified]` | R5, R6 · `plates`, `horns`, `eyes`, `INDUCE` | thicker plates near hunters; big-eyed prey at refuge edges | LIVE (vigilance constant dropped) |
