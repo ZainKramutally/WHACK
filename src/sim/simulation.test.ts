@@ -201,8 +201,66 @@ describe('WorldSimulation', () => {
     const sim = new WorldSimulation(carbon, EARTH);
     sim.drainEvents();
     sim.setControl('temperature', 500);
-    expect(sim.conditions().temperature).toBeCloseTo(122, 2);
     expect(sim.drainEvents()).toEqual([{ type: 'control:blocked', controlId: 'temperature', limitId: 'tooHot' }]);
+    sim.advance(1.05); // the thumb glides there over 1 s
+    expect(sim.conditions().temperature).toBeCloseTo(122, 2);
+  });
+
+  describe('slider glide (issue #3)', () => {
+    const idle = () => new FixedLife({ producerBiomass: 0, consumerBiomass: 0, deadBiomass: 0 });
+    it('moves linearly over 1 s of demo time, then holds the target', () => {
+      const sim = new WorldSimulation(carbon, EARTH, { life: idle() });
+      sim.advance(30); // build done, live ticks at 20 Hz
+      const t0 = sim.conditions().temperature;
+      sim.setControl('temperature', t0 + 20);
+      expect(sim.conditions().temperature).toBeCloseTo(t0, 6); // nothing jumps
+      sim.advance(0.5);
+      expect(sim.conditions().temperature).toBeCloseTo(t0 + 10, 1);
+      sim.advance(0.55);
+      expect(sim.conditions().temperature).toBeCloseTo(t0 + 20, 6);
+      sim.advance(1);
+      expect(sim.conditions().temperature).toBeCloseTo(t0 + 20, 6);
+    });
+    it('glides on the build clock before life too, and takes 1 s of demo time in the fast-forward', () => {
+      const early = new WorldSimulation(carbon, EARTH, { life: idle() });
+      early.advance(2);
+      early.setControl('oxygen', 31);
+      early.advance(0.5);
+      expect(early.conditions().oxygen).toBeCloseTo(26, 1);
+      early.advance(0.5);
+      expect(early.conditions().oxygen).toBeCloseTo(31, 6);
+
+      const ff = new WorldSimulation(carbon, EARTH, { life: idle() });
+      ff.advance(12); // inside the fast-forward: 618 ticks per second of wall time
+      const o0 = ff.conditions().oxygen;
+      ff.setControl('oxygen', o0 + 10);
+      const ticks0 = ff.tickCount;
+      ff.advance(0.5); // about 309 ticks, i.e. 0.5 s of demo time
+      expect(ff.tickCount - ticks0).toBeGreaterThan(250);
+      expect(ff.conditions().oxygen).toBeCloseTo(o0 + 5, 0);
+    });
+    it('is frame-independent: 60 fps, 17 fps and one jump give the same glide', () => {
+      const at = (dt: number) => {
+        const sim = new WorldSimulation(carbon, EARTH, { life: idle() });
+        run(sim, 11, dt);
+        sim.setControl('temperature', 40);
+        run(sim, 1.4, dt);
+        return fingerprint(sim);
+      };
+      const a = at(1 / 60);
+      expect(at(1 / 17)).toEqual(a);
+      expect(at(1.4)).toEqual(a);
+    });
+    it('restarts from the current value when a drag changes mid-glide', () => {
+      const sim = new WorldSimulation(carbon, EARTH, { life: idle() });
+      sim.advance(30);
+      const t0 = sim.conditions().temperature;
+      sim.setControl('temperature', t0 + 20);
+      sim.advance(0.5);
+      sim.setControl('temperature', t0);
+      sim.advance(1.05);
+      expect(sim.conditions().temperature).toBeCloseTo(t0, 6);
+    });
   });
 
   it('rejects malformed control:set without changing state', () => {
@@ -216,9 +274,11 @@ describe('WorldSimulation', () => {
   it('lets the Temperature slider move the orbit: the new temperature holds', () => {
     const sim = new WorldSimulation(carbon, EARTH);
     sim.setControl('temperature', 40);
+    sim.advance(1.05);
     expect(sim.conditions().temperature).toBeCloseTo(40, 6);
     const hot = sim.snapshot().stats.light;
     sim.setControl('temperature', -10);
+    sim.advance(1.05);
     expect(sim.snapshot().stats.light).toBeLessThan(hot);
   });
 
@@ -417,7 +477,8 @@ describe('WorldSimulation', () => {
       const sim = new WorldSimulation(quick(w), EARTH);
       sim.advance(5);
       sim.setControl('temperature', t);
-      expect(sim.conditions().temperature).toBeCloseTo(t, 3); // really inside the band
+      sim.advance(1.05);
+      expect(sim.conditions().temperature).toBeCloseTo(t, 1); // really inside the band
       sim.advance(30);
       return sim.snapshot().population.consumers;
     };

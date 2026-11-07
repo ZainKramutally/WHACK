@@ -112,7 +112,7 @@ describe('SimHost', () => {
     expect(f.out.map((o) => o.msg)).toEqual([
       { type: 'event', event: { name: 'control:blocked', payload: { controlId: 'temperature', limitId: 'tooHot' } } },
     ]);
-    f.step(100);
+    f.step(1100); // the thumb glides to the edge over 1 s
     f.step(100);
     expect(f.snapshots().at(-1)!.controls.temperature).toBeCloseTo(122, 2);
   });

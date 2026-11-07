@@ -30,6 +30,7 @@ const BAND_EVERY = 10; // implementation constant (DECISIONS §G.2 exempt): tick
 const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): ticks before the same control may report "blocked" again while pinned at an edge
 const EPS = 1e-6; // implementation constant (DECISIONS §G.2 exempt): slack so float sums of frame times never lose a tick
 const EDGE_INSET = 1e-6; // implementation constant (DECISIONS §G.2 exempt): a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
+const CONTROL_EASE_SEC = 1;  // implementation constant (DECISIONS §G.2 exempt): a slider change glides linearly over this much demo time
 const LIQUID_MOVE_M = 0.25; // implementation constant (DECISIONS §G.2 exempt): sea level change (m) that rebuilds the ecology's liquid grid
 const LIQUID_PROGRESS = 0.05; // implementation constant (DECISIONS §G.2 exempt): or this much more terrain rise
 const LIQUID_EVERY = 100; // implementation constant (DECISIONS §G.2 exempt): ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
@@ -106,6 +107,8 @@ export class WorldSimulation {
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
+  /** Slider glides in progress: from/to in display units, t0 on the sim clock (see simClock). */
+  private readonly ease: Partial<Record<ControlId, { from: number; to: number; t0: number }>> = {};
   private liquidAt: { level: number; progress: number } | undefined;
 
   constructor(world: WorldConfig, requested: Conditions, opts: SimOptions = {}) {
@@ -185,8 +188,35 @@ export class WorldSimulation {
     const r = applyControl(this.world, this.conditions(), controlId, value, this.limitsEnv);
     if (r.blockedBy) this.events.push({ type: 'control:blocked', controlId, limitId: r.blockedBy });
     const band = livingBands(this.world, this.conditions(), this.limitsEnv)[controlId];
-    this.setControlValue(controlId, this.insideBand(controlId, band, r.conditions[controlId]));
+    const to = this.insideBand(controlId, band, r.conditions[controlId]);
+    const from = this.conditions()[controlId];
+    if (to === from) delete this.ease[controlId];
+    else this.ease[controlId] = { from, to, t0: this.simClock() };   // glides over CONTROL_EASE_SEC, stepped on the tick clock
     this.tickBands = livingBands(this.world, this.conditions(), this.limitsEnv);
+  }
+
+  /**
+   * The simulation's own clock in seconds: build seconds at the tick reached (so a slider glide takes 1 s of demo time
+   * even in the build's fast-forward), 20 ticks per second after it. Before the first tick it is the build clock, capped at
+   * lifeSec, because nothing ticks while the world is still empty. A pure function of the ticks run, never of frame rate.
+   */
+  private simClock(): number {
+    const b = this.world.build;
+    if (this.ticks === 0) return Math.min(this.elapsed, b.lifeSec);
+    if (this.ticks <= this.buildTicks) return buildSecOfTick(this.ticks, b);
+    return b.durationSec + (this.ticks - this.buildTicks) * TICK_DT;
+  }
+
+  /** Move every gliding slider to its position at `clock` (linear in the thumb's own scale: log for nitrogen). */
+  private stepEase(clock: number): void {
+    for (const id of Object.keys(this.ease) as ControlId[]) {
+      const e = this.ease[id]!;
+      const p = clamp01((clock - e.t0) / CONTROL_EASE_SEC);
+      const log = controls[id].scale === 'log';
+      const v = p >= 1 ? e.to : log ? Math.exp(Math.log(e.from) + (Math.log(e.to) - Math.log(e.from)) * p) : e.from + (e.to - e.from) * p;
+      this.setControlValue(id, v);
+      if (p >= 1) delete this.ease[id];
+    }
   }
 
   drainEvents(): SimEvent[] {
@@ -246,6 +276,7 @@ export class WorldSimulation {
       this.life.seedFounders(this.lifeEnv(), this.spawnHint());
       this.events.push({ type: 'build:life' });
     }
+    if (this.ticks === 0) this.stepEase(this.simClock());   // gliding while the world is still empty
     const target = ticksDueAfter(this.elapsed, b);
     let n = 0;
     while (this.ticks < target && n < maxTicks) {
@@ -261,6 +292,7 @@ export class WorldSimulation {
 
   private tick(): void {
     this.ticks++;
+    this.stepEase(this.simClock());
     this.life.step(this.lifeEnv(), TICK_DT);
 
     // Life changes the planet: each feedback moves its stat by rate × driver per ecology second.
