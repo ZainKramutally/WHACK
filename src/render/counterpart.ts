@@ -246,6 +246,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     r.setScissor(rect.x, rect.y, rect.width, rect.height);
     cam.aspect = rect.width / rect.height;
     cam.updateProjectionMatrix();
+    r.clearDepth(); // the canvas keeps the main pass's depth; the swatch must not be tested against it
     origRender(scene, cam);
     r.setScissorTest(false);
     r.setViewport(0, 0, window.innerWidth, window.innerHeight);

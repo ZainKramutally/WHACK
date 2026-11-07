@@ -162,9 +162,28 @@ export function mountInspectCard(
     card.style.top = `${y}px`;
   }
 
+  /** Cut the counterpart window out of the card's translucent background so the canvas shows through. */
+  function punchWindow(r: DOMRect) {
+    const c = card.getBoundingClientRect();
+    const st = card.style as CSSStyleDeclaration & Record<string, string>;
+    const g = 'linear-gradient(#000, #000)';
+    const x = Math.round(r.left - c.left) + 1, y = Math.round(r.top - c.top) + 1;
+    const size = `100% 100%, ${Math.max(0, Math.round(r.width) - 2)}px ${Math.max(0, Math.round(r.height) - 2)}px`;
+    const pos = `0 0, ${x}px ${y}px`;
+    for (const k of ['mask', 'webkitMask']) {
+      st[`${k}Image`] = `${g}, ${g}`;
+      st[`${k}Size`] = size;
+      st[`${k}Position`] = pos;
+      st[`${k}Repeat`] = 'no-repeat';
+    }
+    st.maskComposite = 'exclude';
+    st.webkitMaskComposite = 'xor';
+  }
+
   function reportWindow() {
     if (card.hidden || win.hidden) return;
     const r = win.getBoundingClientRect();
+    punchWindow(r);
     const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
     if (key === lastRect) return;
     lastRect = key;
@@ -184,6 +203,8 @@ export function mountInspectCard(
   function close(notify = true) {
     if (card.hidden) return;
     card.hidden = true;
+    card.style.maskImage = '';
+    card.style.removeProperty('-webkit-mask-image');
     target = null;
     lastRect = '';
     bus.emit('inspect:window', null);

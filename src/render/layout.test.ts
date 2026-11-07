@@ -104,11 +104,11 @@ describe('beadLayout', () => {
 
 describe('display scale', () => {
   it('is monotonic and makes a 0.15–0.2 m worm clearly visible', () => {
-    expect(displayLength(0.15)).toBeCloseTo(3.5);
-    expect(displayLength(0.18)).toBeGreaterThan(3.5);
+    expect(displayLength(0.15)).toBeCloseTo(3);
+    expect(displayLength(0.18)).toBeGreaterThan(3);
     let prev = 0;
     for (const s of [0.05, 0.15, 0.5, 1.5, 5, 10]) { const d = displayLength(s); expect(d).toBeGreaterThan(prev); prev = d; }
-    expect(displayLength(9.6) / displayLength(0.15)).toBeLessThan(20);
+    expect(displayLength(9.6) / displayLength(0.15)).toBeLessThan(6);
     expect(displayFactor(0.15) * 0.15).toBeCloseTo(displayLength(0.15));
   });
 });

@@ -200,14 +200,14 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
   // Limbs: legPairs along the front two-thirds of the spine; each limb leaves the body sideways and goes down.
   if (plan.legPairs > 0 && plan.limbSegments > 0) {
     const segLen = plan.limbLength / plan.limbSegments;
-    const rl = Math.max(0.02 * L, rMax * 0.35);
+    const rl = Math.max(0.03 * L, rMax * 0.45);
     for (let pair = 0; pair < plan.legPairs; pair++) {
       const idx = Math.min(n - 1, Math.round((n - 1) * (0.2 + 0.75 * (plan.legPairs === 1 ? 0.5 : pair / (plan.legPairs - 1)))));
       const p = spine[idx];
       for (const side of [1, -1]) {
         let theta = 30 * D2R; // from straight down, outward positive
         let lz = p.z + side * p.r * 0.7, ly = 0;
-        const perSeg = silicon ? 3 : 2;
+        const perSeg = silicon ? 4 : 2;
         for (let j = 0; j < plan.limbSegments; j++) {
           theta += (plan.limbJointAngles[j] ?? 0) * D2R;
           const dz = Math.sin(theta) * side, dy = -Math.cos(theta);
@@ -274,10 +274,10 @@ export function floraShape(mat: number, canopy: number): { count: number; height
 // --- display scale (render-only illustration) ---------------------------------------------------------------
 // Real body lengths run from ~0.15 m worms to ~10 m giants, which makes typical animals invisible next to 1–2 m flora
 // from a 5 m follow camera. One rule for every creature: displayed length = DISPLAY_REF · (scale / BODY_REF)^DISPLAY_EXP.
-// It is monotonic, so bigger stays bigger; it compresses the ~64× real range to ~15×. Whole bodies scale together.
+// It is monotonic, so bigger stays bigger; it compresses the ~64× real range to ~5×. Whole bodies scale together.
 export const BODY_REF = 0.15;     // m: the smallest founder worm
-export const DISPLAY_REF = 3.5;   // m: how long that worm is drawn
-export const DISPLAY_EXP = 0.6;
+export const DISPLAY_REF = 3;   // m: how long that worm is drawn
+export const DISPLAY_EXP = 0.4;
 
 export function displayLength(scale: number): number {
   return DISPLAY_REF * Math.pow(Math.max(scale, 0.01) / BODY_REF, DISPLAY_EXP);
