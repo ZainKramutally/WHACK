@@ -6,7 +6,7 @@ import type {
   BuildConfig, Conditions, ControlId, LivingBand, SimSnapshot, WorldConfig,
 } from '../worlds/types';
 import { controlList, controls } from '../worlds/controls';
-import { createTerrain, seaLevelForCover, type Terrain, type TerrainState } from '../gen/terrain';
+import { createTerrain, seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
 import { CELLS, GRID, liquidFromHeights } from './grid';
 import { FormTracker, type NewForm } from './guide';
 import {
@@ -244,7 +244,7 @@ export class WorldSimulation {
     const b = this.world.build;
     if (!this.lifeStarted && this.elapsed >= b.lifeSec) {
       this.lifeStarted = true;
-      this.life.seedFounders(this.lifeEnv());
+      this.life.seedFounders(this.lifeEnv(), this.spawnHint());
       this.events.push({ type: 'build:life' });
     }
     const target = ticksDueAfter(this.elapsed, b);
@@ -418,6 +418,27 @@ export class WorldSimulation {
     if (this.liquidAt && Math.abs(level - this.liquidAt.level) <= LIQUID_MOVE_M && Math.abs(progress - this.liquidAt.progress) < LIQUID_PROGRESS) return;
     this.liquidAt = { level, progress };
     this.life.setLiquid(this.liquidNow());
+  }
+
+  /**
+   * Where the character will stand (metres), computed the way the app does at spawnSec: the terrain state and sea level
+   * of that moment. A pure function of the world, so founders can be seeded next to it deterministically.
+   */
+  spawnPointM(): { x: number; z: number } {
+    const b = this.world.build;
+    if (!this.terrain) return { x: 0, z: 0 };
+    const progress = Math.min(1, b.spawnSec / b.durationSec);
+    const cover = (this.stats.seaCover / 100) * smoothstep(b.seasSec[0], b.seasSec[1], b.spawnSec);
+    const state = this.terrainState(Math.round(progress * 100) / 100, Math.round(this.stats.temperature));
+    const p = spawnPoint(this.terrain, state, this.seaLevel(progress, cover));
+    return { x: p.x, z: p.z };
+  }
+
+  private spawnHint(): { x: number; y: number } | undefined {
+    if (!this.terrain) return undefined;
+    const p = this.spawnPointM();
+    const S = this.terrain.patchSize;
+    return { x: p.x / S + 0.5, y: p.z / S + 0.5 };
   }
 
   private airDensity(): number {

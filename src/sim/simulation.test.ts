@@ -6,6 +6,7 @@ import type { Conditions, WorldConfig } from '../worlds/types';
 import { canLive } from './limits';
 import type { LifeDrivers, LifeModel } from './lifeModel';
 import { PLAN_LENGTH } from './plan';
+import { organismCount, readOrganism } from './organismLayout';
 import { makeRng } from './rng';
 import { WorldSimulation, ticksDueAfter, ticksDueAt, type SimEvent } from './simulation';
 
@@ -305,6 +306,31 @@ describe('WorldSimulation', () => {
         expect(s.controls[c.id]).toBeLessThanOrEqual(s.bands[c.id].high + 1e-6);
       }
       expect(fingerprint(go().sim)).toEqual(fingerprint(a.sim));
+    });
+  });
+
+  describe('life near the spawn shore', () => {
+    /** Animals within `radius` metres of the character's spawn point. */
+    const near = (sim: WorldSimulation, w: WorldConfig, radius: number) => {
+      const sp = sim.spawnPointM();
+      const o = sim.snapshot().organisms;
+      let n = 0;
+      for (let i = 0; i < organismCount(o); i++) {
+        const r = readOrganism(o, i);
+        if (Math.hypot((r.x - 0.5) * w.terrain.patchSize - sp.x, (r.y - 0.5) * w.terrain.patchSize - sp.z) <= radius) n++;
+      }
+      return n;
+    };
+    it.each([carbon, silicon])('founders appear in the shallows nearest the spawn ($id)', (w: WorldConfig) => {
+      const sim = new WorldSimulation(w, EARTH);
+      sim.advance(w.build.lifeSec + 0.05);
+      expect(sim.snapshot().population.consumers).toBeGreaterThanOrEqual(24);
+      expect(near(sim, w, 40)).toBeGreaterThanOrEqual(20);
+    });
+    it.skipIf(!slow).each([carbon, silicon])('many animals are still within 40 m of the spawn at the end of the build ($id) (SLOW)', { timeout: 60000 }, (w: WorldConfig) => {
+      const sim = new WorldSimulation(w, EARTH);
+      sim.advance(w.build.durationSec);
+      expect(near(sim, w, 40)).toBeGreaterThanOrEqual(10);
     });
   });
 

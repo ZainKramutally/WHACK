@@ -75,6 +75,7 @@ const DECIDE_EVERY = 4; // an animal re-decides every 4th tick (staggered by ind
 const RISK_EVERY = 40; // derived fields (risk, hunger) refresh every 2 s
 const FLORA_EVERY = 4; // flora (slow) updates every 4th tick with 4× the step
 const SCAN = 12; // an animal looks at no more than this many neighbours per cell (bounds crowded cells)
+const FOUNDER_CELLS = 24; // with a spawn hint, founders start in this many shallow cells nearest to it
 const REACH = 1; // cells within which a hunter can strike
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -136,8 +137,12 @@ export class Ecology {
 
   get animals(): number { return this.living; }
 
-  /** The founders appear in the shallows with a first patch of flora (build.lifeSec). Seeded; same seed, same worms. */
-  seedLife(env: EcologyEnv): void {
+  /**
+   * The founders appear in the shallows with a first patch of flora (build.lifeSec). Seeded; same seed, same worms.
+   * `near` (patch coordinates 0..1, e.g. the player's spawn) puts the founders in the shallows closest to it, so life
+   * can be seen from the spawn shore; without it they are spread over every shallow cell.
+   */
+  seedLife(env: EcologyEnv, near?: { x: number; y: number }): void {
     const g = this.grid;
     const L = this.L;
     const shallows: number[] = [];
@@ -146,8 +151,13 @@ export class Ecology {
     if (shallows.length === 0) for (let i = 0; i < CELLS; i++) if (g.liquid[i] > 0) wet.push(i);
     const spots = shallows.length ? shallows : wet;
     for (const i of spots) this.plant(i, L.seedMat);
-    const pool = spots.length ? spots : Array.from({ length: CELLS }, (_, i) => i);
+    let pool = spots.length ? spots : Array.from({ length: CELLS }, (_, i) => i);
     if (!spots.length) for (const i of pool) this.plant(i, 0.05);
+    if (near) {
+      // Nearest first (ties by cell index, so it is deterministic); founders use only the closest FOUNDER_CELLS cells.
+      const d2 = (c: number) => ((c % GRID) + 0.5 - near.x * GRID) ** 2 + (Math.floor(c / GRID) + 0.5 - near.y * GRID) ** 2;
+      pool = [...pool].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, FOUNDER_CELLS);
+    }
     const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
     for (const gen of founders) {
       const cell = pool[Math.floor(this.rnd() * pool.length)];

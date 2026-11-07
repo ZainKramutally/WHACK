@@ -29,8 +29,8 @@ export interface LifeSummary {
 }
 
 export interface LifeModel {
-  /** Called once, when life appears (build.lifeSec), with the conditions at that moment. */
-  seedFounders(env: LifeEnv): void;
+  /** Called once, when life appears (build.lifeSec), with the conditions at that moment and the player's spawn in patch coordinates (0..1). */
+  seedFounders(env: LifeEnv, near?: { x: number; y: number }): void;
   /** Advance by `dtEcologySec` ecology seconds under `env`. */
   step(env: LifeEnv, dtEcologySec: number): void;
   /** Valid after step(). */
@@ -77,7 +77,7 @@ export class EcologyLife implements LifeModel {
     private readonly ctx: EcologyLifeContext,
   ) {}
 
-  seedFounders(env: LifeEnv): void {
+  seedFounders(env: LifeEnv, near?: { x: number; y: number }): void {
     const w = this.world;
     const led = w.life.ledger;
     const supply = {
@@ -99,7 +99,7 @@ export class EcologyLife implements LifeModel {
       founderClimate: { prefTemp: this.ctx.founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: FOUNDER_CHEM },
       ledger: led as Partial<EcologyLedger>,
     });
-    this.eco.seedLife(env);
+    this.eco.seedLife(env, near);
     this.remember();
   }
 
