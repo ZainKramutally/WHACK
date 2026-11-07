@@ -217,9 +217,9 @@ export function glowStalks(env: Env): SpeciesBuild {
       pools.push({ x: cx + (dx / dl) * R * 0.85, z: cz + (dz / dl) * R * 0.85, scale: R, yaw: 0, rand: Math.min(...list.map((i) => i.rand)), yOff: 0.35 });
     });
     const rr = pow(float(1).sub(aAux().w), 1.8);
-    const poolHue = mix(vec3(1.0, 0.62, 0.1), vec3(0.85, 0.9, 0.3), pow(rr, 0.5));
+    const poolHue = mix(vec3(0.8, 0.8, 0.41), vec3(0.82, 0.95, 0.28), pow(rr, 0.5));
     const pm = e2.ctx.materials.create({
-      color: color(0x000000), emissive: poolHue.mul(0.85), opacity: pow(rr, 1.6).mul(0.75),
+      color: color(0x000000), emissive: poolHue.mul(0.95), opacity: pow(rr, 1.3).mul(0.85),
       positionNode: floraPosition(e2.ctx, 'glowStalks', {}),
     });
     pm.blending = THREE.AdditiveBlending; pm.depthWrite = false; pm.side = THREE.DoubleSide;
