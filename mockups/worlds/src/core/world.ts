@@ -10,6 +10,9 @@ import { createMaterialFactory } from './materials';
 import { createSkyNode } from './sky';
 import { createFogNode } from './fog';
 import { createPost } from './post';
+import { createPixelState } from '../pixel/state';
+import { createPixelPost } from '../pixel/post';
+import { createPixelSky } from '../pixel/sky';
 import { CameraRig } from './camera';
 import { Morph, cloneDials } from './morph';
 import { createFigure } from './figure';
@@ -18,10 +21,12 @@ import { makeRng } from './rng';
 import landforms from '../landforms';
 import flora from '../flora';
 
-export interface Flags { capture: boolean; testgeo: boolean; probe: boolean; nofigure: boolean; debug: boolean; stats: boolean; orbit: boolean }
+export interface Flags { capture: boolean; testgeo: boolean; probe: boolean; nofigure: boolean; debug: boolean; stats: boolean; orbit: boolean; pixel: boolean; pixelHeight: number }
 export const parseFlags = (): Flags => {
   const tok = new Set(location.hash.slice(1).split(/[&,#]/).filter(Boolean));
-  return { capture: tok.has('capture'), testgeo: tok.has('testgeo'), probe: tok.has('probe'), nofigure: tok.has('nofigure'), debug: tok.has('debug'), stats: tok.has('stats'), orbit: tok.has('orbit') };
+  const q = new URLSearchParams(location.search);
+  const ph = Number(q.get('ph'));
+  return { pixel: q.get('style') === 'pixel', pixelHeight: Math.min(360, Math.max(160, ph || 216)), capture: tok.has('capture'), testgeo: tok.has('testgeo'), probe: tok.has('probe'), nofigure: tok.has('nofigure'), debug: tok.has('debug'), stats: tok.has('stats'), orbit: tok.has('orbit') };
 };
 
 export class World {
@@ -32,6 +37,7 @@ export class World {
   morph!: Morph;
   rig!: CameraRig;
   post!: ReturnType<typeof createPost>;
+  pixel = createPixelState();
   ctx!: WorldContext;
   preset!: Preset;
   modules: WorldModule[] = [];
@@ -52,7 +58,7 @@ export class World {
   }
 
   async init(presetId: Preset['id']) {
-    this.renderer = new THREE.WebGPURenderer({ antialias: true });
+    this.renderer = new THREE.WebGPURenderer({ antialias: !this.flags.pixel });
     await this.renderer.init();
     this.stage.appendChild(this.renderer.domElement);
     this.renderer.shadowMap.enabled = true;
@@ -60,7 +66,12 @@ export class World {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 4000);
     this.rig = new CameraRig(this.camera, this.renderer.domElement, this.renderer, this.stage);
-    this.scene.fogNode = createFogNode(this.uniforms, this.fogDensity);
+    if (this.flags.pixel) {
+      // pixel mode: no fog (stepped depth bands in post), pixel materials, low-res target
+      this.materials = createMaterialFactory(this.uniforms, this.sunDirU, true);
+      this.rig.pixelHeight = this.flags.pixelHeight;
+      this.rig.onLayout = (h) => this.pixel.setLayout(h, this.camera.fov);
+    } else this.scene.fogNode = createFogNode(this.uniforms, this.fogDensity);
 
     const sh = this.sun.shadow;
     sh.mapSize.set(this.quality === 'low' ? 1024 : 2048, this.quality === 'low' ? 1024 : 2048);
@@ -69,7 +80,7 @@ export class World {
     sh.bias = -0.0008; sh.normalBias = 0.15;
     this.sun.castShadow = true;
 
-    this.post = createPost(this.renderer, this.scene, this.camera);
+    this.post = this.flags.pixel ? createPixelPost(this.renderer, this.scene, this.camera, this.pixel) : createPost(this.renderer, this.scene, this.camera);
     await this.load(presetId, true);
     addEventListener('resize', () => this.rig.layout(this.quality));
     addEventListener('keydown', (e) => { if (e.key === 'o' || e.key === 'O') this.rig.toggle(); });
@@ -88,7 +99,8 @@ export class World {
     const derived = derive(this.morph.current, PRESETS);
     applyDerived(this.uniforms, derived, this.morph.current);
     this.fogDensity.value = derived.fogDensity;
-    this.scene.backgroundNode = createSkyNode(this.uniforms, comp);
+    this.pixel.setSea(this.morph.current.sea);
+    this.scene.backgroundNode = this.flags.pixel ? createPixelSky(this.pixel, comp) : createSkyNode(this.uniforms, comp);
     this.rig.setComposition(comp);
     this.rig.layout(this.quality);
 
@@ -145,6 +157,7 @@ export class World {
     this.hemi.groundColor.copy(c(p.ground)).lerp(this.hemi.color, 0.5);
     this.hemi.intensity = Math.PI * 0.5;
     const [r, g, b] = hexToLinear(p.skyHorizon);
+    this.pixel.setSky(p.skyTop, p.haze);
     this.post.setPalette(0.2126 * r + 0.7152 * g + 0.0722 * b);
   }
 
@@ -175,6 +188,7 @@ export class World {
       applyDerived(this.uniforms, this.ctx.derived, this.morph.current);
       this.fogDensity.value = this.ctx.derived.fogDensity;
       this.updateLights();
+      this.pixel.setSea(this.morph.current.sea);
       this.onDerived?.();
     }
     this.rig.update(this.uniforms.time.value, dt, !this.flags.capture);

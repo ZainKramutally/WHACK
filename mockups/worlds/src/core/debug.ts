@@ -28,6 +28,19 @@ export function createDebug(world: World) {
     world.rewrite(d);
   };
 
+  const styleF = pane.addFolder({ title: 'Style' });
+  styleF.addButton({ title: world.flags.pixel ? 'Style: pixel → switch to v1' : 'Style: v1 → switch to pixel' }).on('click', () => {
+    const q = new URLSearchParams(location.search);
+    if (world.flags.pixel) q.delete('style'); else q.set('style', 'pixel');
+    location.search = q.toString();
+  });
+  if (world.flags.pixel) {
+    const PX = { height: world.flags.pixelHeight };
+    styleF.addBinding(PX, 'height', { min: 160, max: 360, step: 1, label: 'pixel height' }).on('change', () => {
+      world.rig.pixelHeight = PX.height; world.rig.layout(world.quality);
+    });
+  }
+
   const presetsF = pane.addFolder({ title: 'Travel' });
   for (const p of PRESETS) presetsF.addButton({ title: `${p.id} ${p.name}` }).on('click', () => world.travel(p.id));
 

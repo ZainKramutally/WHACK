@@ -9,6 +9,9 @@ export class CameraRig {
   private base = new THREE.Vector3();
   private target = new THREE.Vector3();
   private comp!: Composition;
+  /** Pixel mode: internal render height in px (null = v1 full-res). Canvas is upscaled by an integer factor, letterboxed. */
+  pixelHeight: number | null = null;
+  onLayout?: (internalHeight: number) => void;
 
   constructor(public camera: any, private dom: HTMLElement, private renderer: any, private stage: HTMLElement) {
     this.controls = new OrbitControls(camera, dom);
@@ -41,6 +44,19 @@ export class CameraRig {
   layout(quality: 'low' | 'high' = 'high') {
     const w = innerWidth, h = innerHeight;
     const a = this.mode === 'pin' ? this.comp.aspect : w / h;
+    if (this.pixelHeight) {
+      // 16:9-equivalent pixel budget: portrait pins swap the axes (384×216 → 216×384) so features keep their pixels
+      const ph = Math.round(a >= 1 ? this.pixelHeight : (this.pixelHeight * 16) / 9), pw = Math.max(1, Math.round(ph * a));
+      const k = Math.max(1, Math.floor(Math.min(w / pw, h / ph)));
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(pw, ph, false);
+      const st = this.renderer.domElement.style;
+      st.width = `${pw * k}px`; st.height = `${ph * k}px`; st.imageRendering = 'pixelated';
+      this.camera.aspect = pw / ph;
+      this.camera.updateProjectionMatrix();
+      this.onLayout?.(ph);
+      return;
+    }
     const cw = Math.floor(Math.min(w, h * a)), ch = Math.floor(cw / a);
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * (quality === 'low' ? 0.5 : 1));
     this.renderer.setSize(cw, ch);

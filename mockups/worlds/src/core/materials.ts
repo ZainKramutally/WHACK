@@ -8,7 +8,21 @@ import {
 import type { MaterialFactory, WorldMaterialOptions, WorldUniforms } from '../contracts';
 
 /** 3-step cel ramp (shadow core / mid / lit). NearestFilter keeps the steps hard. */
-function celRamp(): any {
+function celRamp(pixel = false): any {
+  if (pixel) {
+    // pixel mode (spec §3): shadow / base / light at N·L 0.15 / 0.55; 128 texels keep the edges accurate
+    const n = 128;
+    const data = new Uint8Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const nl = ((i + 0.5) / n) * 2 - 1;
+      const v = nl < 0.15 ? 0 : nl < 0.55 ? 150 : 255;
+      data.set([v, v, v, 255], i * 4);
+    }
+    const t = new THREE.DataTexture(data, n, 1, THREE.RGBAFormat);
+    t.minFilter = t.magFilter = THREE.NearestFilter;
+    t.needsUpdate = true;
+    return t;
+  }
   // 16 texels over n·l: <0.06 core shadow (sun contributes nothing, only the tinted fill) · 0.06–0.25 mid · >0.25 lit.
   const v = [0, 150, 150, 150, ...Array(12).fill(255)];
   const data = new Uint8Array(v.flatMap((x) => [x, x, x, 255]));
@@ -18,8 +32,8 @@ function celRamp(): any {
   return t;
 }
 
-export function createMaterialFactory(u: WorldUniforms, sunDir: any): MaterialFactory {
-  const ramp = celRamp();
+export function createMaterialFactory(u: WorldUniforms, sunDir: any, pixel = false): MaterialFactory {
+  const ramp = celRamp(pixel);
   const white = vec3(1, 1, 1);
   // flat facets: face normal from screen-space derivatives
   const flatNormal = positionView.dFdx().cross(positionView.dFdy()).normalize();
