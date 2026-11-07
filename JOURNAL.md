@@ -38,3 +38,4 @@
 - 18:17: scene final pair merged (278b042): bottom-right terrain fold. 84 tests. rw-scene standby. #28 partially done.
 - 18:23: fauna v1 merged (62deb17): develop() from sim genes, 8 variants, IK gaits w/ no sliding, 10 draws, 98 tests, 60fps. Art verdict: reads as boxy furniture; sky whale from ref NOT done. Sent r2: sky whale first, then anatomy/heads/weight.
 - 18:39: Bellwhale merged (cherry-pick of 9ee16e6): adolescent ~22 m bell @90 m + juvenile 2.6 m, one genome + age. 98 tests (one timeout flake in placement determinism test, 2.8 s -> rw-scene to fix). Awaiting user feedback on whale.
+- 18:46: placement test speed fix merged (797ccbc): file 7 s -> 1.5 s, region-clipped determinism, shared full run. 98 tests.
