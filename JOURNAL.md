@@ -34,3 +34,4 @@
 - 17:53: scene 4b merged (3bfc41c): clean fg-right fan silhouette, 300-600 m clearings + 3x groves, mid-ground pods/fans/coils. r6: height-aware fog, dim fan core, trim left fg. USER: sky whale (ref image) -> rw-fauna hero variant (adolescent + juvenile).
 - 17:59: scene r5 merged (ed9bc35): height-aware fog (hero identical), denser groves, explorer pod, fan core cropped. 84 tests, 60fps. Last small round (left fg bulbs, distant cap tint), then standby.
 - 18:02: scene r6 merged (bdee1e0): left fg pod cluster lightened. 84 tests, 60fps. Final ask: distant cap-top tint + bottom-right fold, then standby.
+- 18:11: scene r7 merged (20f1656): distance tint on pale flora (groves read as masses from air), left fg pods cropped. 84 tests, 60fps. rw-scene on standby. Leftover nits filed as GH issue.
