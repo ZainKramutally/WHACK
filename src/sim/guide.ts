@@ -3,13 +3,15 @@
 // when a form first reaches MIN_MEMBERS live animals (the `guide:newForm` payload), and a trait-based
 // name generator. No authored species list; every word is chosen from gene thresholds.
 // The look attractor (third part of DECISIONS §A's functional type) is render-only and lives in the art layer.
+import { LOCOMOTION, type LocomotionMode } from './develop';
 import { BODY_GENES, type AnimalGenome, type BodyGenes } from './genome';
 
 // DECISIONS §A: a species is a cluster at radius 0.25 with at least 4 live animals.
 export const FORM_RADIUS = 0.25;
 export const MIN_MEMBERS = 4;
 
-export interface GuideAnimal { id: number; genome: AnimalGenome }
+/** `mode` is the animal's real locomotion mode (develop()'s plan.mode: the cheapest of walk / swim / hover / sessile). Optional: without it the genes decide. */
+export interface GuideAnimal { id: number; genome: AnimalGenome; mode?: LocomotionMode }
 
 /** Centroid in the clustering space: the 12 body genes plus composition c and si. */
 export interface FormCentroid { body: BodyGenes; c: number; si: number }
@@ -20,7 +22,12 @@ export interface FormCluster {
   centroid: FormCentroid;
   /** Member ids, ascending. */
   members: number[];
+  /** What the members actually are: majority role and majority real locomotion mode (see FormHint). */
+  hint: FormHint;
 }
+
+/** The members' majority role and locomotion mode, which override the centroid's genes when naming or classifying a form. */
+export interface FormHint { role?: Role; mode?: LocomotionMode }
 
 export interface NewForm { binId: number; name: string; organismId: number }
 
@@ -85,7 +92,8 @@ export function clusterForms(animals: readonly GuideAnimal[]): FormCluster[] {
       }
     }
   }
-  return ids.map((members, k) => ({ key: members[0], centroid: toCentroid(means[k]), members }));
+  const byId = new Map(sorted.map((a) => [a.id, a]));
+  return ids.map((members, k) => ({ key: members[0], centroid: toCentroid(means[k]), members, hint: hintOf(members.map((id) => byId.get(id)!)) }));
 }
 
 // ---- Functional type (trophic role × locomotion hint) ----
@@ -106,15 +114,46 @@ export function roleOf(diet: number): Role {
   return diet < DIET_GRAZER_MAX ? 'grazer' : diet > DIET_HUNTER_MIN ? 'hunter' : 'omnivore';
 }
 
+/** Locomotion word from the genes alone (used when no real mode is known). */
 export function locomotionOf(b: BodyGenes): Locomotion {
   if (b.buoy >= BUOY_FLOATER) return 'floater';
   if (b.limbPairs >= LIMBS_PRESENT) return b.limbLen >= LIMBS_LONG ? 'strider' : 'walker';
   return b.segments >= SEGMENTS_LONG ? 'crawler' : 'swimmer';
 }
 
-export function functionalType(centroid: FormCentroid): FunctionalType {
-  const role = roleOf(centroid.body.diet);
-  const locomotion = locomotionOf(centroid.body);
+/**
+ * Locomotion word when the real mode is known: swim → swimmer, hover → floater, walk → strider/walker with legs or
+ * crawler without (a legless body that "walks" creeps); sessile bodies creep too. The genes only pick strider vs walker.
+ */
+export function locomotionForMode(b: BodyGenes, mode: LocomotionMode): Locomotion {
+  if (mode === LOCOMOTION.swim) return 'swimmer';
+  if (mode === LOCOMOTION.hover) return 'floater';
+  if (mode === LOCOMOTION.walk && b.limbPairs >= LIMBS_PRESENT) return b.limbLen >= LIMBS_LONG ? 'strider' : 'walker';
+  return 'crawler';
+}
+
+/** Most common value; ties go to the smallest (lowest mode number, or role in grazer < omnivore < hunter order). */
+function majority<T extends number | string>(values: readonly T[]): T | undefined {
+  const counts = new Map<T, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: T | undefined;
+  let bestN = 0;
+  for (const [v, n] of [...counts].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) if (n > bestN) { best = v; bestN = n; }
+  return best;
+}
+
+/** Majority role (from each member's diet gene) and majority real mode (when members carry one). */
+export function hintOf(members: readonly GuideAnimal[]): FormHint {
+  const roles = members.map((a) => ROLE_ORDER.indexOf(roleOf(a.genome.body.diet)));
+  const modes = members.flatMap((a) => (a.mode === undefined ? [] : [a.mode]));
+  const r = majority(roles);
+  return { role: r === undefined ? undefined : ROLE_ORDER[r], mode: majority(modes) };
+}
+const ROLE_ORDER: readonly Role[] = ['grazer', 'omnivore', 'hunter'];
+
+export function functionalType(centroid: FormCentroid, hint: FormHint = {}): FunctionalType {
+  const role = hint.role ?? roleOf(centroid.body.diet);
+  const locomotion = hint.mode === undefined ? locomotionOf(centroid.body) : locomotionForMode(centroid.body, hint.mode);
   return { role, locomotion, label: `${role} · ${locomotion}` };
 }
 
@@ -141,9 +180,10 @@ function featureOf(b: BodyGenes): Feature {
 }
 
 /** Deterministic two-word name from traits only, e.g. "Glass Strider". Silicon-leaning centroids (si ≥ c) use the silicon word set. */
-export function nameForm(centroid: FormCentroid): string {
+export function nameForm(centroid: FormCentroid, hint: FormHint = {}): string {
   const chem = centroid.si >= centroid.c ? 'si' : 'c';
-  return `${ADJ[chem][featureOf(centroid.body)]} ${NOUN[locomotionOf(centroid.body)]}`;
+  const loco = hint.mode === undefined ? locomotionOf(centroid.body) : locomotionForMode(centroid.body, hint.mode);
+  return `${ADJ[chem][featureOf(centroid.body)]} ${NOUN[loco]}`;
 }
 
 // ---- Tracker ----
@@ -175,7 +215,7 @@ export class FormTracker {
       if (best) { best.centroid = v; continue; } // known form: follow its drift
       const bin: Bin = { id: this.nextId++, centroid: v };
       this.bins.push(bin);
-      out.push({ binId: bin.id, name: nameForm(cl.centroid), organismId: representative(cl, v, byId) });
+      out.push({ binId: bin.id, name: nameForm(cl.centroid, cl.hint), organismId: representative(cl, v, byId) });
     }
     return out;
   }

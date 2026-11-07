@@ -116,7 +116,7 @@ export function brayCurtis(a: ArrayLike<number>, b: ArrayLike<number>): number {
 export function functionalCensus(animals: readonly GuideAnimal[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const c of otus(animals)) {
-    const label = functionalType(c.centroid).label;
+    const label = functionalType(c.centroid, c.hint).label;
     out[label] = (out[label] ?? 0) + c.members.length;
   }
   return out;

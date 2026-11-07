@@ -131,7 +131,7 @@ export class EcologyLife implements LifeModel {
     const eco = this.eco;
     if (!eco) return [];
     const out: GuideAnimal[] = [];
-    for (let i = 0; i < CAP; i++) if (eco.alive[i]) out.push({ id: eco.id[i], genome: eco.genome[i] as AnimalGenome });
+    for (let i = 0; i < CAP; i++) if (eco.alive[i]) out.push({ id: eco.id[i], genome: eco.genome[i] as AnimalGenome, mode: eco.plan[i].mode });
     return out;
   }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimalGenome, BodyGenes } from './genome';
+import { LOCOMOTION, type LocomotionMode } from './develop';
 import { FormTracker, clusterForms, functionalType, nameForm, type GuideAnimal } from './guide';
 
 const flat: BodyGenes = {
@@ -84,5 +85,56 @@ describe('names', () => {
   it('functional type combines role and locomotion', () => {
     const cen = clusterForms([{ id: 1, genome: siStrider }])[0].centroid;
     expect(functionalType(cen)).toEqual({ role: 'hunter', locomotion: 'strider', label: 'hunter · strider' });
+  });
+});
+
+describe('real locomotion mode overrides the genes', () => {
+  const withMode = (animals: GuideAnimal[], mode: LocomotionMode): GuideAnimal[] => animals.map((a) => ({ ...a, mode }));
+  const nameOf = (animals: GuideAnimal[]) => {
+    const cl = clusterForms(animals)[0];
+    return nameForm(cl.centroid, cl.hint);
+  };
+
+  it('never names a cluster of walkers a Swimmer or a Drifter, whatever the genes say', () => {
+    // genes that read as floaters (buoy 0.9) and as swimmers (no legs, few segments)
+    for (const body of [{ buoy: 0.9 }, { buoy: 0.1, limbPairs: 0, segments: 0.1 }, { buoy: 0.9, glow: 0.8 }]) {
+      const name = nameOf(withMode(group(1, 6, genome(body)), LOCOMOTION.walk));
+      expect(name).not.toMatch(/Swimmer|Drifter/);
+    }
+    // with legs they are strider / walker; without, they creep
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9, limbPairs: 0.7, limbLen: 0.8 })), LOCOMOTION.walk))).toMatch(/Strider$/);
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9, limbPairs: 0.7, limbLen: 0.2 })), LOCOMOTION.walk))).toMatch(/Walker$/);
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9 })), LOCOMOTION.walk))).toMatch(/Crawler$/);
+  });
+
+  it('names swimmers and hoverers by what they do', () => {
+    expect(nameOf(withMode(group(1, 6, genome({ limbPairs: 0.7, limbLen: 0.8 })), LOCOMOTION.swim))).toMatch(/Swimmer$/);
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.1 })), LOCOMOTION.hover))).toMatch(/Drifter$/);
+  });
+
+  it('uses the majority mode of the members and breaks ties toward the lower mode', () => {
+    const g = genome({ buoy: 0.9 });
+    const mixed = group(1, 7, g).map((a, i) => ({ ...a, mode: (i < 4 ? LOCOMOTION.walk : LOCOMOTION.hover) as LocomotionMode }));
+    expect(clusterForms(mixed)[0].hint.mode).toBe(LOCOMOTION.walk);
+    const tie = group(1, 6, g).map((a, i) => ({ ...a, mode: (i < 3 ? LOCOMOTION.hover : LOCOMOTION.walk) as LocomotionMode }));
+    expect(clusterForms(tie)[0].hint.mode).toBe(LOCOMOTION.walk);
+  });
+
+  it('classifies by the members\' majority role, not the centroid\'s mean diet', () => {
+    const g = genome({});
+    const animals = group(1, 6, g).map((a, i) => ({ ...a, genome: { ...a.genome, body: { ...a.genome.body, diet: i < 4 ? 0.1 : 0.9 } } }));
+    const cl = clusterForms(animals);
+    const biggest = cl.reduce((a, b) => (b.members.length > a.members.length ? b : a));
+    expect(functionalType(biggest.centroid, biggest.hint).role).toBe(biggest.hint.role);
+  });
+
+  it('keeps genes-only behaviour when no mode is given, and the tracker names with the real mode once', () => {
+    const plain = group(1, 5, genome({ buoy: 0.9 }));
+    expect(nameOf(plain)).toMatch(/Drifter$/);
+    const t = new FormTracker();
+    const fired = t.update(withMode(plain, LOCOMOTION.walk));
+    expect(fired).toHaveLength(1);
+    expect(fired[0].name).toMatch(/Crawler$/);
+    expect(t.update(withMode(plain, LOCOMOTION.hover))).toEqual([]); // already announced: the name stays
   });
 });
