@@ -55,15 +55,19 @@ function clear(x: number, z: number, tall: boolean, pad: number, species?: Speci
   const rv = riverDist(x, z);
   if (rv.d < rv.w * 1.1 + pad) return false;
   if (tall && Math.abs(a - HERO_ANG) < 0.1 && d < 420) return false;
+  if (!tall && Math.abs(a - HERO_ANG) < 0.12 && d < 60) return false; // no near shrub on the line to the hero
   if (tall && Math.abs(a - EXP_ANG) < 0.08 && d < 110) return false;
   if (Math.hypot(x - HERO.x, z - HERO.z) < 45) return false;
   return true;
 }
 
+/** Near ground cover in islands: a low-frequency mask thresholded (0.45-0.5 on a 0..1 field, fbm at 38 m) leaves plain red gaps 20-40 m wide. */
+const nearClumps = (x: number, z: number) => 0.75 * smoothstep(0.45, 0.5, 0.5 + 0.5 * fbm(x / 38, z / 38, 2, 71)); // ~40% fewer, ~44% plain gaps
+
 const SPECS: Spec[] = [
   { species: 'groundCover', rect: { x0: -90, x1: 90, z0: -170, z1: 6 }, minDist: 2.1, h: [0.8, 1.7], absScale: true, variants: 3,
     // the near right of the hero frame stays open for one clean silhouette (the hand-placed rib fan)
-    mask: (x, z, d) => (x > 1.5 && x > -z * 0.12 && d < 140 ? 0.1 : 1) * (1 - smoothstep(25, 170, d)) * (0.55 + 0.45 * smoothstep(-0.2, 0.3, fbm(x / 18, z / 18, 2, 5))) },
+    mask: (x, z, d) => (x > 1.5 && x > -z * 0.12 && d < 140 ? 0.1 : 1) * (1 - smoothstep(25, 170, d)) * nearClumps(x, z) },
   { species: 'lanternPods', rect: { x0: -320, x1: 320, z0: -520, z1: -12 }, minDist: 45, h: [7, 18], variants: 3,
     mask: (x, z) => 0.6 * smoothstep(0.2, 0.45, fbm(x / 90, z / 90, 2, 8)) },
   { species: 'ribFan', rect: { x0: -420, x1: 420, z0: -720, z1: -30 }, minDist: 60, h: [12, 30], variants: 3,
@@ -105,6 +109,11 @@ function tooClose(taken: readonly (readonly [number, number, number])[], x: numb
   }
   return false;
 }
+/** Near ground cover stays knee-to-chest high (<= 1.8 m within 60 m of the start camera) so no shrub becomes a foreground subject. */
+function capNear(species: SpeciesId, variant: number, scale: number, x: number, z: number, heightOf: (s: SpeciesId, v: number) => number): number {
+  if (species !== 'groundCover' || variant === 3 || Math.hypot(x, z) > 60) return scale;
+  return Math.min(scale, 1.8 / heightOf(species, variant));
+}
 const thinFar = (species: SpeciesId, d: number) => ((species === 'coilSpire' || species === 'parasolTitan') && d > 600 ? 0.7 : 1);
 const WORLD: WorldSpec[] = [
   // ground-cover patches at the set pieces
@@ -113,7 +122,7 @@ const WORLD: WorldSpec[] = [
       mask: (x, z) => radial(cx, cz, r * 0.4, r)(x, z) * (0.5 + 0.5 * clump(x, z, 20, 41, -0.2, 0.3)) })),
   // dune dressing off the riverbed in the basin (tiny from the hero camera, reads when walking)
   { species: 'groundCover', rect: { x0: -220, x1: 260, z0: -320, z1: -110 }, minDist: 3.4, h: [0.9, 1.9], absScale: true, variants: 3, inWedgeBeyond: 0,
-    mask: (x, z) => 0.55 * clump(x, z, 30, 47, -0.1, 0.3) },
+    mask: (x, z) => 0.55 * clump(x, z, 30, 47, -0.1, 0.3) * nearClumps(x, z) },
   // spike crowns (groundCover#3, 3.5 m thistles): sparse silhouettes in clumps, never as filler
   { species: 'groundCover', variant: 3, rect: DISC, minDist: 28, h: [0.8, 1.2], absScale: true, variants: 4, inWedgeBeyond: 700,
     mask: (x, z, d) => (d > 40 ? 0.35 * clump(x, z, 90, 48, 0.15, 0.35) : 0) },
@@ -191,7 +200,7 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
       if (tall && tooClose(taken, x, z, s.minDist)) continue;
       const variant = pickVariant(s.species, rng(), variantsOf?.(s.species) ?? s.variants);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
-      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
+      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? capNear(s.species, variant, h, x, z, heightOf) : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }
   }
   // the 360° world
@@ -215,7 +224,7 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
       if (tall && tooClose(taken, x, z, s.minDist)) continue;
       const variant = s.variant ?? pickVariant(s.species, rng(), variantsOf?.(s.species) ?? 3);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
-      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
+      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? capNear(s.species, variant, h, x, z, heightOf) : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }
   }
   placed = out.map((p) => {

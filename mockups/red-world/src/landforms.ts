@@ -95,7 +95,7 @@ export function buildLandforms(): any {
     butte(-620, -1250, 140, 170, 1),
     butte(-1400, -2300, 200, 380, 2, 0.7),
     butte(1050, -1600, 240, 210, 4),
-    butte(560, -2300, 120, 330, 3, 0.75),
+    butte(900, -2300, 120, 330, 3, 0.75), // kept clear of the hero stalk's silhouette
     butte(1500, -2600, 420, 360, 5),
     butte(-1700, -3100, 520, 430, 6),
     // ring of buttes in every other direction so no view of the walkable disc ends empty

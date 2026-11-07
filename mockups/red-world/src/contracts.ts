@@ -18,7 +18,7 @@ export const PALETTE = {
   bone: 0xf4e6dc,      // pale caps, stalk highlights
   blush: 0xf2a2a0,     // pale-red transitional
   // shadow tint (Bruno-style coloured shadow, never grey)
-  shadow: 0x8a0f3c,
+  shadow: 0x5a1040,
   // accent: under 5% of pixels
   glow: 0x3ff5e0,
   glowDeep: 0x0f8f9a,

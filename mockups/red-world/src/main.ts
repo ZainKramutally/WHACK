@@ -92,6 +92,7 @@ renderer.setAnimationLoop(() => {
   const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = CAPTURE ? 12 : (now - t0) / 1000;
   U.time.value = t;
+  U.lamp.value.copy(explorer.position);
   if (controls) controls.update();
   else if (!player?.update(dt)) {
     // tiny drift: a slow breathing dolly + sub-degree yaw

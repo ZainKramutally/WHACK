@@ -8,7 +8,7 @@ import {
   sin, cos, screenCoordinate, frontFacing, If, exp, smoothstep, floor, mod, texture, mx_worley_noise_vec2, clamp, dot,
 } from 'three/tsl';
 import { PALETTE } from './contracts';
-import { DATA_RECT, HERO, EXPLORER } from './layout';
+import { DATA_RECT, HERO, EXPLORER, CORNER_CAP } from './layout';
 import { heightAt } from './field';
 
 const HERO_BASE_Y = heightAt(HERO.x, HERO.z);
@@ -22,8 +22,8 @@ export const U = {
   lightDir: uniform(new THREE.Vector3(-0.62, 0.5, -0.6).normalize()),
   sun: uniform(new THREE.Color(1.0, 0.97, 0.93)),
   shadowTint: uniform(lin(PALETTE.shadow)),
-  shadowMix: uniform(0.88),
-  shadowGain: uniform(0.78),
+  shadowMix: uniform(0.86),
+  shadowGain: uniform(0.82),
   coreLow: uniform(-0.12),
   coreHigh: uniform(0.42),
   bounceDist: uniform(140),
@@ -39,6 +39,7 @@ export const U = {
   glowK: uniform(2.6),
   windK: uniform(0.6),
   time: uniform(0),
+  lamp: uniform(new THREE.Vector3(EXPLORER.x, 0, EXPLORER.z)), // explorer lamp (main.ts follows the avatar)
 };
 
 /** Ordered 4×4 Bayer threshold in [0, 1) from the (internal) pixel coordinate. */
@@ -58,6 +59,11 @@ export const groundColor = Fn(([xz]: any[]) => {
   const d = texture(groundTex, uvT);
   const c = mix(c3(PALETTE.red), c3(PALETTE.redLight), smoothstep(0.5, 0.85, d.b)).toVar();
   c.assign(mix(c, c3(PALETTE.crimson), d.g.mul(0.85)));
+  // bank light: the river mask blurred over ~±7 m lifts the ground beside every bed toward redLight/blush
+  const o = vec2(7 / (DATA_RECT.x1 - DATA_RECT.x0), 7 / (DATA_RECT.z1 - DATA_RECT.z0));
+  const near = texture(groundTex, uvT.add(vec2(o.x, 0))).r.add(texture(groundTex, uvT.sub(vec2(o.x, 0))).r)
+    .add(texture(groundTex, uvT.add(vec2(0, o.y))).r).add(texture(groundTex, uvT.sub(vec2(0, o.y))).r).mul(0.25);
+  c.assign(mix(c, mix(c3(PALETTE.redLight), c3(PALETTE.blush), 0.3), near.mul(d.r.oneMinus()).mul(0.55)));
   // dry salt bed: pale blush/bone with polygonal crack lines
   const w = mx_worley_noise_vec2(xz.mul(0.32));
   const crack = smoothstep(0.1, 0.03, w.y.sub(w.x));
@@ -81,6 +87,7 @@ export interface WorldMatOpts {
   fog?: boolean;
   castShadowFlag?: boolean;
   translucent?: boolean; // flora: pale down-facing tissue lets light through (rw-flora's banded undersides)
+  lampPool?: boolean;    // terrain: faint cyan pool under the explorer's lamp
 }
 
 export function worldMaterial(o: WorldMatOpts = {}): any {
@@ -95,9 +102,15 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     const sc = o.instanced ? attribute('aScale', 'float') : float(1);
     const ph = positionLocal.x.mul(0.013).add(positionLocal.z.mul(0.017));
     const t = U.time;
-    const amp = s.mul(s).mul(U.windK).mul(sc.pow(0.6));
+    const near = smoothstep(10, 60, positionLocal.sub(cameraPosition).length()).mul(0.3).add(0.7); // fg sway damped 30%
+    const amp = s.mul(s).mul(U.windK).mul(sc.pow(0.6)).mul(near);
     const off = vec3(sin(t.mul(0.55).add(ph)).add(sin(t.mul(1.3).add(ph.mul(2.1))).mul(0.3)), 0, cos(t.mul(0.43).add(ph.mul(1.3))).mul(0.6)).mul(amp);
-    m.positionNode = positionLocal.add(off);
+    // the hero breathes: a slow 7 s sway with tip lag (higher = later), big enough to read at 470 m (~3 internal px)
+    const hero = float(1).sub(smoothstep(60, 90, positionLocal.xz.sub(vec2(HERO.x, HERO.z)).length()));
+    const lag = positionLocal.y.sub(HERO_BASE_Y).mul(0.012);
+    const breath = sin(t.mul((2 * Math.PI) / 7).sub(lag));
+    const heroSway = vec3(breath, 0, breath.mul(0.35)).mul(s.mul(s)).mul(hero).mul(3.4);
+    m.positionNode = positionLocal.add(off).add(heroSway);
   }
 
   const caught = float(1).toVar();
@@ -147,6 +160,18 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     const fg = float(1).sub(smoothstep(6, 75, dist)).mul(U.fgPush);
     out.assign(mix(out, out.mul(vec3(0.32, 0.12, 0.2)), fg));
 
+    if (o.translucent) {
+      const pxz0 = positionWorld.xz;
+      // the overhanging corner cap frames the sky: one value step toward haze so it never matches the hero's contrast
+      const corner = float(1).sub(smoothstep(16, 30, pxz0.sub(vec2(CORNER_CAP.x, CORNER_CAP.z)).length())).mul(smoothstep(4, 8, positionWorld.y));
+      out.assign(mix(out, vec3(U.fogColor), corner.mul(0.3)));
+      // the hero's neck light spills a little cyan onto the nearest underside band
+      const hr = pxz0.sub(vec2(HERO.x, HERO.z)).length();
+      const hy = positionWorld.y.sub(HERO_BASE_Y + HERO.height * 0.88).div(HERO.height * 0.035);
+      const spill = float(1).sub(smoothstep(4, 18, hr)).mul(exp(hy.mul(hy).negate())).mul(max(N.y.negate(), 0)); // just around the neck
+      out.assign(mix(out, c3(PALETTE.glow).mul(0.8), spill.mul(0.6)));
+    }
+
     if (o.fog !== false) {
       // the midground (< ~400 m) stays clear and saturated; air builds only past it (value planes, brief §3)
       // height-aware air: from the ground (eye < ~10 m) this is exactly the hero-frame fog; flying, the clear zone and the
@@ -161,14 +186,21 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
       const f = clamp(max(range, haze), 0, 1).toVar();
       if (PIXEL) f.assign(floor(f.mul(16).add(0.5)).div(16));
       out.assign(mix(out, vec3(U.fogColor), f));
+      if (o.lampPool) {
+        const lp = float(1).sub(smoothstep(0.6, 7, positionWorld.xz.sub(U.lamp.xz).length()));
+        out.assign(mix(out, c3(PALETTE.glow).mul(0.9), lp.mul(lp).mul(0.55)));
+      }
       if (o.glow) {
         const g = c3(PALETTE.glow);
         const hdr = g.div(dot(g, vec3(0.2126, 0.7152, 0.0722))).mul(U.glowK);
         // glow is pushed toward the focal area (hero neck/caps, pods around the explorer) and calmer elsewhere
         const pxz = positionWorld.xz;
-        const focal = max(float(1).sub(smoothstep(60, 240, pxz.sub(vec2(HERO.x, HERO.z)).length())),
+        const focal = max(float(1).sub(smoothstep(45, 120, pxz.sub(vec2(HERO.x, HERO.z)).length())),
           float(1).sub(smoothstep(14, 40, pxz.sub(vec2(EXPLORER.x, EXPLORER.z)).length())).mul(1.6));
-        out.assign(mix(out, hdr.mul(mix(0.65, 1.5, focal)), glowW.mul(f.oneMinus()).mul(mix(1, 1.6, focal.sub(1).clamp(0, 1).mul(1.6))).clamp(0, 1)));
+        const corner = float(1).sub(smoothstep(16, 30, pxz.sub(vec2(CORNER_CAP.x, CORNER_CAP.z)).length()));
+        const weight = glowW.mul(f.oneMinus()).mul(mix(0.3, 1, focal.clamp(0, 1))).mul(mix(1, 1.6, focal.sub(1).clamp(0, 1).mul(1.6)))
+          .mul(corner.mul(0.85).oneMinus()).clamp(0, 1);
+        out.assign(mix(out, hdr.mul(mix(0.65, 1.5, focal)), weight));
       }
     }
     return vec4(out, 1);

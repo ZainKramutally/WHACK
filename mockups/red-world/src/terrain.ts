@@ -58,7 +58,7 @@ export function buildTerrain(): any {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeVertexNormals();
-  const mesh = new THREE.Mesh(g, worldMaterial({ colorNode: groundColor(positionWorld.xz), bounce: false }));
+  const mesh = new THREE.Mesh(g, worldMaterial({ colorNode: groundColor(positionWorld.xz), bounce: false, lampPool: true }));
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;
   return mesh;

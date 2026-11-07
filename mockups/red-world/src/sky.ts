@@ -50,7 +50,7 @@ export function skyNode(): any {
     const col = mix(c3(PALETTE.haze), c3(PALETTE.skyHorizon), smoothstep(0, 0.12, t)).toVar();
     col.assign(mix(col, c3(PALETTE.skyZenith), smoothstep(0.1, 1, t)));
     // large moon centre-top between the arch and the hero; small moon high right, clear of the hero cap
-    col.assign(moon(d, col, 6, 17, 4.6, 3.1, 0.78));
+    col.assign(moon(d, col, 2.5, 17.5, 3.4, 3.1, 0.78));
     col.assign(moon(d, col, -29, 15.5, 1.8, 7.7, 0.82));
     return clamp(col, 0, 2);
   })();
