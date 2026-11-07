@@ -10,7 +10,7 @@ Usage (from mockups/red-world):
   python3 scripts/flora_capture.py --url http://127.0.0.1:5183 --seed 7 --tag r2
 Needs: pip install playwright ; playwright install chromium  (channel="chromium" gives real WebGPU on macOS)
 """
-import argparse, socket, subprocess, sys, time, urllib.request
+import argparse, atexit, os, signal, socket, subprocess, sys, time, urllib.request
 from datetime import datetime
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -24,17 +24,44 @@ def free_port():
     s = socket.socket(); s.bind(("127.0.0.1", 0)); p = s.getsockname()[1]; s.close(); return p
 
 
+def stop_server(proc):
+    """Kill the whole process group: `npx` spawns vite as a child node process that proc.kill() would orphan."""
+    if proc is None or proc.poll() is not None and not _group_alive(proc.pid):
+        return
+    for sig, wait in ((signal.SIGTERM, 3), (signal.SIGKILL, 2)):
+        try:
+            os.killpg(proc.pid, sig)
+        except ProcessLookupError:
+            return
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            if not _group_alive(proc.pid):
+                proc.poll(); return
+            time.sleep(0.1)
+
+
+def _group_alive(pgid):
+    try:
+        os.killpg(pgid, 0); return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
 def start_server():
     port = free_port()
+    # own session/process group so stop_server can kill npx AND its vite child together
     proc = subprocess.Popen(["npx", "vite", "--host", "127.0.0.1", "--port", str(port), "--strictPort"], cwd=PROJECT,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    atexit.register(stop_server, proc)  # belt and braces: any exit path
     url = f"http://127.0.0.1:{port}"
     for _ in range(150):
         try:
             urllib.request.urlopen(url + "/flora.html", timeout=1); return proc, url
         except Exception:
             time.sleep(0.2)
-    proc.kill(); sys.exit("dev server did not start")
+    stop_server(proc); sys.exit("dev server did not start")
 
 
 def main():
@@ -76,8 +103,11 @@ def main():
                 pg.close()
             b.close()
     finally:
-        if proc: proc.kill()
+        stop_server(proc)
 
 
 if __name__ == "__main__":
+    # SIGTERM/SIGHUP -> SystemExit so the finally/atexit cleanup runs (Ctrl-C already raises KeyboardInterrupt)
+    for _sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(_sig, lambda *_: sys.exit(130))
     main()
