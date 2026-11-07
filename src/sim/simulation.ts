@@ -34,7 +34,6 @@ const EDGE_INSET = 1e-6;      // a setting held at a band edge sits this far (re
 const LIQUID_MOVE_M = 0.25;   // sea level change (m) that rebuilds the ecology's liquid grid
 const LIQUID_PROGRESS = 0.05; // or this much more terrain rise
 const LIQUID_EVERY = 100;     // ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
-const MOLAR_MASS_AIR = 0.028; // kg/mol, N₂ is the main gas on both worlds
 
 /**
  * Cumulative ecology ticks that must have run `buildSec` seconds into the build. Pure and frame-independent.
@@ -443,7 +442,7 @@ export class WorldSimulation {
   }
 
   private airDensity(): number {
-    return gasDensity(this.stats.pressure, this.stats.temperature, MOLAR_MASS_AIR);
+    return gasDensity(this.stats.pressure, this.stats.temperature, this.world.life.inputs.airDensity.molarMass);
   }
 
   private heatBand(band: LivingBand): number {

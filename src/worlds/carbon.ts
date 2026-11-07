@@ -265,6 +265,7 @@ export const carbon: WorldConfig = {
         assumption: true,
       },
       airDensity: {
+        molarMass: 0.028,   // kg/mol: the main gas is nitrogen (N₂ 28.0134 g/mol, standard)
         scale: 0.05,   // INFERRED, issue #7: Earth air (1.2 kg/m³) → 0.06, silicon air (about 13 kg/m³) → 0.67 on a scale where unbuoyed carbon tissue = 1
         why: 'Real gas density P·M/(R·T) times this scale lands in develop()\'s range, so thick air lets floaters evolve and thin air does not.',
         sources: [],

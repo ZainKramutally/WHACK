@@ -301,6 +301,7 @@ export const silicon: WorldConfig = {
         assumption: true,
       },
       airDensity: {
+        molarMass: 0.028,   // kg/mol: the main gas is nitrogen (N₂ 28.0134 g/mol, standard)
         scale: 0.05,   // INFERRED, issue #7: Earth air (1.2 kg/m³) → 0.06, this world's air (about 13 kg/m³ at 3.6 bar and −183 °C) → 0.67
         why: "Real gas density P·M/(R·T) times this scale lands in develop()'s range, so this world's thick air gives floaters a physical reason to appear.",
         sources: [],

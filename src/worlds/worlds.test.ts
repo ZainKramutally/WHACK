@@ -194,3 +194,9 @@ describe('lookups', () => {
     expect(() => worldFor('germanium' as never)).toThrow();
   });
 });
+
+describe('air density inputs', () => {
+  it.each([carbon, silicon])('$id carries the main gas molar mass (nitrogen, kg/mol)', (w) => {
+    expect(w.life.inputs.airDensity.molarMass).toBeCloseTo(0.028, 3);
+  });
+});

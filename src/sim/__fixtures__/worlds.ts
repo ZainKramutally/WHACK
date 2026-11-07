@@ -49,7 +49,7 @@ function base(id: 'carbon' | 'silicon'): Omit<WorldConfig, 'solvent' | 'limits' 
       ledger: {},
       inputs: {
         solvent: { ...sourced, rho: 1, mu: 1, epsilonR: 1, liquidBandC: [0, 100] },
-        airDensity: { ...sourced, scale: 1 },
+        airDensity: { ...sourced, scale: 1, molarMass: 0.028 },
         tissueDensity: { ...sourced, C: 1, Si: 1 },
         scalings: {},
       },

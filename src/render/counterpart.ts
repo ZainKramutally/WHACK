@@ -8,6 +8,7 @@ import type { Bus } from '../bus';
 import type { InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
 import type { AnimalGenome } from '../sim/genome';
 import { develop, type DevelopInputs } from '../sim/develop';
+import { gasDensity } from '../sim/models';
 import { OrganismField, ORGANISM_STRIDE, organismCount, readOrganism } from '../sim/organismLayout';
 import { beadLayout } from './layout';
 import { creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle, type Tone } from './palette';
@@ -30,14 +31,10 @@ const mid = (w: WorldConfig, key: string, fallback: number): number => {
   return r ? (r[0] + r[1]) / 2 : fallback;
 };
 
-/** Gas density in kg/m³ from P (bar), T (°C) for N₂-dominated air; the world's own scale maps it into develop()'s range. */
-export function airDensityKgM3(pressureBar: number, tempC: number): number {
-  return (pressureBar * 1e5 * 0.028) / (8.314 * (tempC + 273.15));
-}
 
 export function developInputsFor(w: WorldConfig): DevelopInputs {
-  const rho = airDensityKgM3(mid(w, 'pressure', 1), mid(w, 'temperature', 15));
   const i = w.life.inputs;
+  const rho = gasDensity(mid(w, 'pressure', 1), mid(w, 'temperature', 15), i.airDensity.molarMass);
   return { solvent: i.solvent, airDensity: rho * i.airDensity.scale, tissueDensity: i.tissueDensity };
 }
 

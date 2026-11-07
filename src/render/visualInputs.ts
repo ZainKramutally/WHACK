@@ -22,9 +22,6 @@ export const flatTerrain: TerrainSampler = { patchSize: 400, height: () => 0 };
 /** The world grid is 64² (CLAUDE.md "One 64² world grid"). */
 export const GRID = 64;
 
-/** N₂ molar mass, kg/mol. Both worlds' main gas is nitrogen (worlds' `mainGas` fact), so airDensity uses it. */
-const MAIN_GAS_MOLAR_MASS = 0.028;
-
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** Temperature position inside the living band: 0 = lower edge, 1 = upper edge. 0.5 if the band is unusable. */
@@ -105,7 +102,7 @@ export function buildVisualInputs(
     heatBand: heatBand(snapshot),
     heatSolvent: state.heatSolvent,
     light: stats.light ?? 1,
-    airDensity: world.life.inputs.airDensity.scale * gasDensity(stats.pressure, t, MAIN_GAS_MOLAR_MASS),
+    airDensity: world.life.inputs.airDensity.scale * gasDensity(stats.pressure, t, world.life.inputs.airDensity.molarMass),
     buildProgress: snapshot.buildProgress,
     terrain: { rise: state.rise, progress: state.progress, height: (x, z) => terrain.height(x, z, state) },
     organisms: snapshot.organisms,
