@@ -171,7 +171,8 @@ export function derive(dialsIn: Dials, presets: Preset[]): Derived {
   const erosion = sat(heat * age);
   const life = g(heat, 0.5, 0.28);
   const glowHue = glowHueOf(recipe);
-  const fogDensity = SEA_KEYS.reduce((s, k) => s + sea[k] * FOG_BASE[k], 0) * Math.max(0.2, 1.2 - heat);
+  const fogDensity = SEA_KEYS.reduce((s, k) => s + sea[k] * FOG_BASE[k], 0) * Math.max(0.2, 1.2 - heat)
+    * (1 + 3 * smoothstep(0.2, 0, light)); // very dark worlds (eco12): thick haze so far ground melts into the deep green, not olive
 
   return {
     palette,
