@@ -1,4 +1,4 @@
-# Life Is ▢ Based (working title)
+# Life Is ▢ Based
 
 Hackathon project for WHACK 26, targeting the Marshall Wace "New Worlds" challenge. This file is the source of truth for what we are building, the rules the science must follow, and how the code is organised. Read it fully before making changes.
 
@@ -753,7 +753,6 @@ Agents in `.claude/agents/` (feature-agent, debugger, scout, bar-raiser, explore
 - The scalings from our stats into F's heat, light, air density and hunger ranges (`life.inputs`, `assumption: true`).
 - Fast slider moves can wipe out life inside the living band. The red zones mark where the solvent fails, but a population can't adapt to a big, fast change. In tests, warming silicon by 18 °C in 60 s killed half the seeds. Options: ease slider changes, cap how fast a thumb moves during a run, or keep a few survivors as "spores" (`assumption: true`).
 - Particle box (design partner): where the box sits on the selection screen, its size and framing, and the particle colours for each family.
-- Confirm the final project name.
 
 Considered and rejected: a dim red dwarf for the silicon world. Petkowski 2020 does say nitrogen oceans can last billions of years around one, but red dwarfs barely brighten over that time (so there is no slow warming to drive change) and they flare, which conflicts with the no-disasters rule.
 
