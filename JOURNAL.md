@@ -54,3 +54,4 @@
 - 20:25: USER picked lilac fog -> rw-scene makes default (PALETTE haze/skyHorizon). ART_DIRECTION updated (lilac haze, cool shadow, 2 moons, no particles).
 - 20:30: lilac default merged (a963625 cherry-pick). 98 tests, 60fps.
 - 21:11: rebased session/red-world onto main 5afb26c (full app logic). CLAUDE.md from main (#22). Red-world 98 tests + build, root tsc + 325 tests green. Pushed session/red-world.
+- 21:39: handoff: wrote PLAN.md for a fresh session; shutting down rw-scene/flora/move/fauna (all work merged).
