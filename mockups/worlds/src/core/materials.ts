@@ -18,14 +18,19 @@ function celRamp(): any {
   return t;
 }
 
-export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
+export function createMaterialFactory(u: WorldUniforms, sunDir: any): MaterialFactory {
   const ramp = celRamp();
   const white = vec3(1, 1, 1);
   // flat facets: face normal from screen-space derivatives
   const flatNormal = positionView.dFdx().cross(positionView.dFdy()).normalize();
 
   // Shadows are never grey/black: lit = 1, shadowed = shadow hue lifted so albedo × it keeps its colour.
-  const shadowTint = Fn(([s]: any[]) => mix(u.shadowColor.mul(0.4), white, s.x ?? s));
+  // Faces at a grazing angle to the sun ignore the shadow map: that is where acne shows up as thin stripes,
+  // and those faces are already on the mid / core cel step.
+  const shadowTint = Fn(([s]: any[]) => {
+    const sf = mix(float(1), s.x ?? s, smoothstep(0.14, 0.38, normalWorld.dot(sunDir)));
+    return mix(u.shadowColor.mul(0.4), white, sf);
+  });
 
   return {
     create(opts: WorldMaterialOptions = {}) {

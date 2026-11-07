@@ -27,7 +27,8 @@ export const parseFlags = (): Flags => {
 export class World {
   renderer: any; scene: any; camera: any;
   uniforms: WorldUniforms = createUniforms();
-  materials = createMaterialFactory(this.uniforms);
+  private sunDirU = uniform(new THREE.Vector3(0, 1, 0));
+  materials = createMaterialFactory(this.uniforms, this.sunDirU);
   morph!: Morph;
   rig!: CameraRig;
   post!: ReturnType<typeof createPost>;
@@ -154,6 +155,7 @@ export class World {
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(dir, 300);
     this.sun.target.updateMatrixWorld();
+    this.sunDirU.value.copy(dir);
   }
 
   frame(rawDt: number) {
