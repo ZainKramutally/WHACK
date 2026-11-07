@@ -3,7 +3,7 @@
 > **Proxy decisions by an agent acting for the owner. Override any line.**
 > 2026-11-07. **Revised the same day after an owner override: no Storm, and no global or periodic cycle of any kind** (no day/night, no seasons-as-rule). The jobs the Storm did are now done by space, chemistry and predation.
 >
-> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Open, owner + research:** the gene budget, since `population.ts`'s 3 climate genes plus these 12 makes 15.
+> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Gene budget (owner ruling):** 15 genes = 12 body + the 3 climate genes in `population.ts`.
 >
 > **Second revision, same day: the owner's 10 simplicity guardrails are applied throughout (§G).** Limits: 12 rules, 12 genes, ≤ 25 sim constants in `sim/constants.ts`, no preset code, read-only render, and a `→ NOT_NOW` parking lot at the end of §4.
 >
@@ -226,7 +226,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 1 | **Rule budget:** ≤ 12 rules, one-in-one-out; each ≤ 2 sentences and ≤ 1 tunable | §3 is audited to 12 rules. Each has ≤ 2 sentences and ≤ 1 free `[game]` tunable. `[sci]` constants have a source and are not free. The removed microclimate, hump, canopy, scarcity and fear-time constants were folded into existing rules or derived |
 | 2 | **One of everything** | One utility loop (R5), one relationship function (R6), one `develop()` (R9) and one ledger (R3). No per-species FSM, no basin special cases in the sim |
 | 3 | **Derive, don't author** | Roles, relationships, niches, channel shares, bulk forage, boldness, range and litter size are all *derived*. The 7 named basins leave the sim: they become **anonymous look attractors in the renderer**, and names come from a trait-based name generator |
-| 4 | **Small genome** | 12 genes (below), down from F's 32. The other 20 become derived look or behaviour, or go to NOT_NOW |
+| 4 | **Small genome** | **15 genes: 12 body genes (below) + the 3 climate genes already built in `src/sim/population.ts`** (preferred temperature, tolerance width, and oxygen need on carbon / cold stability on silicon). Owner ruling 2026-11-07. Down from F's 32; the other 20 become derived look or behaviour, or go to NOT_NOW. A new gene costs a removal |
 | 5 | **Tunables cap** | 18 sim constants in `sim/constants.ts` (below): 9 `[game]`, 9 `[sci]`. That leaves 7 slots of headroom, and every addition costs one removal |
 | 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. **1,024 animals** (owner ruling; never fewer than 1,000, no 512 tier). ⏩ = more 20 Hz ticks per frame |
 | 7 | **Feature gate** | A rule or feature ships only if a headless A/B raises a §A variety metric or the readability metric (§5 acceptance rule) |
@@ -234,7 +234,9 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 9 | **Render is read-only** | Eyes drawn, gait/IK, glow shading, flora L-system shapes (from per-cell biomass + comp), basin look-snap, plate age stain, pore glow and the discovery classifier are pure functions of sim state. Nothing visual is read back |
 | 10 | **Parking lot** | Every cut or deferred idea is in the `→ NOT_NOW` list at the end of §4. Revisit after H8 |
 
-### G.1 The 12 genes (all f32 in [0, 1] plus inherited comp {c, si, o}, which is not a gene)
+### G.1 The 12 body genes (all f32 in [0, 1] plus inherited comp {c, si, o}, which is not a gene)
+
+Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `tolerance` (generalists pay upkeep per °C of range), and O need (carbon) / cold stability (silicon). You SEE them as each species' comfort range and visible stress near the slider red zones.
 
 | # | Gene | From F §3.3 | Pays (ledger / R) | Earns | You SEE |
 |---|---|---|---|---|---|
