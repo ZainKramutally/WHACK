@@ -30,8 +30,10 @@ export const PRESETS: Preset[] = [
         { kind: 'spire', pos: [-120, -320], height: 60, radius: 6 },
         { kind: 'spire', pos: [25, -360], height: 45, radius: 4 },
         { kind: 'spire', pos: [-70, -420], height: 35, radius: 4 },
-        { kind: 'monolith', pos: [-4.5, -13], height: 7.5 },   // the pin's big left figure
+        { kind: 'monolith', pos: [-4.5, -13], height: 6.2 },   // the pin's big left figure
         { kind: 'monolith', pos: [3, -62], height: 10 },       // the pin's centre figure
+        { kind: 'cluster', species: 'ashScrub', pos: [-9, -22], radius: 12, count: 7, scale: 3 },   // the pin's dark smears, foreground
+        { kind: 'cluster', species: 'ashScrub', pos: [18, -45], radius: 16, count: 8, scale: 4 },
       ],
       figure: { pos: [8, -95], height: 1.75 },
     },
@@ -85,7 +87,8 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [3, -30], [0, -80]],
       valleyWidth: 30,
       landmarks: [
-        { kind: 'cluster', species: 'glowStalks', pos: [6, -30], radius: 9, count: 140, scale: 1 },
+        { kind: 'cluster', species: 'glowStalks', pos: [6, -34], radius: 8, count: 150, scale: 1 },
+        { kind: 'cluster', species: 'glowStalks', pos: [-2, -24], radius: 5, count: 36, scale: 0.15 },
         { kind: 'dome', pos: [16, -48], radius: 18, stack: 3 },
         { kind: 'dome', pos: [-14, -58], radius: 26, stack: 2 },
         { kind: 'dome', pos: [30, -70], radius: 22, stack: 2 },

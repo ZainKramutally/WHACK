@@ -77,15 +77,15 @@ const lmOf = <K extends Landmark['kind']>(env: Env, k: K) => env.lm.filter((l) =
 
 export interface SpeciesBuild { id: SpeciesId; geo: MeshData; mat: any; insts: Inst[]; shadow?: boolean; side?: any; extra?: (env: Env, parts: SpeciesBuild, built: FloraMesh) => FloraMesh[] }
 
-const pink = (u: any) => mix(color(0xff2a7a), boost(u.glowColor, 2.4), 0.2);
+const pink = (u: any) => mix(color(0xf21f5c), boost(u.glowColor, 2.4), 0.2);
 
 export function lanternCups(env: Env): SpeciesBuild {
   const { ctx } = env, u = ctx.uniforms;
-  const size = (r: Rng, mul: number) => Math.min(4.5, powerLaw(r, 0.3, 2.2, 2.4) * mul);
+  const size = (r: Rng, mul: number) => Math.min(4.5, powerLaw(r, 0.3, 1.9, 2.6) * Math.min(mul, 1.25));
   const insts = [
     ...clusters(env, 'lanternCups', size),
     ...scatter(env, {
-      n: 190, parents: 16, sMin: 0, sMax: 80, sPow: 1.7, latMin: 1.0, latSpread: Math.max(6, env.vw * 0.3), sigma: 1.8,
+      n: 280, parents: 22, sMin: 0, sMax: 80, sPow: 1.7, latMin: 1.0, latSpread: Math.max(6, env.vw * 0.3), sigma: 1.8,
       size: (r) => size(r, 1), clearHalf: 1.3, clearP: 0.85, yOff: () => -0.04,
     }),
   ];
@@ -102,12 +102,12 @@ export function lanternCups(env: Env): SpeciesBuild {
   const gk = mix(0.6, 1.0, saturate(u.glow.mul(1.5)));
   const hue = pink(u);
   const bodyMask = smoothstep(0.3, 0.62, positionGeometry.y); // stalk dimmer than cup
-  const e = mix(0.6, 2.7, vein).mul(mix(1.0, 1.45, inside)).mul(mix(0.25, 1.0, bodyMask)).add(rim.mul(0.6));
+  const e = mix(0.6, 2.7, vein).mul(mix(1.0, 1.45, inside)).mul(mix(0.25, 1.0, bodyMask)).add(rim.mul(1.6));
   const emissive = hue.mul(e).mul(breath).mul(gk);
   const col = mix(hue.mul(0.35), hue.mul(0.7), bodyMask.mul(0.6).add(inside.mul(0.4)));
   const mat = ctx.materials.create({
     color: col, emissive,
-    positionNode: floraPosition(ctx, 'lanternCups', { sway: 0.025, swayHz: 0.3, swayPow: 2.2, breathe: 0.03 }),
+    positionNode: floraPosition(ctx, 'lanternCups', { sway: 0.025, swayHz: 0.3, swayPow: 2.2, breathe: 0.03, stretchY: fract(aRand().mul(13.7)).mul(0.8).add(0.7) }),
   });
   return { id: 'lanternCups', geo: S.lanternCup(), mat, insts };
 }
@@ -142,6 +142,7 @@ export function glowStalks(env: Env): SpeciesBuild {
       size: (r) => size(r, 1), clearHalf: 2.5, clearP: 0.7, yOff: () => -0.05,
     }),
   ];
+  for (const i of insts) if (i.scale > 3 && Math.hypot(i.x - ctx.camera.position.x, i.z - ctx.camera.position.z) < 18) i.scale = 0.8 + env.rng() * 2.4;
   const aux = aAux();
   const capMask = smoothstep(0.2, 0.5, aux.w), under = smoothstep(0.75, 1.0, aux.w);
   const v = fract(aRand().mul(37.3));
@@ -212,9 +213,9 @@ export function mossDomes(env: Env): SpeciesBuild {
   const nrm = normalWorld.y.mul(0.5).add(0.5);
   const streak = mx_fractal_noise_float(positionGeometry.mul(vec3(2.4, 8.0, 2.4)).add(aRand().mul(30)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   const base = mix(color(0x0b5442), color(0x2fb8a6), smoothstep(0.25, 0.9, nrm));
-  const olive = smoothstep(0.6, 0.82, streak).mul(float(1).sub(nrm.mul(0.5)));
+  const olive = smoothstep(0.52, 0.72, streak).mul(float(1).sub(nrm.mul(0.5)));
   const blue = smoothstep(0.38, 0.2, streak).mul(nrm);
-  const col = mix(mix(base, color(0xb4c640), olive.mul(0.65)), color(0x4f9be0), blue.mul(0.5));
+  const col = mix(mix(base, color(0xb4c640), olive.mul(0.9)), color(0x4f9be0), blue.mul(0.8));
   const emissive = col.mul(0.22).mul(mix(0.6, 1.0, saturate(u.glow)));
   const mat = ctx.materials.create({ color: col, emissive, positionNode: floraPosition(ctx, 'mossDomes', { breathe: 0.01 }) });
   return { id: 'mossDomes', geo: S.mossDome(2), mat, insts };
@@ -277,7 +278,7 @@ export function blackMonoliths(env: Env): SpeciesBuild {
   const rimHue = mix(u.ground, u.haze, 0.35);
   const emissive = rimHue.mul(fres.mul(0.2)).add(vec3(0.95, 0.95, 0.9).mul(eye));
   const mat = ctx.materials.create({
-    color: mix(color(0x15100c), color(0xf4f1e4), eye), emissive,
+    color: mix(color(0x0a0706), color(0xf4f1e4), eye), emissive,
     positionNode: floraPosition(ctx, 'blackMonoliths', {}),
   });
   return { id: 'blackMonoliths', geo: S.blackMonolith(3), mat, insts, shadow: true };
@@ -285,10 +286,10 @@ export function blackMonoliths(env: Env): SpeciesBuild {
 
 export function ashScrub(env: Env): SpeciesBuild {
   const { ctx } = env;
-  const insts = scatter(env, {
-    n: 170, parents: 22, sMin: 4, sMax: 230, sPow: 1.5, latMin: 0, latSpread: Math.min(env.vw * 0.3, 70), sigma: 5,
+  const insts = [...clusters(env, 'ashScrub', (r, mul) => Math.min(60, powerLaw(r, 2, 8, 1.7) * mul), 800), ...scatter(env, {
+    n: 150, parents: 22, sMin: 4, sMax: 230, sPow: 1.5, latMin: 0, latSpread: Math.min(env.vw * 0.3, 70), sigma: 5,
     size: (r, x, z) => Math.min(60, powerLaw(r, 2, 8, 1.7) * (1 + Math.abs(z) * 0.035)), yOff: () => -0.02,
-  });
+  })];
   const t = aAux().w;
   const n = mx_fractal_noise_float(positionGeometry.mul(7).add(aRand().mul(20)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   const col = mix(mix(color(0x2c4642), color(0x587570), n), color(0x1e2e2e), smoothstep(0.6, 1.0, t));
