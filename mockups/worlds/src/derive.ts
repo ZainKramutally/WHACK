@@ -81,7 +81,7 @@ export function normalizeSea(w: SeaWeights): SeaWeights {
 
 export const BONE = 0xece4d6;
 export const STAIN: Record<keyof SeaWeights, number> = {
-  water: 0xf94b1e, acid: 0xa47c68, methane: 0x577c99, ammonia: 0x5a3b52, // methane = cold blue-slate (eco-04 rock)
+  water: 0xf94b1e, acid: 0xa47c68, methane: 0x6a95b3, ammonia: 0x5a3b52, // methane = cold blue-slate (eco-04 rock)
 };
 const FAMILY = { c: 0xffa41b, si: 0x27aaa6, o: 0xda1b58 }; // glow hue: C amber, Si cyan, O magenta
 const PORE_GLOW = 0xff7a1a;

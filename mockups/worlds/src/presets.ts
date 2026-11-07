@@ -125,7 +125,7 @@ export const PRESETS: Preset[] = [
       aspect: 0.578,
       // Low on the sand path, tilted up; giant porous spires run out of frame top-left and top-right.
       camera: { position: [0, 1.7, 0], target: [0, 26, -80], fov: 60 },
-      sunDir: [-0.45, 0.6, 0.5],        // soft, hazy, front-left: lit faces toward us, shadow in the pores
+      sunDir: [-0.2, 0.75, 0.62],       // soft, hazy, high front: both giants lit (a lower left sun put the hero in the leaning slab's shadow)
       skyEvent: 'none',
       valley: [[0, 0], [1, -60], [-3, -160], [0, -300]],
       valleyWidth: 18,

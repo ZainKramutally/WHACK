@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--url")
     ap.add_argument("--testgeo", action="store_true")
     ap.add_argument("--no-fps", action="store_true")
+    ap.add_argument("--fps-size", default="1920x1080", help="fps viewport, e.g. 2560x1440")
+    ap.add_argument("--fps-q", default="", help="e.g. low to add ?q=low")
     ap.add_argument("--extra", default="", help="extra hash flags, e.g. nofigure")
     a = ap.parse_args()
     metas = [m for m in preset_meta() if not a.presets or m[0] in a.presets]
@@ -81,14 +83,15 @@ def main():
                 print(f"{pid}: {png}  ({r.width}x{r.height})" + (f"  console errors: {errs[:3]}" if errs else ""))
             if not a.no_fps:
                 for pid, _, _ in metas[:4]:
-                    pg = b.new_page(viewport={"width": 1920, "height": 1080}, device_scale_factor=1)
-                    pg.goto(f"{url}/?preset={pid}#orbit" + ("&testgeo" if a.testgeo else ""))
+                    fw, fh = (int(v) for v in a.fps_size.split("x"))
+                    pg = b.new_page(viewport={"width": fw, "height": fh}, device_scale_factor=1)
+                    pg.goto(f"{url}/?preset={pid}{'&q=' + a.fps_q if a.fps_q else ''}#orbit" + ("&testgeo" if a.testgeo else ""))
                     pg.wait_for_function("window.__ready===true", timeout=60000)
                     pg.wait_for_timeout(1500)
                     fps = pg.evaluate("""() => new Promise(res => { let n = 0; const t0 = performance.now();
                         const f = () => { n++; if (performance.now() - t0 >= 3000) res(n / ((performance.now() - t0) / 1000)); else requestAnimationFrame(f); };
                         requestAnimationFrame(f); })""")
-                    print(f"fps {pid} @1920x1080: {fps:.1f}")
+                    print(f"fps {pid} @{a.fps_size}{' q=' + a.fps_q if a.fps_q else ' q=high'}: {fps:.1f}")
                     pg.close()
             b.close()
     finally:
