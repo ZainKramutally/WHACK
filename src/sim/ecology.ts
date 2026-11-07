@@ -107,6 +107,7 @@ export class Ecology {
   readonly heading = new Float64Array(CAP); // radians, direction of the last move
   private readonly home = new Int32Array(CAP);
   private readonly act = new Uint8Array(CAP);
+  private readonly wandering = new Uint8Array(CAP); // 1 while an animal grazes on the move (no better food within reach)
   private readonly tgt = new Int32Array(CAP).fill(-1);
   private readonly tgtId = new Float64Array(CAP);
   private readonly tx = new Float64Array(CAP);
@@ -429,7 +430,7 @@ export class Ecology {
     const cy = (cell / GRID) | 0;
     const px = this.x[i];
     const py = this.y[i];
-    if (E > 2 * m) { this.act[i] = ACT.bud; return; }
+    if (E > 2 * m && this.free.length > 0) { this.act[i] = ACT.bud; return; }   // with no free slot a satiated animal keeps roaming instead of waiting to bud
     const hungerFrac = clamp01(1 - E / (2 * m));
     const drive = 0.1 + hungerFrac * (1 + this.hunger);
     const sense = Math.min(1.5, L.senseBase + L.senseGain * (p.eyeArea / 1.5) * this.env.light);
@@ -508,7 +509,19 @@ export class Ecology {
     if (fleeV > best) { best = fleeV; a = ACT.flee; }
     if (homeV > best) { a = ACT.home; }
     this.act[i] = a;
-    if (a === ACT.forage) { this.tx[i] = fx; this.ty[i] = fy; this.tgt[i] = -1; }
+    this.wandering[i] = 0;
+    if (a === ACT.forage) {
+      this.tgt[i] = -1;
+      if (Math.hypot(fx - px, fy - py) < 0.75) {
+        // The best food is right here: keep grazing on the move. A correlated random walk (it keeps its heading, turning
+        // a little each decision) at WANDER of the patch per ecology second carries it on to the next patch of food.
+        let h = this.heading[i] + 0.6 * gaussian(this.rnd);
+        if (px < 1.5 || px > GRID - 1.5 || py < 1.5 || py > GRID - 1.5) h = Math.atan2(GRID / 2 - py, GRID / 2 - px) + 0.5 * gaussian(this.rnd);
+        this.tx[i] = px + 2 * Math.cos(h);
+        this.ty[i] = py + 2 * Math.sin(h);
+        this.wandering[i] = 1;
+      } else { this.tx[i] = fx; this.ty[i] = fy; }
+    }
     else if (a === ACT.hunt) { this.tgt[i] = huntJ; this.tgtId[i] = this.id[huntJ]; }
     else if (a === ACT.flee) { this.tgt[i] = fleeJ; this.tgtId[i] = this.id[fleeJ]; }
     else if (a === ACT.home) { this.tx[i] = homeX; this.ty[i] = homeY; this.tgt[i] = -1; }
@@ -548,7 +561,8 @@ export class Ecology {
       const dx = tx - this.x[i], dy = ty - this.y[i];
       const dist = Math.hypot(dx, dy);
       if (dist > 0.05) {
-        const step = Math.min(dist, L.speed * dt * (act === ACT.flee ? 1.5 : 1));
+        const vmax = this.wandering[i] && act === ACT.forage ? CONSTANTS.WANDER.value * GRID : L.speed;
+        const step = Math.min(dist, vmax * dt * (act === ACT.flee ? 1.5 : 1));
         const nx = Math.min(GRID - 1e-6, Math.max(0, this.x[i] + (dx / dist) * step));
         const ny = Math.min(GRID - 1e-6, Math.max(0, this.y[i] + (dy / dist) * step));
         const mode = this.bestMode(p, g.liquid[cellOf(nx, ny)]);
@@ -671,7 +685,8 @@ export class Ecology {
     this.genome[slot] = genome;
     this.plan[slot] = plan;
     this.mode[slot] = plan.mode;
-    this.heading[slot] = 0;
+    this.heading[slot] = this.rnd() * 2 * Math.PI - Math.PI;   // founders and newborns face a random way, so they do not all drift together
+    this.wandering[slot] = 0;
     this.home[slot] = cellOf(this.x[slot], this.y[slot]);
     this.act[slot] = ACT.rest;
     this.tgt[slot] = -1;
