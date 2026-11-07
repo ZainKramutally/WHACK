@@ -131,8 +131,8 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [1, -60], [-3, -160], [0, -300]],
       valleyWidth: 18,
       landmarks: [
-        { kind: 'spire', pos: [21, -17], height: 185, radius: 14, porous: true },   // right giant, fills the right half
-        { kind: 'spire', pos: [-23, -30], height: 160, radius: 12, porous: true },
+        { kind: 'spire', pos: [17, -13], height: 185, radius: 17, porous: true },   // right giant, fills the right half
+        { kind: 'spire', pos: [-21, -26], height: 160, radius: 12, porous: true },
         { kind: 'spire', pos: [10, -78], height: 150, radius: 10, porous: true },
         { kind: 'spire', pos: [-14, -150], height: 120, radius: 10, porous: true },
         { kind: 'spire', pos: [16, -220], height: 150, radius: 11, porous: true },

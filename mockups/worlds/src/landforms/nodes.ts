@@ -31,6 +31,7 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
     const exists = step(t, dens.mul(k));
     return {
       t,
+      band: sin(dn.mul(15)).mul(0.5).add(0.5), // concentric carved banding on the inner wall
       inside: float(1).sub(smoothstep(0.8, 1.0, dn)).mul(exists),
       depth: float(1).sub(dn.mul(dn)).max(0).pow(0.8).mul(exists),
       rim: smoothstep(0.85, 1.05, dn).mul(float(1).sub(smoothstep(1.05, 1.55, dn))).mul(exists),
@@ -41,11 +42,11 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
 
   let dark = float(0), lip = float(0), halo = float(0);
   for (const l of layers) {
-    dark = max(dark, l.inside.mul(float(0.55).add(l.depth.mul(0.45))));
+    dark = max(dark, l.inside.mul(float(0.55).add(l.depth.mul(0.45))).mul(float(0.8).add(l.band.mul(0.2))));
     lip = max(lip, l.rim);
     halo = max(halo, l.halo);
   }
-  const surface = float(1).add(lip.mul(0.1)).sub(halo.mul(0.28)).sub(s2.a.mul(0.4));
+  const surface = float(1).add(lip.mul(0.2)).sub(halo.mul(0.28)).sub(s2.a.mul(0.4));
   // pull the factory's bone→stone gradient further toward the stain where age/heat have stained hard
   const boost = mix(vec3(1, 1, 1), u.stoneColor.div(vec3(0.925, 0.894, 0.839)), u.stainAmount.mul(0.75));
   const frost = float(1).add(u.snow.mul(0.4)).mul(o.darken ?? 1).mul(float(1).sub(u.snow.mul(float(0.45).mul(float(1).sub(smoothstep(2, 24, positionWorld.y))))));
@@ -61,9 +62,9 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
     const period = mix(float(4), float(9), fract(l.t.mul(37.31)));
     const phase = fract(l.t.mul(91.7)).mul(6.2832);
     const breathe = float(0.62).add(sin(u.time.mul(6.2832).div(period).add(phase)).mul(0.38));
-    const shape = float(0.04).add(l.depth.pow(1.3).mul(0.96));
+    const shape = float(0.04).add(l.depth.pow(1.3).mul(0.96)).mul(float(0.76).add(l.band.mul(0.24)));
     const lit = i < 2 ? float(1) : step(0.55, fract(l.t.mul(53.9))).mul(0.55);
-    glow = max(glow, l.inside.mul(shape).mul(breathe).mul(lit));
+    glow = max(glow, l.inside.mul(shape).mul(breathe).mul(lit).mul(i === 0 ? 1.2 : 1));
     wall = max(wall, l.depth);
   });
   const glowCol = mix(u.poreGlowColor.mul(vec3(0.8, 0.32, 0.22)), u.poreGlowColor.mul(vec3(1.0, 1.12, 1.0)), wall.pow(0.7));

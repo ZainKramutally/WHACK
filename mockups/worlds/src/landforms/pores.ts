@@ -16,6 +16,7 @@ export interface BakeOpts {
   sizeMul?: (y: number) => number;             // pore cell size scale along the height
   densBuild: number;                           // density used for the baked displacement
   vertex: boolean;                             // bake displacement at all
+  nodules?: boolean;                           // small warts/nodules on the bone surface
   scale: number;                               // lump/wart scale in metres per unit
   seed: number;
 }
@@ -50,6 +51,7 @@ export function worleyPore(px: number, py: number, pz: number, L: PoreLayerSpec,
   return { dn: Math.sqrt(best) / rad, t, rad };
 }
 
+const NODULE = (sc: number): PoreLayerSpec => ({ size: 1.3 * Math.max(0.3, sc), rLo: 0.14, rHi: 0.32, off: 41.7, dens: 0.45 });
 const q8 = (v: number) => Math.max(0, Math.min(255, Math.round(v * 255)));
 
 export function bakePores(o: BakeOpts): { t1: Uint8Array; t2: Uint8Array; maxD: number } {
@@ -82,7 +84,7 @@ export function bakePores(o: BakeOpts): { t1: Uint8Array; t2: Uint8Array; maxD: 
           const metres = w.rad * L.size * sm;
           const depth = Math.pow(Math.max(0, 1 - w.dn * w.dn), 0.8);
           push += Math.pow(depth, 0.6) * metres * 0.42;
-          rise += Math.exp(-Math.pow((w.dn - 1.14) / 0.2, 2)) * metres * 0.3;
+          rise += Math.exp(-Math.pow((w.dn - 1.16) / 0.26, 2)) * metres * 0.32;
         }
         const inside = a.dn < 1 && a.t <= o.densBuild * A.dens || b.dn < 1 && b.t <= o.densBuild * B.dens;
         const lumps = inside ? 0 : fbm3(px / (o.scale * 0.9), y / (o.scale * 0.9), pz / (o.scale * 0.9), 3, o.seed) * o.scale * 0.35;
@@ -90,9 +92,20 @@ export function bakePores(o: BakeOpts): { t1: Uint8Array; t2: Uint8Array; maxD: 
       }
       const speck = fbm3(px / (o.scale * 0.7), y / (o.scale * 0.7), pz / (o.scale * 0.7), 3, o.seed + 1);
       const warts = fbm3(px / (o.scale * 0.22), y / (o.scale * 0.22), pz / (o.scale * 0.22), 2, o.seed + 2);
-      const surf = Math.abs(speck) * 0.2 + Math.abs(warts) * 0.18; // 0..~0.38
-      t2[o4 + 2] = q8(0.5 + disp / (2 * maxD));
-      t2[o4 + 3] = q8(surf / 0.4);
+      let surf = Math.abs(speck) * 0.2 + Math.abs(warts) * 0.18; // 0..~0.38
+      if (o.nodules) {
+        // small nodules scattered on the bone: bump up, dark contact ring
+        const n = worleyPore(px, y, pz, NODULE(o.scale), 1);
+        const insidePore = a.dn < 1.3 || b.dn < 1.3;
+        if (!insidePore && n.t < 0.45) {
+          const bump = Math.sqrt(Math.max(0, 1 - n.dn * n.dn));
+          disp += bump * o.scale * 0.22 * (o.vertex ? 1 : 0);
+          surf += (smoothstep(1.0, 1.15, n.dn) * (1 - smoothstep(1.15, 1.7, n.dn))) * 0.22 - bump * 0.05;
+          t2[o4 + 2] = q8(0.5 + Math.max(-maxD, Math.min(maxD, disp)) / (2 * maxD));
+        }
+      }
+      t2[o4 + 2] = q8(0.5 + Math.max(-maxD, Math.min(maxD, disp)) / (2 * maxD));
+      t2[o4 + 3] = q8(Math.max(0, surf) / 0.4);
     }
   }
   void smoothstep;

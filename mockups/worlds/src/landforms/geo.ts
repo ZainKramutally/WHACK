@@ -58,18 +58,19 @@ export function addTube(g: Geo, o: TubeOpts): void {
  * Radius multiplier along a spire, t = 0 base → 1 tip. Monotonic non-increasing.
  * Fresh (erosion 0): fat bulbous column, rounded top. Eroded (1): thin tapering finger with a sharp tip.
  */
-export function spireProfile(t: number, erosion: number): number {
+export function spireProfile(t: number, erosion: number, flareMul = 1): number {
   const e = clamp(erosion), tt = clamp(t);
   const taperExp = mix(0.3, 0.72, e);
   const tipSharp = mix(2.8, 1.1, e);
   const body = Math.pow(1 - Math.pow(tt, tipSharp), taperExp) * mix(1, 0.7, e);
-  const flare = 1 + mix(0.35, 0.6, e) * Math.exp(-tt * mix(10, 16, e));
+  const flare = 1 + mix(0.35, 0.6, e) * flareMul * Math.exp(-tt * mix(10, 16, e));
   return body * flare;
 }
 
 export interface SpireOpts {
   H: number; R: number; erosion: number; lean?: [number, number]; horns?: boolean;
   radial: number; rings: number; seed: number; bury?: number;
+  bulb?: number; // multiplier on lump/stack/lobe amplitude (near hero giants are swollen)
 }
 
 /** Spire in local space: base at y = 0 (buried `bury` m below), tip at y = H. */
@@ -77,6 +78,7 @@ export function buildSpire(o: SpireOpts): Geo {
   const { H, R, erosion: e, seed } = o;
   const bury = o.bury ?? Math.max(3, H * 0.03);
   const lean = o.lean ?? [0, 0];
+  const bulb = o.bulb ?? 1;
   const lumpAmp = mix(0.2, 0.13, e);
   const lumpFreq = 1 / (R * mix(1.1, 2.2, e));
   const centre = (s: number): V3 => {
@@ -92,7 +94,7 @@ export function buildSpire(o: SpireOpts): Geo {
     param: (u) => mix(u, u * u, 0.35),
     radius: (s, th, c, dir) => {
       const t = clamp(c[1] / H);
-      const prof = spireProfile(t, o.horns ? Math.min(e, 0.3) : e) * R;
+      const prof = spireProfile(t, o.horns ? Math.min(e, 0.3) : e, bulb > 1 ? 0.05 : 1) * R;
       // stacked lumps (bulbous when fresh) …
       const qx = c[0] + dir[0] * prof, qz = c[2] + dir[2] * prof;
       const lump = fbm3(qx * lumpFreq, c[1] * lumpFreq * 0.8, qz * lumpFreq, 3, seed + 3);
@@ -105,7 +107,11 @@ export function buildSpire(o: SpireOpts): Geo {
       const spur = Math.max(0, noise3(th * 2.2, c[1] / (H * 0.035), 5, seed + 10) - 0.4) * 1.1 * e * e * e;
       const stepY = c[1] / (H * 0.07), stepF = stepY - Math.floor(stepY);
       const ledge = (noise3(Math.floor(stepY), 3, 3, seed + 11) * 0.5 + smoothstep(0.75, 1, stepF) * 0.12) * 0.22 * e * e;
-      const k = 1 + lump * lumpAmp + stack + lobes + spur + ledge + e * (groove * 0.34 + notch * 0.12) * smoothstep(0.02, 0.25, t);
+      const swell = lump * lumpAmp + stack + lobes;
+      // near giants: only the outward half swells (never collapses into a blade)
+      const up = smoothstep(0.08, 0.35, t); // bulbs grow above the foot so the eye never ends up inside
+      const k0 = 1 + swell + Math.max(0, swell) * (bulb - 1) * 0.9 * up + spur + ledge + e * (groove * 0.34 + notch * 0.12) * smoothstep(0.02, 0.25, t);
+      const k = Math.min(k0, 1.1 + 0.16 * up);
       return Math.max(0.0001, prof * k);
     },
   });

@@ -83,6 +83,7 @@ export default function landforms(): WorldModule {
 
       // ------------------------------------------------ materials
       const LAYER_DENS: [number, number, number] = [0.9, 0.4, 0.45];
+      const BIG_DENS: [number, number, number] = [0.6, 0.85, 0.5];
       const makeTex = (data: Uint8Array, w: number, h: number) => {
         const t = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
         t.magFilter = t.minFilter = THREE.LinearFilter;
@@ -94,7 +95,7 @@ export default function landforms(): WorldModule {
       interface StoneSpec {
         H: number; bury: number; radiusAt: (y: number) => [number, number];
         scale: number; res: [number, number]; porousMul: number; vertex: boolean;
-        fine: boolean; fineSize?: number; glow?: boolean; darken?: number; warm?: boolean; capTop?: boolean; graded?: boolean;
+        fine: boolean; big?: boolean; nodules?: boolean; fineSize?: number; glow?: boolean; darken?: number; warm?: boolean; capTop?: boolean; graded?: boolean;
       }
       /** Bakes this shape's pore field once, then builds the stone material that reads it. */
       const stoneMat = (sp: StoneSpec) => {
@@ -104,18 +105,24 @@ export default function landforms(): WorldModule {
         const t0 = performance.now();
         const baked = bakePores({
           W, Hpx: Hp, H: sp.H, bury: sp.bury, radiusAt: sp.radiusAt,
-          layers: [
+          layers: sp.big ? [
+            // near giants: a few huge pores (6-9 m radius), mid ones, then small
+            { size: 17 * sc, rLo: 0.38, rHi: 0.5, off: 0, dens: BIG_DENS[0] },
+            { size: 6.5 * sc, rLo: 0.26, rHi: 0.4, off: 11.3, dens: BIG_DENS[1] },
+            { size: (sp.fineSize ?? 1.8) * sc, rLo: 0.2, rHi: 0.38, off: 27.1, dens: BIG_DENS[2] },
+          ] : [
             { size: 11 * sc, rLo: 0.3, rHi: 0.45, off: 0, dens: LAYER_DENS[0] },
             { size: 6 * sc, rLo: 0.24, rHi: 0.4, off: 11.3, dens: LAYER_DENS[1] },
             sp.fine ? { size: (sp.fineSize ?? 1.8) * sc, rLo: 0.2, rHi: 0.38, off: 27.1, dens: LAYER_DENS[2] } : null,
           ],
+          nodules: sp.nodules,
           sizeMul: sp.graded ? (y) => mix(1.25, 0.55, smoothstep(0, sp.H * 0.75, y)) : undefined,
           densBuild: clamp(d.pores * sp.porousMul, 0, 1), vertex: sp.vertex, scale: Math.max(0.3, sc), seed,
         });
         bakeMs += performance.now() - t0;
         const n = poreNodes(u, {
           tex1: makeTex(baked.t1, W, Hp), tex2: makeTex(baked.t2, W, Hp), maxD: baked.maxD, H: sp.H, bury: sp.bury,
-          dens: LAYER_DENS, porousMul: sp.porousMul, vertex: sp.vertex, glow: sp.glow, darken: sp.darken, warm: sp.warm, capTop: sp.capTop,
+          dens: sp.big ? BIG_DENS : LAYER_DENS, porousMul: sp.porousMul, vertex: sp.vertex, glow: sp.glow, darken: sp.darken, warm: sp.warm, capTop: sp.capTop,
         });
         const m = ctx.materials.create({ stone: true, snowCover: true, color: n.tint, emissive: n.emissive, positionNode: n.position });
         disposables.push(m);
@@ -128,11 +135,18 @@ export default function landforms(): WorldModule {
         mesh.castShadow = true; mesh.receiveShadow = true;
         group.add(mesh);
       };
-      const addGeo = (geo: any, mat: any, x: number, z: number) => {
+      /** lowest ground under a footprint, so big bases never hover on a slope */
+      const footMin = (x: number, z: number, r: number) => {
+        let m = height(x, z);
+        for (let a = 0; a < 12; a++) m = Math.min(m, height(x + Math.cos(a * 0.5236) * r, z + Math.sin(a * 0.5236) * r));
+        return m;
+      };
+      const addGeo = (geo: any, mat: any, x: number, z: number, footR = 0) => {
         disposables.push(geo);
         tris += geo.index.count / 3;
         const mesh = new THREE.Mesh(geo, mat);
         place(mesh, x, z);
+        if (footR > 0) mesh.position.y = footMin(x, z, footR) - 1.5;
         return mesh;
       };
       const segFactor = (x: number, z: number) => {
@@ -149,15 +163,15 @@ export default function landforms(): WorldModule {
           const f = segFactor(lm.pos[0], lm.pos[1]);
           const g = buildSpire({
             H: lm.height, R: lm.radius, erosion: d.erosion, lean: lm.lean, horns: lm.horns,
-            radial: Math.max(40, Math.round(Math.min(220, (2 * Math.PI * lm.radius) / 0.55) * f)) & ~1, rings: Math.round(380 * f), seed: seed + i * 7,
+            radial: Math.max(40, Math.round(Math.min(220, (2 * Math.PI * lm.radius) / 0.55) * f)) & ~1, rings: Math.round(380 * f), seed: seed + i * 7, bulb: f > 0.9 ? 1.8 : 1,
           });
           const porous = lm.porous ? 1 : 0.15;
           const bury = Math.max(3, lm.height * 0.03);
           const mat = stoneMat({
-            H: lm.height, bury, radiusAt: (y) => { const r = lm.radius * spireProfile(y / lm.height, lm.horns ? Math.min(d.erosion, 0.3) : d.erosion); return [r, r]; },
-            scale: lm.radius / 14, res: f > 0.9 ? [512, 1024] : f > 0.5 ? [384, 768] : [256, 512], porousMul: porous, vertex: f > 0.5, fine: true, graded: true,
+            H: lm.height, bury, radiusAt: (y) => { const r = lm.radius * spireProfile(y / lm.height, lm.horns ? Math.min(d.erosion, 0.3) : d.erosion, f > 0.9 ? 0.05 : 1); return [r, r]; },
+            scale: lm.radius / 14, res: f > 0.9 ? [512, 1024] : f > 0.5 ? [384, 768] : [256, 512], porousMul: porous, vertex: f > 0.5, fine: true, graded: true, big: f > 0.9 && !!lm.porous, nodules: f > 0.5,
           });
-          const mesh = addGeo(toGeometry(g), mat, lm.pos[0], lm.pos[1]);
+          const mesh = addGeo(toGeometry(g), mat, lm.pos[0], lm.pos[1], lm.radius * 1.15);
           heroSpires.push(mesh);
         } else if (lm.kind === 'wall') {
           const crust = lm.height < 14;
@@ -172,7 +186,7 @@ export default function landforms(): WorldModule {
             scale: clamp(Math.min(lm.width, lm.depth) / 18, 0.3, 2), res: crust ? [160, 96] : [384, 256], porousMul: crust ? 1.5 : 1, vertex: !crust,
             fine: true, fineSize: crust ? 0.9 : 1.8, glow: !crust, warm: crust, capTop: !crust && !!lm.overhang, graded: !crust,
           });
-          const mesh = addGeo(toGeometry(g), m, lm.pos[0], lm.pos[1]);
+          const mesh = addGeo(toGeometry(g), m, lm.pos[0], lm.pos[1], crust ? 0 : Math.min(lm.width, lm.depth) * 0.5);
           mesh.rotation.y = lm.yaw ?? 0;
         } else if (lm.kind === 'arch') {
           const ha = height(lm.a[0], lm.a[1]), hb = height(lm.b[0], lm.b[1]);
