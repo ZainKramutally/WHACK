@@ -174,7 +174,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 | Time | The build's fast-forward and the ecology clock (below) | |
 | Air oxygen (new, ours) | The Oxygen stat and slider | Aerobic metabolism, and the largest body that can breathe (the rule already in `population.ts`). Pinned at 0 on silicon. |
 
-Other world quantities: the solvent's liquid band already feeds the sim, through `heatBand`, and absolute temperature drives the pace rule. The liquid fraction is live too: sea cover sets sea level, and the liquid grid follows it. The light spectrum is render-only, because both stars are Sun-like and only the intensity differs. Gravity enters only Rule 10's walk and hover costs (× g), pending its A/B; if it fails, creatures ignore gravity, and we say so.
+Other world quantities: the solvent's liquid band already feeds the sim, through `heatBand`, and absolute temperature drives the pace rule. The liquid fraction is live too: sea cover sets sea level, and the liquid grid follows it. The light spectrum is render-only, because both stars are Sun-like and only the intensity differs. Gravity does not enter creature costs: × g on walk and hover cost failed its headless A/B (3 seeds per world, no OTU or FDis gain beyond seed noise), so creatures ignore gravity, and we say so if asked.
 
 **Silicon-world specifics** (speculative, labelled as such):
 - **Plates are silicon-nitride ceramic**, not silica stone, because there's no oxygen. Silicon nitride is a real, very hard ceramic. `assumption: true`.
