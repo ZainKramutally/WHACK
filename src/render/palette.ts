@@ -96,8 +96,8 @@ export type Tone = 0 | 1 | 2 | 3 | 4;
 /** Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn. */
 export function creatureColour(silicon: boolean, diet: number, tone: Tone): number {
   const base = silicon
-    ? mixHex(0x9fc4e6, 0xb89ae0, clamp01(diet))      // glassy blue → violet hunters
-    : mixHex(0x7fc45a, 0xe08a3c, clamp01(diet));     // green grazers → orange hunters
+    ? mixHex(0xd6ecff, 0xe0b8ff, clamp01(diet))      // glassy blue → violet hunters
+    : mixHex(0xc4ee4a, 0xff8a2c, clamp01(diet));     // green grazers → orange hunters
   switch (tone) {
     case 1: return silicon ? 0xfaffff : 0x161616;
     case 2: return scaleHex(base, 0.62);

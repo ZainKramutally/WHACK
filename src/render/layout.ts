@@ -141,7 +141,7 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
   const n = Math.max(3, Math.round(plan.segmentCount));
   const L = plan.scale;
   const s = L / n;
-  const rMax = Math.min(0.17 * L, 0.7 * s);
+  const rMax = Math.min(0.22 * L, 1.1 * s);
   const silicon = plan.chemistry === 'silicon';
 
   // Spine in the XZ plane: tail (i = 0) to head (i = n−1), curling by `curl` radians per joint.
@@ -276,7 +276,7 @@ export function floraShape(mat: number, canopy: number): { count: number; height
 // from a 5 m follow camera. One rule for every creature: displayed length = DISPLAY_REF · (scale / BODY_REF)^DISPLAY_EXP.
 // It is monotonic, so bigger stays bigger; it compresses the ~64× real range to ~15×. Whole bodies scale together.
 export const BODY_REF = 0.15;     // m: the smallest founder worm
-export const DISPLAY_REF = 1.8;   // m: how long that worm is drawn
+export const DISPLAY_REF = 3.5;   // m: how long that worm is drawn
 export const DISPLAY_EXP = 0.6;
 
 export function displayLength(scale: number): number {
