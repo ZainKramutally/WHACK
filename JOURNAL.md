@@ -48,3 +48,4 @@
 - 19:30: critique fixes merged (3692c06): clumped near cover, shadow #5a1040, quiet corner cap, moon 3.4°, butte moved, lamp pool + neck spill, bank light, hero breath. 98 tests. fps now 30 (half-vsync) on old commit too: load avg 18 from endpoint-security agents (Ava Reveal ~270% CPU, FortiDLP, ReportCrash) + 14 orphan vites from flora_capture.py (killed, fix requested). Open: hero reads violet-grey with cool shadow - ask user.
 - 19:33: rw-move drift damp merged (75961d2, capture identical). USER fauna feedback: one body colour + one accent per animal, smoother forms (smooth default, ?facet=1 A/B) -> rw-fauna.
 - 19:34: flora capture cleanup fix merged (02a3258). Killed idle rw-scene orphan vite.
+- 19:43: fauna colour round merged (10df139): one gene-chosen body colour + one accent, smooth by default (?facet=1). 98 tests. Note: dark-bodied walkers read as flat silhouettes (little shading range on maroon).
