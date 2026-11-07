@@ -203,6 +203,7 @@ Three sliders, and only these three, let the player change the conditions life d
 - **The carbon and silicon cells show live whether their life could survive at the current settings.** A cell lights up when it can. It turns red, with the reason on hover, when it can't. This is a small puzzle with real physics behind it:
   1. Drag Temperature down to −183 °C, and carbon goes red ("Too cold for surface life").
   2. Silicon stays red ("Too little nitrogen for seas") until Nitrogen goes up, because a nitrogen sea can only exist if the planet has more nitrogen than its air can hold.
+- **A Standardise button** sets the three sliders to the selected world's optimal starting conditions (its `startDefaults`). On carbon that is exactly the rehearsed demo start.
 - **Generate is never blocked.** When Generate is clicked, any slider sitting in the selected world's red zone glides to that world's default starting value, and a caption says why, for example "Silicon life can't survive at 15 °C, so this world starts at −183 °C". Sliders already inside the band keep the player's value. With untouched sliders, both worlds start from fixed values, so both demo runs stay deterministic.
 
 **Once a world is running**, from the first second of formation, the rules below apply. Before life appears, a red zone means "life could never start here".
@@ -720,7 +721,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 | `docs/emergence/DECISIONS.md`, `docs/NOT_NOW.md` | **The creatures** (Caden): the current design, its simplicity guardrails and its parking lot. "Life: creatures and plants" wires it to our controls; where it mentions dials, use the mapping there. |
 | `docs/emergence/F-body-plan-first.md`, `docs/emergence/README.md`, `research/body-plans/` | Background for the creatures. F stays the reference for `develop()` and rendering; the rest is superseded by `DECISIONS.md`. |
 | `README.md`, `docs/superpowers/plans/2026-11-07-backend-mvp.md` | The project overview and the engineering lead's backend plan. |
-| `docs/features/selection-screen.md` | The selection screen's design spec (draft, for the design partner): layout, element cells, sliders, particle-box framing, tokens and behaviour. |
+| `docs/features/selection-screen.md`, `mockups/selection-screen/index.html` | The selection screen's design spec (draft, for the design partner) and its working mockup. Visual direction: a pixel-art research paper in Caden's pixel style (`docs/ART_DIRECTION_PIXEL.md`): element table, axes for the sliders, the particle box as a low-resolution pixel figure, a live bounds equation and a footnoted caveat. The zoom into the world keeps the same pixels. |
 | `.claude/skills/world-style` | Rendering and TSL guidance still applies, with the exceptions listed under Stack. |
 | `HACKATHON.md` | Generic playbook; its timeline assumes four people. Use the dates in this file. |
 | `mockups/worlds/`, `docs/features/world-generator.md`, `research/world-forms/` | **The world look** (Caden): palette field, fog, sky, materials, camera, terrain. Fed by our state (table in "Generation sequence"). `src/sim/rng.ts` already uses the same RNG. |

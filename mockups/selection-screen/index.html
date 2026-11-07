@@ -1,0 +1,1045 @@
+<meta charset="utf-8">
+<title>Life Is ▢ Based</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&display=swap">
+<style>
+/* Layout: a pixel-art research paper. One bone sheet floats on the selected sea's 4 flat sky bands (the world we zoom into).
+   Title block + abstract span the sheet; then two columns: §1 Table 1 + §2 axes, Eq. (1), buttons | §3 Figure 2 + references.
+   Palette = Caden's pixel ramps (docs/ART_DIRECTION_PIXEL.md §4). Single visual world by design: every colour set explicitly. */
+:root {
+  --ink: #120D1C;
+  --bone1: #A8957C; --bone2: #D8CBB4; --bone3: #EFE6D4; --bone4: #FFFAEE;
+  --lethal: #B3260F;
+  --c1: #7A1622; --c2: #D2332A; --c3: #FF6A3D; --c4: #FFB08A;
+  --s1: #0B3A78; --s2: #1B8FD6; --s3: #3FE3F2; --s4: #BFF8FF;
+  --o2: #BE1F86; --o3: #FF4FB0;
+  --spark: #FFB300;
+  --link: #1B8FD6;
+  /* field ramp of the selected sea (Water for carbon) */
+  --f0: #04202B; --f1: #0A4C5E; --f2: #0F7A8A; --f3: #1BA8AE; --f4: #5DDCCF; --f5: #C4FFEE;
+  --fam2: var(--c2); --fam3: var(--c3); --fam4: var(--c4);
+  --text: "Pixelify Sans", "Silkscreen", ui-monospace, "Courier New", monospace;
+  --mono: "VT323", ui-monospace, "Courier New", monospace;
+  --checker: conic-gradient(var(--lethal) 25%, transparent 0 50%, var(--lethal) 0 75%, transparent 0) 0 0 / 4px 4px;
+  color-scheme: light;
+}
+body[data-world="silicon"] {
+  /* liquid-nitrogen field: the frost (methane) ramp, relabelled */
+  --f0: #1E2C66; --f1: #34549E; --f2: #5C86CF; --f3: #8FB6EC; --f4: #CFE6FF; --f5: #FFFFFF;
+  --fam2: var(--s2); --fam3: var(--s3); --fam4: var(--s4);
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--f1);
+  color: var(--ink);
+  font-family: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+/* 4 flat sky bands, changing colour in hard steps, band by band */
+.sky { position: fixed; inset: 0; z-index: 0; display: grid; grid-template-rows: repeat(4, 1fr); }
+.sky div { transition: background-color 0.48s steps(3, end); }
+.sky div:nth-child(1) { background: var(--f1); transition-delay: 0s; }
+.sky div:nth-child(2) { background: var(--f2); transition-delay: 0.12s; }
+.sky div:nth-child(3) { background: var(--f3); transition-delay: 0.24s; }
+.sky div:nth-child(4) { background: var(--f4); transition-delay: 0.36s; }
+
+.desk {
+  position: relative; z-index: 1;
+  box-sizing: border-box; min-height: 100%;
+  padding-block: clamp(16px, 3vh, 40px) 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  transition: opacity 0.4s steps(4, end);
+}
+body.launching .desk { opacity: 0; pointer-events: none; }
+.shadowbox { max-width: 1280px; margin: 0 auto; filter: drop-shadow(8px 8px 0 var(--f0)); }
+.sheet {
+  position: relative; box-sizing: border-box;
+  background: var(--bone4);
+  border: 4px solid var(--ink);
+  padding: clamp(24px, 4vw, 56px) clamp(18px, 4.5vw, 64px) 40px;
+  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
+}
+
+/* Title block */
+.titleblock { text-align: center; margin-bottom: 24px; }
+h1 { font-weight: 700; font-size: clamp(32px, 3.4vw, 48px); line-height: 1.1; margin: 0; }
+.slot {
+  display: inline-block; min-width: 1.2em; padding: 0 6px;
+  border: 4px solid var(--ink); background: var(--bone3);
+  box-shadow: inset 0 -6px 0 var(--fam2);
+  line-height: 1.15;
+}
+.slot span { display: inline-block; animation: hop 0.3s steps(3, end); }
+@keyframes hop { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.subtitle { font-size: 24px; margin: 8px 0 14px; }
+.authors { margin: 0; font-size: 18px; font-weight: 600; }
+.affil, .date { margin: 0; font-size: 16px; color: #5A4F44; }
+.abstract { max-width: 760px; margin: 20px auto 0; text-align: left; }
+.abstract h2 { font-size: 18px; font-weight: 700; text-align: center; margin: 0 0 6px; }
+.abstract p { margin: 0; text-align: justify; }
+
+.columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; align-items: start; }
+section { margin: 0 0 20px; }
+h2.sec { font-size: 24px; font-weight: 700; margin: 8px 0 8px; }
+h2.sec .no { display: inline-block; min-width: 1.4em; }
+p { margin: 0 0 10px; text-align: justify; }
+p + p { text-indent: 2em; }
+.m { font-family: var(--mono); font-size: 1.3em; line-height: 1; }
+sub { font-size: 0.75em; }
+.linkbtn { font: inherit; color: var(--s1); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+figure { margin: 14px 0 16px; }
+figcaption { font-size: 15px; text-align: justify; }
+figcaption b { font-weight: 700; }
+
+/* Table 1: pixel booktabs */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 16px; }
+thead tr { border-top: 4px solid var(--ink); border-bottom: 2px solid var(--ink); }
+tbody tr:last-child { border-bottom: 4px solid var(--ink); }
+th { font-weight: 600; text-align: left; padding: 6px 8px 4px; white-space: nowrap; }
+td { padding: 5px 8px; vertical-align: top; }
+td.num { text-align: right; font-family: var(--mono); font-size: 20px; line-height: 1.1; }
+tr.pick { cursor: pointer; }
+tr.pick:hover td { background: var(--bone3); }
+tr.sel td { background: var(--bone3); }
+tr.grey td { color: #9C8F80; }
+tr.grey { cursor: not-allowed; }
+tr.grey .via { font-style: italic; }
+tr.flash td { animation: flash 0.4s steps(2, end); }
+@keyframes flash { 50% { background: #FFD9CC; } }
+.radio {
+  width: 18px; height: 18px; margin-top: 3px; padding: 0;
+  border: 2px solid var(--ink); background: var(--bone4);
+  cursor: pointer; display: grid; place-items: center;
+}
+.radio[aria-checked="true"]::after { content: ""; width: 8px; height: 8px; background: var(--ink); }
+.sw { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 2px solid var(--ink); box-sizing: border-box; }
+.via.ok .sw { background: var(--sw); }
+.via.no { color: var(--lethal); }
+.via.no .sw { background: var(--checker), var(--bone4); border-color: var(--lethal); }
+.dagger { font-size: 0.8em; vertical-align: super; line-height: 0; }
+
+/* Figure 1: pixel axes */
+.axes { display: grid; gap: 12px; margin-top: 10px; }
+.ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ctl-head output { font-family: var(--mono); font-size: 22px; line-height: 1; white-space: nowrap; }
+.axis { position: relative; height: 24px; margin-top: 18px; border-bottom: 4px solid var(--ink); cursor: pointer; touch-action: none; }
+.axis .band, .axis .zone { position: absolute; top: 0; bottom: 0; }
+.axis .band { background: var(--fam4); }
+.axis .zone { background: var(--checker), var(--bone4); }
+.axis .earth {
+  position: absolute; top: -18px; bottom: 0; width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--ink) 0 4px, transparent 4px 8px);
+  pointer-events: none;
+}
+.axis .earth span { position: absolute; top: -4px; left: 6px; font-size: 13px; white-space: nowrap; }
+.marker {
+  position: absolute; bottom: -12px; width: 20px; height: 20px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  clip-path: polygon(4px 0, 16px 0, 16px 4px, 20px 4px, 20px 16px, 16px 16px, 16px 20px, 4px 20px, 4px 16px, 0 16px, 0 4px, 4px 4px);
+  pointer-events: none;
+}
+.marker::after {
+  content: ""; position: absolute; inset: 2px;
+  background: var(--fam2);
+  box-shadow: inset 4px 4px 0 var(--fam3);
+  clip-path: polygon(4px 0, 12px 0, 12px 2px, 16px 2px, 16px 12px, 14px 12px, 14px 16px, 2px 16px, 2px 14px, 0 14px, 0 2px, 2px 2px);
+}
+.axis.in-red .marker { background: var(--lethal); }
+.ticks { position: relative; height: 22px; font-family: var(--mono); font-size: 18px; line-height: 1; }
+.ticks span { position: absolute; top: 6px; transform: translateX(-50%); white-space: nowrap; }
+.ticks span::before { content: ""; position: absolute; left: calc(50% - 1px); top: -6px; height: 6px; width: 2px; background: var(--ink); }
+.ticks span:first-child { transform: none; }
+.ticks span:first-child::before { left: 0; }
+.ticks span:last-child { transform: translateX(-100%); }
+.ticks span:last-child::before { left: auto; right: 0; }
+.reason { min-height: 22px; font-size: 15px; font-weight: 600; color: var(--lethal); }
+.hint { margin: 0; font-size: 14px; color: #6B6055; text-align: left; }
+
+.eq { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; margin: 10px 0 6px; padding: 8px 0; border-top: 2px dashed var(--bone1); border-bottom: 2px dashed var(--bone1); }
+.eq .body { text-align: center; font-family: var(--mono); font-size: 24px; line-height: 1.15; }
+.eq .no { font-family: var(--mono); font-size: 22px; }
+.eqnote { font-size: 15px; }
+
+.note { font-size: 15px; margin: 6px 0 12px; padding: 6px 10px; background: var(--bone3); border-left: 4px solid var(--ink); }
+.note:empty { display: none; }
+.actions { display: flex; gap: 16px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-weight: 700; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 10px 18px;
+  border: 4px solid var(--ink);
+  background: var(--bone4); color: var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
+  cursor: pointer;
+  transform: translateY(0);
+}
+.btn:hover { background: var(--bone3); }
+.btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.btn.primary { background: var(--fam2); color: var(--ink); }
+.btn.primary:hover { background: var(--fam3); }
+.btn:focus-visible, .axis:focus-visible, .radio:focus-visible, .linkbtn:focus-visible {
+  outline: 4px solid var(--s2); outline-offset: 4px;
+}
+
+/* Figure 2: low-res canvas, nearest-neighbour upscale */
+.boxfig .frame { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; border: 4px solid var(--ink); box-sizing: border-box; background: var(--f3); }
+.boxfig canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.boxfig .tag { position: absolute; left: 8px; font-size: 15px; font-weight: 600; color: var(--ink); background: var(--bone4); padding: 0 6px; border: 2px solid var(--ink); pointer-events: none; }
+.boxfig figcaption { margin-top: 10px; }
+.fail { margin: 4px 0 0; font-size: 15px; font-weight: 600; color: var(--lethal); text-align: left; }
+.fail:empty { display: none; }
+
+.refs h2 { font-size: 24px; font-weight: 700; margin: 8px 0 8px; }
+.refs ol { margin: 0; padding: 0; list-style: none; font-size: 14px; display: grid; gap: 6px; }
+.refs li { display: grid; grid-template-columns: 2.4em 1fr; }
+.footnotes { margin-top: 18px; padding-top: 8px; border-top: 2px solid var(--ink); max-width: 100%; }
+.footnotes p { font-size: 14px; }
+.pageno { text-align: center; font-family: var(--mono); font-size: 22px; margin-top: 20px; }
+
+/* Appendix, toast, launch */
+.scrim {
+  position: fixed; inset: 0; z-index: 40; background: rgba(18, 13, 28, 0.5);
+  display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.appendix {
+  background: var(--bone4); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--f0);
+  max-width: 680px; max-height: 86vh; overflow: auto; padding: 26px 30px; box-sizing: border-box;
+}
+.appendix h2 { font-size: 22px; margin: 0 0 10px; }
+.appendix ol { margin: 0 0 14px; padding-left: 1.6em; display: grid; gap: 6px; text-align: justify; }
+.appendix .caveat { border-left: 4px solid var(--lethal); padding-left: 12px; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  transform: translateX(-50%); max-width: min(90vw, 720px);
+  background: var(--bone4); color: var(--ink); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--f0);
+  padding: 8px 16px; font-size: 16px; text-align: center;
+  opacity: 0; transition: opacity 0.3s steps(3, end); pointer-events: none;
+}
+.toast.show { opacity: 1; }
+#launch { position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%; display: none; image-rendering: pixelated; }
+body.launching #launch { display: block; }
+.endcard {
+  position: fixed; z-index: 55; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--bone4); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--f0);
+  padding: 24px 28px; max-width: min(88vw, 520px); box-sizing: border-box; text-align: center;
+}
+.endcard h2 { font-size: 26px; margin: 0 0 8px; }
+.endcard p { text-align: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 900px) { .columns { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) {
+  .sky div { transition: none; }
+  .slot span, tr.flash td { animation: none; }
+}
+</style>
+
+<div class="sky" aria-hidden="true"><div></div><div></div><div></div><div></div></div>
+
+<div class="desk" id="desk">
+  <div class="shadowbox">
+  <article class="sheet">
+    <header class="titleblock">
+      <h1>Life Is <span class="slot" aria-live="polite"><span id="slotSym">C</span></span> Based</h1>
+      <p class="subtitle">Choosing a chemistry for a new world</p>
+      <p class="authors">WHACK 26 Team</p>
+      <p class="affil">Marshall Wace “New Worlds” challenge</p>
+      <p class="date">8 November 2026</p>
+      <section class="abstract" aria-labelledby="absTitle">
+        <h2 id="absTitle">Abstract</h2>
+        <p id="abstractText"></p>
+      </section>
+    </header>
+
+    <div class="columns">
+      <div class="col">
+        <section aria-labelledby="s1">
+          <h2 class="sec" id="s1"><span class="no">1</span>Choose an element</h2>
+          <p>Group 14 shares carbon’s four bonding hands. Table 1 lists the column; only carbon and silicon can be chosen. The last column reports whether that chemistry’s life could persist under the conditions set in Section 2.</p>
+          <figure>
+            <figcaption><b>Table 1:</b> Group 14 of the periodic table. Select a row.</figcaption>
+            <div class="tablewrap">
+              <table aria-label="Group 14 of the periodic table">
+                <thead><tr><th></th><th class="num"><span class="m">Z</span></th><th>Element</th><th>Status</th><th>Viability now</th></tr></thead>
+                <tbody id="rows" role="radiogroup" aria-label="Choose an element"></tbody>
+              </table>
+            </div>
+          </figure>
+        </section>
+
+        <section aria-labelledby="s2">
+          <h2 class="sec" id="s2"><span class="no">2</span>Starting conditions</h2>
+          <p>Every condition is drawn on the same full range for every world. Checkered intervals mark where the selected world’s life would die; the dashed line marks Earth. Drag a marker, or focus an axis and use the arrow keys. The bounds are given by Eq. (1).</p>
+          <figure>
+            <div class="axes" id="controls"></div>
+            <figcaption><b>Figure 1:</b> Starting conditions for the selected world. On this page the checkered intervals are a preview; once a world is running, a marker cannot enter them.</figcaption>
+          </figure>
+          <div class="eq" aria-live="polite"><div class="body" id="eqBody"></div><div class="no">(1)</div></div>
+          <p class="eqnote" id="eqNote"></p>
+          <p class="note" id="notice"></p>
+          <div class="actions">
+            <button class="btn" id="standardise" type="button">Standardise to optimum</button>
+            <button class="btn primary" id="generate" type="button">Generate world</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section aria-labelledby="s3">
+          <h2 class="sec" id="s3"><span class="no">3</span>Observation</h2>
+          <p>Figure 2 shows the selected chemistry in miniature. It is driven by the same viability test as Table 1, so the two never disagree: chains link and copy where life can persist, and each failing bound has its own signature.</p>
+          <figure class="boxfig">
+            <div class="frame" id="frame">
+              <canvas id="box" width="150" height="150" role="img" aria-label="Atoms and molecules of the selected world"></canvas>
+              <span class="tag" id="tagGas" style="top:8px">gas</span>
+              <span class="tag" id="tagLiq" hidden></span>
+            </div>
+            <figcaption id="boxCaption"></figcaption>
+            <p class="fail" id="boxFail"></p>
+          </figure>
+        </section>
+
+        <section class="refs" aria-labelledby="refs">
+          <h2 id="refs">References</h2>
+          <ol>
+            <li><span>[1]</span><span>W. Bains. Many chemistries could be used to build living systems. <i>Astrobiology</i>, 4(2):137–167, 2004.</span></li>
+            <li><span>[2]</span><span>J. J. Petkowski, W. Bains and S. Seager. On the potential of silicon as a building block for life. <i>Life</i>, 10(6):84, 2020.</span></li>
+            <li><span>[3]</span><span>K. Takai et al. Cell proliferation at 122 °C and isotopically heavy CH<sub>4</sub> production by a hyperthermophilic methanogen under high-pressure cultivation. <i>PNAS</i>, 105(31):10949–10954, 2008.</span></li>
+            <li><span>[4]</span><span>NIST Chemistry WebBook. Nitrogen: phase-change data (triple point, vapour pressure, critical point).</span></li>
+          </ol>
+        </section>
+      </div>
+    </div>
+
+    <div class="footnotes"><p id="footnote"></p></div>
+    <div class="pageno">1</div>
+  </article>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<canvas id="launch" aria-hidden="true"></canvas>
+<div class="endcard" id="endcard" hidden>
+  <h2>Formation begins</h2>
+  <p id="endText"></p>
+  <button class="btn primary" type="button" id="back">Back to the paper</button>
+</div>
+<div class="scrim" id="appScrim" hidden>
+  <div class="appendix" role="dialog" aria-modal="true" aria-labelledby="appTitle">
+    <h2 id="appTitle">Appendix A: Why silicon, and why it is doubtful</h2>
+    <ol>
+      <li><b>Silicon is everywhere, yet life chose carbon.</b> Earth’s crust is about 28% silicon and 0.02% carbon, but living things are about 18% carbon.</li>
+      <li><b>Silicon bonds to itself weakly:</b> Si–Si is roughly 220 kJ/mol against roughly 350 for C–C, so its chains fall apart more easily. Cold slows that down.</li>
+      <li><b>Silicon bonds to oxygen extremely strongly.</b> Free oxygen or liquid water would lock it away as rock, so this world has neither.</li>
+      <li><b>Silanes burn on contact with oxygen and break down in water,</b> which reinforces step 3.</li>
+      <li><b>So the solvent must be cold and unreactive:</b> liquid nitrogen [1].</li>
+      <li><b>In the cold, silicon’s weakness becomes its strength.</b> At −183 °C carbon chemistry is all but frozen, while silicon’s more reactive bonds can keep reacting [2].</li>
+      <li><b>The seas set the air.</b> Nitrogen is liquid only between about −210 °C and −147 °C, and the seas hold the air at their vapour pressure: about 3.6 bar at −183 °C [4].</li>
+    </ol>
+    <p class="caveat">Most chemists doubt this: almost nothing dissolves in liquid nitrogen, and chemistry there is extremely slow. Petkowski, Bains and Seager [2] conclude that no environment makes silicon-based life plausible. This world is our best-reasoned guess, not a prediction.</p>
+    <button class="btn" type="button" id="appClose">Close</button>
+  </div>
+</div>
+<div class="sr" id="announce" aria-live="polite"></div>
+
+<script>
+/* LOGIC START: pure functions mirroring CLAUDE.md (limits, bands, starting conditions). Mockup values. */
+const CONTROLS = {
+  temperature: { id: "temperature", sym: "T", label: "temperature", unit: "°C", min: -250, max: 150, scale: "linear", def: 15, earth: 15, step: 1, big: 10,
+    hint: "Moves the planet closer to or farther from its star.", ticks: [-250, -150, -50, 50, 150] },
+  nitrogen: { id: "nitrogen", sym: "N", label: "nitrogen (log scale)", unit: "× Earth", min: 0.01, max: 1000, scale: "log", def: 1, earth: 1,
+    hint: "How much nitrogen the planet has, in its air and seas.", ticks: [0.01, 1, 100, 1000] },
+  oxygen: { id: "oxygen", sym: "xO2", label: "free oxygen", unit: "%", min: 0, max: 40, scale: "linear", def: 0, earth: 21, step: 1, big: 5,
+    hint: "Free oxygen in the air. A young planet has none.", ticks: [0, 20, 40] },
+};
+const ORDER = ["temperature", "nitrogen", "oxygen"];
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const toT = (id, v) => {
+  const c = CONTROLS[id];
+  if (c.scale === "log") return (Math.log10(v) - Math.log10(c.min)) / (Math.log10(c.max) - Math.log10(c.min));
+  return (v - c.min) / (c.max - c.min);
+};
+const fromT = (id, t) => {
+  const c = CONTROLS[id];
+  t = clamp(t, 0, 1);
+  if (c.scale === "log") return Math.pow(10, Math.log10(c.min) + t * (Math.log10(c.max) - Math.log10(c.min)));
+  return c.min + t * (c.max - c.min);
+};
+/* Nitrogen vapour pressure, ln P(bar) = A − B/T, fitted to 77.36 K → 1.013 bar and 90 K → 3.6 bar.
+   Checks: triple point 63.15 K → 0.13 bar (real 0.125), critical 126.2 K → 33 bar (real 34). */
+const pvapN2 = (tC) => Math.exp(9.042 - 698.5 / (tC + 273.15));
+const SI_GRAVITY = 0.75;
+const N2_BAR_PER_EARTH = 0.78;
+const nitrogenNeeded = (tC) => pvapN2(tC) / (SI_GRAVITY * N2_BAR_PER_EARTH);
+const WORLDS = {
+  carbon: {
+    id: "carbon", name: "Carbon", symbol: "C", z: 6, status: "Known",
+    boxLabel: "Carbon atoms in water",
+    start: { temperature: 15, nitrogen: 1, oxygen: 0 },
+    limits: [
+      { id: "c-cold", test: (c) => c.temperature < -50, reason: "Too cold for surface life", effect: "freeze" },
+      { id: "c-hot", test: (c) => c.temperature > 122, reason: "Hotter than any known life can grow", effect: "shakeApart" },
+      { id: "c-n", test: (c) => c.nitrogen < 0.05, reason: "Not enough nitrogen to build cells", effect: "starve" },
+    ],
+  },
+  silicon: {
+    id: "silicon", name: "Silicon", symbol: "Si", z: 14, status: "Speculative",
+    boxLabel: "Silicon atoms in liquid nitrogen",
+    start: { temperature: -183, nitrogen: 40, oxygen: 0 },
+    limits: [
+      { id: "si-freeze", test: (c) => c.temperature < -210, reason: "Seas freeze solid", effect: "freeze" },
+      { id: "si-critical", test: (c) => c.temperature > -147, reason: "Too warm for liquid nitrogen", effect: "dryUp" },
+      { id: "si-seas", test: (c) => c.nitrogen < nitrogenNeeded(c.temperature), reason: "Too little nitrogen for seas", effect: "dryUp" },
+      { id: "si-o2", test: (c) => c.oxygen > 0.1, reason: "Free oxygen turns silicon into rock", effect: "rust" },
+    ],
+  },
+};
+function canLive(world, cond) {
+  for (const l of world.limits) if (l.test(cond)) return { ok: false, limit: l };
+  return { ok: true };
+}
+function livingBand(world, cond, id, samples = 480) {
+  let first = -1, last = -1;
+  const okAt = (i) => canLive(world, { ...cond, [id]: fromT(id, i / samples) }).ok;
+  for (let i = 0; i <= samples; i++) if (okAt(i)) { if (first < 0) first = i; last = i; }
+  if (first < 0) {
+    const r = canLive(world, cond);
+    return { empty: true, low: 0, high: 1, blocking: r.ok ? null : r.limit.reason };
+  }
+  const reasonAt = (i) => { const r = canLive(world, { ...cond, [id]: fromT(id, i / samples) }); return r.ok ? null : r.limit.reason; };
+  return { empty: false, low: first / samples, high: last / samples, lowReason: first > 0 ? reasonAt(first - 1) : null, highReason: last < samples ? reasonAt(last + 1) : null };
+}
+function startingConditions(world, requested) {
+  const start = { ...requested };
+  const moved = [];
+  for (const id of ORDER) {
+    const r = canLive(world, start);
+    if (r.ok) break;
+    const band = livingBand(world, start, id);
+    const t = toT(id, start[id]);
+    if (band.empty || t < band.low - 1e-9 || t > band.high + 1e-9) {
+      moved.push({ id, from: start[id], to: world.start[id], reason: r.limit.reason });
+      start[id] = world.start[id];
+    }
+  }
+  return { start, moved };
+}
+function fmt(id, v) {
+  if (id === "temperature") return `${Math.round(v).toString().replace("-", "−")} °C`;
+  if (id === "nitrogen") {
+    const s = v >= 10 ? Math.round(v).toLocaleString("en-GB") : v >= 1 ? v.toFixed(1).replace(/\.0$/, "") : v.toPrecision(2).replace(/0+$/, "");
+    return `${s} × Earth`;
+  }
+  return `${v < 1 && v > 0 ? v.toFixed(1) : Math.round(v)} %`;
+}
+/* LOGIC END */
+
+/* ---------- UI state ---------- */
+const state = { world: "carbon", cond: { temperature: 15, nitrogen: 1, oxygen: 0 }, launching: false, gliding: false };
+const $ = (id) => document.getElementById(id);
+const announce = (msg) => { $("announce").textContent = ""; requestAnimationFrame(() => { $("announce").textContent = msg; }); };
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+const symHTML = (id) => `<span class="m">${id === "oxygen" ? "x<sub>O2</sub>" : CONTROLS[id].sym}</span>`;
+
+/* ---------- Table 1 ---------- */
+const GREY = [
+  { el: "Ge", z: 32, name: "Germanium", reason: "Bonds even weaker than silicon’s" },
+  { el: "Sn", z: 50, name: "Tin", reason: "A metal: its bonds are too weak to hold a chain" },
+  { el: "Pb", z: 82, name: "Lead", reason: "A heavy metal that barely bonds to itself" },
+  { el: "Fl", z: 114, name: "Flerovium", reason: "Made in a lab; atoms last only seconds" },
+];
+function buildRows() {
+  const tb = $("rows");
+  for (const w of [WORLDS.carbon, WORLDS.silicon]) {
+    const tr = document.createElement("tr");
+    tr.className = "pick";
+    tr.dataset.world = w.id;
+    tr.style.setProperty("--sw", w.id === "carbon" ? "var(--c2)" : "var(--s3)");
+    tr.innerHTML = `<td><button class="radio" type="button" role="radio" aria-label="${w.name}"></button></td>
+      <td class="num">${w.z}</td><td>${w.name} (${w.symbol})</td>
+      <td>${w.status}${w.id === "silicon" ? '<span class="dagger">†</span>' : ""}</td><td class="via"></td>`;
+    tr.addEventListener("click", () => selectWorld(w.id));
+    tr.querySelector(".radio").addEventListener("keydown", (e) => {
+      if (["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const other = w.id === "carbon" ? "silicon" : "carbon";
+        selectWorld(other);
+        tb.querySelector(`tr[data-world="${other}"] .radio`).focus();
+      }
+    });
+    tb.appendChild(tr);
+  }
+  for (const g of GREY) {
+    const tr = document.createElement("tr");
+    tr.className = "grey";
+    tr.innerHTML = `<td></td><td class="num">${g.z}</td><td>${g.name} (${g.el})</td><td>Not in this version</td><td class="via">${g.reason}</td>`;
+    tr.addEventListener("click", () => {
+      tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash");
+      announce(`${g.name} can’t be chosen: ${g.reason}.`);
+    });
+    tb.appendChild(tr);
+  }
+}
+
+/* ---------- Figure 1: axes ---------- */
+const axes = {};
+function buildControls() {
+  const root = $("controls");
+  for (const id of ORDER) {
+    const c = CONTROLS[id];
+    const wrap = document.createElement("div");
+    wrap.className = "ctl";
+    const tick = (v) => (id === "nitrogen" ? v.toLocaleString("en-GB") : String(v).replace("-", "−"));
+    wrap.innerHTML = `
+      <div class="ctl-head"><span id="lab-${id}">${symHTML(id)}, ${c.label}</span><output id="out-${id}"></output></div>
+      <div class="axis" id="axis-${id}" role="slider" tabindex="0" aria-labelledby="lab-${id}">
+        <div class="zone low"></div><div class="band"></div><div class="zone high"></div>
+        <div class="earth" style="left:${toT(id, c.earth) * 100}%"><span>⊕ Earth</span></div>
+        <div class="marker"></div>
+      </div>
+      <div class="ticks">${c.ticks.map((v) => `<span style="left:${toT(id, v) * 100}%">${tick(v)}</span>`).join("")}</div>
+      <div class="reason" id="reason-${id}"></div>
+      <p class="hint">${c.hint}</p>`;
+    root.appendChild(wrap);
+    const ax = wrap.querySelector(".axis");
+    axes[id] = ax;
+    const setFromX = (x) => { const r = ax.getBoundingClientRect(); setValue(id, fromT(id, (x - r.left) / r.width)); };
+    ax.addEventListener("pointerdown", (e) => { if (state.launching || state.gliding) return; ax.setPointerCapture(e.pointerId); setFromX(e.clientX); });
+    ax.addEventListener("pointermove", (e) => { if (ax.hasPointerCapture(e.pointerId)) setFromX(e.clientX); });
+    ax.addEventListener("keydown", (e) => {
+      if (state.launching || state.gliding) return;
+      const v = state.cond[id];
+      let nv = null;
+      const up = e.key === "ArrowRight" || e.key === "ArrowUp";
+      const down = e.key === "ArrowLeft" || e.key === "ArrowDown";
+      if (up || down || e.key === "PageUp" || e.key === "PageDown") {
+        const big = e.shiftKey || e.key.startsWith("Page");
+        const dir = up || e.key === "PageUp" ? 1 : -1;
+        nv = c.scale === "log" ? v * Math.pow(10, dir * (big ? 1 : 0.05)) : v + dir * (big ? c.big : c.step);
+      } else if (e.key === "Home") nv = c.min;
+      else if (e.key === "End") nv = c.max;
+      else if (e.key === "Enter") { generate(); return; }
+      if (nv !== null) { e.preventDefault(); setValue(id, nv); }
+    });
+  }
+}
+function setValue(id, v) {
+  const c = CONTROLS[id];
+  v = clamp(v, c.min, c.max);
+  if (id === "temperature") v = Math.round(v);
+  state.cond[id] = v;
+  render();
+}
+
+/* ---------- Render ---------- */
+function render() {
+  const w = WORLDS[state.world];
+  const cond = state.cond;
+  const live = canLive(w, cond);
+  document.body.dataset.world = w.id;
+  if ($("slotSym").textContent !== w.symbol) $("slotSym").textContent = w.symbol;
+
+  $("abstractText").innerHTML = w.id === "carbon"
+    ? "Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, carbon, is <i>known</i>: life as we know it, in water at Earth-like temperatures."
+    : "Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, silicon, is <i>speculative</i>: a cold world with liquid-nitrogen seas, which most chemists doubt.<span class=\"dagger\">†</span>";
+
+  document.querySelectorAll("tr.pick").forEach((tr) => {
+    const cw = WORLDS[tr.dataset.world];
+    const r = canLive(cw, cond);
+    const sel = cw.id === w.id;
+    tr.classList.toggle("sel", sel);
+    const radio = tr.querySelector(".radio");
+    radio.setAttribute("aria-checked", String(sel));
+    radio.tabIndex = sel ? 0 : -1;
+    const via = tr.querySelector(".via");
+    via.className = `via ${r.ok ? "ok" : "no"}`;
+    via.innerHTML = `<span class="sw"></span>${r.ok ? "Life can persist" : r.limit.reason}`;
+  });
+
+  for (const id of ORDER) {
+    const ax = axes[id];
+    const band = livingBand(w, cond, id);
+    const t = toT(id, cond[id]);
+    const low = ax.querySelector(".zone.low"), high = ax.querySelector(".zone.high"), bandEl = ax.querySelector(".band");
+    if (band.empty) {
+      low.style.left = "0%"; low.style.width = "100%"; high.style.width = "0%"; bandEl.style.width = "0%";
+    } else {
+      low.style.left = "0%"; low.style.width = `${band.low * 100}%`;
+      bandEl.style.left = `${band.low * 100}%`; bandEl.style.width = `${Math.max(0.8, (band.high - band.low) * 100)}%`;
+      high.style.left = `${band.high * 100}%`; high.style.width = `${(1 - band.high) * 100}%`;
+    }
+    ax.querySelector(".marker").style.left = `${t * 100}%`;
+    let inRed = null;
+    if (band.empty) inRed = band.blocking;
+    else if (t < band.low - 1e-9) inRed = band.lowReason;
+    else if (t > band.high + 1e-9) inRed = band.highReason;
+    ax.classList.toggle("in-red", !!inRed);
+    $(`reason-${id}`).textContent = inRed ? `${inRed}.` : "";
+    $(`out-${id}`).innerHTML = `${id === "oxygen" ? "x<sub>O2</sub>" : CONTROLS[id].sym} = ${fmt(id, cond[id])}`;
+    ax.setAttribute("aria-valuemin", String(CONTROLS[id].min));
+    ax.setAttribute("aria-valuemax", String(CONTROLS[id].max));
+    ax.setAttribute("aria-valuenow", String(Math.round(cond[id] * 100) / 100));
+    ax.setAttribute("aria-valuetext", `${fmt(id, cond[id])}, ${inRed ? "in a lethal interval: " + inRed : "inside " + w.name.toLowerCase() + "’s living band"}`);
+  }
+
+  if (w.id === "carbon") {
+    $("eqBody").innerHTML = `−50 °C ≤ T ≤ 122 °C,  N ≥ 0.05 × Earth`;
+    $("eqNote").innerHTML = `where 122 °C is the highest temperature at which any known organism grows [3]. ${live.ok ? "At present every bound holds." : `At present a bound fails: ${live.limit.reason.toLowerCase()}.`}`;
+  } else {
+    const need = nitrogenNeeded(cond.temperature);
+    const p = pvapN2(cond.temperature);
+    $("eqBody").innerHTML = `−210 °C ≤ T ≤ −147 °C<br>N ≥ P<sub>vap</sub>(T) / (g · 0.78 bar),  x<sub>O2</sub> ≤ 0.1 %`;
+    const liquidish = cond.temperature >= -210 && cond.temperature <= -147;
+    $("eqNote").innerHTML = liquidish
+      ? `where P<sub>vap</sub> is nitrogen’s vapour pressure [4] and g = 0.75. At ${fmt("temperature", cond.temperature)}, P<sub>vap</sub> = ${p.toFixed(2)} bar, so the seas need N ≥ ${fmt("nitrogen", need)}; the planet has ${fmt("nitrogen", cond.nitrogen)}.`
+      : `where P<sub>vap</sub> is nitrogen’s vapour pressure [4]. At ${fmt("temperature", cond.temperature)} nitrogen cannot form a liquid sea at all.`;
+  }
+
+  const sc = startingConditions(w, cond);
+  $("notice").innerHTML = sc.moved.length
+    ? `Note: ${w.name} life cannot persist here yet. Generating will set ${sc.moved.map((m) => `${m.id === "oxygen" ? "x<sub>O2</sub>" : CONTROLS[m.id].sym} to ${fmt(m.id, m.to)}`).join(" and ")}.`
+    : "";
+
+  $("boxCaption").innerHTML = `<b>Figure 2:</b> ${w.boxLabel}${w.id === "silicon" ? '<span class="dagger">†</span>' : ""}. Illustration, not to scale.`;
+  $("boxFail").textContent = live.ok ? "" : `Life cannot persist: ${live.limit.reason.toLowerCase()}.`;
+  $("footnote").innerHTML = w.id === "silicon"
+    ? `<span class="dagger">†</span> Speculative. Most chemists doubt this: almost nothing dissolves in liquid nitrogen, and chemistry there is extremely slow. Petkowski, Bains and Seager [2] conclude that no environment makes silicon-based life plausible. See <button type="button" class="linkbtn" id="appLink">Appendix A</button>.`
+    : `<span class="dagger">†</span> Silicon is speculative; select it in Table 1 for the reasoning and its caveat (Appendix A).`;
+  const appLink = $("appLink");
+  if (appLink) appLink.addEventListener("click", openAppendix);
+
+  window.dispatchEvent(new CustomEvent("selection:changed", { detail: { worldId: w.id, conditions: { ...cond } } }));
+}
+
+function selectWorld(id) {
+  if (state.launching || state.gliding || id === state.world) return;
+  state.world = id;
+  $("slotSym").textContent = "";
+  render();
+  announce(`${WORLDS[id].name} selected.`);
+}
+
+/* ---------- Appendix A ---------- */
+let lastFocus = null;
+function openAppendix() { lastFocus = document.activeElement; $("appScrim").hidden = false; $("appClose").focus(); }
+function closeAppendix() { $("appScrim").hidden = true; if (lastFocus) lastFocus.focus(); }
+$("appClose").addEventListener("click", closeAppendix);
+$("appScrim").addEventListener("click", (e) => { if (e.target === $("appScrim")) closeAppendix(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("appScrim").hidden) closeAppendix(); });
+
+/* ---------- Toast note ---------- */
+const toast = $("toast");
+function showToast(html, ms) {
+  toast.innerHTML = html;
+  toast.classList.add("show");
+  clearTimeout(showToast.t);
+  showToast.t = setTimeout(() => toast.classList.remove("show"), ms);
+}
+
+/* ---------- Glide the sliders ---------- */
+function glideTo(target, ms, done) {
+  const from = { ...state.cond };
+  const t0 = performance.now(), d = reduceMotion ? 1 : ms;
+  state.gliding = true;
+  const step = (now) => {
+    const k = ease(clamp((now - t0) / d, 0, 1));
+    for (const id of ORDER) {
+      if (CONTROLS[id].scale === "log") state.cond[id] = Math.pow(10, Math.log10(from[id]) + (Math.log10(target[id]) - Math.log10(from[id])) * k);
+      else state.cond[id] = from[id] + (target[id] - from[id]) * k;
+    }
+    render();
+    if (k < 1) requestAnimationFrame(step);
+    else { state.cond = { ...target }; state.gliding = false; render(); if (done) done(); }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- Standardise to optimum ---------- */
+function standardise() {
+  if (state.launching || state.gliding) return;
+  const w = WORLDS[state.world];
+  const opt = w.start;
+  const already = ORDER.every((id) => Math.abs(toT(id, state.cond[id]) - toT(id, opt[id])) < 1e-6);
+  const values = ORDER.map((id) => `${id === "oxygen" ? "x<sub>O2</sub>" : CONTROLS[id].sym} = ${fmt(id, opt[id])}`).join(", ");
+  if (already) { showToast(`Already at ${w.name.toLowerCase()}’s optimal starting conditions.`, 2200); return; }
+  glideTo(opt, 600, () => {
+    showToast(`Standardised to ${w.name.toLowerCase()}’s optimal starting conditions: ${values}.${w.id === "carbon" ? " Oxygen comes later, from life." : ""}`, 3200);
+    announce(`Standardised to ${w.name}'s optimal starting conditions.`);
+  });
+}
+$("standardise").addEventListener("click", standardise);
+
+/* ---------- Figure 2: particle box, simulated at 600 units, drawn at 150 px and upscaled with nearest-neighbour ---------- */
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(20261107);
+const S = 600, LO = 150, K = LO / S;
+const PAL = {
+  water: ["#04202B", "#0A4C5E", "#0F7A8A", "#1BA8AE", "#5DDCCF", "#C4FFEE"],
+  frost: ["#1E2C66", "#34549E", "#5C86CF", "#8FB6EC", "#CFE6FF", "#FFFFFF"],
+  carbon: ["#7A1622", "#D2332A", "#FF6A3D", "#FFB08A"],
+  silicon: ["#0B3A78", "#1B8FD6", "#3FE3F2", "#BFF8FF"],
+  oxygen: ["#5C0E4E", "#BE1F86", "#FF4FB0", "#FFC0E6"],
+  bone: ["#A8957C", "#D8CBB4", "#EFE6D4", "#FFFAEE"],
+  spark: ["#FF7A00", "#FFB300", "#FFF2A0"],
+};
+const box = $("box"), bctx = box.getContext("2d");
+bctx.imageSmoothingEnabled = false;
+const atoms = Array.from({ length: 26 }, () => ({ x: 90 + rnd() * 420, y: 400 + rnd() * 150, vx: 0, vy: 0, b: [], rock: 0, j: rnd() < 0.5 ? 0 : 1 }));
+const solvent = Array.from({ length: 170 }, () => ({ x: rnd() * S, y: 380 + rnd() * 210, vx: 0, vy: 0 }));
+const gasN2 = Array.from({ length: 44 }, () => ({ x: rnd() * S, y: rnd() * 320, vx: rnd() - 0.5, vy: rnd() - 0.5, a: rnd() * 6.28 }));
+const gasO2 = Array.from({ length: 26 }, () => ({ x: rnd() * S, y: rnd() * 320, vx: rnd() - 0.5, vy: rnd() - 0.5, a: rnd() * 6.28 }));
+const flashes = [];
+let poolNow = 0.42;
+
+function boxState(world, cond) {
+  const live = canLive(world, cond);
+  const effect = live.ok ? null : live.limit.effect;
+  let pool = 0.42, frozen = 0, phase = "liquid";
+  if (world.id === "carbon") {
+    if (cond.temperature < 0) frozen = Math.min(1, 0.3 + -cond.temperature / 70);
+    if (effect === "freeze") frozen = 1;
+  } else {
+    const need = nitrogenNeeded(cond.temperature);
+    if (cond.temperature < -210) { phase = "frozen"; frozen = 1; pool = 0.3; }
+    else if (cond.temperature > -147 || cond.nitrogen < need) { phase = "gas"; pool = 0; }
+    else pool = clamp(0.16 + 0.16 * Math.log10(cond.nitrogen / need), 0.12, 0.58);
+  }
+  const span = world.id === "carbon" ? [-60, 130] : [-213, -144];
+  const heat = clamp((cond.temperature - span[0]) / (span[1] - span[0]), 0, 1.3);
+  return { ok: live.ok, effect, pool, frozen, phase, heat, iceFloats: world.id === "carbon" };
+}
+function chainOf(i) {
+  const seen = new Set([i]), stack = [i];
+  while (stack.length) { const a = stack.pop(); for (const n of atoms[a].b) if (!seen.has(n)) { seen.add(n); stack.push(n); } }
+  return seen;
+}
+const unbond = (i, j) => { atoms[i].b = atoms[i].b.filter((x) => x !== j); atoms[j].b = atoms[j].b.filter((x) => x !== i); };
+
+function stepBox(st, dt) {
+  const world = WORLDS[state.world];
+  poolNow += (st.pool - poolNow) * Math.min(1, dt * 1.6);
+  const yPool = S * (1 - poolNow);
+  const frozenFx = st.effect === "freeze";
+  const speed = frozenFx ? 0.04 : 0.35 + 1.5 * st.heat;
+  const kick = () => (rnd() - 0.5) * speed * 2.2;
+  const nFrozen = Math.round(st.frozen * solvent.length);
+  const cols = 30, sp = S / cols;
+  solvent.forEach((p, k) => {
+    if (k < nFrozen && st.phase !== "gas") {
+      const row = Math.floor(k / cols), col = k % cols;
+      const ty = st.iceFloats ? yPool + 10 + row * sp * 0.8 : S - 10 - row * sp * 0.8;
+      const tx = col * sp + sp / 2;
+      p.x += (tx - p.x) * 0.08; p.y += (ty - p.y) * 0.08; p.vx = p.vy = 0;
+      return;
+    }
+    p.vx = (p.vx + kick()) * 0.86; p.vy = (p.vy + kick()) * 0.86;
+    p.x += p.vx; p.y += p.vy;
+    const top = st.phase === "gas" || poolNow < 0.03 ? 4 : yPool + 6;
+    if (p.x < 3) { p.x = 3; p.vx *= -1; } if (p.x > S - 3) { p.x = S - 3; p.vx *= -1; }
+    if (p.y < top) { p.y = top + (st.phase === "gas" ? 0 : (top - p.y) * 0.2); p.vy = Math.abs(p.vy); }
+    if (p.y > S - 3) { p.y = S - 3; p.vy *= -1; }
+  });
+  const nN2 = world.id === "carbon"
+    ? clamp(Math.round(8 + 7 * Math.log10(state.cond.nitrogen)), 0, gasN2.length)
+    : clamp(Math.round(10 + 10 * Math.log10(pvapN2(state.cond.temperature) + 0.05)), 2, gasN2.length);
+  const nO2 = state.cond.oxygen > 0 ? Math.max(1, Math.round((state.cond.oxygen / 40) * gasO2.length)) : 0;
+  const gasMove = (g) => {
+    g.x += g.vx * (0.6 + speed); g.y += g.vy * (0.6 + speed); g.a += 0.03 * speed;
+    const bottom = poolNow > 0.03 ? yPool - 8 : S - 8;
+    if (g.x < 8 || g.x > S - 8) g.vx *= -1;
+    if (g.y < 8) { g.y = 8; g.vy = Math.abs(g.vy); }
+    if (g.y > bottom) { g.y = bottom; g.vy = -Math.abs(g.vy); }
+    g.x = clamp(g.x, 8, S - 8);
+  };
+  for (let i = 0; i < nN2; i++) gasMove(gasN2[i]);
+  for (let i = 0; i < nO2; i++) gasMove(gasO2[i]);
+  const living = st.ok;
+  const pForm = living || st.effect === "starve" ? 0.05 : 0;
+  const pBreak = living ? 0.0015 : st.effect === "starve" ? 0.06 : st.effect === "shakeApart" ? 0.25 : st.effect === "dryUp" || st.effect === "rust" ? 0.01 : 0;
+  const maxLen = st.effect === "starve" ? 2 : 6;
+  const dry = st.phase === "gas" || poolNow < 0.05;
+  const isSi = world.id === "silicon";
+  atoms.forEach((a, i) => {
+    if (a.rock) {
+      a.vy += 0.25; a.vx *= 0.9; a.x += a.vx; a.y += a.vy;
+      if (a.y > S - 12) { a.y = S - 12; a.vy = 0; }
+      if (st.effect !== "rust" && rnd() < 0.004) a.rock = 0;
+      return;
+    }
+    if (frozenFx) { a.vx = a.vy = 0; return; }
+    if (dry) {
+      a.vy += 0.3; a.vx = (a.vx + kick() * 0.8) * 0.9;
+      a.x += a.vx; a.y += a.vy;
+      if (a.y > S - 12) { a.y = S - 12; a.vy = -Math.abs(a.vy) * 0.35 - rnd() * speed * 1.4; }
+    } else {
+      a.vx = (a.vx + kick()) * 0.9; a.vy = (a.vy + kick()) * 0.9;
+      for (const n of a.b) {
+        const o = atoms[n], dx = o.x - a.x, dy = o.y - a.y, d = Math.hypot(dx, dy) || 1;
+        const rest = isSi ? 28 : 24, f = (d - rest) * 0.03;
+        a.vx += (dx / d) * f; a.vy += (dy / d) * f;
+      }
+      a.x += a.vx; a.y += a.vy;
+      const top = yPool + 14;
+      if (a.y < top) { a.y = top; a.vy = Math.abs(a.vy); }
+      if (a.y > S - 12) { a.y = S - 12; a.vy = -Math.abs(a.vy); }
+    }
+    if (a.x < 12) { a.x = 12; a.vx = Math.abs(a.vx); } if (a.x > S - 12) { a.x = S - 12; a.vx = -Math.abs(a.vx); }
+    if (isSi && st.effect === "rust") {
+      for (let k = 0; k < nO2; k++) {
+        const g = gasO2[k];
+        if (Math.abs(g.x - a.x) < 40 && Math.abs(g.y - a.y) < 60 && rnd() < 0.02) { a.rock = 1; [...a.b].forEach((n) => unbond(i, n)); break; }
+      }
+    }
+  });
+  if (pBreak) atoms.forEach((a, i) => { [...a.b].forEach((n) => { if (n > i && rnd() < pBreak * dt * 60 * 0.2) unbond(i, n); }); });
+  if (pForm && !dry && !frozenFx) {
+    for (let i = 0; i < atoms.length; i++) {
+      const a = atoms[i];
+      if (a.rock || a.b.length >= 2) continue;
+      for (let j = i + 1; j < atoms.length; j++) {
+        const o = atoms[j];
+        if (o.rock || o.b.length >= 2 || a.b.includes(j)) continue;
+        if (Math.abs(o.x - a.x) > 32 || Math.abs(o.y - a.y) > 32) continue;
+        if (rnd() > pForm) continue;
+        const ca = chainOf(i);
+        if (ca.has(j)) continue;
+        if (ca.size + chainOf(j).size > maxLen) continue;
+        a.b.push(j); o.b.push(i);
+        break;
+      }
+    }
+  }
+  if (living) {
+    const done = new Set();
+    atoms.forEach((a, i) => {
+      if (done.has(i) || a.rock) return;
+      const ch = chainOf(i);
+      ch.forEach((k) => done.add(k));
+      if (ch.size >= 6 && rnd() < 0.005) {
+        const ends = [...ch].filter((k) => atoms[k].b.length === 1);
+        if (!ends.length) return;
+        let prev = -1, cur = ends[0];
+        for (let s = 0; s < 2; s++) { const next = atoms[cur].b.find((n) => n !== prev); prev = cur; cur = next; }
+        const nxt = atoms[cur].b.find((n) => n !== prev);
+        if (nxt === undefined) return;
+        unbond(cur, nxt);
+        flashes.push({ x: (atoms[cur].x + atoms[nxt].x) / 2, y: (atoms[cur].y + atoms[nxt].y) / 2, t: 0 });
+      }
+    });
+  }
+  return { nN2, nO2, yPool };
+}
+
+/* Pixel drawing helpers on the 150 px canvas */
+const px = (v) => Math.round(v * K);
+function dot(x, y, col, w = 1, h = 1) { bctx.fillStyle = col; bctx.fillRect(x, y, w, h); }
+function sprite(cx, cy, rows, cols) {
+  const h = rows.length, w = rows[0].length, ox = cx - (w >> 1), oy = cy - (h >> 1);
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) { const k = rows[r][c]; if (k !== ".") dot(ox + c, oy + r, cols[k]); }
+}
+const CARBON_SPRITE = [".11.", "1232", "1222", ".00."];     // 3-band round bead: light top-left, shadow below
+const SILICON_SPRITE = ["..w..", ".w12.", "w1210", ".110.", "..0.."];   // hard-cornered facet with a white rim on the lit edge
+const ROCK_SPRITE = ["123", "220", "100"];
+function line(x0, y0, x1, y1, col, thick) {
+  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1;
+  for (let i = 0; i <= n; i++) dot(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), col, thick, thick);
+}
+function ring(cx, cy, r, col) {
+  for (let a = 0; a < 24; a++) { const t = (a / 24) * Math.PI * 2; dot(Math.round(cx + Math.cos(t) * r), Math.round(cy + Math.sin(t) * r), col); }
+}
+
+function drawBox(st, info, now) {
+  const isSi = state.world === "silicon";
+  const F = isSi ? PAL.frost : PAL.water;
+  const loop = (now % 12000) / 12000;            // ambient layers loop every 12 s
+  // sky: two flat bands in the gas region
+  const yP = poolNow > 0.01 ? px(info.yPool) : LO;
+  dot(0, 0, F[3], LO, Math.max(0, Math.round(yP * 0.45)));
+  dot(0, Math.round(yP * 0.45), F[4], LO, Math.max(0, yP - Math.round(yP * 0.45)));
+  // liquid: three flat bands (surface light, base, deep), with loop-locked shimmer pixels
+  if (poolNow > 0.01) {
+    const depth = LO - yP;
+    const base = isSi ? F[3] : F[2], deep = isSi ? F[2] : F[1], surf = isSi ? F[4] : F[4];
+    dot(0, yP, base, LO, depth);
+    dot(0, yP + Math.round(depth * 0.62), deep, LO, depth);
+    if (st.frozen < 1) {
+      for (let x = 0; x < LO; x++) { const wv = Math.sin(x * 0.25 + loop * Math.PI * 2 * 3) > 0.6 ? -1 : 0; dot(x, yP + wv, surf); }
+      for (let k = 0; k < 6; k++) { const sx = Math.round((k * 27 + loop * LO * 2) % LO); dot(sx, yP + 2 + (k % 3) * 3, F[5], 2, 1); }
+    } else dot(0, yP, surf, LO, 1);
+  }
+  // solvent molecules
+  const nFrozen = Math.round(st.frozen * solvent.length);
+  const gasPhase = st.phase === "gas" || poolNow < 0.03;
+  solvent.forEach((p, k) => {
+    const x = px(p.x), y = px(p.y);
+    if (k < nFrozen && st.phase !== "gas") { dot(x - 1, y - 1, F[5], 2, 2); dot(x + 1, y, F[3]); return; }
+    dot(x, y, gasPhase ? F[1] : F[5]);
+  });
+  // gas molecules: nitrogen pairs, oxygen pairs
+  const pair = (g, col) => { const dx = Math.round(Math.cos(g.a) * 1.4), dy = Math.round(Math.sin(g.a) * 1.4); const x = px(g.x), y = px(g.y); dot(x - dx, y - dy, col); dot(x + dx, y + dy, col); };
+  for (let i = 0; i < info.nN2; i++) pair(gasN2[i], F[1]);
+  for (let i = 0; i < info.nO2; i++) { pair(gasO2[i], PAL.oxygen[2]); }
+  // bonds
+  atoms.forEach((a, i) => a.b.forEach((n) => {
+    if (n < i) return;
+    const o = atoms[n];
+    if (isSi) line(px(a.x), px(a.y), px(o.x), px(o.y), PAL.silicon[2], 1);
+    else line(px(a.x) - 1, px(a.y) - 1, px(o.x) - 1, px(o.y) - 1, PAL.carbon[1], 2);
+  }));
+  // atoms (silicon snaps to whole pixels; carbon may wobble a pixel, per the pixel art direction)
+  atoms.forEach((a) => {
+    const x = px(a.x), y = px(a.y);
+    if (a.rock) { sprite(x, y, ROCK_SPRITE, { 0: PAL.bone[0], 1: PAL.bone[1], 2: PAL.bone[2], 3: PAL.bone[3] }); return; }
+    if (isSi) sprite(x, y, SILICON_SPRITE, { 0: PAL.silicon[0], 1: PAL.silicon[1], 2: PAL.silicon[2], w: "#FFFFFF" });
+    else sprite(x + (Math.sin(now * 0.004 + a.j * 3) > 0.7 ? 1 : 0), y, CARBON_SPRITE, { 0: PAL.carbon[0], 1: PAL.carbon[1], 2: PAL.carbon[2], 3: PAL.carbon[3] });
+  });
+  // copy events: a spark pixel with a 1 px halo ring, no blur
+  for (let k = flashes.length - 1; k >= 0; k--) {
+    const f = flashes[k];
+    f.t += 0.03;
+    if (f.t >= 1) { flashes.splice(k, 1); continue; }
+    const x = px(f.x), y = px(f.y), r = 2 + Math.round(f.t * 6);
+    dot(x, y, PAL.spark[2]);
+    ring(x, y, r, PAL.spark[1]);
+    if (r > 3) ring(x, y, r + 1, PAL.spark[0]);
+  }
+  // region tags in the page's pixel font
+  const tagLiq = $("tagLiq");
+  if (poolNow > 0.06) {
+    tagLiq.hidden = false;
+    tagLiq.textContent = isSi ? (st.frozen >= 1 ? "solid nitrogen" : "liquid nitrogen") : st.frozen >= 1 ? "ice" : "liquid water";
+    tagLiq.style.top = `calc(${(yP / LO) * 100}% + 8px)`;
+  } else tagLiq.hidden = true;
+}
+
+/* ---------- Generate: glide, then zoom into the pixels and build the ground at 384×216 ---------- */
+function generate() {
+  if (state.launching || state.gliding) return;
+  const w = WORLDS[state.world];
+  const { moved, start } = startingConditions(w, state.cond);
+  window.dispatchEvent(new CustomEvent("world:selected", { detail: { worldId: w.id, requested: { ...state.cond } } }));
+  if (!moved.length) { state.launching = true; launch(); return; }
+  const first = moved[0];
+  showToast(`${w.name} life cannot survive at ${fmt(first.id, first.from)}, so this world starts at ${fmt(first.id, first.to)}.`, 2600);
+  glideTo(start, 800, () => { state.launching = true; setTimeout(launch, 450); });
+}
+const launchCanvas = $("launch"), lctx = launchCanvas.getContext("2d");
+const IW = 384, IH = 216;
+const low = document.createElement("canvas"); low.width = IW; low.height = IH;
+const lowctx = low.getContext("2d");
+let launchRun = null;
+function launch() {
+  const rect = $("frame").getBoundingClientRect();
+  const snap = document.createElement("canvas"); snap.width = LO; snap.height = LO;
+  snap.getContext("2d").drawImage(box, 0, 0);
+  const seeds = [...atoms, ...solvent].map((p) => ({ x: (p.x / S) * IW, y: (p.y / S) * IH }));
+  document.body.classList.add("launching");
+  launchRun = { t0: performance.now(), rect, snap, seeds, parts: [], world: state.world };
+}
+const terrainY = (x) => Math.round(IH * 0.62 + Math.sin(x * 0.03 + 1) * IH * 0.07 + Math.sin(x * 0.08 + 0.4) * IH * 0.03 + Math.sin(x * 0.19 + 2) * IH * 0.012);
+function drawLaunch(now) {
+  const L = launchRun;
+  const W = launchCanvas.clientWidth, H = launchCanvas.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (launchCanvas.width !== Math.round(W * dpr)) { launchCanvas.width = Math.round(W * dpr); launchCanvas.height = Math.round(H * dpr); }
+  lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  lctx.imageSmoothingEnabled = false;
+  const t = (now - L.t0) / 1000;
+  const isSi = L.world === "silicon";
+  const F = isSi ? PAL.frost : PAL.water;
+  const life = isSi ? PAL.silicon[2] : PAL.carbon[2];
+  lctx.fillStyle = F[0]; lctx.fillRect(0, 0, W, H);
+  if (t < 1.5) {
+    // push into Figure 2: its pixels grow
+    const k = ease(t / 1.5);
+    const size = Math.max(W, H) * 1.2;
+    const x = L.rect.left + (W / 2 - size / 2 - L.rect.left) * k;
+    const y = L.rect.top + (H / 2 - size / 2 - L.rect.top) * k;
+    const s = L.rect.width + (size - L.rect.width) * k;
+    lctx.drawImage(L.snap, Math.round(x), Math.round(y), Math.round(s), Math.round(s));
+    return;
+  }
+  // build the world at 384×216, then upscale by the largest integer factor
+  const g = lowctx;
+  for (let b = 0; b < 4; b++) { g.fillStyle = F[1 + b]; g.fillRect(0, Math.round((b * IH * 0.6) / 4), IW, Math.ceil((IH * 0.6) / 4) + 1); }
+  g.fillStyle = F[4]; g.fillRect(0, Math.round(IH * 0.6), IW, IH);
+  if (!L.parts.length) {
+    L.parts = L.seeds.map((p) => ({ x: p.x, y: p.y, tx: 0, ty: 0, life: rnd() < 0.08 }));
+    L.parts.forEach((p) => { p.tx = rnd() * IW; p.ty = terrainY(p.tx) + rnd() * IH * 0.36; });
+  }
+  if (t < 5 && L.parts.length < 5000) {
+    const n = L.parts.length;
+    for (let i = 0; i < n && L.parts.length < 5000; i++) {
+      const p = L.parts[i]; const tx = rnd() * IW;
+      L.parts.push({ x: p.x, y: p.y, tx, ty: terrainY(tx) + rnd() * IH * 0.36, life: rnd() < 0.05 });
+    }
+  }
+  const settle = clamp((t - 1.5) / 3.5, 0, 1);
+  const solid = t > 5;
+  if (solid) {
+    const seaY = Math.round(IH * 0.7);
+    g.fillStyle = isSi ? F[3] : F[2]; g.fillRect(0, seaY, IW, IH - seaY);
+    g.fillStyle = F[4]; g.fillRect(0, seaY, IW, 1);
+    for (let x = 0; x < IW; x++) {
+      const ty = terrainY(x);
+      g.fillStyle = isSi ? F[5] : PAL.bone[2]; g.fillRect(x, ty, 1, 2);           // lit edge
+      g.fillStyle = isSi ? F[4] : F[1]; g.fillRect(x, ty + 2, 1, Math.max(0, seaY - ty - 2));
+      g.fillStyle = isSi ? F[3] : F[0]; g.fillRect(x, Math.max(ty + 2, seaY - 10), 1, 0);
+    }
+  }
+  if (!solid || t < 5.6) {
+    for (const p of L.parts) {
+      p.x += (p.tx - p.x) * (0.02 + settle * 0.06);
+      p.y += (p.ty - p.y) * (0.02 + settle * 0.06);
+      g.fillStyle = p.life ? life : isSi ? F[5] : PAL.bone[2];
+      g.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }
+  }
+  const scale = Math.max(1, Math.floor(Math.min(W / IW, H / IH)));
+  const dw = IW * scale, dh = IH * scale;
+  lctx.drawImage(low, Math.round((W - dw) / 2), Math.round((H - dh) / 2), dw, dh);
+  if (t > 6.1 && $("endcard").hidden) {
+    $("endText").textContent = `The particles have become the ${WORLDS[L.world].name.toLowerCase()} world’s ground. From here it builds itself: seas fill, life appears, and the time-lapse runs. The character would spawn now.`;
+    $("endcard").hidden = false;
+    $("back").focus();
+  }
+}
+$("back").addEventListener("click", () => {
+  launchRun = null;
+  state.launching = false;
+  $("endcard").hidden = true;
+  document.body.classList.remove("launching");
+  render();
+  $("generate").focus();
+});
+$("generate").addEventListener("click", generate);
+
+/* ---------- Main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (!launchRun) {
+    const st = boxState(WORLDS[state.world], state.cond);
+    const info = stepBox(st, dt);
+    drawBox(st, info, now);
+  } else drawLaunch(now);
+  requestAnimationFrame(frame);
+}
+buildRows();
+buildControls();
+render();
+requestAnimationFrame(frame);
+</script>
