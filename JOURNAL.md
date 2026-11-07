@@ -30,3 +30,4 @@
 - 17:34: moons + no particles merged (cherry-pick of 6669a9e). 84 tests, 60fps. rw-scene on r4 (hero rim, far-forest thin, gc#3 fg-only, empty dunes, WORLD_DISC).
 - 17:40: scene r3 merged (7fbcb11): hero dark lowest rim, far forest -30%, spike crowns sparse/fg, heavy pod off scatter, basin dressing, WORLD_DISC r1900. 84 tests. rw-scene on r4 (clearings/groves, mid-ground life, fg-right silhouette).
 - 17:45: scene r4 merged (4631745): hero caps translucency capped, no 2nd titan in wedge, grove/clearing field, behind-start dressing, brighter explorer pods. 84 tests, 60fps. r5: height-aware fog, fg-right silhouette, mid-ground life, aerial density.
+- 17:49: USER: design creature variants (NMS-inspired, alive). Spawned rw-fauna: develop() from sim BodyGenes (session/logic genome.ts, 12 genes + comp) per DECISIONS G.1/F §3.3, IK gaits, 6-8 variants in fauna.html lab, review captures. Lab only, not in world yet.
