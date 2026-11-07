@@ -6,7 +6,7 @@
 // Smooth (?style=smooth): full resolution, no outline, soft bloom.
 // The inspect card's live view is NOT drawn here: the app draws its overlays after `render()`, straight to the canvas.
 import * as THREE from 'three/webgpu';
-import { Fn, pass, vec2, vec3, vec4, screenUV, screenSize, perspectiveDepthToViewZ, smoothstep, max, mix, float, uniform, floor } from 'three/tsl';
+import { Fn, pass, vec2, vec3, vec4, screenUV, screenSize, perspectiveDepthToViewZ, getViewPosition, smoothstep, max, mix, float, uniform, floor } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import type { VisualInputs } from '../worlds/types';
 import { LOOK, PAL, PIXEL } from './material';
@@ -18,6 +18,9 @@ export const INTERNAL_H = 360;
 // so the far field reads as haze rather than line noise.
 const FADE_FROM_PATCH = 0.3;
 const FADE_TO_FAR = 0.6;
+// Ink fades out as setPixelScale rises (Generate transition): full at <= 1.25, gone by 3, so chunky pixels stay clean.
+const INK_SCALE_FULL = 1.25;
+const INK_SCALE_GONE = 3;
 
 // TSL typing is loose in @types/three for node chains; keep it pragmatic.
 type N = any;
@@ -27,14 +30,14 @@ export interface Post {
   render(): void;
   /** Call on canvas resize with the CSS height (pixel mode picks the integer upscale factor from it). */
   resize(cssHeight: number): void;
-  /** Once per frame, before render: tracks the scene camera's near/far planes. */
+  /** Once per frame, before render: tracks the scene camera (planes, matrices) and the sea level for the sea mask. */
   update(inputs?: VisualInputs): void;
   /** Compile the scene's materials for the pass's own render target (its formats differ from the canvas). */
   compile(scene: THREE.Object3D, camera: THREE.Camera): Promise<void>;
   /**
    * Pixel-size multiplier on top of the ~360 px base (default 1; 4 = four times chunkier). Cheap to tween every frame:
    * the effective canvas-px-per-pixel is rounded to an integer, so the pass targets only resize when that integer
-   * changes. No-op under ?style=smooth.
+   * changes. The ink outline fades out from scale 1.25 to 3. No-op under ?style=smooth.
    */
   setPixelScale(scale: number): void;
 }
@@ -57,6 +60,13 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
   const nearU = uniform(cam.near);
   const farU = uniform(cam.far);
   const z = (uv: N): N => perspectiveDepthToViewZ(depth.sample(uv).r, nearU, farU).negate();
+  // Sea mask: the sea plane doesn't write depth, so from above the outline would trace the seabed through the water.
+  // Skip ink where this pixel's world height is under the sea surface while the camera is above it.
+  const projInvU = uniform(new THREE.Matrix4());
+  const camWorldU = uniform(new THREE.Matrix4());
+  const seaU = uniform(-1e9);
+  const camYU = uniform(0);
+  const inkScaleU = uniform(1); // 1 - smoothstep(INK_SCALE_FULL, INK_SCALE_GONE, pixelScale)
 
   pipeline.outputNode = Fn(() => {
     const c: N = color.sample(screenUV).rgb.toVar();
@@ -68,7 +78,9 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       const zn: N = z(screenUV.add(vec2(dx, dy).mul(texel)));
       edge = max(edge, zn.greaterThan(zc.mul(1.05).add(0.4)).select(float(1), float(0)));
     }
-    const fade: N = float(1).sub(smoothstep(LOOK.patch.mul(FADE_FROM_PATCH), farU.mul(FADE_TO_FAR), zc));
+    const worldY: N = camWorldU.mul(vec4(getViewPosition(screenUV, depth.sample(screenUV).r, projInvU), 1)).y;
+    const underSea: N = worldY.lessThan(seaU.sub(0.05)).and(camYU.greaterThan(seaU));
+    const fade: N = float(1).sub(smoothstep(LOOK.patch.mul(FADE_FROM_PATCH), farU.mul(FADE_TO_FAR), zc)).mul(underSea.select(float(0), float(1))).mul(inkScaleU);
     c.assign(mix(c, vec3(PAL.ink), edge.mul(fade)));
     // Stepped pixel bloom: sample at the internal pixel centre, quantise magnitude to quarter steps.
     const isz: N = screenSize.div(k);
@@ -101,11 +113,18 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     setPixelScale(scale) {
       if (!PIXEL || !(scale > 0)) return;
       pixelScale = scale;
+      const t = Math.min(1, Math.max(0, (scale - INK_SCALE_FULL) / (INK_SCALE_GONE - INK_SCALE_FULL)));
+      inkScaleU.value = 1 - t * t * (3 - 2 * t);
       applyK();
     },
-    update() {
+    update(inputs) {
       nearU.value = cam.near;
       farU.value = cam.far;
+      cam.updateMatrixWorld();
+      projInvU.value.copy(cam.projectionMatrixInverse);
+      camWorldU.value.copy(cam.matrixWorld);
+      camYU.value = cam.position.y;
+      seaU.value = inputs?.seaLevel ?? -1e9;
     },
     async compile(s, c) {
       const prev = renderer.getRenderTarget();
