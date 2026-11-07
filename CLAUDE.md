@@ -684,7 +684,7 @@ Do not start P1 work until every P0 item works on the demo laptop.
 - **Creatures (Caden):**
   1. `sim/genome.ts` (15 genes), `sim/develop.ts` and `sim/constants.ts`, with a test per genome.
   2. `sim/guide.ts`: OTU clustering, `guide:newForm` and the name generator.
-  - The engineering lead builds `sim/grid.ts`, `sim/ecology.ts` (grown from `population.ts`: the 12 rules, the 64² grid and per-cell flora biomass), `sim/relationships.ts` and `sim/metrics.ts` against these exports. See `docs/superpowers/plans/2026-11-07-backend-mvp.md` Task 5.
+  - `sim/grid.ts`, `sim/ecology.ts` (grown from `population.ts`: the 12 rules, the 64² grid and per-cell flora biomass), `sim/relationships.ts` and `sim/metrics.ts` (built: OTUs, mass spread, `trophicWeb`, FDis, Bray–Curtis) build against these exports. See `docs/superpowers/plans/2026-11-07-backend-mvp.md` Task 5.
   3. Bodies rendered as beads first (one instanced sphere per joint).
   4. Then the GPU pose passes, lofted bodies and IK legs.
   5. Then plant shapes from the flora grid (art layer).
