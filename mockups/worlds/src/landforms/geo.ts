@@ -77,7 +77,7 @@ export function buildSpire(o: SpireOpts): Geo {
   const { H, R, erosion: e, seed } = o;
   const bury = o.bury ?? Math.max(3, H * 0.03);
   const lean = o.lean ?? [0, 0];
-  const lumpAmp = mix(0.2, 0.13, e);
+  const lumpAmp = mix(0.28, 0.13, e);
   const lumpFreq = 1 / (R * mix(1.1, 2.2, e));
   const centre = (s: number): V3 => {
     const y = -bury + (H + bury) * s;
@@ -92,42 +92,36 @@ export function buildSpire(o: SpireOpts): Geo {
     param: (u) => mix(u, u * u, 0.35),
     radius: (s, th, c, dir) => {
       const t = clamp(c[1] / H);
-      const prof = spireProfile(t, o.horns ? Math.min(e, 0.3) : e) * R;
+      const prof = spireProfile(t, e) * R;
       // stacked lumps (bulbous when fresh) …
       const qx = c[0] + dir[0] * prof, qz = c[2] + dir[2] * prof;
       const lump = fbm3(qx * lumpFreq, c[1] * lumpFreq * 0.8, qz * lumpFreq, 3, seed + 3);
       // … vertical grooves + ragged notches when eroded
       const groove = ridged3(Math.cos(th) * 2.2, c[1] / (H * 0.07), Math.sin(th) * 2.2, 2, seed + 5) - 0.55;
       const notch = noise3(c[1] / (H * 0.025), th * 1.5, 3, seed + 6);
-      // fresh: stacked bulbs + lobes; eroded: grooves, ragged notches, side spurs and stepped ledges
-      const stack = Math.sin(c[1] / (R * mix(1.7, 3.2, e)) + 2.2 * noise3(c[0] * 0.05, c[1] * 0.02, c[2] * 0.05, seed + 8)) * 0.1 * (1 - e);
-      const lobes = noise3(Math.cos(th) * 1.5, c[1] / (R * 1.5), Math.sin(th) * 1.5, seed + 9) * 0.16 * (1 - e);
-      const spur = Math.max(0, noise3(th * 2.2, c[1] / (H * 0.035), 5, seed + 10) - 0.4) * 1.1 * e * e * e;
-      const stepY = c[1] / (H * 0.07), stepF = stepY - Math.floor(stepY);
-      const ledge = (noise3(Math.floor(stepY), 3, 3, seed + 11) * 0.5 + smoothstep(0.75, 1, stepF) * 0.12) * 0.22 * e * e;
-      const k = 1 + lump * lumpAmp + stack + lobes + spur + ledge + e * (groove * 0.34 + notch * 0.12) * smoothstep(0.02, 0.25, t);
+      const k = 1 + lump * lumpAmp + e * (groove * 0.34 + notch * 0.12) * smoothstep(0.02, 0.25, t);
       return Math.max(0.0001, prof * k);
     },
   });
   if (o.horns) {
-    const arms: Array<{ t0: number; sign: number; out: number; up: number }> = [
-      { t0: 0.9, sign: -1, out: 1.6, up: 3.2 }, { t0: 0.82, sign: 1, out: 2.2, up: 5.2 }, { t0: 0.68, sign: -1, out: 2.6, up: 4.4 },
+    const arms: Array<{ t0: number; sign: number; len: number; up: number }> = [
+      { t0: 0.84, sign: -1, len: 1.5, up: 2.2 }, { t0: 0.8, sign: 1, len: 1.7, up: 2.6 },
     ];
     for (const a of arms) {
-      const y0 = a.t0 * H, r0 = spireProfile(a.t0, Math.min(e, 0.3)) * R;
+      const y0 = a.t0 * H, r0 = spireProfile(a.t0, e) * R;
       const c0 = centre((y0 + bury) / (H + bury));
-      const L = r0 * a.out, U = r0 * a.up;
-      const p0: V3 = [c0[0] + a.sign * r0 * 0.5, y0, c0[2]];
-      const p1: V3 = [p0[0] + a.sign * (L + r0 * 0.5), p0[1] + r0 * 0.1, p0[2]];
-      const p2: V3 = [p0[0] + a.sign * (L + r0 * 0.5), p0[1] + U, p0[2]];
-      const rA = r0 * 0.4;
+      const L = Math.max(R * a.len, r0 * 2.2), U = R * a.up;
+      const p0: V3 = [c0[0] + a.sign * r0 * 0.4, y0, c0[2]];
+      const p1: V3 = [p0[0] + a.sign * L, p0[1] + U * 0.05, p0[2]];
+      const p2: V3 = [p0[0] + a.sign * L * 1.05, p0[1] + U, p0[2]];
+      const rA = Math.max(r0 * 0.5, R * 0.3);
       addTube(g, {
-        rings: Math.max(10, o.rings >> 3), radial: Math.max(8, o.radial >> 2), tag: 1, n0: [0, 0, 1],
+        rings: Math.max(8, o.rings >> 3), radial: Math.max(8, o.radial >> 2), tag: 1, n0: [0, 0, 1],
         center: (s) => {
           const q = 1 - s;
           return [q * q * p0[0] + 2 * q * s * p1[0] + s * s * p2[0], q * q * p0[1] + 2 * q * s * p1[1] + s * s * p2[1], q * q * p0[2] + 2 * q * s * p1[2] + s * s * p2[2]];
         },
-        radius: (s) => rA * (1 - 0.25 * s) * Math.sqrt(Math.max(0, 1 - Math.pow(smoothstep(0.86, 1, s), 2))),
+        radius: (s) => rA * (1 - 0.3 * s) * Math.sqrt(Math.max(0, 1 - Math.pow(smoothstep(0.86, 1, s), 2))),
       });
     }
   }
@@ -158,7 +152,7 @@ export function buildArch(o: ArchOpts): Geo {
       const crown = Math.pow(Math.sin(Math.PI * s), 1.3);
       const feet = 1 + 0.9 * Math.exp(-s * 12) + 0.9 * Math.exp(-(1 - s) * 12);
       const n = fbm3(c[0] / (o.R * 2.2) + dir[0], c[1] / (o.R * 2.2), c[2] / (o.R * 2.2) + dir[2], 3, o.seed + 7);
-      return o.R * (1 - 0.62 * crown) * feet * (1 + 0.16 * n);
+      return o.R * (1 - 0.5 * crown) * feet * (1 + 0.16 * n);
     },
   });
   return g;
