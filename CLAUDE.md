@@ -785,6 +785,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 
 | Path | Status |
 |---|---|
+| `docs/features/selection-screen.md`, `mockups/selection-screen/index.html` | The selection screen's design spec (draft, for the design partner) and its working mockup. Visual direction: a pixel-art research paper in Caden's pixel style (`docs/ART_DIRECTION_PIXEL.md`): element table, axes for the sliders, the particle box as a low-resolution pixel figure, a live bounds equation and a footnoted caveat. The zoom into the world keeps the same pixels. |
 | `docs/TRACK.md` | Still applies: the challenge text and our scoring rubric (`/judge`). The fps bar here (60) overrides its 50. |
 | `research/silicon-life/` | The evidence base for the silicon world. `REPORT.md` §3 and §10 have verified DOIs for Petkowski 2020, Bains 2004, NRC 2007 and Kan 2016. Its "off-limits" claims list applies to captions and the pitch. |
 | Art-direction docs and mockups | **The art layer**, separate from this file. It reads the logic through "Logic → art interface" and never adds logic. Caden sets which art doc is active. |
