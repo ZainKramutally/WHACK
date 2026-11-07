@@ -140,3 +140,43 @@ describe('real world configs', () => {
     expect(distToShore(t, state(), lvl, sp.x, sp.z)).toBeLessThanOrEqual(w.terrain.spawn.shoreDistance);
   });
 });
+
+describe('real world configs across seeds', () => {
+  const state: TerrainState = { rise: 1, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } };
+  // 10 spread-out seeds per world (the integration's ?seed=N picks arbitrary ones)
+  const seeds = [1, 2, 3, 7, 42, 99, 314, 1234, 31337, 987654];
+  it.each([['carbon', carbon], ['silicon', silicon]] as const)('%s: spawnPoint finds a shore and a reachable sea on every seed', (_n, w) => {
+    const [lo, hi] = w.targets.seaCover;
+    for (const seed of seeds) {
+      const t = createTerrain(w.terrain, seed);
+      for (const cover of [(lo + hi) / 200, 0.4]) {
+        const lvl = seaLevelForCover(t, state, cover);
+        const sp = spawnPoint(t, state, lvl);
+        expect(sp.shoreFound, `seed ${seed} cover ${cover}`).toBe(true);
+        expect(sp.height).toBeGreaterThan(lvl);
+        expect(distToShore(t, state, lvl, sp.x, sp.z)).toBeLessThanOrEqual(w.terrain.spawn.shoreDistance);
+        // the sea is reachable: walking from the spawn towards the sea along the ramp axis, every 1 m step is gentle (< 40°)
+        const R = t.params.ramp;
+        let prev = sp.height, reached = false;
+        for (let d = 1; d < 4 * w.terrain.spawn.shoreDistance && !reached; d++) {
+          const h = t.height(sp.x - R.ux * d, sp.z - R.uz * d, state);
+          expect(Math.abs(h - prev), `seed ${seed} step ${d}`).toBeLessThan(0.84);
+          reached = h < lvl;
+          prev = h;
+        }
+        expect(reached, `seed ${seed}`).toBe(true);
+      }
+    }
+  });
+  it('silicon: relics stand near the spawn, ahead of the default camera (it looks down -z), on every seed', () => {
+    for (const seed of seeds) {
+      const t = createTerrain(silicon.terrain, seed);
+      const lvl = seaLevelForCover(t, state, 0.45);
+      const sp = spawnPoint(t, state, lvl);
+      const near = t.relics.filter((r) => Math.hypot(r.position[0] - sp.x, r.position[1] - sp.z) < 140);
+      expect(near.length, `seed ${seed}`).toBeGreaterThanOrEqual(3);
+      const ahead = near.filter((r) => { const dx = r.position[0] - sp.x, dz = r.position[1] - sp.z; return dz < 0 && Math.abs(dx) < -dz * Math.tan(40 * Math.PI / 180); });
+      expect(ahead.length, `seed ${seed}`).toBeGreaterThanOrEqual(1);
+    }
+  });
+});

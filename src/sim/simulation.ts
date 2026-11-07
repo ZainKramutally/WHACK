@@ -452,16 +452,14 @@ export class WorldSimulation {
   }
 
   /**
-   * Where the character will stand (metres), computed the way the app does at spawnSec: the terrain state and sea level
-   * of that moment. A pure function of the world, so founders can be seeded next to it deterministically.
+   * Where the character will stand (metres). The seas keep filling after the character spawns (seasSec ends after spawnSec),
+   * so this is measured on the finished terrain at the final sea level: the spawn is then on land at the end of the build,
+   * not just at spawnSec. A pure function of the world, so founders can be seeded next to it deterministically.
    */
   spawnPointM(): { x: number; z: number } {
-    const b = this.world.build;
     if (!this.terrain) return { x: 0, z: 0 };
-    const progress = Math.min(1, b.spawnSec / b.durationSec);
-    const cover = (this.stats.seaCover / 100) * smoothstep(b.seasSec[0], b.seasSec[1], b.spawnSec);
-    const state = this.terrainState(Math.round(progress * 100) / 100, Math.round(this.stats.temperature));
-    const p = spawnPoint(this.terrain, state, this.seaLevel(progress, cover));
+    const state = this.terrainState(1, Math.round(this.stats.temperature));
+    const p = spawnPoint(this.terrain, state, this.seaLevel(1, this.stats.seaCover / 100));
     return { x: p.x, z: p.z };
   }
 

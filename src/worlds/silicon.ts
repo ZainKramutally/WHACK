@@ -335,20 +335,20 @@ export const silicon: WorldConfig = {
   },
   terrain: {
     patchSize: 400,
-    base: { amplitude: 24, frequency: 0.006, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.2, rampRange: 0.75, rampDetail: 0.25 },
-    spawn: { shoreDistance: 60 },
+    base: { amplitude: 30, frequency: 0.008, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.0, rampRange: 0.3, rampDetail: 0.3 },
+    spawn: { shoreDistance: 30 },
     heatSolventSpan: 40,   // −230..−190 °C maps to 0..1, so −210 °C (freezing) sits at 0.5
     machines: [
-      { id: 'M2', rate: 0.01, params: { rimHeight: 3, bandCenter: 0.2, bandWidth: 0.25, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
-      { id: 'M4', rate: 0.01, params: { depth: 10, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
-      { id: 'M5', rate: 0.01, params: { bandH: 6, sharpness: 0.6, strength: 0.6 } },                                            // strata terraces
+      { id: 'M2', rate: 0.01, params: { rimHeight: 2.5, bandCenter: 0.08, bandWidth: 0.2, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
+      { id: 'M4', rate: 0.01, params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
+      { id: 'M5', rate: 0.01, params: { bandH: 4, sharpness: 0.6, strength: 0.5 } },                                              // strata terraces
     ],
     relics: [
-      { kind: 'iceArch', count: 3, params: { height: 18, radius: 5, span: 24 } },
-      { kind: 'iceSpire', count: 5, params: { height: 25, radius: 6 } },
+      { kind: 'iceArch', count: 3, params: { height: 30, radius: 5, span: 22 } },
+      { kind: 'iceSpire', count: 5, params: { height: 34, radius: 5 } },
     ],
-    why: 'Placeholder terrain numbers, to be tuned by eye and by the spawn-shore test; the ice relics are seeded, not grown.',
-    sources: [],
+    why: 'Gentle relief (about 20 m) with 30 m relic ice towers on a 400 m patch: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye.',
+    sources: ['mastrogiuseppe2014'],
     assumption: true,
   },
   starType: 'G-type',

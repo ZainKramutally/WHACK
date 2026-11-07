@@ -2,7 +2,7 @@
 // Dev deep link: ?world=carbon|silicon skips the selection screen and starts that world with the control defaults.
 // Order matters when starting a world: build and subscribe everything, THEN emit world:selected.
 import { bus } from './bus';
-import { createTerrain, spawnPoint, type Terrain } from './gen/terrain';
+import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createWorldView } from './render/world';
@@ -27,7 +27,14 @@ function createTerrainSampler(world: WorldConfig, seed: number): TerrainSampler 
 }
 function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, world: WorldConfig): { x: number; z: number } {
   if (!('relics' in terrain)) return { x: 0, z: 0 };
-  const p = spawnPoint(terrain, terrainState(snapshot, world), snapshot.stats.seaLevel ?? 0);
+  // The seas keep filling after spawnSec, so find the shore on the finished terrain at the final cover (same as the sim's
+  // spawnPointM): the character then stands on land at the end of the build, not only at spawnSec.
+  const [s0, s1] = world.build.seasSec;
+  const u = Math.min(1, Math.max(0, (snapshot.timeSec - s0) / (s1 - s0)));
+  const fill = u * u * (3 - 2 * u);
+  const state = terrainState({ ...snapshot, buildProgress: 1 }, world);
+  const cover = fill > 0 ? snapshot.stats.seaCover / 100 / fill : snapshot.stats.seaCover / 100;
+  const p = spawnPoint(terrain, state, seaLevelForCover(terrain, state, cover));
   return { x: p.x, z: p.z };
 }
 

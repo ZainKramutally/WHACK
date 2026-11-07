@@ -303,16 +303,16 @@ export const carbon: WorldConfig = {
   },
   terrain: {
     patchSize: 400,
-    base: { amplitude: 30, frequency: 0.006, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.2, rampRange: 0.75, rampDetail: 0.25 },
-    spawn: { shoreDistance: 60 },
+    base: { amplitude: 80, frequency: 0.009, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.0, rampRange: 0.18, rampDetail: 0.2 },
+    spawn: { shoreDistance: 36 },
     heatSolventSpan: 120,   // −60..60 °C maps to 0..1, so 0 °C (freezing) sits at 0.5
     machines: [
-      { id: 'M3', rate: 0.01, params: { halfWidth: 0.2, finHeight: 8, finSpacing: 14, finWarp: 10, finSharp: 6, breakup: 0.35, uplandMin: 0.1 } },   // frost fins, hoodoos (water only, heatSolvent near 0.5)
-      { id: 'M4', rate: 0.01, params: { depth: 14, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons (progress = age × past liquid)
-      { id: 'M5', rate: 0.01, params: { bandH: 5, sharpness: 0.7, strength: 0.8 } },                                                              // strata terraces
-      { id: 'M6', rate: 0.01, params: { moundHeight: 4, bandCenter: -0.15, bandWidth: 0.3, moundFreq: 0.03, threshold: 0.5 } },                   // shell stone in the shallows
+      { id: 'M3', rate: 0.01, params: { halfWidth: 0.25, finHeight: 14, finSpacing: 14, finWarp: 10, finSharp: 6, breakup: 0.35, uplandMin: 0.1 } },   // frost fins, hoodoos (water only, heatSolvent near 0.5)
+      { id: 'M4', rate: 0.01, params: { depth: 18, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons (progress = age × past liquid)
+      { id: 'M5', rate: 0.01, params: { bandH: 6, sharpness: 0.7, strength: 0.8 } },                                                              // strata terraces
+      { id: 'M6', rate: 0.01, params: { moundHeight: 4, bandCenter: 0.1, bandWidth: 0.25, moundFreq: 0.03, threshold: 0.5 } },                  // shell stone in the shallows
     ],
-    why: 'Placeholder terrain numbers, to be tuned by eye and by the spawn-shore test.',
+    why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder.',
     sources: [],
     assumption: true,
   },

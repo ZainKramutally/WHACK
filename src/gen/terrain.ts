@@ -246,19 +246,27 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
   const m3Ang = rng() * Math.PI;
   const m4x = ((rng() * 2 - 1) * machines.M4!.offsetFrac) * S;
 
-  // relics (silicon only): seeded positions away from the ramp disc
+  // relics (silicon only): seeded positions in a ring just outside the ramp disc, biased to the default camera's side
+  // (yaw 0 looks down -z). The spawn sits within ~20 m of the ramp centre (the shore is where the ramp crosses sea level),
+  // so the ring puts a few relics 60-150 m from spawn and ahead of it. If the cone falls outside the patch, any direction does.
   const relics: Relic[] = [];
   const piers: TerrainParams['piers'] = [];
   const rrng = makeRng(seed)('relics');
+  const placed: [number, number][] = [];
   for (const rel of config.relics ?? []) {
     need(`relics.${rel.kind}.params`, rel.params, RELIC_KEYS[rel.kind]);
     for (let n = 0; n < rel.count; n++) {
       let x = 0, z = 0;
-      for (let tries = 0; tries < 60; tries++) {
-        x = (rrng() * 2 - 1) * 0.42 * S;
-        z = (rrng() * 2 - 1) * 0.42 * S;
-        if (Math.hypot(x - ramp.cx, z - ramp.cz) > ramp.rOut + rel.params.radius + (rel.params.span ?? 0)) break;
+      const ring = ramp.rOut + rel.params.radius + 0.5 * (rel.params.span ?? 0);
+      for (let tries = 0; tries < 90; tries++) {
+        const a = tries < 45 ? -Math.PI / 2 + (rrng() * 2 - 1) * (55 * Math.PI / 180) : rrng() * TWO_PI;
+        const rho = ring + rrng() * 70;
+        x = ramp.cx + Math.cos(a) * rho;
+        z = ramp.cz + Math.sin(a) * rho;
+        const clear = placed.every(([px, pz]) => Math.hypot(x - px, z - pz) > 40);
+        if (Math.abs(x) <= 0.46 * S && Math.abs(z) <= 0.46 * S && (clear || tries >= 75)) break;
       }
+      placed.push([x, z]);
       const angle = rrng() * Math.PI;
       const span = rel.kind === 'iceArch' ? rel.params.span : 0;
       relics.push({ kind: rel.kind, position: [x, z], params: { height: rel.params.height, radius: rel.params.radius, span, angle } });
