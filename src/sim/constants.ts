@@ -51,6 +51,18 @@ export const CONSTANTS = deepFreeze({
   SPORE_VIABILITY: c(0.5, 'game'),
   /** Climate fit never drops below this inside the living band (CLAUDE.md "Condition sliders": stressed near an edge, dead only at it); prefTemp still selects who thrives. */
   CLIMATE_FLOOR: c(0.9, 'game'),
+  /** R7/R5: cells within which a hunter can strike. */
+  REACH: c(1, 'game'),
+  /** Spores: they may germinate while fewer than this many animals live (issue #6). */
+  SPORE_BELOW: c(4, 'game'),
+  /** Founders start in this many shallow cells nearest the player's spawn. */
+  FOUNDER_CELLS: c(24, 'game'),
+  /** Share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1. */
+  EDGE_ZONE: c(0.1, 'game'),
+  /** population.ts: how far from its parent a child appears, as a share of the patch. */
+  SPAWN_SPREAD: c(0.03, 'game'),
+  /** population.ts: how far a consumer drifts per reference-time unit, as a share of the patch. */
+  WANDER: c(0.02, 'game'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;

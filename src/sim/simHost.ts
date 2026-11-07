@@ -6,8 +6,8 @@ import { WorldSimulation, type SimEvent } from './simulation';
 import { parseToWorker, snapshotTransferables, type FromWorker, type WorkerEvent } from './workerProtocol';
 
 export const SNAPSHOT_HZ = 20;
-const SLICE_TICKS = 64;     // ticks between clock checks while catching up
-const BUDGET_MS = 12;       // wall time one timer callback may spend ticking
+const SLICE_TICKS = 64; // implementation constant (DECISIONS §G.2 exempt): ticks between clock checks while catching up
+const BUDGET_MS = 12; // implementation constant (DECISIONS §G.2 exempt): wall time one timer callback may spend ticking
 
 export interface SimHostOptions {
   post(msg: FromWorker, transfer: Transferable[]): void;
@@ -101,7 +101,7 @@ function toWorkerEvent(e: SimEvent, worldId: 'carbon' | 'silicon'): WorkerEvent 
     case 'build:complete':
       return { name: e.type, payload: { worldId } };
     case 'control:blocked':
-      return { name: e.type, payload: { controlId: e.controlId, limitId: e.limitId } };
+      return { name: e.type, payload: e.start ? { controlId: e.controlId, limitId: e.limitId, start: true } : { controlId: e.controlId, limitId: e.limitId } };
     case 'guide:newForm':
       return { name: e.type, payload: { binId: e.binId, name: e.name, organismId: e.organismId } };
   }

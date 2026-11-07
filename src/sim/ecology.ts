@@ -70,16 +70,15 @@ export interface EcologyOptions {
   ledger?: Partial<EcologyLedger>;
 }
 
+// implementation constant (DECISIONS §G.2 exempt)
+// implementation constant (DECISIONS §G.2 exempt)
 const ACT = { rest: 0, forage: 1, hunt: 2, flee: 3, home: 4, bud: 5 } as const;
-const DECIDE_EVERY = 4; // an animal re-decides every 4th tick (staggered by index); it moves and eats every tick
-const RISK_EVERY = 40; // derived fields (risk, hunger) refresh every 2 s
-const FLORA_EVERY = 4; // flora (slow) updates every 4th tick with 4× the step
-const SCAN = 12; // an animal looks at no more than this many neighbours per cell (bounds crowded cells)
-const FOUNDER_CELLS = 24; // with a spawn hint, founders start in this many shallow cells nearest to it
-const SPORE_BANK = 24; // dormant genomes kept (issue #6)
-const SPORE_BELOW = 4; // spores may germinate while fewer than this many animals live
-const SPORES_PER_TICK = 8; // at most this many germinate in one tick
-const REACH = 1; // cells within which a hunter can strike
+const DECIDE_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): an animal re-decides every 4th tick (staggered by index); it moves and eats every tick
+const RISK_EVERY = 40; // implementation constant (DECISIONS §G.2 exempt): derived fields (risk, hunger) refresh every 2 s
+const FLORA_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): flora (slow) updates every 4th tick with 4× the step
+const SCAN = 12; // implementation constant (DECISIONS §G.2 exempt): an animal looks at no more than this many neighbours per cell (bounds crowded cells)
+const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
+const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -164,9 +163,9 @@ export class Ecology {
     let pool = spots.length ? spots : Array.from({ length: CELLS }, (_, i) => i);
     if (!spots.length) for (const i of pool) this.plant(i, 0.05);
     if (near) {
-      // Nearest first (ties by cell index, so it is deterministic); founders use only the closest FOUNDER_CELLS cells.
+      // Nearest first (ties by cell index, so it is deterministic); founders use only the closest CONSTANTS.FOUNDER_CELLS cells.
       const d2 = (c: number) => ((c % GRID) + 0.5 - near.x * GRID) ** 2 + (Math.floor(c / GRID) + 0.5 - near.y * GRID) ** 2;
-      pool = [...pool].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, FOUNDER_CELLS);
+      pool = [...pool].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, CONSTANTS.FOUNDER_CELLS.value);
     }
     this.founderPool = pool;
     const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
@@ -191,7 +190,7 @@ export class Ecology {
     if (!(this.dt > 0)) return;
     this.env = env;
     this.tick++;
-    if (this.living < SPORE_BELOW && this.spores.length > 0) this.germinate();
+    if (this.living < CONSTANTS.SPORE_BELOW.value && this.spores.length > 0) this.germinate();
     if (this.tick % RISK_EVERY === 1) this.refreshDerived();
     if (this.tick % FLORA_EVERY === 0) this.stepFlora(this.dt * FLORA_EVERY);
     this.dissolve();
@@ -562,7 +561,7 @@ export class Ecology {
       }
     } else if (act === ACT.hunt && this.tgt[i] >= 0) {
       const j = this.tgt[i];
-      if (this.alive[j] && this.id[j] === this.tgtId[i] && Math.hypot(this.x[j] - this.x[i], this.y[j] - this.y[i]) <= REACH) {
+      if (this.alive[j] && this.id[j] === this.tgtId[i] && Math.hypot(this.x[j] - this.x[i], this.y[j] - this.y[i]) <= CONSTANTS.REACH.value) {
         const pCatch = 1 - CONSTANTS.REFUGE.value * this.shelter(cellOf(this.x[j], this.y[j]));
         if (this.rnd() < Math.min(1, L.catchRate * dt) * pCatch) {
           const matter = this.struct[j] + this.energy[j];

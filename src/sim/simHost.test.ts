@@ -65,6 +65,8 @@ describe('SimHost', () => {
     f.host.handle({ type: 'selectWorld', worldId: 'silicon', requested: EARTH });
     const kinds = f.out.map((o) => (o.msg.type === 'event' ? o.msg.event.name : o.msg.type));
     expect(kinds).toEqual(['control:blocked', 'control:blocked', 'control:blocked', 'snapshot']);
+    const blocked = f.out.flatMap((o) => (o.msg.type === 'event' && o.msg.event.name === 'control:blocked' ? [o.msg.event.payload] : []));
+    for (const p of blocked) expect(p.start).toBe(true);
   });
 
   it('posts snapshots at 20 Hz and transfers the organism and flora buffers', () => {

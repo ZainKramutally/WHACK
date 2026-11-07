@@ -49,8 +49,8 @@ export interface LifeModel {
 }
 
 // Founder climate genes until the config carries them (issue #7): tolerance and oxygen need / cold stability.
-const FOUNDER_TOLERANCE = 8;
-const FOUNDER_CHEM = 0.5;
+const FOUNDER_TOLERANCE = 8; // implementation constant (DECISIONS §G.2 exempt)
+const FOUNDER_CHEM = 0.5; // implementation constant (DECISIONS §G.2 exempt)
 // Fallback nutrient supply per cell until the world configs carry it (read from life.ledger supplyC/supplySi/supplyO).
 const FALLBACK_SUPPLY = { c: 40, si: 0.4, o: 10 };
 

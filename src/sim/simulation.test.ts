@@ -150,6 +150,18 @@ describe('WorldSimulation', () => {
     expect(ca.conditions().temperature).toBeCloseTo(15, 9);
   });
 
+  it('flags only the world-start moves with start: true', () => {
+    const sim = new WorldSimulation(silicon, EARTH);
+    const atStart = sim.drainEvents();
+    expect(atStart).toHaveLength(3);
+    for (const e of atStart) expect(e).toMatchObject({ type: 'control:blocked', start: true });
+    sim.setControl('temperature', 100); // a drag into a red zone later on
+    const later = sim.drainEvents();
+    expect(later).toHaveLength(1);
+    expect(later[0]).toMatchObject({ type: 'control:blocked', controlId: 'temperature' });
+    expect('start' in later[0]).toBe(false);
+  });
+
   it('starts every control inside its living band, and keeps every snapshot field valid', () => {
     for (const w of [carbon, silicon]) {
       const sim = new WorldSimulation(quick(w), EARTH);

@@ -6,6 +6,7 @@ import type {
   BuildConfig, Conditions, ControlId, LivingBand, SimSnapshot, WorldConfig,
 } from '../worlds/types';
 import { controlList, controls } from '../worlds/controls';
+import { CONSTANTS } from './constants';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
 import { CELLS, GRID, liquidFromHeights } from './grid';
 import { FormTracker, type NewForm } from './guide';
@@ -25,15 +26,14 @@ import { makeRng } from './rng';
 export const TICK_HZ = 20;
 export const TICK_DT = 1 / TICK_HZ;
 
-const BAND_EVERY = 10;        // ticks between band refreshes used for edge stress (0.5 ecology s)
-const EDGE_POWER = 3;         // edge stress ramps as (1 − distance/zone)^3, so life persists in band and dies at the edge
-const EDGE_ZONE = 0.1;        // share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1
-const BLOCKED_REPEAT = 20;    // ticks before the same control may report "blocked" again while pinned at an edge
-const EPS = 1e-6;             // slack so float sums of frame times never lose a tick
-const EDGE_INSET = 1e-6;      // a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
-const LIQUID_MOVE_M = 0.25;   // sea level change (m) that rebuilds the ecology's liquid grid
-const LIQUID_PROGRESS = 0.05; // or this much more terrain rise
-const LIQUID_EVERY = 100;     // ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
+const BAND_EVERY = 10; // implementation constant (DECISIONS §G.2 exempt): ticks between band refreshes used for edge stress (0.5 ecology s)
+const EDGE_POWER = 3; // implementation constant (DECISIONS §G.2 exempt): edge stress ramps as (1 − distance/zone)^3, so life persists in band and dies at the edge
+const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): ticks before the same control may report "blocked" again while pinned at an edge
+const EPS = 1e-6; // implementation constant (DECISIONS §G.2 exempt): slack so float sums of frame times never lose a tick
+const EDGE_INSET = 1e-6; // implementation constant (DECISIONS §G.2 exempt): a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
+const LIQUID_MOVE_M = 0.25; // implementation constant (DECISIONS §G.2 exempt): sea level change (m) that rebuilds the ecology's liquid grid
+const LIQUID_PROGRESS = 0.05; // implementation constant (DECISIONS §G.2 exempt): or this much more terrain rise
+const LIQUID_EVERY = 100; // implementation constant (DECISIONS §G.2 exempt): ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
 
 /**
  * Cumulative ecology ticks that must have run `buildSec` seconds into the build. Pure and frame-independent.
@@ -64,7 +64,7 @@ export function buildSecOfTick(tick: number, cfg: Pick<BuildConfig, 'durationSec
 export type SimEvent =
   | { type: 'build:life' }
   | { type: 'build:complete' }
-  | { type: 'control:blocked'; controlId: ControlId; limitId: string }
+  | { type: 'control:blocked'; controlId: ControlId; limitId: string; start?: true }
   | ({ type: 'guide:newForm' } & NewForm);
 
 export interface SimOptions {
@@ -141,7 +141,7 @@ export class WorldSimulation {
     this.limitsEnv = { gravity: this.gravity, controls: controlList };
 
     const { start, moved } = startingConditions(world, requested, this.limitsEnv);
-    for (const m of moved) this.events.push({ type: 'control:blocked', controlId: m.controlId, limitId: m.limitId });
+    for (const m of moved) this.events.push({ type: 'control:blocked', controlId: m.controlId, limitId: m.limitId, start: true });
     this.stats.nitrogen = start.nitrogen;
     this.stats.oxygen = start.oxygen;
     this.orbitAU = orbitForTemperature(this.radNow(), start.temperature, start.nitrogen);
@@ -479,8 +479,8 @@ export class WorldSimulation {
       if (!(width > 0)) continue;
       const pos = (f(c[id]) - f(b.low)) / width;
       // Cubed ramp: negligible until the last few per cent of the band, then a cliff at the edge itself.
-      if (b.lowLimitId) stress = Math.max(stress, clamp01(1 - pos / EDGE_ZONE) ** EDGE_POWER);
-      if (b.highLimitId) stress = Math.max(stress, clamp01(1 - (1 - pos) / EDGE_ZONE) ** EDGE_POWER);
+      if (b.lowLimitId) stress = Math.max(stress, clamp01(1 - pos / CONSTANTS.EDGE_ZONE.value) ** EDGE_POWER);
+      if (b.highLimitId) stress = Math.max(stress, clamp01(1 - (1 - pos) / CONSTANTS.EDGE_ZONE.value) ** EDGE_POWER);
     }
     return clamp01(stress);
   }

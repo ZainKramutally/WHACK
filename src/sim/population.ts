@@ -8,6 +8,7 @@
 // Pure and deterministic: all randomness comes from the Rng passed in, organisms are visited
 // in index order, and every coefficient comes from LifeRules (which live in each world's config).
 
+import { CONSTANTS } from './constants';
 import { gaussian, type Rng } from './rng';
 import { ORGANISM_STRIDE, OrganismField } from './organismLayout';
 
@@ -93,10 +94,8 @@ export interface PopulationStats {
   traitAverages: Record<string, number>;
 }
 
-const GAS_CONSTANT = 8.314; // J/(mol·K)
-const KELVIN = 273.15;
-const SPAWN_SPREAD = 0.03; // how far from its parent a child appears, as a share of the patch
-const WANDER = 0.02; // how far a consumer drifts per reference-time unit, as a share of the patch
+const GAS_CONSTANT = 8.314; // J/(mol·K), universal constant // implementation constant (DECISIONS §G.2 exempt)
+const KELVIN = 273.15; // implementation constant (DECISIONS §G.2 exempt)
 
 export function arrheniusFactor(tempC: number, m: LifeRules['metabolism']): number {
   const t = tempC + KELVIN;
@@ -290,7 +289,7 @@ export class Population {
     // Births land after everyone has acted, so newborns first act next step.
     for (let b = 0; b < this.births.length; b++) this.birth(this.births[b], this.birthEnergy[b]);
 
-    const wander = WANDER * Math.min(1, dt);
+    const wander = CONSTANTS.WANDER.value * Math.min(1, dt);
     for (let i = 0; i < this.cap; i++) {
       if (!this.alive[i] || this.role[i] !== CONSUMER) continue;
       this.x[i] = wrap01(this.x[i] + wander * this.g());
@@ -396,8 +395,8 @@ export class Population {
     this.age[i] = 0;
     this.gen[i] = this.gen[p] + 1;
     this.id[i] = this.nextId++;
-    this.x[i] = wrap01(this.x[p] + SPAWN_SPREAD * this.g());
-    this.y[i] = wrap01(this.y[p] + SPAWN_SPREAD * this.g());
+    this.x[i] = wrap01(this.x[p] + CONSTANTS.SPAWN_SPREAD.value * this.g());
+    this.y[i] = wrap01(this.y[p] + CONSTANTS.SPAWN_SPREAD.value * this.g());
     this.living++;
   }
 }

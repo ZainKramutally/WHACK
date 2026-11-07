@@ -7,6 +7,7 @@ const G2_NAMES = [
   'KLEIBER', 'EYE_FRAC', 'EPS0', 'GEN_EXP', 'TSR_LAND',
   'SPORE_VIABILITY', // owner ruling, issue #6
   'CLIMATE_FLOOR', // bar-raiser #1: life persists inside the living band
+  'REACH', 'SPORE_BELOW', 'FOUNDER_CELLS', 'EDGE_ZONE', 'SPAWN_SPREAD', 'WANDER', // bar-raiser #8: tunables moved out of modules
 ];
 
 describe('constants budget', () => {

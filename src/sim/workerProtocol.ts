@@ -12,7 +12,7 @@ export type ToWorker =
 export type WorkerEvent =
   | { name: 'build:life'; payload: { worldId: WorldId } }
   | { name: 'build:complete'; payload: { worldId: WorldId } }
-  | { name: 'control:blocked'; payload: { controlId: ControlId; limitId: string } }
+  | { name: 'control:blocked'; payload: { controlId: ControlId; limitId: string; start?: true } }
   | { name: 'guide:newForm'; payload: NewFormEvent };
 
 export type FromWorker =
