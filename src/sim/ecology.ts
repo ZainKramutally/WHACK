@@ -77,6 +77,7 @@ const DECIDE_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): an 
 const RISK_EVERY = 40; // implementation constant (DECISIONS §G.2 exempt): derived fields (risk, hunger) refresh every 2 s
 const FLORA_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): flora (slow) updates every 4th tick with 4× the step
 const SCAN = 12; // implementation constant (DECISIONS §G.2 exempt): an animal looks at no more than this many neighbours per cell (bounds crowded cells)
+const FLORA_SEED = 1e-3; // implementation constant (DECISIONS §G.2 exempt): mat that survives lethal stress, from which flora regrows
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -213,7 +214,11 @@ export class Ecology {
     const { grid: g, L } = this;
     const P0 = CONSTANTS.P0.value;
     const hab = clamp01(this.env.habitat);
-    const decay = Math.min(1, L.floraDecay * dt);
+    // The lethal limits stress producers like animals: the same edge stress that kills animals (stressDeath·s²) strips flora
+    // and stops its growth at the edge of the living band, and is negligible inside it (cubic ramp).
+    const edge = clamp01(this.env.edgeStress);
+    const decay = Math.min(1, L.floraDecay * dt + this.rules.stressDeath * edge * edge * dt);
+    const vigour = 1 - edge;
     const sun = Math.min(1, this.env.light * L.floraLightGain);
     const cm = L.cellMass;
     for (let i = 0; i < CELLS; i++) {
@@ -221,9 +226,13 @@ export class Ecology {
       let b = g.mat[i];
       let can = g.canopy[i];
       if (decay > 0 && (b > 0 || can > 0)) {
-        this.returnMatter(i, (b + can) * decay * cm, 0);
-        b -= b * decay;
-        can -= can * decay;
+        // Under lethal stress a seed bank of mat survives (so the flora can regrow when conditions return); canopy does not.
+        const floor = edge > 0 ? Math.min(b, FLORA_SEED) : 0;
+        const bLoss = Math.min(b * decay, b - floor);
+        const cLoss = can * decay;
+        this.returnMatter(i, (bLoss + cLoss) * cm, 0);
+        b -= bLoss;
+        can -= cLoss;
       }
       const wet = g.liquid[i] > 0;
       const light = sun * Math.exp(-L.shadeK * can - L.waterAttn * g.liquid[i]);
@@ -236,12 +245,12 @@ export class Ecology {
       if (x < GRID - 1) { nb += g.mat[i + 1]; nn++; }
       if (y > 0) { nb += g.mat[i - GRID]; nn++; }
       if (y < GRID - 1) { nb += g.mat[i + GRID]; nn++; }
-      let grow = P0 * dt * hab * light * (b + L.spread * (nb / nn)) * (1 - b);
+      let grow = vigour * P0 * dt * hab * light * (b + L.spread * (nb / nn)) * (1 - b);
       grow = this.limit(i, grow, 1 - b);
       b += grow;
       let growC = 0;
       if (!wet) {
-        growC = P0 * dt * hab * sun * L.canopyRate * b * (1 - can);
+        growC = vigour * P0 * dt * hab * sun * L.canopyRate * b * (1 - can);
         growC = this.limit(i, growC, 1 - can);
         can += growC;
       }

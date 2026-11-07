@@ -226,7 +226,7 @@ export const silicon: WorldConfig = {
       side: 'below',
       model: 'seasEmpty',
       params: { minCover: 0 },
-      reason: 'Too little nitrogen for seas (speculative)',
+      reason: 'Seas boil away: too little nitrogen to hold them (speculative)',
       boxEffect: 'dryUp',
       why: 'A nitrogen sea can only exist if the planet has more nitrogen than its air can hold at this temperature; a smaller inventory boils away completely at a lower temperature.',
       sources: ['fulchignoni2005'],

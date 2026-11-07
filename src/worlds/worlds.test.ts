@@ -212,3 +212,11 @@ describe('air density inputs', () => {
     expect(w.life.inputs.airDensity.molarMass).toBeCloseTo(0.028, 3);
   });
 });
+
+describe('silicon limit labels', () => {
+  it('the seas-gone limit reads sensibly on both the Temperature and the Nitrogen track', () => {
+    const limit = silicon.limits.find((l) => l.id === 'seasGone')!;
+    expect(limit.reason).toMatch(/^Seas boil away/);
+    expect(limit.reason).toMatch(/speculative/);
+  });
+});

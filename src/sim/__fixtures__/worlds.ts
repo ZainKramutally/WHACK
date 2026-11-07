@@ -101,7 +101,7 @@ export const siliconFixture: WorldConfig = {
   limits: [
     limit({ id: 'seasFrozen', statId: 'temperature', side: 'below', model: 'solventFreezes', params: {}, reason: 'Seas freeze solid', boxEffect: 'freeze' }),
     limit({ id: 'pastCritical', statId: 'temperature', side: 'above', model: 'solventCritical', params: {}, reason: 'Above nitrogen\'s critical point', boxEffect: 'dryUp' }),
-    limit({ id: 'seasGone', statId: 'seaCover', side: 'below', model: 'seasEmpty', params: { minCover: 0 }, reason: 'Too little nitrogen for seas', boxEffect: 'dryUp' }),
+    limit({ id: 'seasGone', statId: 'seaCover', side: 'below', model: 'seasEmpty', params: { minCover: 0 }, reason: 'Seas boil away: too little nitrogen to hold them', boxEffect: 'dryUp' }),
     limit({ id: 'oxygenRusts', statId: 'oxygen', side: 'above', model: 'fixed', params: { value: 0.1 }, reason: 'Free oxygen turns silicon to rock', boxEffect: 'rust' }),
   ],
 };

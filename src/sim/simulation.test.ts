@@ -532,6 +532,35 @@ describe('WorldSimulation', () => {
     });
   });
 
+  describe('producers feel the lethal edge too', () => {
+    const flora = (sim: WorldSimulation) => sim.snapshot().flora.reduce((a, v) => a + v, 0);
+    const held = (hot: number) => {
+      const sim = new WorldSimulation(quick(carbon), EARTH);
+      sim.advance(6);
+      const before = flora(sim);
+      const o2 = sim.snapshot().stats.oxygen;
+      sim.setControl('temperature', hot);
+      sim.advance(12);
+      return { sim, before, after: flora(sim), o2, o2After: sim.snapshot().stats.oxygen };
+    };
+    it('at the hot edge the flora dies back to a seed bank and oxygen stops rising', () => {
+      const r = held(150);
+      expect(r.before).toBeGreaterThan(20);
+      expect(r.after).toBeLessThan(0.05 * r.before);
+      expect(r.o2After - r.o2).toBeLessThan(0.05);
+    });
+    it('well inside the band the flora is untouched', () => {
+      const r = held(70);
+      expect(r.after).toBeGreaterThan(0.8 * r.before);
+    });
+    it('and it regrows from the seed bank when conditions return', () => {
+      const r = held(150);
+      r.sim.setControl('temperature', 15);
+      r.sim.advance(40);
+      expect(flora(r.sim)).toBeGreaterThan(0.6 * r.before);
+    });
+  });
+
   describe('field guide events', () => {
     it.each([carbon, silicon])('announces each form once, not once per snapshot ($id)', (w: WorldConfig) => {
       // 6 s build with 100 ecology-seconds of life, snapshotted at 20 Hz as the worker does.
