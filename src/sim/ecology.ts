@@ -9,7 +9,8 @@
 import { CONSTANTS } from './constants';
 import { develop, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
 import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition } from './genome';
-import { CELLS, GRID, cellOf, type Grid } from './grid';
+import { CELLS, FLORA_STRIDE, GRID, cellOf, type Grid } from './grid';
+import { ORGANISM_STRIDE, packOrganism } from './organismLayout';
 import { pace, type Environment, type LifeRules } from './population';
 import { eatsIntensity, kinStrength } from './relationships';
 import { makeRng, gaussian, type Rng } from './rng';
@@ -98,6 +99,7 @@ export class Ecology {
   readonly genome: AnimalGenome[] = new Array(CAP);
   readonly plan: BodyPlan[] = new Array(CAP);
   readonly mode = new Uint8Array(CAP); // locomotion mode at the last move
+  readonly heading = new Float64Array(CAP); // radians, direction of the last move
   private readonly home = new Int32Array(CAP);
   private readonly act = new Uint8Array(CAP);
   private readonly tgt = new Int32Array(CAP).fill(-1);
@@ -467,6 +469,7 @@ export class Ecology {
         const ny = Math.min(GRID - 1e-6, Math.max(0, this.y[i] + (dy / dist) * step));
         const mode = this.bestMode(p, g.liquid[cellOf(nx, ny)]);
         if (mode !== LOCOMOTION.sessile) {
+          this.heading[i] = Math.atan2(ny - this.y[i], nx - this.x[i]);
           this.x[i] = nx; this.y[i] = ny; this.mode[i] = mode;
           const cost = Math.min(this.energy[i], L.moveCost * this.modeCost(p, mode) * mm * step);
           this.energy[i] -= cost;
@@ -584,6 +587,7 @@ export class Ecology {
     this.genome[slot] = genome;
     this.plan[slot] = plan;
     this.mode[slot] = plan.mode;
+    this.heading[slot] = 0;
     this.home[slot] = cellOf(this.x[slot], this.y[slot]);
     this.act[slot] = ACT.rest;
     this.tgt[slot] = -1;
@@ -605,10 +609,27 @@ export class Ecology {
     return this.births.splice(0, this.births.length);
   }
 
-  /** Per-cell flora biomass, interleaved [mat, canopy] per cell, row-major (SimSnapshot.flora). */
-  floraSnapshot(out = new Float32Array(2 * CELLS)): Float32Array {
-    for (let i = 0; i < CELLS; i++) { out[2 * i] = this.grid.mat[i]; out[2 * i + 1] = this.grid.canopy[i]; }
+  /** Per-cell flora biomass, interleaved [mat, canopy] per cell, FLORA_STRIDE floats each (SimSnapshot.flora). */
+  floraSnapshot(out = new Float32Array(FLORA_STRIDE * CELLS)): Float32Array {
+    for (let i = 0; i < CELLS; i++) { out[FLORA_STRIDE * i] = this.grid.mat[i]; out[FLORA_STRIDE * i + 1] = this.grid.canopy[i]; }
     return out;
+  }
+
+  /** Living animals as the SimSnapshot.organisms buffer (layout v2, positions 0..1 over the patch). */
+  packOrganisms(): { data: Float32Array; count: number } {
+    const data = new Float32Array(this.living * ORGANISM_STRIDE);
+    let n = 0;
+    for (let i = 0; i < CAP; i++) {
+      if (!this.alive[i]) continue;
+      const g = this.genome[i];
+      packOrganism(data, n++, {
+        x: this.x[i] / GRID, y: this.y[i] / GRID, role: 1, size: this.plan[i].scale / this.L.sizeRef,
+        prefTemp: g.climate.prefTemp, tolerance: g.climate.tolerance, chem: g.climate.chem,
+        energy: this.energy[i] / (2 * this.struct[i]), id: this.id[i], generation: this.gen[i],
+        heading: this.heading[i], mode: this.mode[i] as 0 | 1 | 2 | 3, body: g.body, comp: g.comp, lineage: g.lineage,
+      });
+    }
+    return { data, count: n };
   }
 
   /** Feedback drivers (Feedback.driver): producerBiomass is Σ flora biomass in cell units, consumerBiomass is Σ M. */

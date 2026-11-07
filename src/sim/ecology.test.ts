@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAP, Ecology, type EcologyEnv, type EcologyLedger } from './ecology';
-import { CELLS, GRID, createGrid } from './grid';
+import { CELLS, FLORA_STRIDE, GRID, createGrid, liquidFromHeights } from './grid';
+import { ORGANISM_STRIDE, readOrganism } from './organismLayout';
 import type { LifeRules } from './population';
 
 // Fixtures only: the real values live in each world's config (life.rules, life.ledger, life.inputs).
@@ -54,6 +55,36 @@ describe('Ecology: contract', () => {
     for (const i of living(eco)) expect(grid.liquid[Math.floor(eco.y[i]) * GRID + Math.floor(eco.x[i])]).toBeGreaterThan(0);
     expect(eco.drainBirths().length).toBe(eco.animals);
     expect(eco.drainBirths()).toHaveLength(0);
+  });
+});
+
+describe('Ecology: buffers and conventions', () => {
+  it('packs animals in layout v2 with positions in 0..1 and flora as interleaved [mat, canopy]', () => {
+    const { eco, grid } = make();
+    eco.seedLife(env);
+    run(eco, 400);
+    const { data, count } = eco.packOrganisms();
+    expect(count).toBe(eco.animals);
+    expect(data).toHaveLength(count * ORGANISM_STRIDE);
+    for (let k = 0; k < count; k++) {
+      const r = readOrganism(data, k);
+      expect(r.x).toBeGreaterThanOrEqual(0); expect(r.x).toBeLessThan(1);
+      expect(r.y).toBeGreaterThanOrEqual(0); expect(r.y).toBeLessThan(1);
+      expect(r.role).toBe(1);
+      expect(r.comp.c).toBeCloseTo(carbonComp.c);
+    }
+    const flora = eco.floraSnapshot();
+    expect(FLORA_STRIDE).toBe(2);
+    expect(flora).toHaveLength(8192);
+    const cell = 5 * GRID + 3; // row 5 (world z), col 3 (world x)
+    expect(flora[cell * FLORA_STRIDE]).toBeCloseTo(grid.mat[cell]);
+    expect(flora[cell * FLORA_STRIDE + 1]).toBeCloseTo(grid.canopy[cell]);
+  });
+  it('derives liquid depth from a height function at cell centres: col along x, row along y', () => {
+    const l = liquidFromHeights((x, y) => x * 10 + y, 5);
+    expect(l[0]).toBeCloseTo(5 - (0.5 / 64 * 10 + 0.5 / 64));
+    expect(l[63]).toBe(0); // col 63 is high ground at row 0
+    expect(l[63 * GRID]).toBeGreaterThan(0); // row 63, col 0: x small, y≈1 → height ≈ 1 → wet
   });
 });
 
