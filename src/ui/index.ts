@@ -6,7 +6,7 @@
 import './ui.css';
 import { mountCaptions } from './captions';
 import { mountConditions } from './conditions';
-import { DEFAULT_CONTROLS } from './controlDefaults';
+import { controlList } from '../worlds/controls';
 import { mountControlsHint } from './controlsHint';
 import { el } from './dom';
 import { mountFieldGuide } from './fieldGuide';
@@ -34,7 +34,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   const formNames = new Map<number, string>();
   const captions = mountCaptions(host, bus, world);
   const summary = mountSummaryCard(host, world);
-  const conditions = mountConditions(bus, world, opts.controls ?? DEFAULT_CONTROLS, () => summary.toggle());
+  const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
   const guide = mountFieldGuide(bus, formNames, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
   const inspect = mountInspectCard(host, bus, world, opts.otherWorld, formNames);
 

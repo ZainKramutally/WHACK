@@ -1,5 +1,6 @@
 // Slider viability (CLAUDE.md "Condition sliders"): pure, no side effects. Used by the worker and the selection screen.
 // The sim's kill conditions, the red zones and the element cells all read the same `world.limits` list through canLive.
+import { controlList } from '../worlds/controls';
 import type { Conditions, ControlDef, ControlId, LethalLimit, LivingBand, WorldConfig } from '../worlds/types';
 import {
   nitrogenWarming,
@@ -14,16 +15,9 @@ export type CanLive = { ok: true } | { ok: false; limit: LethalLimit };
 export interface LimitsEnv {
   /** Surface gravity in g. The worker passes the seeded sample; the selection screen uses the range midpoint. */
   gravity?: number;
-  /** Slider definitions. Defaults to FALLBACK_CONTROLS until worlds/controls.ts is wired in. */
+  /** Slider definitions. Defaults to the shared worlds/controls.ts. */
   controls?: readonly Pick<ControlDef, 'id' | 'min' | 'max' | 'scale'>[];
 }
-
-/** Same ranges as CLAUDE.md "Condition sliders" / worlds/controls.ts. Pass `env.controls` to override. */
-export const FALLBACK_CONTROLS: readonly Pick<ControlDef, 'id' | 'min' | 'max' | 'scale'>[] = [
-  { id: 'temperature', min: -250, max: 150, scale: 'linear' },
-  { id: 'nitrogen', min: 0.01, max: 1000, scale: 'log' },
-  { id: 'oxygen', min: 0, max: 40, scale: 'linear' },
-];
 
 export const CONTROL_ORDER: readonly ControlId[] = ['temperature', 'nitrogen', 'oxygen'];
 
@@ -38,7 +32,7 @@ function gravityOf(world: WorldConfig, env?: LimitsEnv): number {
 }
 
 function controlsOf(env?: LimitsEnv) {
-  return env?.controls ?? FALLBACK_CONTROLS;
+  return env?.controls ?? controlList;
 }
 
 function derivedParams<T>(world: WorldConfig, model: string, statId?: string): T | undefined {
