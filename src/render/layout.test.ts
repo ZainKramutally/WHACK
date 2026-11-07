@@ -4,7 +4,7 @@ import { worlds } from '../worlds';
 import { developInputsFor } from './counterpart';
 import {
   beadLayout, capsuleLayout, cellAt, cellCentre, floraShape, hash01, marchRay, nearestSphere, patchToWorld,
-  worldToPatch, FLORA_GRID, MAX_BEADS_PER_ORGANISM,
+  worldToPatch, FLORA_GRID, displayLength, displayFactor, MAX_BEADS_PER_ORGANISM,
 } from './layout';
 import type { AnimalGenome } from '../sim/genome';
 
@@ -99,5 +99,16 @@ describe('beadLayout', () => {
   });
   it('capsule fallback is a short worm', () => {
     expect(capsuleLayout(0.3).beads).toHaveLength(5);
+  });
+});
+
+describe('display scale', () => {
+  it('is monotonic and makes a 0.15–0.2 m worm clearly visible', () => {
+    expect(displayLength(0.15)).toBeCloseTo(1.8);
+    expect(displayLength(0.18)).toBeGreaterThan(1.8);
+    let prev = 0;
+    for (const s of [0.05, 0.15, 0.5, 1.5, 5, 10]) { const d = displayLength(s); expect(d).toBeGreaterThan(prev); prev = d; }
+    expect(displayLength(9.6) / displayLength(0.15)).toBeLessThan(20);
+    expect(displayFactor(0.15) * 0.15).toBeCloseTo(displayLength(0.15));
   });
 });

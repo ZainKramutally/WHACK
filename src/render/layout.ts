@@ -270,3 +270,20 @@ export function floraShape(mat: number, canopy: number): { count: number; height
     cap: canopy,
   };
 }
+
+// --- display scale (render-only illustration) ---------------------------------------------------------------
+// Real body lengths run from ~0.15 m worms to ~10 m giants, which makes typical animals invisible next to 1–2 m flora
+// from a 5 m follow camera. One rule for every creature: displayed length = DISPLAY_REF · (scale / BODY_REF)^DISPLAY_EXP.
+// It is monotonic, so bigger stays bigger; it compresses the ~64× real range to ~15×. Whole bodies scale together.
+export const BODY_REF = 0.15;     // m: the smallest founder worm
+export const DISPLAY_REF = 1.8;   // m: how long that worm is drawn
+export const DISPLAY_EXP = 0.6;
+
+export function displayLength(scale: number): number {
+  return DISPLAY_REF * Math.pow(Math.max(scale, 0.01) / BODY_REF, DISPLAY_EXP);
+}
+
+/** Multiplier from a plan's real size to its drawn size. */
+export function displayFactor(scale: number): number {
+  return displayLength(scale) / Math.max(scale, 0.01);
+}

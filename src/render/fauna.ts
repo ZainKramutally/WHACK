@@ -9,11 +9,11 @@ import { ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim
 import { unpackBodyPlan } from '../sim/plan';
 import { LOCOMOTION } from '../sim/develop';
 import {
-  beadLayout, capsuleLayout, nearestSphere, patchToWorld, type BeadLayout, type Vec3,
+  beadLayout, capsuleLayout, displayFactor, displayLength, nearestSphere, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import { creatureColour, type Tone } from './palette';
 
-const CAP = 40000;                // beads per mesh
+const CAP = 65536;                // beads per mesh
 const GLOW_MIN = 0.12;            // plan.glow above this goes to the glow mesh
 const FORGET_FRAMES = 180;        // drop cached plans for organisms unseen this long
 
@@ -31,7 +31,7 @@ export interface FaunaPart {
   hit(origin: Vec3, dir: Vec3): { id: number; dist: number } | null;
   /** World position and bounding radius of an organism by id, if drawn. */
   locate(id: number): { x: number; y: number; z: number; radius: number } | null;
-  /** Visual scale multiplier on body size (readability illustration; default 3). */
+  /** Extra multiplier on top of the display-scale rule in layout.ts (default 1). Render-only illustration. */
   scaleBoost: number;
   count: number;
   dispose(): void;
@@ -65,7 +65,7 @@ export function createFauna(app: App): FaunaPart {
   let pn = 0;
 
   const part: FaunaPart = {
-    scaleBoost: 3,
+    scaleBoost: 1,
     count: 0,
     update(dt, t, inputs, patch) {
       frame++;
@@ -128,9 +128,9 @@ export function createFauna(app: App): FaunaPart {
         const mode = buf[o + OrganismField.mode];
         const diet = buf[o + geneField('diet')];
         const ground = inputs.terrain.height(e.x, e.z);
-        const s = boost;
+        const s = boost * displayFactor(e.scale);
         let y0 = ground;
-        if (mode === LOCOMOTION.hover) y0 = ground + e.scale * s * (0.9 + 0.25 * Math.sin(t * 1.3 + id));
+        if (mode === LOCOMOTION.hover) y0 = ground + displayLength(e.scale) * boost * (0.9 + 0.25 * Math.sin(t * 1.3 + id));
         else if (mode === LOCOMOTION.swim && seaThere && ground < sea) y0 = ground + (sea - ground) * 0.35;
 
         const useGlow = e.glow > GLOW_MIN;
