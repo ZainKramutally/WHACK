@@ -13,6 +13,7 @@ import { VARIANTS } from './variants';
 import { stadium, type Path } from './path';
 import { buildHerd, type Individual } from './render';
 import { spineAt } from './rig';
+import { createLabCam } from './labcam';
 
 const q = new URLSearchParams(location.search);
 const view = q.get('view') ?? 'lineup';
@@ -230,6 +231,23 @@ if (view === 'strip') {
   }
   (window as any).__ready = true;
 } else {
+  // free camera for live views only; captures (fixed &t=, #capture, strips) keep the fixed framing
+  const FREE = fixedT === null && !location.hash.includes('capture');
+  let labcam: ReturnType<typeof createLabCam> | null = null;
+  let lastNow = performance.now();
+  const firstOf = (i: number) => individuals.findIndex((d) => d.plan === plans[i]);
+  const centreOfVariant = (i: number) => { const k = firstOf(i); return k >= 0 && herd.spines[k] ? spineAt(herd.spines[k], herd.spines[k].P.length / 2, true).p : null; };
+  const startLabCam = () => {
+    // orbit target = the default framing's look-at point, at the distance of the subject
+    const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+    const subj = view === 'lineup' ? [0, 2.6, explorerZ] : (centreOfVariant(pick) ?? [0, 0, 0]);
+    const d = camera.position.distanceTo(new THREE.Vector3(subj[0], subj[1], subj[2]));
+    const tgt = camera.position.clone().addScaledVector(dir, d);
+    return createLabCam({
+      camera, dom: renderer.domElement, target: [tgt.x, tgt.y, tgt.z], creatures: VARIANTS.length, centreOf: centreOfVariant,
+      select: pick, follow: view === 'one', autoRotate: view === 'one' ? 0.12 : 0,
+    });
+  };
   const t0 = performance.now();
   let frames = 0, fpsT = t0, fps = 0;
   renderer.setAnimationLoop(() => {
@@ -237,8 +255,13 @@ if (view === 'strip') {
     const t = fixedT ?? (now - t0) / 1000 + 4;
     U.time.value = t;
     herd.update(t);
-    if (view === 'one') placeCamera(t, 'orbit');
-    if (view === 'sky') skyCamera();
+    const dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+    if (labcam) labcam.update(dt);
+    else {
+      if (view === 'one') placeCamera(t, 'orbit');
+      if (view === 'sky') skyCamera();
+      if (FREE) labcam = startLabCam();
+    }
     post.render();
     frames++;
     if (now - fpsT > 1000) { fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; (window as any).__fps = fps; }
