@@ -1,10 +1,10 @@
-// The sim's tunables: DECISIONS.md §G.2, exactly the 18 initial constants. Budget: ≤ 25 (guardrail 5).
+// The sim's tunables: DECISIONS.md §G.2, exactly the 15 constants. Budget: ≤ 25 (guardrail 5).
 // Every addition costs a removal. Structure (GRID 64, TICK 20 Hz, CAP 1024) is not tunable and lives elsewhere.
 // Each entry: default value + tag. 'game' = a declared game-balance knob; 'sci' = sourced from the literature.
+// Solvent, air density and tissue density are world facts (WorldConfig.life.inputs), not constants.
 // Placeholders (marked "tune") are for the headless tuner; change the value here, never inline.
 
 export type ConstantTag = 'game' | 'sci';
-export type SolventKey = 'water' | 'liquidNitrogen';
 
 interface Constant<T> { readonly value: T; readonly tag: ConstantTag }
 
@@ -49,22 +49,6 @@ export const CONSTANTS = deepFreeze({
   GEN_EXP: c(0.25, 'sci'),
   /** R9: temperature–size magnitude for walkers (Forster 2012). */
   TSR_LAND: c(0.1, 'sci'),
-  /** R2, R10: solvent properties. ρ g/cm³, μ mPa·s, ε_r relative permittivity, band °C of the liquid. Handbook, recalled. */
-  SOLVENT: c(
-    {
-      water: { rho: 1.0, mu: 0.89, epsR: 80, band: [0, 100] },
-      liquidNitrogen: { rho: 0.81, mu: 0.16, epsR: 1.43, band: [-210, -147] },
-    } as Record<SolventKey, { rho: number; mu: number; epsR: number; band: [number, number] }>,
-    'sci',
-  ),
-  /**
-   * R1, R10: air density in develop()'s scale (a body of unbuoyed carbon tissue = 1), per world solvent.
-   * Earth's air (1.2 kg/m³) is the low value; the silicon world's 3.6 bar at −183 °C (about 13 kg/m³) is
-   * about 10× denser, scaled and compressed into F's range. [INFERRED]
-   */
-  AIR_RHO: c({ water: 0.1, liquidNitrogen: 0.4 } as Record<SolventKey, number>, 'sci'),
-  /** R10: tissue density, g/cm³. Carbon tissue about water; silicon bodies are mineral-dense. Recalled. */
-  TISSUE_RHO: c({ C: 1.05, Si: 2.2 }, 'sci'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;

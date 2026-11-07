@@ -6,18 +6,26 @@
 // fraction (F §3.3): si > 0.5 → silicon grammar (hex facets, rod limbs, 15° joints, dot eyes);
 // otherwise carbon grammar (round, curling, tentacle limbs, ring eyes). Continuous quantities (joint limit,
 // curl, hardness, tissue density) still vary smoothly with c and si, so a mixed body is a mixture, not a switch.
-import { CONSTANTS, type SolventKey } from './constants';
+import { CONSTANTS } from './constants';
 import type { AnimalGenome } from './genome';
 
 export const LOCOMOTION = { walk: 0, swim: 1, hover: 2, sessile: 3 } as const;
 export type LocomotionMode = (typeof LOCOMOTION)[keyof typeof LOCOMOTION];
 
-/** What the body is developing into. `light` and `heatBand` are 0..1; `airDensity` is in AIR_RHO's scale. */
+/** What the body is developing into. Both are 0..1. */
 export interface DevelopConditions {
   light: number; // starlight at the surface relative to the world's reference (clamped to 0..1)
   heatBand: number; // temperature within the world's living band, 0 = lower edge, 1 = upper edge
-  airDensity: number; // 0..1-ish, unbuoyed carbon tissue = 1 (see CONSTANTS.AIR_RHO)
-  solvent?: SolventKey; // the sea; defaults to 'water'
+}
+
+/**
+ * World facts develop() needs: the fields of WorldConfig.life.inputs (without their why/sources), with
+ * `airDensity` already scaled into develop()'s range (`airDensity.scale` × live P·M/(R·T)).
+ */
+export interface DevelopInputs {
+  solvent: { rho: number; mu: number; epsilonR: number; liquidBandC: [number, number] }; // g/cm³, mPa·s, –, °C
+  airDensity: number; // 0..1-ish, unbuoyed carbon tissue = 1
+  tissueDensity: { C: number; Si: number }; // g/cm³
 }
 
 export interface BodyPlan {
@@ -83,18 +91,20 @@ const G = {
   swimElongation: 0.6, // elongation cuts swim cost at high Re
   hardness: 0.5, // silicon hardness adds this × si to defence
   buoyDefence: 0.3,
+  reRef: { rho: 1.0, mu: 0.89 }, // water at 20 °C: the unit the Reynolds weight is anchored to (a scale, not a world fact)
 };
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const snap = (deg: number, step: number) => (step > 0 ? Math.round(deg / step) * step : deg);
 
-export function develop(genome: AnimalGenome, conditions: DevelopConditions): BodyPlan {
+export function develop(genome: AnimalGenome, conditions: DevelopConditions, inputs: DevelopInputs): BodyPlan {
   const { body, comp } = genome;
   const K = CONSTANTS;
   const light = clamp(conditions.light, 0, 1);
   const heat = clamp(conditions.heatBand, 0, 1);
-  const rhoAir = conditions.airDensity;
-  const sea = K.SOLVENT.value[conditions.solvent ?? 'water'];
+  const rhoAir = inputs.airDensity;
+  const sea = inputs.solvent;
+  const tissueRho = inputs.tissueDensity;
 
   // --- chemistry grammar -------------------------------------------------
   const silicon = comp.si > 0.5;
@@ -103,7 +113,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions): Bo
 
   // --- tissue density and size --------------------------------------------
   const siShare = comp.si / Math.max(1e-9, comp.c + comp.si); // o is not a structural tissue here
-  const tissue = K.TISSUE_RHO.value.C + (K.TISSUE_RHO.value.Si - K.TISSUE_RHO.value.C) * siShare;
+  const tissue = tissueRho.C + (tissueRho.Si - tissueRho.C) * siShare;
   const bodyDensity = (1 - body.buoy) * tissue * (1 + K.PLATE_MASS.value * body.plates);
 
   // Adult scale before the temperature–size rule, which depends on the locomotion mode chosen below.
@@ -133,9 +143,9 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions): Bo
   const segmentCount = Math.min(16, 3 + Math.round(13 * body.segments));
 
   // --- locomotion (R10): cheapest of walk / swim / hover / sessile ----------------
-  const rhoBodyScaled = bodyDensity / K.TISSUE_RHO.value.C; // unbuoyed carbon = 1, same scale as AIR_RHO
+  const rhoBodyScaled = bodyDensity / tissueRho.C; // unbuoyed carbon = 1, same scale as AIR_RHO
   const elongation = segmentCount / 12;
-  const reRel = ((sea.rho / sea.mu) / (SOLVENT_WATER.rho / SOLVENT_WATER.mu)) * baseScale; // Re vs water, size-weighted
+  const reRel = ((sea.rho / sea.mu) / (G.reRef.rho / G.reRef.mu)) * baseScale; // Re vs water, size-weighted
   const reWeight = clamp(1 + 0.25 * Math.log(reRel), 0, 2);
   const walk =
     (1 + G.crawlBase * Math.exp(-4 * legLenEff)) / (Math.sqrt(Math.max(1, nLegs)) * (1 + legLenEff));
@@ -211,5 +221,3 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions): Bo
     modeCosts,
   };
 }
-
-const SOLVENT_WATER = CONSTANTS.SOLVENT.value.water;
