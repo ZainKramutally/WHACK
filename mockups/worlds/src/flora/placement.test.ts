@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mulberry32, powerLaw, thomas, makeValley, valleyPoint, distToValley } from './placement';
+import { visibleCount, mulberry32, powerLaw, thomas, makeValley, valleyPoint, distToValley } from './placement';
 import { growFan } from './fan';
 
 const opts = { total: 200, parents: 9, parentAt: (r: () => number) => [r() * 40 - 20, -r() * 60] as [number, number], sigma: 2 };
@@ -59,5 +59,14 @@ describe('growFan', () => {
     const a = growFan(mulberry32(5), { levels: 5 }), b = growFan(mulberry32(5), { levels: 5 });
     expect(a).toEqual(b);
     expect(Math.max(...a.map((s) => s.y1))).toBeGreaterThan(1);
+  });
+});
+
+describe('visibleCount', () => {
+  it('counts instances below niche×1.1 in a sorted array', () => {
+    const r = new Float32Array([0.1, 0.3, 0.5, 0.7, 0.9]);
+    expect(visibleCount(r, 5, 0)).toBe(0);
+    expect(visibleCount(r, 5, 0.5)).toBe(3);
+    expect(visibleCount(r, 5, 1)).toBe(5);
   });
 });

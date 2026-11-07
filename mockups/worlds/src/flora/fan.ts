@@ -35,7 +35,7 @@ export function growFan(rng: Rng, o: FanOpts): FanSeg[] {
       const n = rng() < 0.45 ? 3 : 2;
       for (let k = 0; k < n; k++) {
         if (k > 0 && t.level >= 1 && rng() < prune) continue;
-        const f = n === 1 ? 0.5 : k / (n - 1);
+        const f = k / (n - 1);
         const ang = t.ang + (f - 0.5) * spread + (rng() - 0.5) * 0.14;
         next.push({ x: x1, y: y1, ang, len: t.len * decay * (0.85 + rng() * 0.3), w: w1, level: t.level + 1 });
       }
