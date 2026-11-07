@@ -13,3 +13,4 @@
 - ~17:48: field-guide merged (3186b98), 18 tests green; sandbox removed. genome-develop running.
 - ~17:55: genome-develop merged (38 tests), sandbox removed. Rebased onto 56's DECISIONS (15 constants); life.inputs typed; constants-inputs agent running.
 - ~18:10: open questions + follow-ups moved to GitHub issues #1–#24 (labels: decision, sim, worlds, terrain, player, ui, art-layer, coordination, eng-lead). CLAUDE.md links them.
+- ~18:35: owner ruled no phases (one ~20 s build, then live; light live feedbacks; fast-forward ecology; years counter kept; summary on demand; landing page elsewhere). CLAUDE.md rewritten (99ea010), contract types.ts (430ebd6), issues #10/#12 closed, #29–#33 opened. Pushed. Wave 1 spawned: scaffold, worlds, models-limits, terrain, ecology, layout-metrics, player, ui-world.
