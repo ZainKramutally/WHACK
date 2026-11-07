@@ -17,6 +17,12 @@
 //   silicon    spire   (mixed: 2 branches; crystalGround 0–3              shardTree 0,2,3 (bright) /           bright: prismTitan 0 plates, 3 pagoda
 //                       canopy: 4)                                        1,2,3 (dim: glowing pods)            dim: prismTitan 1 lanterns, 2 candelabra
 //
+//   Which rows a cell uses (place.ts): its MAT pool draws the ground column of its own form (tuft / dome / crust, or
+//   the ground column of capped / cup / spire); its CANOPY pool draws the mid and giant columns of the tall form for
+//   the same light and heat (formForBin with the mix raised), sized and counted by canopy biomass. A canopy-dominant
+//   bin makes a giant likelier. (On the demo seeds ~90% of land cells are mat-dominant, so gating tall plants on the
+//   share bin alone would leave no giants at all.)
+//
 //   Silicon archetypes are straight hex prisms with 60° branches and flat (faceted) normals, never curled (no coil,
 //   weeper, crinoid or bezier stems). Curl appears only on carbon. Bright light → wide caps (parasol titans, hex
 //   plates); dim → lantern pods whose glow sites light up with form.glow. Height: heatBand via form.heightScale picks

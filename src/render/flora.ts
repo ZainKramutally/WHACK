@@ -4,10 +4,11 @@
 // position (floraLib/place.ts). Drawn as one InstancedMesh per (archetype × LOD × value × 100 m chunk), so far chunks
 // frustum-cull. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
 import * as THREE from 'three/webgpu';
-import { attribute, float } from 'three/tsl';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
+import { worldMaterial } from './material';
+import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache } from './floraLib/place';
 
 const LIB_SEED = 0x5eed_f10a;
@@ -16,12 +17,6 @@ const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
 const CHUNKS = 4; // per side of the patch
 const UP = new THREE.Vector3(0, 1, 0);
-
-// TODO(art-look): replace with LOOK_PALETTES[lookKind(...)] from palette.ts once WP1's palette lands (same values).
-const PALETTES: Record<'carbon' | 'silicon', FloraPalette> = {
-  carbon: { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a },
-  silicon: { ink: 0x0e0822, maroon: 0x34245e, crimson: 0x7660a8, blush: 0xa8c4f0, bone: 0xf4f6fc, glow: 0x7af2ff, glowDeep: 0x3a6ee0 },
-};
 
 export interface FloraPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
@@ -32,16 +27,6 @@ export interface FloraPart {
   /** ms spent in the last rebuild. */
   rebuildMs: number;
   dispose(): void;
-}
-
-// TODO(art-look): swap for worldMaterial({ kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway',
-// translucent: true }) from ./material once WP1's stub lands. Until then: vertex colour + HDR glow from aGlow.
-function floraMaterial(): THREE.Material {
-  const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide });
-  const c = attribute('color', 'vec3');
-  m.colorNode = c;
-  m.emissiveNode = c.mul(attribute('aGlow', 'float').mul(float(3)));
-  return m;
 }
 
 /** A painted geometry: one archetype × LOD × value step, shared by every chunk mesh that draws it. */
@@ -55,13 +40,16 @@ interface Look {
 
 interface Bucket {
   mesh: THREE.InstancedMesh;
-  scale: THREE.InstancedBufferAttribute;
   cap: number;
 }
 
 export function createFlora(app: App): FloraPart {
   const lib = buildFloraLibrary(LIB_SEED);
-  const material = floraMaterial();
+  // One world material for every plant (cel terminator, translucency, fog, sway from aSway, HDR glow from aGlow).
+  // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets.
+  const material = worldMaterial({ kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', translucent: true, side: THREE.DoubleSide });
+  // Vertex colours are the unmodulated look palette; the material applies the star (palette.ts LOOK_PALETTES).
+  const PALETTES: Record<'carbon' | 'silicon', FloraPalette> = { carbon: LOOK_PALETTES.carbon, silicon: LOOK_PALETTES.silicon };
   const group = new THREE.Group();
   group.name = 'flora';
   app.scene.add(group);
@@ -87,20 +75,17 @@ export function createFlora(app: App): FloraPart {
     let b = buckets.get(id);
     if (b && b.cap >= need) return b;
     const cap = Math.max(16, 1 << Math.ceil(Math.log2(need)));
-    // per-mesh geometry that shares every vertex attribute with the look, plus its own instanced aScale
+    // per-mesh geometry that shares every vertex attribute (and the index) with the look
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(look.geometry.attributes)) g.setAttribute(name, attr);
     g.setIndex(look.geometry.index);
-    const scale = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
-    scale.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('aScale', scale);
     const mesh = new THREE.InstancedMesh(g, material, cap);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
     mesh.name = `${look.arch.key}/L${look.lod}${look.dark ? 'd' : ''}@${chunk}`;
     if (b) group.remove(b.mesh); // its geometry shares the look's buffers: never dispose it here
     group.add(mesh);
-    b = { mesh, scale, cap };
+    b = { mesh, cap };
     buckets.set(id, b);
     return b;
   }
@@ -116,7 +101,6 @@ export function createFlora(app: App): FloraPart {
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
     g.setIndex(L.geometry.index);
-    g.setAttribute('aScale', new THREE.InstancedBufferAttribute(new Float32Array([1e-4]), 1));
     const w = new THREE.InstancedMesh(g, material, 1);
     w.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0));
     w.frustumCulled = false;
@@ -154,7 +138,7 @@ export function createFlora(app: App): FloraPart {
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
 
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights);
-      const pal = PALETTES[inputs.world.composition.si > 0.5 ? 'silicon' : 'carbon'];
+      const pal = PALETTES[lookKind(inputs.world.composition)];
       counts.fill(0); maxH.fill(0); lookGlow.fill(0);
       const half = patch / 2, chunkW = patch / CHUNKS;
       for (let i = 0; i < list.n; i++) {
@@ -203,14 +187,12 @@ export function createFlora(app: App): FloraPart {
         let ma = arr.get(id);
         if (!ma) { ma = b.mesh.instanceMatrix.array as Float32Array; arr.set(id, ma); }
         m4.toArray(ma, k * 16);
-        (b.scale.array as Float32Array)[k] = s;
       }
       for (const [id, b] of buckets) {
         const n = fill[id] ?? 0;
         if (!n) continue;
         b.mesh.count = n;
         b.mesh.instanceMatrix.needsUpdate = true;
-        b.scale.needsUpdate = true;
       }
       if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
       part.plants = list.n;

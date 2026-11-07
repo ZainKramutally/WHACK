@@ -44,15 +44,25 @@ export function makePlantList(cap = MAX_PLANTS): PlantList {
 
 const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-/** Low-frequency grove field 0..1 (value noise on a 6-cell lattice): mid species gather where it is high. */
-export function groveAt(col: number, row: number): number {
-  const L = 6, gx = col / L, gz = row / L;
+/** Smooth value noise 0..1 over flora cells on an L-cell lattice. */
+function noiseAt(col: number, row: number, L: number, salt: number): number {
+  const gx = col / L, gz = row / L;
   const x0 = Math.floor(gx), z0 = Math.floor(gz), fx = gx - x0, fz = gz - z0;
-  const v = (i: number, j: number) => hash01(i + 1000, j + 1000, 77);
+  const v = (i: number, j: number) => hash01(i + 1000, j + 1000, salt);
   const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
   const a = v(x0, z0) + (v(x0 + 1, z0) - v(x0, z0)) * sx;
   const b = v(x0, z0 + 1) + (v(x0 + 1, z0 + 1) - v(x0, z0 + 1)) * sx;
-  return smooth(0.35, 0.75, a + (b - a) * sz);
+  return a + (b - a) * sz;
+}
+
+/** Low-frequency grove field 0..1 (6-cell lattice, ~37 m): mid species gather where it is high. */
+export function groveAt(col: number, row: number): number {
+  return smooth(0.35, 0.75, noiseAt(col, row, 6, 77));
+}
+
+/** Ground-cover clumps (4-cell lattice, ~25 m): 0.25 in the gaps, 1 in the clumps, so plain ground shows between. */
+export function clumpAt(col: number, row: number): number {
+  return 0.25 + 0.75 * smooth(0.3, 0.6, noiseAt(col, row, 4, 78));
 }
 
 /**
@@ -158,8 +168,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const x = cc.x + (hash01(c, k, 31) - 0.5) * cell, z = cc.z + (hash01(c, k, 32) - 0.5) * cell;
           const d = Math.hypot(x - cam.x, z - cam.z);
           const fg = k >= base;
-          // foreground extras fade out between 20 and 30 m; base cover thins with distance (stable per-plant threshold)
-          const keep = fg ? 1 - smooth(FOREGROUND_R - 10, FOREGROUND_R, d) : 1 - smooth(THIN_START, THIN_END, d);
+          // foreground extras fade out between 20 and 30 m; base cover thins with distance and gathers into clumps
+          // (stable per-plant threshold)
+          const keep = fg ? 1 - smooth(FOREGROUND_R - 10, FOREGROUND_R, d) : (1 - smooth(THIN_START, THIN_END, d)) * clumpAt(col, row);
           if (hash01(c, k, 33) >= keep) continue;
           const y = yAt(c * SLOTS + GROUND_SLOT + k, x, z);
           if (y >= sea && !inputs.lifeOnLand) continue;
