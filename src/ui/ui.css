@@ -116,3 +116,6 @@
 /* Seed line at the bottom of the Conditions panel */
 .wu-seed { margin: 14px 0 0; font-size: 12px; color: var(--wu-dim); }
 .wu-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Eased live value shown while it catches up with the slider's target */
+.wu-ghost { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 2px solid var(--wu-dim); background: transparent; pointer-events: none; }

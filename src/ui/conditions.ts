@@ -3,12 +3,14 @@
 import { el } from './dom';
 import { formatValue, formatYears } from './format';
 import { clampToBand, fracToValue, redSegments, valueToFrac } from './sliderMath';
+import { newTarget, nudgedValue, setTarget, syncLive, type SliderTarget } from './sliderTarget';
 import { listen, type UiBus } from './uiBus';
 import type { ControlDef, ControlId, LivingBand, SimSnapshot, WorldConfig } from '../worlds/types';
 
 const STEP = 0.01; // keyboard / D-pad step, as a fraction of the track
 const REASON_MS = 3000;
 const PULSE_MS = 600;
+const GHOST_MIN_FRAC = 0.005; // show the live ghost once it is half a percent of the track from the target
 
 interface SliderView {
   def: ControlDef;
@@ -19,7 +21,11 @@ interface SliderView {
   chips: HTMLElement;
   readout: HTMLElement;
   reason: HTMLElement;
+  /** What the thumb and readout show: the player's target. The sim's eased live value is the `live` ghost. */
   value: number;
+  live: number;
+  ghost: HTMLElement;
+  st: SliderTarget;
   band: LivingBand | null;
   dragging: boolean;
   reasonTimer?: ReturnType<typeof setTimeout>;
@@ -67,6 +73,10 @@ export function mountConditions(
     v.thumb.style.left = `${valueToFrac(v.value, v.def) * 100}%`;
     v.thumb.setAttribute('aria-valuenow', String(v.value));
     v.readout.textContent = formatValue(v.value, v.def.unit);
+    // The eased live value, shown as a ghost while it is still catching up with the target.
+    const apart = Math.abs(valueToFrac(v.live, v.def) - valueToFrac(v.value, v.def)) > GHOST_MIN_FRAC;
+    v.ghost.hidden = !apart;
+    if (apart) v.ghost.style.left = `${valueToFrac(v.live, v.def) * 100}%`;
   }
 
   function paintBand(v: SliderView) {
@@ -102,6 +112,7 @@ export function mountConditions(
     }
     if (r.value !== v.value) {
       v.value = r.value;
+      setTarget(v.st, r.value, v.live, performance.now());
       paintThumb(v);
       bus.emit('control:set', { controlId: v.def.id, value: r.value });
     }
@@ -124,13 +135,16 @@ export function mountConditions(
     thumb.setAttribute('aria-label', def.label);
     thumb.setAttribute('aria-valuemin', String(def.min));
     thumb.setAttribute('aria-valuemax', String(def.max));
-    track.append(reds, earth, thumb);
+    const ghost = el('div', 'wu-ghost');
+    ghost.hidden = true;
+    ghost.title = 'Where the planet is now, easing toward your setting';
+    track.append(reds, earth, ghost, thumb);
     const chips = el('div', 'wu-chips');
     const reason = el('div', 'wu-reason');
     root.append(head, track, chips, reason, el('p', 'wu-hint', def.hint));
     sliderBox.append(root);
 
-    const v: SliderView = { def, root, track, thumb, reds, chips, readout, reason, value: def.default, band: null, dragging: false };
+    const v: SliderView = { def, root, track, thumb, reds, chips, readout, reason, value: def.default, live: def.default, ghost, st: newTarget(def.default), band: null, dragging: false };
     views.set(def.id, v);
     paintThumb(v);
 
@@ -152,7 +166,7 @@ export function mountConditions(
       const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
       if (!d) return;
       e.preventDefault();
-      request(v, fracToValue(valueToFrac(v.value, def) + d * STEP, def));
+      request(v, nudgedValue(v.st, d, def, STEP));
     });
   }
   drawer.append(sliderBox);
@@ -239,10 +253,11 @@ export function mountConditions(
       const b = s.bands[v.def.id];
       if (b) { v.band = b; paintBand(v); }
       const live = s.controls[v.def.id];
-      if (!v.dragging && live !== undefined && live !== v.value) {
-        v.value = live;
-        paintThumb(v);
-      }
+      if (live === undefined) continue;
+      v.live = live;
+      // The target stays while the live value eases toward it; the sim's own moves (drift, clamps) and idle time adopt it.
+      if (!v.dragging && syncLive(v.st, live, performance.now())) v.value = v.st.target;
+      paintThumb(v);
     }
   }
 
@@ -267,7 +282,7 @@ export function mountConditions(
   }
   function nudgeSelected(dir: number) {
     const v = views.get(controls[selected].id);
-    if (v) request(v, fracToValue(valueToFrac(v.value, v.def) + dir * STEP, v.def));
+    if (v) request(v, nudgedValue(v.st, dir, v.def, STEP));
   }
   selectSlider(0);
 
