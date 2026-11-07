@@ -1,0 +1,271 @@
+{
+  "events": [
+    {
+      "year": 1891,
+      "title": "First proposal of silicon-based life",
+      "who": "Julius Scheiner",
+      "type": "science",
+      "summary": "Credited as first to suggest life could be based on silicon rather than carbon. Secondary attribution only; no primary text located.",
+      "source": "Petkowski, Bains & Seager 2020, doi:10.3390/life10060084 (citing Darling & Schulze-Makuch 2016) [PEER, secondary for Scheiner]"
+    },
+    {
+      "year": 1893,
+      "title": "British Association address (UNVERIFIED)",
+      "who": "James Emerson Reynolds",
+      "type": "science",
+      "summary": "Reynolds was a chemist who made over 16 silicon derivatives; the address itself was not found. Do not cite until checked.",
+      "source": "UNVERIFIED; Wikipedia James Emerson Reynolds for biography only [POP]"
+    },
+    {
+      "year": 1894,
+      "title": "Another Basis for Life (essay)",
+      "who": "H. G. Wells",
+      "type": "fiction",
+      "summary": "Essay listed in Wells bibliography (1894). Text and the widely-quoted 'silicon-aluminium ... gaseous sulphur' wording NOT retrieved or verified.",
+      "source": "Wikipedia H. G. Wells bibliography [POP]; quote UNVERIFIED"
+    },
+    {
+      "year": 1934,
+      "title": "A Martian Odyssey",
+      "who": "Stanley G. Weinbaum",
+      "type": "fiction",
+      "summary": "Wonder Stories, July 1934. A pyramid-building creature is realised to be silicon-based; it removes silica bricks from its mouth every ten minutes; the bricks are its waste. Landmark for alien logic (Tweel).",
+      "source": "Wikipedia 'A Martian Odyssey' plot summary [POP]"
+    },
+    {
+      "year": 1955,
+      "title": "The Talking Stone (siliconies)",
+      "who": "Isaac Asimov",
+      "type": "fiction",
+      "summary": "F&SF Oct 1955. Siliconies: silicon-based creatures about 2 in long on asteroids that absorb gamma rays from radioactive ore. Petkowski et al. say the Horta is possibly based on them.",
+      "source": "Wikipedia 'The Talking Stone' [POP]; Petkowski 2020 [PEER]"
+    },
+    {
+      "year": 1961,
+      "title": "Not as We Know It (essay, Sept 1961 - not 1962)",
+      "who": "Isaac Asimov",
+      "type": "fiction",
+      "summary": "F&SF essay on alternative biochemistry, reprinted in View from a Height (1963). The 'six biochemistries' claim is unverified.",
+      "source": "Wikipedia 'View from a Height' essay list [POP]; contents UNVERIFIED"
+    },
+    {
+      "year": 1966,
+      "title": "Island of Terror",
+      "who": "film (UK)",
+      "type": "fiction",
+      "summary": "British horror film featuring a silicon-based life form with corrosive properties.",
+      "source": "Wikipedia 'The Devil in the Dark' [POP]"
+    },
+    {
+      "year": 1967,
+      "title": "The Devil in the Dark (the Horta)",
+      "who": "Gene L. Coon (writer), Joseph Pevney (dir.), Janos Prohaska (Horta)",
+      "type": "fiction",
+      "summary": "Star Trek TOS S1E25, aired 9 Mar 1967. Silicon-based rock-burrowing mother protecting her eggs; Spock modifies phasers for silicon; McCoy heals it with silicon cement ('I'm a doctor, not a bricklayer'). Monster turns out to be a mother; miners and Horta collaborate.",
+      "source": "Wikipedia 'The Devil in the Dark' [POP]"
+    },
+    {
+      "year": 1973,
+      "title": "'Carbon chauvinist'",
+      "who": "Carl Sagan",
+      "type": "science",
+      "summary": "Sagan famously called himself a 'carbon chauvinist' (Rolling Stone, June 1973, as cited).",
+      "source": "Petkowski 2020 ref 9 (Ferris, Rolling Stone, Jun 1973) [PEER citing POP]"
+    },
+    {
+      "year": 1982,
+      "title": "Genetic Takeover and the Mineral Origins of Life (follow-up: Seven Clues, 1985)",
+      "who": "A. G. Cairns-Smith",
+      "type": "science",
+      "summary": "Hypothesis that silicate clay crystals were the first replicators and carbon biochemistry formed around them. 1982 from memory; Wikipedia cites the 1987 paperback.",
+      "source": "Wikipedia 'Graham Cairns-Smith', 'Hypothetical types of biochemistry' [BOOK/POP]"
+    },
+    {
+      "year": 2007,
+      "title": "The Limits of Organic Life in Planetary Systems ('Weird Life' report)",
+      "who": "US National Research Council",
+      "type": "science",
+      "summary": "NRC report published 26 Jun 2007. Only title/date/publisher checked.",
+      "source": "Crossref doi:10.17226/11919"
+    },
+    {
+      "year": 2010,
+      "title": "Arsenic life claim (GFAJ-1)",
+      "who": "Wolfe-Simon et al.",
+      "type": "controversy",
+      "summary": "Science, announced Dec 2010. Refuted in 2012. Retracted by Science 24 Jul 2025. Cautionary tale for alien-chemistry claims.",
+      "source": "Crossref doi:10.1126/science.1197258; retraction doi:10.1126/science.adu5488; Wikipedia 'GFAJ-1' [PEER]"
+    },
+    {
+      "year": 2016,
+      "title": "Directed evolution of cytochrome c for carbon-silicon bond formation: Bringing silicon to life",
+      "who": "S. B. J. Kan, R. D. Lewis, K. Chen, F. H. Arnold",
+      "type": "science",
+      "summary": "Science, 25 Nov 2016. An evolved enzyme forms Si-C bonds, which are unknown in biology. Arnold won the 2018 Nobel Prize in Chemistry (directed evolution; from my knowledge, not re-checked).",
+      "source": "doi:10.1126/science.aah6219 [PEER]"
+    },
+    {
+      "year": 2020,
+      "title": "On the Potential of Silicon as a Building Block for Life",
+      "who": "Petkowski, Bains, Seager",
+      "type": "science",
+      "summary": "Life 10(6):84, 10 Jun 2020. First systematic review. In no environment is life primarily based on silicon chemistry plausible; sulfuric acid supports more organosilicon chemistry than water; silicon likely only a rare heteroatom in water.",
+      "source": "doi:10.3390/life10060084 [PEER]"
+    },
+    {
+      "year": 2020,
+      "title": "Phosphine gas in the cloud decks of Venus",
+      "who": "Greaves et al.",
+      "type": "controversy",
+      "summary": "Nature Astronomy, 14 Sep 2020. Detection widely disputed afterwards (dispute from my knowledge, not re-checked).",
+      "source": "doi:10.1038/s41550-020-1174-4 [PEER]"
+    },
+    {
+      "year": 2024,
+      "title": "Confronting risks of mirror life",
+      "who": "Adamala et al. (38 scientists)",
+      "type": "controversy",
+      "summary": "Science, 20 Dec 2024 issue (press 12 Dec). Warns mirror-image bacteria could cause unprecedented and irreversible harm.",
+      "source": "doi:10.1126/science.ads9158; Wikipedia 'Mirror-image life' [PEER]"
+    },
+    {
+      "year": 2028,
+      "title": "Dragonfly rotorcraft to Titan (NET)",
+      "who": "NASA",
+      "type": "mission",
+      "summary": "Launch NET July 2028, arrival late 2034, per NASA page last updated 29 Oct 2026. Titan has liquid hydrocarbon lakes.",
+      "source": "https://science.nasa.gov/mission/dragonfly/"
+    }
+  ],
+  "relatable_facts": [
+    {
+      "fact": "Silicon share of Earth's crust by mass",
+      "number": 28.2,
+      "unit": "% (RSC says 27.7%)",
+      "source": "Wikipedia 'Abundance of elements in Earth's crust'; RSC periodic table",
+      "status": "consensus"
+    },
+    {
+      "fact": "Carbon share of Earth's crust by mass",
+      "number": 0.02,
+      "unit": "% (200 ppm)",
+      "source": "Wikipedia 'Abundance of elements in Earth's crust'",
+      "status": "consensus"
+    },
+    {
+      "fact": "Crust Si:C mass ratio",
+      "number": 1410,
+      "unit": "x (Si over C)",
+      "source": "computed 282000/200",
+      "status": "consensus (computed) [INFERRED]"
+    },
+    {
+      "fact": "Carbon share of human body mass",
+      "number": 18,
+      "unit": "%",
+      "source": "Wikipedia 'Composition of the human body'",
+      "status": "consensus"
+    },
+    {
+      "fact": "Silicon share of human body mass (about 1 g in 70 kg)",
+      "number": 0.002,
+      "unit": "%",
+      "source": "Wikipedia 'Composition of the human body'",
+      "status": "consensus"
+    },
+    {
+      "fact": "Body C:Si mass ratio",
+      "number": 9000,
+      "unit": "x (C over Si)",
+      "source": "computed 0.18/0.00002",
+      "status": "consensus (computed) [INFERRED]"
+    },
+    {
+      "fact": "Cosmic abundance: carbon about ten times silicon",
+      "number": 10,
+      "unit": "x",
+      "source": "Wikipedia 'Hypothetical types of biochemistry'",
+      "status": "consensus"
+    },
+    {
+      "fact": "Diatoms contribute around 20% of global primary production (older estimates 20-50% of oxygen)",
+      "number": 20,
+      "unit": "% of primary production",
+      "source": "Malviya et al. 2016 doi:10.1073/pnas.1509523113 [PEER]; Wikipedia 'Diatom' for older range",
+      "status": "consensus (20%); 20-50% = older estimate"
+    },
+    {
+      "fact": "Earth life uses silicon only as silicic acid/silica; no known other silicon chemistry in life",
+      "number": null,
+      "unit": null,
+      "source": "Petkowski 2020",
+      "status": "consensus"
+    },
+    {
+      "fact": "Sponges, diatoms, horsetail and rice all deposit biogenic silica",
+      "number": null,
+      "unit": null,
+      "source": "Petkowski 2020 Appendix A",
+      "status": "consensus"
+    },
+    {
+      "fact": "Disilane ignites spontaneously in air at 0 C; ethane survives oxygen at 200 C",
+      "number": null,
+      "unit": "C",
+      "source": "Petkowski 2020",
+      "status": "consensus"
+    },
+    {
+      "fact": "Venus temperate cloud layer 48-60 km, under 100 C, under 2 bar, liquid sulfuric acid droplets",
+      "number": 48,
+      "unit": "km (lower bound of 48-60 km)",
+      "source": "Petkowski 2020",
+      "status": "consensus (clouds); life = speculation"
+    },
+    {
+      "fact": "Silicon chips are refined from silica sand",
+      "number": null,
+      "unit": null,
+      "source": "textbook; not separately sourced [POP]",
+      "status": "consensus"
+    }
+  ],
+  "images": [
+    {
+      "title": "Haeckel, Kunstformen der Natur (1904), plate 84 Diatomeae",
+      "url": "https://commons.wikimedia.org/wiki/File:Haeckel_Diatomea.jpg",
+      "licence": "Public domain",
+      "use": "Slide background; glassy creature mood"
+    },
+    {
+      "title": "Haeckel, Stephoidea (silica radiolarians)",
+      "url": "https://commons.wikimedia.org/wiki/File:Haeckel_Stephoidea.jpg",
+      "licence": "Public domain",
+      "use": "Creature silhouette inspiration"
+    },
+    {
+      "title": "Diatoms through the microscope (NOAA photo)",
+      "url": "https://commons.wikimedia.org/wiki/File:Diatoms_through_the_microscope.jpg",
+      "licence": "Public domain (NOAA)",
+      "use": "Real photograph proof slide"
+    },
+    {
+      "title": "Huygens: surface and sky of Titan, 14 Jan 2005",
+      "url": "https://commons.wikimedia.org/wiki/File:Huygens_surface_and_sky_of_Titan.jpg",
+      "licence": "Public domain (NASA/ESA)",
+      "use": "Alien surface; liquid hydrocarbon world"
+    },
+    {
+      "title": "Pioneer Venus ultraviolet image of Venus clouds",
+      "url": "https://commons.wikimedia.org/wiki/File:Venuspioneeruv.jpg",
+      "licence": "Public domain (NASA)",
+      "use": "Venus sulfuric-acid cloud slide"
+    },
+    {
+      "title": "The Horta (Star Trek S1E25)",
+      "url": "",
+      "licence": "Copyrighted (Paramount); do not embed",
+      "use": "Reference by name only"
+    }
+  ]
+}
