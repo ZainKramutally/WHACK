@@ -9,7 +9,7 @@ export interface Rect { x0: number; x1: number; z0: number; z1: number }
 
 /** Bridson Poisson-disk sampling in a rectangle; `accept` is a density mask in [0, 1] tested with the rng. */
 export function poissonDisk(rng: () => number, rect: Rect, minDist: number, accept: (x: number, z: number) => number = () => 1, k = 20): [number, number][] {
-  const cell = minDist / Math.SQRT2;
+  const cell = minDist / Math.SQRT2, md2 = minDist * minDist;
   const gw = Math.ceil((rect.x1 - rect.x0) / cell), gh = Math.ceil((rect.z1 - rect.z0) / cell);
   const grid = new Int32Array(gw * gh).fill(-1);
   const pts: [number, number][] = [], active: number[] = [];
@@ -20,7 +20,9 @@ export function poissonDisk(rng: () => number, rect: Rect, minDist: number, acce
     for (let j = Math.max(0, cz - 2); j <= Math.min(gh - 1, cz + 2); j++)
       for (let i = Math.max(0, cx - 2); i <= Math.min(gw - 1, cx + 2); i++) {
         const p = grid[j * gw + i];
-        if (p >= 0 && Math.hypot(pts[p][0] - x, pts[p][1] - z) < minDist) return false;
+        if (p < 0) continue;
+        const dx = pts[p][0] - x, dz = pts[p][1] - z;
+        if (dx * dx + dz * dz < md2) return false;
       }
     return true;
   };
@@ -95,6 +97,14 @@ function pickVariant(species: SpeciesId, r: number, count: number): number {
   return Math.floor(r * count);
 }
 /** Far forest thinning (~30%) for the tall species beyond the hero midground. */
+/** Any hand-placed plant within max(minDist, its height / 2)? (squared distances: same result as hypot, much cheaper) */
+function tooClose(taken: readonly (readonly [number, number, number])[], x: number, z: number, minDist: number): boolean {
+  for (const [tx, tz, th] of taken) {
+    const r = Math.max(minDist, th * 0.5), dx = tx - x, dz = tz - z;
+    if (dx * dx + dz * dz < r * r) return true;
+  }
+  return false;
+}
 const thinFar = (species: SpeciesId, d: number) => ((species === 'coilSpire' || species === 'parasolTitan') && d > 600 ? 0.7 : 1);
 const WORLD: WorldSpec[] = [
   // ground-cover patches at the set pieces
@@ -157,17 +167,28 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
 ];
 
-export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: number) => number, variantsOf?: (s: SpeciesId) => number): PlantInstance[] {
+/**
+ * Seeded placement of every plant. `region` (optional) clips every scatter rect to that window: same algorithm and rng,
+ * just less ground to cover (used by fast tests). Hand-placed plants are always included.
+ */
+export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: number) => number, variantsOf?: (s: SpeciesId) => number, region?: Rect): PlantInstance[] {
   const rng = mulberry32(seed);
+  const clip = (r: Rect): Rect | null => {
+    if (!region) return r;
+    const c = { x0: Math.max(r.x0, region.x0), x1: Math.min(r.x1, region.x1), z0: Math.max(r.z0, region.z0), z1: Math.min(r.z1, region.z1) };
+    return c.x0 < c.x1 && c.z0 < c.z1 ? c : null;
+  };
   const out: PlantInstance[] = [];
   for (const p of HAND) out.push({ species: p.species, variant: p.variant, position: [p.x, 0, p.z], yaw: p.yaw, scale: p.h / heightOf(p.species, p.variant), tilt: p.tilt });
   const taken = HAND.map((p) => [p.x, p.z, p.h] as const);
   for (const s of SPECS) {
     const tall = s.species !== 'groundCover';
     const pad = tall ? s.minDist * 0.25 : 0.5;
-    const pts = poissonDisk(rng, s.rect, s.minDist, (x, z) => (clear(x, z, tall, pad, s.species) ? s.mask(x, z, Math.hypot(x, z)) * thinFar(s.species, Math.hypot(x, z)) : 0));
+    const rect = clip(s.rect);
+    if (!rect) continue;
+    const pts = poissonDisk(rng, rect, s.minDist, (x, z) => (clear(x, z, tall, pad, s.species) ? s.mask(x, z, Math.hypot(x, z)) * thinFar(s.species, Math.hypot(x, z)) : 0));
     for (const [x, z] of pts) {
-      if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
+      if (tall && tooClose(taken, x, z, s.minDist)) continue;
       const variant = pickVariant(s.species, rng(), variantsOf?.(s.species) ?? s.variants);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
       out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
@@ -187,9 +208,11 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
       if (rv.d < rv.w * 1.1 + pad) return 0;
       return s.mask(x, z, d) * thinFar(s.species, d) * (tall && s.species !== 'lanternPods' && s.species !== 'ribFan' && !s.variant ? grove(x, z) : 1);
     };
-    const pts = poissonDisk(rng, s.rect, s.minDist, accept);
+    const rect = clip(s.rect);
+    if (!rect) continue;
+    const pts = poissonDisk(rng, rect, s.minDist, accept);
     for (const [x, z] of pts) {
-      if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
+      if (tall && tooClose(taken, x, z, s.minDist)) continue;
       const variant = s.variant ?? pickVariant(s.species, rng(), variantsOf?.(s.species) ?? 3);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
       out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
