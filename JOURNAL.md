@@ -32,3 +32,4 @@
 - 17:45: scene r4 merged (4631745): hero caps translucency capped, no 2nd titan in wedge, grove/clearing field, behind-start dressing, brighter explorer pods. 84 tests, 60fps. r5: height-aware fog, fg-right silhouette, mid-ground life, aerial density.
 - 17:49: USER: design creature variants (NMS-inspired, alive). Spawned rw-fauna: develop() from sim BodyGenes (session/logic genome.ts, 12 genes + comp) per DECISIONS G.1/F §3.3, IK gaits, 6-8 variants in fauna.html lab, review captures. Lab only, not in world yet.
 - 17:53: scene 4b merged (3bfc41c): clean fg-right fan silhouette, 300-600 m clearings + 3x groves, mid-ground pods/fans/coils. r6: height-aware fog, dim fan core, trim left fg. USER: sky whale (ref image) -> rw-fauna hero variant (adolescent + juvenile).
+- 17:59: scene r5 merged (ed9bc35): height-aware fog (hero identical), denser groves, explorer pod, fan core cropped. 84 tests, 60fps. Last small round (left fg bulbs, distant cap tint), then standby.
