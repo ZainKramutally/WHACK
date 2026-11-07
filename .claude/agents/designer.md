@@ -14,7 +14,7 @@ You design **how the world grows**. The player sets a few chemistry controls, an
 
 - `docs/WORLD_ATLAS.md`: the 12 A → B world rules (R1–R12), the controls (Recipe C·Si·O triangle, Sea, Heat, Light, Hunger, Time), and the 15 ecosystem + fauna targets your design must be able to reach
 - `docs/DESIGN.md`: the sim's principles ("easy to predict one step, hard to predict two", 4 families, the life ladder, creature types, field guide)
-- `docs/ART_DIRECTION.md`: colour = alive, sea = field, glow seated in shadow, the discovery shot
+- `docs/ART_DIRECTION.md`: Red World look (red ground, white sky, one cyan accent, colossal procedural flora, pixel render); reference build `mockups/red-world/`
 - `docs/TRACK.md`: judging (creativity counts most, then presentation, then technical complexity), and the 15-second hook
 - `.claude/skills/world-style/SKILL.md`: the locked stack (three.js r187, WebGPURenderer, TSL compute, Rapier)
 - `research/silicon-life/EXECUTIVE_SUMMARY.md`, plus `REPORT.md` §6 (rule table, prototype tuning, GPU bonding scheme: no compare-and-swap in TSL; atomicAdd buckets; mutual-best bonding)

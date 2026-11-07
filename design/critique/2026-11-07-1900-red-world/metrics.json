@@ -1,0 +1,73 @@
+{
+ "value_L5/50/95": [
+  0.142,
+  0.478,
+  0.966
+ ],
+ "sat_mean": 0.452,
+ "palette_k8": [
+  [
+   "#720b1d",
+   0.154
+  ],
+  [
+   "#f4f2f1",
+   0.153
+  ],
+  [
+   "#fdf5ef",
+   0.136
+  ],
+  [
+   "#81202d",
+   0.119
+  ],
+  [
+   "#bb2528",
+   0.119
+  ],
+  [
+   "#c28b89",
+   0.115
+  ],
+  [
+   "#dfc0bc",
+   0.106
+  ],
+  [
+   "#c44942",
+   0.097
+  ]
+ ],
+ "field_hue_deg": 356.7,
+ "field_share": 0.998,
+ "accent_share": 0.001,
+ "glow_share": 0.118,
+ "blown_white": 0.155,
+ "clutter": 0.073,
+ "speckle_pct": 1.86,
+ "focus_peak_cell": "middle-right",
+ "focus_concentration": 0.303,
+ "thumb_readability": 0.784,
+ "depth_steps": 5,
+ "motion_energy": 0.0016,
+ "flicker_pct": 0.041,
+ "jitter_regions_3x3": [
+  [
+   0.0016,
+   0.0001,
+   0.0001
+  ],
+  [
+   0.0016,
+   0.001,
+   0.0017
+  ],
+  [
+   0.0045,
+   0.0027,
+   0.0009
+  ]
+ ],
+ "loop_seam_ratio": 9.47
+}

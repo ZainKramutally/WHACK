@@ -1,5 +1,7 @@
 # World Atlas: reading the mood board as worlds our rules could make
 
+> **2026-11-07 update:** `mockups/worlds`, `docs/features/world-generator.md` and the old art-direction docs were removed. The art direction is now `docs/ART_DIRECTION.md` (Red World), and the reference build is `mockups/red-world/` (world material, pixel post, terrain, procedural flora). Where this doc says "reuse `mockups/worlds`" or cites old `ART_DIRECTION §n` rules, read it as "reuse `mockups/red-world`" and "follow the current art direction". The generation logic here still stands.
+
 Every pin on the board (`research/visual/pinterest-silicon/`) is read here as **a place our simulation could grow**. For each one we describe what's there, what lives there, and its stark colours, then tell a short **A → B story** of how it *could* come about. From those stories we work backwards (§5) to the smallest set of controls that can produce every world on the board.
 
 - **Hex values** are each image's measured 6-colour palette (`manifest.json`). The percentage is the share of the image.
