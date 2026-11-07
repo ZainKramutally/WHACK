@@ -10,37 +10,57 @@ import { WorldSimulation } from './simulation';
 
 const slow = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SLOW;
 const DT = 1 / 20;
-const bestMode = (eco: Ecology, costs: BodyPlan['modeCosts'], liquid: number): number =>
-  (eco as unknown as { bestMode(p: { modeCosts: BodyPlan['modeCosts'] }, l: number): number }).bestMode({ modeCosts: costs }, liquid);
+const bestMode = (eco: Ecology, costs: BodyPlan['modeCosts'], mode: number, liquid: number, stranded = false): number =>
+  (eco as unknown as { bestMode(p: { modeCosts: BodyPlan['modeCosts']; mode: number }, l: number, s: boolean): number }).bestMode({ modeCosts: costs, mode }, liquid, stranded);
 
-describe('medium decides the mode', () => {
+describe('medium decides the mode, and a body keeps to its habitat', () => {
   const { eco } = ecologyFromWorld(carbon);
-  const cheapHover = { walk: 2, swim: 3, hover: 0.5, sessile: 8 };
+  const cheap = { walk: 2, swim: 3, hover: 0.5, sessile: 8 };
   it('hover is flight: allowed over land and the shore, never over the sea', () => {
-    expect(bestMode(eco, cheapHover, 0)).toBe(2);
-    expect(bestMode(eco, cheapHover, eco.L.wadeDepth)).toBe(2);
-    for (const depth of [eco.L.wadeDepth + 0.01, 1, 3, 10]) expect(bestMode(eco, cheapHover, depth)).toBe(1);
+    expect(bestMode(eco, cheap, 2, 0)).toBe(2);
+    expect(bestMode(eco, cheap, 2, eco.L.wadeDepth)).toBe(2);
+    expect(bestMode(eco, cheap, 2, 3)).toBe(3);   // a hoverer cannot go over deep water
   });
-  it('a body that cannot swim cannot enter the deep sea at all', () => {
-    expect(bestMode(eco, { walk: 1, swim: 9, hover: 0.5, sessile: 8 }, 3)).toBe(3); // sessile = does not move
+  it('a swimmer stays in the sea: it cannot step onto land, however cheap walking is', () => {
+    expect(bestMode(eco, { walk: 0.1, swim: 3, hover: 20, sessile: 8 }, 1, 0)).toBe(3);
+    expect(bestMode(eco, { walk: 0.1, swim: 3, hover: 20, sessile: 8 }, 1, 2)).toBe(1);
+  });
+  it('a walker cannot enter deep water, even if it could afford to swim', () => {
+    expect(bestMode(eco, { walk: 1, swim: 2, hover: 20, sessile: 8 }, 0, 3)).toBe(3);
+    expect(bestMode(eco, { walk: 1, swim: 2, hover: 20, sessile: 8 }, 0, 0.2)).toBe(0);
+  });
+  it('a stranded animal moves in its own mode to get home', () => {
+    expect(bestMode(eco, { walk: 1, swim: 9, hover: 20, sessile: 8 }, 0, 3, true)).toBe(0);
+    expect(bestMode(eco, { walk: 9, swim: 2, hover: 20, sessile: 8 }, 1, 0, true)).toBe(1);
   });
 });
 
 describe.each([carbon, silicon])('founders in both niches ($id)', (w: WorldConfig) => {
-  it('seeds about half in the sea and half on the shore', () => {
+  it('seeds swimmers in the sea and walkers on the shore, each in a cell that suits its body', () => {
     const { eco, env } = ecologyFromWorld(w);
     eco.seedLife(env);
-    let inSea = 0;
-    let wet = 0;
+    expect(eco.animals).toBeGreaterThanOrEqual(24);
     for (let i = 0; i < CAP; i++) {
       if (!eco.alive[i]) continue;
       const liquid = eco.grid.liquid[Math.floor(eco.y[i]) * 64 + Math.floor(eco.x[i])];
-      if (liquid > eco.L.wadeDepth) inSea++;
-      if (liquid > 0) wet++;
+      if (eco.plan[i].mode === 1) expect(liquid).toBeGreaterThan(0);
+      else if (eco.plan[i].mode !== 3) expect(liquid).toBeLessThanOrEqual(eco.L.wadeDepth);
     }
-    expect(eco.animals).toBeGreaterThanOrEqual(24);
-    expect(inSea).toBeGreaterThanOrEqual(10);   // the sea half
-    expect(wet).toBe(eco.animals);              // the shore half is in the shallows, not on dry land
+  });
+  it('keeps to its habitat for a while: nearly all swimmers in the sea, nearly all walkers on land', () => {
+    const { eco, env } = ecologyFromWorld(w);
+    eco.seedLife(env);
+    for (let t = 0; t < 600; t++) eco.step(env, DT);
+    let sw = 0, swOk = 0, wk = 0, wkOk = 0;
+    for (let i = 0; i < CAP; i++) {
+      if (!eco.alive[i]) continue;
+      const liquid = eco.grid.liquid[Math.floor(eco.y[i]) * 64 + Math.floor(eco.x[i])];
+      if (eco.plan[i].mode === 1) { sw++; if (liquid > 0) swOk++; }
+      else if (eco.plan[i].mode !== 3) { wk++; if (liquid <= eco.L.wadeDepth) wkOk++; }
+    }
+    expect(sw + wk).toBeGreaterThanOrEqual(24);
+    if (sw > 0) expect(swOk / sw).toBeGreaterThanOrEqual(0.9);
+    if (wk > 0) expect(wkOk / wk).toBeGreaterThanOrEqual(0.9);
   });
 });
 

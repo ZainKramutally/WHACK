@@ -78,6 +78,7 @@ const RISK_EVERY = 40; // implementation constant (DECISIONS §G.2 exempt): deri
 const FLORA_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): flora (slow) updates every 4th tick with 4× the step
 const SCAN = 12; // implementation constant (DECISIONS §G.2 exempt): an animal looks at no more than this many neighbours per cell (bounds crowded cells)
 const FLORA_SEED = 1e-3; // implementation constant (DECISIONS §G.2 exempt): mat that survives lethal stress, from which flora regrows
+const STRAND_SCAN = 6; // implementation constant (DECISIONS §G.2 exempt): cells a stranded animal looks around for ground that suits it
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -130,6 +131,9 @@ export class Ecology {
   private readonly spores: AnimalGenome[] = [];
   /** Shallow cells where life was seeded (nearest the spawn, if a hint was given); spores germinate here. */
   private founderPool: number[] = [];
+  /** Cells where swimmers (sea) and walkers/hoverers (land and shore) are placed when they appear without a parent. */
+  private seaPool: number[] = [];
+  private landPool: number[] = [];
 
   constructor(o: EcologyOptions) {
     this.grid = o.grid;
@@ -171,15 +175,21 @@ export class Ecology {
       return [...cells].sort((a, b) => d2(a) - d2(b) || a - b).slice(0, CONSTANTS.FOUNDER_CELLS.value);
     };
     pool = nearest(pool);
-    // Half the founders start in the sea itself (deep enough to swim), half on the shore: both niches exist from the first second.
+    // Founders are placed by what their bodies are: swimmers in the sea (deep enough to swim), walkers and hoverers on the
+    // shore and land nearest the spawn (habitat lock). Both niches exist from the first second.
     const sea: number[] = [];
-    for (let i = 0; i < CELLS; i++) if (g.liquid[i] > L.wadeDepth) sea.push(i);
+    const land: number[] = [];
+    for (let i = 0; i < CELLS; i++) (g.liquid[i] > L.wadeDepth ? sea : land).push(i);
     const seaPool = nearest(sea);
+    const landPool = nearest(land);
     for (const i of seaPool) this.plant(i, L.seedMat);
-    this.founderPool = seaPool.length ? [...pool, ...seaPool] : pool;
+    for (const i of landPool) this.plant(i, L.seedMat);
+    this.seaPool = seaPool;
+    this.landPool = landPool.length ? landPool : pool;
+    this.founderPool = seaPool.length ? [...this.landPool, ...seaPool] : this.landPool;
     const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
     founders.forEach((gen, k) => {
-      const from = k % 2 === 1 && seaPool.length > 0 ? seaPool : pool;
+      const from = k % 2 === 1 && seaPool.length > 0 ? seaPool : pool;   // spawn() re-places a founder whose body does not suit the cell
       const cell = from[Math.floor(this.rnd() * from.length)];
       const px = (cell % GRID) + this.rnd();
       const py = Math.floor(cell / GRID) + this.rnd();
@@ -405,7 +415,17 @@ export class Ecology {
   private readonly cursor = new Int32Array(CELLS);
 
   // ---- R10: the cheapest locomotion the medium allows -----------------------------------------------------------
-  private bestMode(p: BodyPlan, liquid: number): number {
+  /** Habitat lock: a swimmer lives in the sea (any liquid), a walker or hoverer where it can stand or fly (liquid up to wadeDepth). */
+  private habitable(p: Pick<BodyPlan, 'mode'>, liquid: number): boolean {
+    if (p.mode === LOCOMOTION.swim) return liquid > 0;
+    if (p.mode === LOCOMOTION.sessile) return true;
+    return liquid <= this.L.wadeDepth;
+  }
+
+  /** Cheapest mode for entering a cell; sessile means the animal cannot go there. A stranded animal (its own cell is wrong for its body, e.g. the sea rose under it) moves in its own mode wherever it must to get home. */
+  private bestMode(p: BodyPlan, liquid: number, stranded = false): number {
+    if (stranded) return p.mode;   // struggling home in its own mode, at that mode's cost
+    if (!this.habitable(p, liquid)) return LOCOMOTION.sessile;
     const mc = p.modeCosts;
     let mode: number = LOCOMOTION.sessile;
     let best = mc.sessile;
@@ -482,9 +502,12 @@ export class Ecology {
     let foodV = 0, fx = px, fy = py;
     const access = p.legPairs > 0 || p.mode === LOCOMOTION.hover ? 1 : 0;
     const dark = 1 - this.env.light;
+    const strandedHere = !this.habitable(p, g.liquid[cell]);
     for (let yy = y0; yy <= y1; yy++) {
       for (let xx = x0; xx <= x1; xx++) {
         const c = yy * GRID + xx;
+        if (!this.habitable(p, g.liquid[c])) { if (!strandedHere) continue; }   // the habitat lock: not a place this body can go (unless it is stranded: then all cells count, and the habitable ones win below)
+        const homeBonus = strandedHere && this.habitable(p, g.liquid[c]) ? 3 : 1;   // a stranded animal heads for ground that suits it
         let food = p.plantGain * (g.mat[c] + access * g.canopy[c]);
         if (p.plantGain > 0.25 && dark > 0) {
           const k0 = this.cellStart[c];
@@ -493,7 +516,7 @@ export class Ecology {
         }
         const cost = (g.risk[c] * (1 - bold) * (1 - REF * this.shelter(c))) / (1 + nKin);
         const ddx = xx + 0.5 - px, ddy = yy + 0.5 - py;
-        const v = (drive * food - cost) / (1 + Math.sqrt(ddx * ddx + ddy * ddy));
+        const v = homeBonus * (drive * food - cost) / (1 + Math.sqrt(ddx * ddx + ddy * ddy));
         if (v > foodV) { foodV = v; fx = xx + 0.5; fy = yy + 0.5; }
       }
     }
@@ -508,6 +531,20 @@ export class Ecology {
     if (huntV > best) { best = huntV; a = ACT.hunt; }
     if (fleeV > best) { best = fleeV; a = ACT.flee; }
     if (homeV > best) { a = ACT.home; }
+    let strandTx = NaN, strandTy = NaN;
+    if (strandedHere && a !== ACT.flee) {
+      // Stranded (the sea rose or fell under it): head for the nearest ground that suits this body, within sight of the grid.
+      let bestC = -1, bestD = Infinity;
+      for (let dy = -STRAND_SCAN; dy <= STRAND_SCAN; dy++) {
+        for (let dx = -STRAND_SCAN; dx <= STRAND_SCAN; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID || !this.habitable(p, g.liquid[ny * GRID + nx])) continue;
+          const d = dx * dx + dy * dy;
+          if (d < bestD) { bestD = d; bestC = ny * GRID + nx; }
+        }
+      }
+      if (bestC >= 0) { a = ACT.home; strandTx = (bestC % GRID) + 0.5; strandTy = Math.floor(bestC / GRID) + 0.5; }
+    }
     this.act[i] = a;
     this.wandering[i] = 0;
     if (a === ACT.forage) {
@@ -525,6 +562,7 @@ export class Ecology {
     else if (a === ACT.hunt) { this.tgt[i] = huntJ; this.tgtId[i] = this.id[huntJ]; }
     else if (a === ACT.flee) { this.tgt[i] = fleeJ; this.tgtId[i] = this.id[fleeJ]; }
     else if (a === ACT.home) { this.tx[i] = homeX; this.ty[i] = homeY; this.tgt[i] = -1; }
+    if (strandTx === strandTx) { this.tx[i] = strandTx; this.ty[i] = strandTy; }   // a stranded animal's way home overrides
   }
 
   private actAnimal(i: number): void {
@@ -565,7 +603,8 @@ export class Ecology {
         const step = Math.min(dist, vmax * dt * (act === ACT.flee ? 1.5 : 1));
         const nx = Math.min(GRID - 1e-6, Math.max(0, this.x[i] + (dx / dist) * step));
         const ny = Math.min(GRID - 1e-6, Math.max(0, this.y[i] + (dy / dist) * step));
-        const mode = this.bestMode(p, g.liquid[cellOf(nx, ny)]);
+        const mode = this.bestMode(p, g.liquid[cellOf(nx, ny)], !this.habitable(p, g.liquid[cell]));
+        if (mode === LOCOMOTION.sessile && this.wandering[i]) this.heading[i] += (this.rnd() < 0.5 ? 1 : -1) * 1.2;   // turned back at the edge of its habitat
         if (mode !== LOCOMOTION.sessile) {
           this.heading[i] = Math.atan2(ny - this.y[i], nx - this.x[i]);
           this.x[i] = nx; this.y[i] = ny; this.mode[i] = mode;
@@ -668,6 +707,14 @@ export class Ecology {
     const slot = this.free.pop();
     if (slot === undefined) return false;
     const plan = develop(genome, { light: env.light, heatBand: env.heatBand }, this.inputs);
+    if (!this.habitable(plan, this.grid.liquid[cellOf(px, py)])) {
+      // A newborn stays with its parent; a founder or spore is placed in a cell that suits its body.
+      if (parent !== null) { px = this.x[parent]; py = this.y[parent]; }
+      else {
+        const pool = plan.mode === LOCOMOTION.swim ? this.seaPool : this.landPool;
+        if (pool.length > 0) { const c = pool[Math.floor(this.rnd() * pool.length)]; px = (c % GRID) + this.rnd(); py = Math.floor(c / GRID) + this.rnd(); }
+      }
+    }
     const M = Math.max(1e-6, plan.mass / this.L.massUnit);
     if (parent !== null) {
       if (this.energy[parent] < 1.5 * M) { this.free.push(slot); return false; }
