@@ -24,7 +24,7 @@ This file covers the logic only. Look decisions (palettes, render style, materia
 
 **Grounded speculation.** Every stat, rate of change and causal explanation starts from known chemistry and physics. Where a world goes beyond what is known, which the silicon world does by design, the reasoning must still follow logically from real properties, and the UI labels it as speculative. Carbon is "known"; silicon is "speculative". Never present speculation as established fact. A speculative world also states the strongest case against it (its `caveat`), so we are never caught out by a judge who knows the literature. The UI marks every `assumption: true` value as an assumption on every world, including the "known" carbon world.
 
-**Science lives in data, not in rendering code.** Every number that describes a world (temperatures, pressures, gas fractions, rates, thresholds, coefficients) lives in that world's config file with a `why` sentence and a `sources` reference. Code may contain the *form* of an equation (for example, a radiative balance or a vapour-pressure lookup), but every coefficient it uses comes from config. Rendering and simulation code never hardcodes a world fact. If a value cannot be sourced, set `assumption: true` on it and add it to the open questions section of this file.
+**Science lives in data, not in rendering code.** Every number that describes a world (temperatures, pressures, gas fractions, rates, thresholds, coefficients) lives in that world's config file with a `why` sentence and a `sources` reference. Code may contain the *form* of an equation (for example, a radiative balance or a vapour-pressure lookup), but every coefficient it uses comes from config. Rendering and simulation code never hardcodes a world fact. If a value cannot be sourced, set `assumption: true` on it and open or link a GitHub issue for it (see "Open questions").
 
 **No natural disasters.** Conditions change only through slow, physically sensible processes: stellar brightening, rock weathering, gradual atmospheric escape, and life itself changing the atmosphere (see "Life changes the planet"). No eruptions, impacts, flares or random events.
 
@@ -761,7 +761,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 
 ## Working conventions for Claude Code
 
-- Keep all world facts and rates in `src/worlds/` with `why` and `sources`, and never hardcode them elsewhere. When adding a stat, rule, process or feedback, add its source to `sources.ts` or mark it `assumption: true` and add it to the open questions.
+- Keep all world facts and rates in `src/worlds/` with `why` and `sources`, and never hardcode them elsewhere. When adding a stat, rule, process or feedback, add its source to `sources.ts` or mark it `assumption: true` and open or link a GitHub issue for it.
 - Keep the simulation deterministic for a given seed. Do not add random events or disasters.
 - Do not change the data contract without flagging it, because the UI depends on it.
 - Prefer instanced meshes for anything repeated. Profile before optimising.
@@ -787,33 +787,9 @@ Agents in `.claude/agents/` (feature-agent, debugger, scout, bar-raiser, explore
 
 ## Open questions
 
-- Pin the silicon world's numbers from NIST nitrogen data: the vapour-pressure table from −200 to −150 °C, and the temperature band and starting pressure derived from it. The roughly 3 to 4 bar at −183 °C quoted above is approximate.
-- Set the carbon world's process and feedback rates so oxygen stays near zero until the sink is used up, then settles in the 15 to 25% target by the present phase with the demo seed.
-- Set the silicon world's rates so the seas shrink visibly but the population settles, and the temperature stays below −165 °C.
-- Choose the metabolism compression exponent, and decide whether silicon's activation energy is lowered (both `assumption: true`).
-- Silicon feedstock and energy: where life gets usable silicon on a reduced planet, and what powers locking nitrogen into bodies under a dim, distant star. Both stay labelled as assumptions unless we find a source.
-- Silicon year anchors (1.5, 3, 4.5 and 6 billion years) are assumptions; check they stay within a Sun-like star's main-sequence life.
-- Slider limits to pin:
-  - Carbon's lower temperature bound (placeholder about −50 °C). It must sit below Snowball Earth conditions, which surface life survived.
-  - Carbon's lower nitrogen bound (placeholder about 0.05 ×). It must sit well below the early Earth's air pressure.
-  - The nitrogen warming coefficient on carbon. It is sourced only up to about twice Earth's nitrogen; beyond that it is `assumption: true`. Keep it modest, so a high Nitrogen setting can't push the world past 122 °C unless the player is already near that edge.
-  - Silicon's oxygen trace threshold.
-  - The silicon sea depth and nitrogen inventory, which set where its Nitrogen thumb starts.
-  - Whether the Nitrogen slider's 0.01 to 1,000 × range reads well on a log scale.
-- Should a slider change apply instantly, or ease in over about a second? Easing reads better and keeps "no sudden events" in spirit.
-- When the player clicks Generate with a slider in the selected world's red zone, the slider currently glides to that world's default starting value. The alternative is the nearest value inside the band, but that sits right on the edge where life barely survives, which makes a poor start.
-- Silicon creatures vs pace: at a quarter of carbon's pace, silicon gets about a quarter of the generations, so its creatures stay simple in the demo. Options:
-  - accept it as honest ("slow chemistry, slow evolution")
-  - a declared deep-time ⏩ in the complex-life phase for both worlds (F's ×1 → ×40 idea)
-  - silicon founders that start further along (seeded, declared)
-
-  Don't give silicon its own hidden time scale.
-- **Terrain numbers:** every `TerrainConfig` value (patch size, base relief, shore distance, `heatSolventSpan`, machine rates, relic counts) is unpinned and `assumption: true` until tuned.
-- **Diving:** the swim controller's speed, the underwater camera, and whether deep water in the silicon world needs any declared limit.
-- The scalings from our stats into F's heat, light, air density and hunger ranges (`life.inputs`, `assumption: true`).
-- Fast slider moves can wipe out life inside the living band. The red zones mark where the solvent fails, but a slow-breeding population, especially silicon's, can't adapt to a big, fast change. In tests, warming silicon by 18 °C in 60 s killed half the seeds. Options: ease slider changes, cap how fast a thumb moves during a run, or keep a few survivors as "spores" (`assumption: true`).
-- Particle box (design partner): where the box sits on the selection screen, its size and framing, and the particle colours for each family.
-- Confirm the final project name.
+Open questions and follow-ups live in **GitHub issues**: https://github.com/ZainKramutally/WHACK/issues. Items that need an owner ruling carry the `decision` label. Area labels: `sim`, `worlds`, `terrain`, `player`, `ui`, `art-layer`, `coordination`, `eng-lead`.
+- **New items:** open an issue, not a bullet here. When you mark a value `assumption: true`, open or link an issue for it.
+- **Resolved items:** write the answer into the relevant section of this file, then close the issue with a link to the commit. This file stays the design's source of truth, and issues hold only what's still open.
 
 Considered and rejected: a dim red dwarf for the silicon world. Petkowski 2020 does say nitrogen oceans can last billions of years around one, but red dwarfs barely brighten over that time (so there is no slow warming to drive change) and they flare, which conflicts with the no-disasters rule.
 
