@@ -31,6 +31,8 @@ const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): 
 const EPS = 1e-6; // implementation constant (DECISIONS §G.2 exempt): slack so float sums of frame times never lose a tick
 const EDGE_INSET = 1e-6; // implementation constant (DECISIONS §G.2 exempt): a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
 const CONTROL_EASE_SEC = 1;  // implementation constant (DECISIONS §G.2 exempt): a slider change glides linearly over this much demo time
+const SIGMA_EASE_START = 0.2; // implementation constant (DECISIONS §G.2 exempt): share of the build's ticks at which σ starts easing down from SIGMA_BUILD
+const SIGMA_EASE_END = 0.6;   // implementation constant (DECISIONS §G.2 exempt): and the share at which it reaches SIGMA
 const LIQUID_MOVE_M = 0.25; // implementation constant (DECISIONS §G.2 exempt): sea level change (m) that rebuilds the ecology's liquid grid
 const LIQUID_PROGRESS = 0.05; // implementation constant (DECISIONS §G.2 exempt): or this much more terrain rise
 const LIQUID_EVERY = 100; // implementation constant (DECISIONS §G.2 exempt): ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
@@ -59,6 +61,19 @@ export function buildSecOfTick(tick: number, cfg: Pick<BuildConfig, 'durationSec
   const total = ticksDueAt(cfg.durationSec, cfg);
   if (total <= 0 || tick >= total) return cfg.durationSec;
   return cfg.lifeSec + (tick / total) * (cfg.durationSec - cfg.lifeSec);
+}
+
+/**
+ * Body-gene mutation σ at tick `ticks` of a build that lasts `buildTicks`: SIGMA_BUILD for the first part of the build so variety
+ * appears fast, easing down to SIGMA so forms can settle into clusters by the end, and SIGMA from then on. Keyed to the tick clock.
+ */
+export function mutationSigmaAt(ticks: number, buildTicks: number): number {
+  const hi = CONSTANTS.SIGMA_BUILD.value;
+  const lo = CONSTANTS.SIGMA.value;
+  const f = buildTicks > 0 ? ticks / buildTicks : 1;
+  if (f >= SIGMA_EASE_END) return lo;
+  if (f <= SIGMA_EASE_START) return hi;
+  return hi + (lo - hi) * ((f - SIGMA_EASE_START) / (SIGMA_EASE_END - SIGMA_EASE_START));
 }
 
 export type SimEvent =
@@ -474,6 +489,11 @@ export class WorldSimulation {
     return gasDensity(this.stats.pressure, this.stats.temperature, this.world.life.inputs.airDensity.molarMass);
   }
 
+  /** Body-gene mutation σ on the tick clock (see mutationSigmaAt). */
+  private mutationSigma(): number {
+    return mutationSigmaAt(this.ticks, this.buildTicks);
+  }
+
   private heatBand(band: LivingBand): number {
     const w = band.high - band.low;
     return band.empty || !(w > 0) ? 0.5 : clamp01((this.stats.temperature - band.low) / w);
@@ -492,6 +512,7 @@ export class WorldSimulation {
       nitrogen: s.nitrogen,
       pressure: s.pressure,
       airDensity: this.airDensity(),
+      mutationSigma: this.mutationSigma(),
     };
   }
 

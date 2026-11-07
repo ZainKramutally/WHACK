@@ -16,6 +16,7 @@ export interface LifeEnv extends Environment {
   nitrogen: number;    // × Earth
   pressure: number;    // bar
   airDensity: number;  // kg/m³, real P·M/(R·T)
+  mutationSigma: number; // body-gene mutation σ now: SIGMA_BUILD during the build, SIGMA after
 }
 
 /** Quantities feedbacks read. `deadBiomass` is biomass that died per ecology second during the last step. */
