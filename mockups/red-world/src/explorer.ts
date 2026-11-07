@@ -18,5 +18,36 @@ export function buildExplorer(x: number, z: number, yaw: number): any {
   m.position.set(x, heightAt(x, z) - 0.05, z);
   m.rotation.y = yaw;
   m.castShadow = true;
+  // legs (player mode only): hip pivots inside the body capsule, hidden in the hero shot so its frame is unchanged
+  const legMat = worldMaterial({ bounce: false });
+  for (const side of [-1, 1]) {
+    const g = new THREE.CapsuleGeometry(0.075, 0.62, 2, 6); g.translate(0, -0.385, 0);
+    const leg = new THREE.Mesh(paint(g, () => PALETTE.ink), legMat);
+    leg.position.set(side * 0.1, 0.8, 0.02);
+    leg.castShadow = true; leg.visible = false;
+    leg.name = side < 0 ? 'legL' : 'legR';
+    m.add(leg);
+  }
   return m;
+}
+
+export interface ExplorerPose {
+  x: number; y: number; z: number; yaw: number;
+  phase: number;  // gait phase, radians
+  gait: number;   // 0 idle .. 1 full stride
+  lean: number;   // forward lean, radians
+  roll: number;
+  flying: boolean;
+}
+
+/** Player-mode pose: position on the ground, facing, walk bob/sway and swinging legs (legs dangle while flying). */
+export function poseExplorer(m: any, p: ExplorerPose): void {
+  const bob = Math.abs(Math.sin(p.phase)) * 0.07 * p.gait;
+  m.position.set(p.x, p.y - 0.05 + bob, p.z);
+  m.rotation.set(-p.lean, p.yaw, p.roll + Math.sin(p.phase) * 0.035 * p.gait, 'YXZ');
+  for (const leg of m.children) {
+    leg.visible = true;
+    const s = leg.name === 'legL' ? 1 : -1;
+    leg.rotation.x = p.flying ? 0.25 + s * 0.08 * Math.sin(p.phase * 0.3) : s * Math.sin(p.phase) * 0.65 * p.gait;
+  }
 }
