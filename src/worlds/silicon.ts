@@ -52,7 +52,7 @@ export const silicon: WorldConfig = {
     nitrogen: [15, 40],
     seaCover: [25, 65],
     light: [0.005, 0.02],
-    pace: [1e-25, 1e-15],   // the uncompressed Arrhenius estimate, around 1e-20
+    pace: [1e-16, 1e-10],   // the uncompressed Arrhenius estimate with Ea 32 kJ/mol, around 1e-13
   },
   solvent: {
     name: 'Liquid nitrogen',
@@ -76,7 +76,7 @@ export const silicon: WorldConfig = {
     { id: 'nitrogen', label: 'Nitrogen', unit: '× Earth', earthValue: 1, why: 'Set by the Nitrogen slider; most of it sits in the seas, because the air can only hold what the sea pressure allows.', sources: [], assumption: true },
     { id: 'seaCover', label: 'Sea cover', unit: '%', earthValue: 71, why: 'The seas hold whatever nitrogen the air cannot, so they shrink when life locks nitrogen into bodies or warming moves more into the air.', sources: [], assumption: true },
     { id: 'light', label: 'Starlight', unit: '× Earth', earthValue: 1, why: 'A Sun-like star about 10 times farther away than the Sun is from Earth gives about 1% of Earth\'s sunlight.', sources: [], assumption: true },
-    { id: 'pace', label: 'Pace of chemistry', unit: '× Earth', earthValue: 1, why: 'Reactions slow sharply in the cold, an Arrhenius estimate of around 10⁻²⁰ × Earth; compressed in the time-lapse so evolution is visible.', sources: [], assumption: true },
+    { id: 'pace', label: 'Pace of chemistry', unit: '× Earth', earthValue: 1, why: 'Reactions slow sharply in the cold, an Arrhenius estimate of around 10⁻¹³ × Earth (activation energy 32 kJ/mol, lower than the 50 of carbon because Si–Si bonds are weaker); compressed in the time-lapse so evolution is visible.', sources: [], assumption: true },
   ],
   facts: [
     { id: 'mainGas', label: 'Main gas', value: 'Nitrogen', earthValue: 'Nitrogen', why: 'Bulk atmosphere, in balance with the nitrogen seas.', sources: [], assumption: true },
@@ -247,9 +247,10 @@ export const silicon: WorldConfig = {
       maxOrganisms: 1024,
       producerCapacity: 300,
       timeScale: 1,
-      // The same compression exponent as carbon, so the two paces compare fairly. With Ea 50 kJ/mol this gives
-      // about a quarter of carbon's pace at −183 °C. A lower silicon Ea (reasoning step 6) is possible but not used.
-      metabolism: { activationEnergyKJ: 50, referenceC: 15, compression: 0.03 },
+      // The same compression exponent as carbon, so the two paces compare fairly. Silicon's activation energy is scaled
+      // from carbon's 50 kJ/mol by the bond-strength ratio Si–Si/C–C = 222/346 → 32 kJ/mol (Bell–Evans–Polanyi: weaker
+      // bonds, lower barriers; reasoning step 6). assumption: true (issue #1). Uncompressed pace at −183 °C ≈ 2e-13 × Earth.
+      metabolism: { activationEnergyKJ: 32, referenceC: 15, compression: 0.03 },
       producer: { lightGain: 1, upkeep: 0.3 },
       consumer: { biteRate: 10, biteSize: 0.12, assimilation: 0.7, upkeep: 0.15, halfFood: 40, interference: 4, grazeShare: 0.6 },
       reproduction: { energyThreshold: 1, childShare: 0.5, maturityAge: 0.3 },
