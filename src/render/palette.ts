@@ -123,7 +123,7 @@ export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue =
     case 2: return scaleHex(band, 0.62);
     case 3: return scaleHex(band, 0.82);
     case 4: return mixHex(band, 0xf0f0e0, 0.5);
-    case 5: return shiftHue(band, silicon ? 25 + 35 * accent : 35 + 80 * accent, silicon ? -0.08 : -0.05);
+    case 5: return shiftHue(band, silicon ? 25 + 35 * accent : 25 + 55 * accent, silicon ? -0.08 : -0.05);
     case 6: return mixHex(shiftHue(band, silicon ? 40 : 150, 0.05), 0xffffff, 0.35);
     default: return band;
   }

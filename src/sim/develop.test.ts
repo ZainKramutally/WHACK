@@ -56,10 +56,15 @@ describe('develop', () => {
     expect(p.sides).toBe(12);
     expect(p.flatShaded).toBe(false);
     expect(p.curl).toBeGreaterThan(0);
-    expect(p.limbKind).toBe('tentacle');
-    expect(p.limbSegments).toBeGreaterThan(2);
+    expect(['tentacle', 'leg']).toContain(p.limbKind); // never radial rods
+    const soft = develop({ ...carbon, body: { ...carbon.body, limbLen: 0.2, plates: 0.05, diet: 0.05 } }, day, water);
+    expect(soft.limbKind).toBe('tentacle');
+    expect(soft.limbSegments).toBeGreaterThan(2);
     expect(p.jointSnapDeg).toBe(0);
-    expect(p.limbJointAngles.some((a) => a % 15 !== 0)).toBe(true);
+    expect(soft.limbJointAngles.some((a) => a % 15 !== 0)).toBe(true);
+    const stiff = develop({ ...carbon, body: { ...carbon.body, limbLen: 0.9, plates: 0.6, diet: 0.8 } }, day, water);
+    expect(stiff.limbKind).toBe('leg');
+    expect(stiff.limbSegments).toBe(2);
     expect(p.eyeCount % 2).toBe(0); // eyes come in pairs
     expect(p.eyeKind).toBe('rings');
   });
@@ -127,7 +132,7 @@ describe('develop', () => {
 
   it('limbPairs sets the symmetry order on silicon (arm count) and the leg pairs on carbon', () => {
     const at = (g: AnimalGenome, lp: number) => develop({ ...g, body: { ...g.body, limbPairs: lp } }, day, water);
-    expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(silicon, lp).symmetry)).toEqual([3, 4, 5, 6, 8]);
+    expect([0, 0.12, 0.23, 0.34, 0.5].map((lp) => at(silicon, lp).symmetry)).toEqual([3, 4, 5, 6, 8]);
     expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(carbon, lp).legPairs)).toEqual([0, 1, 2, 3, 4]);
     expect(at(carbon, 1).symmetry).toBe(2);
   });
@@ -248,6 +253,21 @@ describe('develop', () => {
       }
       expect(seen.carbon.size).toBeGreaterThan(40);
       expect(seen.silicon.size).toBeGreaterThan(40);
+    });
+
+    it('evolved-style genomes (genes crowded in the low 0..0.6 band) still span many forms', () => {
+      const seen = { carbon: new Set<string>(), silicon: new Set<string>() };
+      const low = (comp: AnimalGenome['comp']): AnimalGenome => {
+        const body = {} as BodyGenes;
+        for (const gene of BODY_GENES) body[gene] = 0.6 * rng() * rng() ** 0.5;
+        return { ...base, body, comp };
+      };
+      for (let n = 0; n < 400; n++) {
+        seen.carbon.add(form(develop(low(carbonComp), { light: 0.6, heatBand: 0.5 }, water)));
+        seen.silicon.add(form(develop(low(siliconComp), { light: 0.6, heatBand: 0.5 }, water)));
+      }
+      expect(seen.carbon.size).toBeGreaterThan(25);
+      expect(seen.silicon.size).toBeGreaterThan(25);
     });
 
     it('mode follows form: fins only on swimmers, wings only on hoverers', () => {

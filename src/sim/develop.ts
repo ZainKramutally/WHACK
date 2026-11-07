@@ -130,11 +130,19 @@ const G = {
 };
 
 const SYMMETRIES = [3, 4, 5, 6, 8] as const;
+/**
+ * Evolved genes crowd the low end of [0, 1] (CLAUDE.md: mutation drifts against the 0 wall; measured 5–95% band ≈ 0..0.6).
+ * Form traits (shape only, never ecology) read the genes through this stretch so the reachable range spans every family.
+ */
+const FORM_SPAN = 0.55;
+const stretch = (g: number) => Math.min(1, g / FORM_SPAN);
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const snap = (deg: number, step: number) => (step > 0 ? Math.round(deg / step) * step : deg);
 
 export function develop(genome: AnimalGenome, conditions: DevelopConditions, inputs: DevelopInputs): BodyPlan {
   const { body, comp } = genome;
+  const f = {} as typeof body; // body genes stretched for form traits
+  for (const k of Object.keys(body) as (keyof typeof body)[]) f[k] = stretch(body[k]);
   const K = CONSTANTS;
   const light = clamp(conditions.light, 0, 1);
   const heat = clamp(conditions.heatBand, 0, 1);
@@ -164,12 +172,12 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const limbLenRel = 0.3 + 1.7 * body.limbLen; // × scale
   const budGrowth = Math.min(1, 4 * body.limbPairs); // a bud is a stubby limb; smooth, so there is no fitness valley
   // Radial: one arm per symmetry vertex; the limbPairs gene walks 3 → 4 → 5 → 6 → 8-fold. Arms walk only when legPairs > 0.
-  const symmetry = radial ? SYMMETRIES[Math.min(SYMMETRIES.length - 1, Math.floor(body.limbPairs * SYMMETRIES.length))] : 2;
+  const symmetry = radial ? SYMMETRIES[Math.min(SYMMETRIES.length - 1, Math.floor(f.limbPairs * SYMMETRIES.length))] : 2;
   const nLegs = radial ? (legPairs === 0 ? 0 : symmetry) : 2 * legPairs;
   // Effective limb length in body lengths. Radial arms are shorter than legs (the hub is wide: 0.6×) plus a spiky stub.
   const legLenEff = (radial ? 0.6 : 1) * limbLenRel * budGrowth;
   // Axial limbs: stiff, long, hunting or plated bodies grow jointed legs; the rest keep soft tentacles.
-  const legScore = 0.7 * body.limbLen + 0.5 * body.plates + 0.6 * body.diet;
+  const legScore = 0.7 * f.limbLen + 0.5 * f.plates + 0.6 * f.diet;
   const jointed = legScore >= 0.8;
   const limbKind: BodyPlan['limbKind'] = radial ? 'rod' : legPairs === 0 ? 'none' : jointed ? 'leg' : 'tentacle';
   const limbSegments = radial ? 2 : legPairs === 0 ? 0 : jointed ? 2 : 2 + Math.round(4 * comp.c * body.limbLen);
@@ -222,18 +230,18 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const eyeUpkeep = K.EYE_FRAC.value * (eyeArea / 1.5) ** 2;
   const eyeless = body.eyes < 0.05;
   // Axial: a pair of ring eyes at the head. Radial: a dot-eye cluster (1–3 dots) at the tip of every arm.
-  const eyePairs = body.eyes < 0.75 ? 1 : body.eyes < 0.92 ? 2 : 3; // axial: more pairs when the genes are strongly eyed
-  const eyeCount = eyeless ? 0 : radial ? symmetry * (body.eyes < 0.4 ? 1 : body.eyes < 0.7 ? 2 : 3) : 2 * eyePairs;
+  const eyePairs = f.eyes < 0.75 ? 1 : f.eyes < 0.92 ? 2 : 3; // axial: more pairs when the genes are strongly eyed
+  const eyeCount = eyeless ? 0 : radial ? symmetry * (f.eyes < 0.4 ? 1 : f.eyes < 0.7 ? 2 : 3) : 2 * eyePairs;
   const eyeKind: BodyPlan['eyeKind'] = eyeless ? 'none' : silicon ? 'dots' : 'rings';
   const glow = clamp(body.glow * (1 - light), 0, 1);
 
   // --- horns (axial: head horns; radial: apex spires), defence, diet -----------------------------
-  const hornCount = body.horns < 0.05 ? 0 : radial ? clamp(Math.round(body.horns * 7), 1, 7) : clamp(Math.round(body.horns * 6), 1, 6);
+  const hornCount = body.horns < 0.05 ? 0 : radial ? clamp(Math.round(f.horns * 7), 1, 7) : clamp(Math.round(f.horns * 6), 1, 6);
   // How the horns are laid out: tusks (big jaws, few horns), a pair, a crown ring, or branching antlers; radial: a spire crown.
   const hornKind: BodyPlan['hornKind'] =
     hornCount === 0 ? 'none'
     : radial ? 'spire'
-    : body.gape > 0.6 && body.horns < 0.45 ? 'tusk'
+    : f.gape > 0.6 && f.horns < 0.45 ? 'tusk'
     : hornCount <= 2 ? 'pair'
     : hornCount <= 4 ? 'crown'
     : 'antler';
@@ -244,9 +252,9 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
 
   // --- radial hub and arms (axial: none) -------------------------------------------------------------
   // flare: tapered cone (spire-bearing, armed) ↔ flared bowl (buoyant, gaping bell). Nonlinear blend of three genes.
-  const flare = radial ? clamp(1.5 * (body.buoy - body.horns) + (body.gape - 0.4), -1, 1) : 0;
+  const flare = radial ? clamp(1.5 * (f.buoy - f.horns) + (f.gape - 0.4), -1, 1) : 0;
   const hubRadius = radial ? 0.32 * scale : 0;
-  const tierHeight = radial ? hubRadius * (0.35 + 0.6 * (1 - body.plates)) : 0;
+  const tierHeight = radial ? hubRadius * (0.35 + 0.6 * (1 - f.plates)) : 0;
   const tierRadii: number[] = [];
   for (let i = 0; i < tiers; i++) {
     const t = tiers === 1 ? 0.5 : i / (tiers - 1);
@@ -259,43 +267,43 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const armLength = radial ? scale * (0.25 + 0.6 * limbLenRel * budGrowth) : 0;
   // Arm kind: whichever of four nonlinear scores wins (rod ← long lone arms, branch ← social, fan ← gaping, whip ← buoyant).
   const armScores = {
-    rod: 0.45 + 0.4 * body.limbLen * (1 - body.sociality),
-    branch: 1.1 * body.sociality * (0.4 + body.limbLen),
-    fan: 1.2 * body.gape * (1 - body.buoy) * (0.5 + body.plates),
-    whip: 1.3 * body.buoy * (0.3 + body.limbLen),
+    rod: 0.45 + 0.4 * f.limbLen * (1 - f.sociality),
+    branch: 1.1 * f.sociality * (0.4 + f.limbLen),
+    fan: 1.2 * f.gape * (1 - f.buoy) * (0.5 + f.plates),
+    whip: 1.3 * f.buoy * (0.3 + f.limbLen),
   };
   let armKind: BodyPlan['armKind'] = 'rod';
   if (radial) for (const k of ['branch', 'fan', 'whip'] as const) if (armScores[k] > armScores[armKind]) armKind = k;
-  const tileLength = radial ? clamp((body.plates - 0.55) * 2.2, 0, 1) : 0;
+  const tileLength = radial ? clamp((f.plates - 0.55) * 2.2, 0, 1) : 0;
   const arms: Arm[] = [];
   if (radial) for (let k = 0; k < symmetry; k++) arms.push({ azimuthDeg: (360 / symmetry) * k, length: armLength });
 
   // --- axial form: blends of the genes (pure; the ecology never reads these) ----------------------------------
   const axial = !radial;
-  const girth = axial ? clamp(0.32 + 0.85 * (1 - body.segments) ** 1.5 + 0.3 * body.buoy + 0.25 * body.plates * (1 - 0.5 * body.segments), 0.3, 1.5) : 0;
-  const flatten = axial ? clamp(1 - 0.5 * body.plates * (1 - body.buoy) - 0.25 * (1 - body.limbPairs) * (1 - body.buoy) + 0.35 * body.buoy, 0.45, 1.3) : 0;
-  const headScale = axial ? clamp(0.75 + 0.9 * body.gape + 0.35 * body.diet * body.gape + 0.25 * body.eyes, 0.75, 2) : 0;
-  const gradient = axial ? clamp(0.9 * (body.sociality - 0.5) + 0.5 * (body.diet - 0.5) - 0.3 * (body.plates - 0.5), -0.5, 0.5) : 0;
-  const carapace = axial ? clamp((body.plates - 0.2) * 1.6, 0, 1) * (1 - 0.5 * body.segments) : 0;
-  const crest = axial ? clamp(1.6 * (0.5 * body.glow + 0.5 * body.sociality - 0.3), 0, 1) : 0;
-  const jaw = axial ? clamp((body.gape - 0.4) * 2, 0, 1) : 0;
+  const girth = axial ? clamp(0.32 + 0.85 * (1 - f.segments) ** 1.5 + 0.3 * f.buoy + 0.25 * f.plates * (1 - 0.5 * f.segments), 0.3, 1.5) : 0;
+  const flatten = axial ? clamp(1 - 0.5 * f.plates * (1 - f.buoy) - 0.25 * (1 - f.limbPairs) * (1 - f.buoy) + 0.35 * f.buoy, 0.45, 1.3) : 0;
+  const headScale = axial ? clamp(0.75 + 0.9 * f.gape + 0.35 * f.diet * f.gape + 0.25 * f.eyes, 0.75, 2) : 0;
+  const gradient = axial ? clamp(0.9 * (f.sociality - 0.5) + 0.5 * (f.diet - 0.5) - 0.3 * (f.plates - 0.5), -0.5, 0.5) : 0;
+  const carapace = axial ? clamp((f.plates - 0.2) * 1.6, 0, 1) * (1 - 0.5 * f.segments) : 0;
+  const crest = axial ? clamp(1.6 * (0.5 * f.glow + 0.5 * f.sociality - 0.3), 0, 1) : 0;
+  const jaw = axial ? clamp((f.gape - 0.4) * 2, 0, 1) : 0;
   let tailKind: BodyPlan['tailKind'] = 'none';
   let tailSegments = 0;
   if (axial) {
     // Whichever tail fits the form wins: whip (long and slender), fluke (swimmers), club (armoured), else a taper.
     const tail = {
-      taper: 0.3,
-      whip: 0.9 * body.segments * (1 - body.plates),
-      fluke: mode === LOCOMOTION.swim ? 0.5 + 0.5 * (1 - body.limbPairs) : 0.1,
-      club: 1.3 * body.plates * (0.4 + body.horns),
+      taper: 0.25,
+      whip: 0.1 + 0.9 * f.segments * (1 - f.plates),
+      fluke: mode === LOCOMOTION.swim ? 0.3 + 0.5 * (1 - f.segments) : 0.05,
+      club: 1.3 * f.plates * (0.4 + f.horns),
     };
     tailKind = 'taper';
     for (const k of ['whip', 'fluke', 'club'] as const) if (tail[k] > tail[tailKind]) tailKind = k;
-    tailSegments = tailKind === 'whip' ? 3 + Math.round(3 * body.segments) : tailKind === 'club' ? 2 : tailKind === 'fluke' ? 1 : 2;
+    tailSegments = tailKind === 'whip' ? 3 + Math.round(3 * f.segments) : tailKind === 'club' ? 2 : tailKind === 'fluke' ? 1 : 2;
   }
   // Mode follows form: swimmers get paddle fins, hoverers get membrane wings (sized by limb length).
-  const finSpan = axial && mode === LOCOMOTION.swim ? clamp(0.25 + 0.9 * body.limbLen * (0.5 + 0.5 * (1 - body.segments)), 0, 1.2) : 0;
-  const wingSpan = axial && mode === LOCOMOTION.hover ? clamp(0.4 + 0.8 * body.limbLen + 0.3 * body.buoy, 0, 1.4) : 0;
+  const finSpan = axial && mode === LOCOMOTION.swim ? clamp(0.25 + 0.9 * f.limbLen * (0.5 + 0.5 * (1 - f.segments)), 0, 1.2) : 0;
+  const wingSpan = axial && mode === LOCOMOTION.hover ? clamp(0.4 + 0.8 * f.limbLen + 0.3 * f.buoy, 0, 1.4) : 0;
 
   // --- lineage colour and pattern: nonlinear mixes of the genes, so related lineages look related -----------------
   const frac = (v: number) => v - Math.floor(v);
@@ -328,9 +336,9 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     limbLength: radial ? armLength : legPairs === 0 ? 0 : scale * limbLenRel,
     limbSegments,
     limbJointAngles,
-    plateCover: body.plates,
+    plateCover: f.plates,
     hornCount,
-    hornLength: hornCount === 0 ? 0 : body.horns * (radial ? 0.6 : hornCount > 2 ? 0.35 : 0.6) * scale,
+    hornLength: hornCount === 0 ? 0 : f.horns * (radial ? 0.6 : hornCount > 2 ? 0.35 : 0.6) * scale,
     gapeSize: 2 * body.gape * scale,
     dorsal: comp.si >= comp.c ? 'rods' : 'frills',
     hornKind,
