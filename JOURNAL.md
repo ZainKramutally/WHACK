@@ -55,3 +55,4 @@
 - 20:30: lilac default merged (a963625 cherry-pick). 98 tests, 60fps.
 - 21:11: rebased session/red-world onto main 5afb26c (full app logic). CLAUDE.md from main (#22). Red-world 98 tests + build, root tsc + 325 tests green. Pushed session/red-world.
 - 21:39: handoff: wrote PLAN.md for a fresh session; shutting down rw-scene/flora/move/fauna (all work merged).
+- 21:49: MERGED to main (ff d6ad4e2) with Caden's approval after rebasing onto 5de74ce; tsc leak fix (rw-tsfix). All agents shut down, sandboxes removed. Next session: dark-walker rim light, #23 art layer wiring.
