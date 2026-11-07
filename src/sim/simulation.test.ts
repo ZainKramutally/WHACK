@@ -308,6 +308,23 @@ describe('WorldSimulation', () => {
     });
   });
 
+  describe('field guide events', () => {
+    it.each([carbon, silicon])('announces each form once, not once per snapshot ($id)', (w: WorldConfig) => {
+      // 6 s build with 100 ecology-seconds of life, snapshotted at 20 Hz as the worker does.
+      const sim = new WorldSimulation({ ...w, build: { ...w.build, durationSec: 6, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 100 } }, EARTH);
+      const forms: { binId: number; name: string }[] = [];
+      for (let i = 0; i < 160; i++) {
+        sim.advance(0.05);
+        sim.snapshot();
+        for (const e of sim.drainEvents()) if (e.type === 'guide:newForm') forms.push(e);
+      }
+      expect(forms.length).toBeGreaterThan(0);
+      expect(forms.length).toBeLessThanOrEqual(30);
+      expect(new Set(forms.map((f) => f.name)).size).toBe(forms.length);
+      expect(new Set(forms.map((f) => f.binId)).size).toBe(forms.length);
+    });
+  });
+
   describe('end of the build, demo seeds', () => {
     // Both worlds land inside every target at the default sliders with the demo seeds.
     const memo = new Map<string, Record<string, number>>();

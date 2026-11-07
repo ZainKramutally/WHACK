@@ -103,6 +103,7 @@ export class WorldSimulation {
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
   private readonly tracker = new FormTracker();
+  private readonly announcedForms = new Set<string>();
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
@@ -206,7 +207,13 @@ export class WorldSimulation {
     const summary = this.life.summary();
     const b = w.build;
 
-    for (const f of this.tracker.update(this.life.guideAnimals())) this.events.push({ type: 'guide:newForm', ...f });
+    // A field-guide bin is a functional type (its generated name), so a form is announced once per name for the whole
+    // run. The tracker alone also reports every new gene-space cluster of the same type as the population drifts.
+    for (const f of this.tracker.update(this.life.guideAnimals())) {
+      if (this.announcedForms.has(f.name)) continue;
+      this.announcedForms.add(f.name);
+      this.events.push({ type: 'guide:newForm', ...f });
+    }
 
     // Seas fill in over the seas window: the reported cover and the sea level rise together, so a stat never
     // disagrees with the picture. The equilibrium cover that life and the limits read is unaffected.
