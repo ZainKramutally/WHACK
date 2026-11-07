@@ -10,9 +10,9 @@ const TAU = Math.PI * 2;
 export function lanternCup(segs = 22): MeshData {
   const mb = new MB();
   const prof: ProfilePt[] = [
-    [0, 0, 0], [0.09, 0, 0], [0.075, 0.1, 0], [0.058, 0.28, 0], [0.066, 0.4, 0],
-    [0.13, 0.5, 0], [0.25, 0.63, 0], [0.37, 0.77, 0], [0.45, 0.89, 0], [0.49, 0.96, 0.5],
-    [0.475, 1.0, 0.5], [0.44, 0.985, 0.5], [0.41, 0.93, 1], [0.34, 0.8, 1], [0.23, 0.68, 1], [0.1, 0.61, 1], [0, 0.585, 1],
+    [0, 0, 0], [0.085, 0, 0], [0.07, 0.1, 0], [0.058, 0.22, 0], [0.066, 0.32, 0],
+    [0.13, 0.4, 0], [0.24, 0.5, 0], [0.35, 0.62, 0], [0.43, 0.74, 0], [0.47, 0.86, 0], [0.475, 0.95, 0.5],
+    [0.46, 1.0, 0.5], [0.425, 0.99, 0.5], [0.4, 0.94, 1], [0.34, 0.83, 1], [0.24, 0.73, 1], [0.12, 0.67, 1], [0, 0.65, 1],
   ];
   lathe(mb, prof, segs, { radial: (th, i) => 1 + (i > 5 ? 0.07 * Math.sin(5 * th + i * 0.3) : 0) });
   return mb.data();
@@ -56,11 +56,11 @@ export function glowStalk(seed = 1): MeshData {
   for (let i = 0; i <= N; i++) {
     const t = i / N, u = 1 - t;
     path.push([2 * u * t * bx + t * t * tx, t * 0.985, 2 * u * t * bz + t * t * tz]);
-    radii.push(0.0105 * (1 - 0.6 * t) * (1 + 2.2 * Math.pow(1 - t, 12)));
+    radii.push(0.0058 * (1 - 0.55 * t) * (1 + 1.8 * Math.pow(1 - t, 14)));
   }
   tube(mb, path, radii, 5, () => 0);
-  const R = 0.048;
-  const cap: ProfilePt[] = [[0.004, -0.014, 1], [0.02, -0.011, 1], [0.04, -0.004, 1], [R, 0.002, 1], [R * 0.96, 0.005, 0.5], [0.032, 0.012, 0.5], [0.012, 0.0165, 0.5], [0, 0.018, 0.5]];
+  const R = 0.034;
+  const cap: ProfilePt[] = [[0.003, -0.01, 1], [0.014, -0.008, 1], [0.028, -0.003, 1], [R, 0.001, 1], [R * 0.96, 0.004, 0.5], [0.022, 0.009, 0.5], [0.009, 0.012, 0.5], [0, 0.0128, 0.5]];
   const top = path[N];
   lathe(mb, cap, 12, { center: [top[0], top[1] + 0.005, top[2]] });
   return mb.data();
@@ -146,7 +146,7 @@ export function blackMonolith(seed = 1): MeshData {
   const strands = 13;
   for (let k = 0; k < strands; k++) {
     const th = (k / strands) * TAU + rng() * 0.3, r = 0.075 + rng() * 0.02;
-    const y0 = 0.12 - saw(th) * 0.5, drop = 0.07 + rng() * 0.11;
+    const y0 = 0.12 - saw(th) * 0.5, drop = 0.11 + rng() * 0.1;
     const o: V3 = [Math.cos(th) * r, y0, Math.sin(th) * r];
     const out: V3 = [Math.cos(th) * 0.012, 0, Math.sin(th) * 0.012];
     tube(mb, [o, [o[0] + out[0], y0 - drop * 0.5, o[2] + out[2]], [o[0] + out[0] * 2, Math.max(0, y0 - drop), o[2] + out[2] * 2]], [0.016, 0.011, 0], 4);

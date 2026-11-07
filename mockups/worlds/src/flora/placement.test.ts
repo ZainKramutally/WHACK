@@ -66,7 +66,9 @@ describe('visibleCount', () => {
   it('counts instances below niche×1.1 in a sorted array', () => {
     const r = new Float32Array([0.1, 0.3, 0.5, 0.7, 0.9]);
     expect(visibleCount(r, 5, 0)).toBe(0);
-    expect(visibleCount(r, 5, 0.5)).toBe(3);
+    expect(visibleCount(r, 5, 0.1)).toBe(0);
+    expect(visibleCount(r, 5, 0.35)).toBe(3); // eff = 0.5 → lim 0.55
+    expect(visibleCount(r, 5, 0.05)).toBe(0);
     expect(visibleCount(r, 5, 1)).toBe(5);
   });
 });

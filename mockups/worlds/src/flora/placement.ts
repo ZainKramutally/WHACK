@@ -106,7 +106,8 @@ export function distToValley(v: Valley, x: number, z: number): number {
 
 /** Number of leading (sorted) instances that can be visible at this niche value. */
 export function visibleCount(rands: Float32Array, n: number, niche: number): number {
-  const lim = niche * 1.1;
+  const x = Math.min(1, Math.max(0, (niche - 0.1) / 0.5)); // keep in sync with effNiche in nodes.ts
+  const lim = x * x * (3 - 2 * x) * 1.1;
   let lo = 0, hi = n;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (rands[mid] < lim) lo = mid + 1; else hi = mid; }
   return lo;

@@ -10,9 +10,12 @@ export const aBase = () => attribute('aBase', 'vec3');
 export const aPar = () => attribute('aPar', 'vec3');
 export const aAux = () => attribute('aAux', 'vec4');
 
+/** Niche → visible fraction. Steepened so a niche near 0.1 means *absent*, not a few stray giants. */
+export const effNiche = (n: any) => smoothstep(0.1, 0.6, n);
+
 /** Emergence: instance is visible when aRand < niche; scale eases in over a smoothstep band. */
 export function gateNode(ctx: WorldContext, id: SpeciesId): any {
-  return smoothstep(0, 1, saturate(ctx.uniforms.niches[id].mul(1.1).sub(aRand()).mul(10)));
+  return smoothstep(0, 1, saturate(effNiche(ctx.uniforms.niches[id]).mul(1.1).sub(aRand()).mul(10)));
 }
 
 export interface PosOpts {
