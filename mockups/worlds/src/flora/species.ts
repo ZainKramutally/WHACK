@@ -188,7 +188,7 @@ export function glowStalks(env: Env): SpeciesBuild {
   const v = fract(aRand().mul(37.3));
   const pale = mix(u.glowColor, vec3(1), 0.12);
   const small = smoothstep(3.0, 1.0, aPar().x);
-  const variant = mix(mix(pale, mix(pale, vec3(0.95, 0.9, 0.35), 0.4), step(v, 0.16)), mix(pale, vec3(0.7, 0.62, 1.0), 0.45), step(0.84, v).max(small.mul(0.7)));
+  const variant = mix(mix(pale, mix(pale, vec3(0.95, 0.9, 0.35), 0.4), step(v, 0.16)), mix(pale, vec3(0.62, 0.48, 1.0), 0.7), step(0.84, v).max(small.mul(0.7)));
   const warm = vec3(0.8, 0.8, 0.41);
   const lowTint = smoothstep(0.35, 0.0, positionGeometry.y);
   const hue = mix(variant, warm, lowTint.mul(0.5));
@@ -219,7 +219,7 @@ export function glowStalks(env: Env): SpeciesBuild {
     const rr = pow(float(1).sub(aAux().w), 1.8);
     const poolHue = mix(vec3(0.8, 0.8, 0.41), vec3(0.82, 0.95, 0.28), pow(rr, 0.5));
     const pm = e2.ctx.materials.create({
-      color: color(0x000000), emissive: poolHue.mul(0.95), opacity: pow(rr, 1.3).mul(0.85),
+      color: color(0x000000), emissive: poolHue.mul(0.7), opacity: pow(rr, 1.4).mul(0.6),
       positionNode: floraPosition(e2.ctx, 'glowStalks', {}),
     });
     pm.blending = THREE.AdditiveBlending; pm.depthWrite = false; pm.side = THREE.DoubleSide;
