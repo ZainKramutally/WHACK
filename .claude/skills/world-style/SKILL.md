@@ -75,6 +75,7 @@ Sibling skills these mention but we **didn't install** (`threejs-shaders`, `thre
 
 ## Rules for agents
 
+0. r187 facts (verified in `mockups/worlds/scripts/smoke.py`): `material.positionNode` runs **after** instancing, so sway is `positionLocal.add(offset)`. The sky goes on `scene.backgroundNode`, not `scene.background`. `MeshToonNodeMaterial` has no `flatShading`, so use a dFdx/dFdy `normalNode`. `PCFSoftShadowMap` is gone.
 1. Import from `three/webgpu` and `three/tsl`. Never mix `three` and `three/webgpu` renderer imports.
 2. Use the shared world material and palette texture. If you think you need a new material, ask first.
 3. Author physics colliders as named primitives in Blender (see the construction rules), separate from the visual meshes.
