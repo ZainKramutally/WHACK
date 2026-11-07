@@ -170,7 +170,7 @@ export interface BusEvents {
   'control:blocked': { controlId: ControlId; limitId: string; start?: true };   // start: moved by startingConditions at world start
   'guide:newForm': NewFormEvent;
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };
-  'inspect:window': { x: number; y: number; width: number; height: number } | null;
+  'inspect:window': { x: number; y: number; width: number; height: number; /** what the window shows: the thing itself (default) or the other world's version */ mode?: 'self' | 'other' } | null;
   'inspect:close': Record<string, never>;
 }
 

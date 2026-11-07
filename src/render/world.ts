@@ -87,7 +87,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const sea = createSea(app);
   const fauna = createFauna(app);
   const flora = createFlora(app);
-  const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest });
+  const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id) });
   const picker = createPicker({ app, bus, fauna, getInputs: () => latest, getPatch: () => patch });
 
   /** Accumulated ms per part (profiling aid; reset by the caller). */

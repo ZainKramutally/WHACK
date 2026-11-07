@@ -45,6 +45,8 @@ interface Entry {
   x: number; z: number; h: number;
   /** Smoothed ground speed in m/s and the accumulated gait cycles. */
   speed: number; gait: number;
+  /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
+  planned: boolean;
   seen: boolean; stamp: number; born: number; dieT: number; mode: number; id: number; diet: number;
 }
 
@@ -69,6 +71,8 @@ export interface FaunaPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
   /** Nearest organism under a ray (world space, normalised direction), or null. */
   hit(origin: Vec3, dir: Vec3): { id: number; dist: number } | null;
+  /** Cached bead layout, chemistry and diet of an organism by id (from its BodyPlan), if known. */
+  layoutOf(id: number): { layout: BeadLayout; silicon: boolean; diet: number } | null;
   /** World position and bounding radius of an organism by id, if drawn. */
   locate(id: number): { x: number; y: number; z: number; radius: number } | null;
   /** Extra multiplier on top of the display-scale rule in layout.ts (default 1). Render-only illustration. */
@@ -114,11 +118,11 @@ export function createFauna(app: App): FaunaPart {
   let pid = new Float64Array(1024), px = new Float32Array(1024), py = new Float32Array(1024), pz = new Float32Array(1024), pr = new Float32Array(1024);
   let pn = 0;
 
-  function makeEntry(layout: BeadLayout, silicon: boolean, diet: number, glow: number, scale: number, id: number): Entry {
+  function makeEntry(layout: BeadLayout, silicon: boolean, diet: number, glow: number, scale: number, id: number, planned = false): Entry {
     return {
       layout, lastSeen: frame, glow, silicon, scale, ...bake(layout, silicon, diet),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
-      speed: 0, gait: 0, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet,
+      speed: 0, gait: 0, planned, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet,
     };
   }
 
@@ -185,7 +189,7 @@ export function createFauna(app: App): FaunaPart {
           if (entries.has(b.id)) continue;
           try {
             const plan = unpackBodyPlan(b.plan);
-            entries.set(b.id, makeEntry(beadLayout(plan), plan.chemistry === 'silicon', plan.diet, plan.glow, plan.scale, b.id));
+            entries.set(b.id, makeEntry(beadLayout(plan), plan.chemistry === 'silicon', plan.diet, plan.glow, plan.scale, b.id, true));
           } catch { /* malformed plan: fall back to a capsule when the organism shows up */ }
         }
       }
@@ -317,6 +321,10 @@ export function createFauna(app: App): FaunaPart {
     },
     hit(origin, dir) {
       return nearestSphere(origin, dir, pid, px, py, pz, pr, pn);
+    },
+    layoutOf(id) {
+      const e = entries.get(id);
+      return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet } : null;
     },
     locate(id) {
       for (let i = 0; i < pn; i++) if (pid[i] === id) return { x: px[i], y: py[i], z: pz[i], radius: pr[i] };

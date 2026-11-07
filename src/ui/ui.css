@@ -93,6 +93,9 @@
 .wu-v { text-align: right; }
 .wu-why-line { margin: 8px 0; font-size: 12px; color: var(--wu-dim); }
 .wu-window { height: 140px; margin-top: 8px; border: 1px dashed var(--wu-line); border-radius: 8px; background: transparent; }
+.wu-toggle { display: flex; gap: 4px; margin-top: 6px; }
+.wu-toggle-btn { flex: 1; font-size: 11px; padding: 3px 6px; border: 1px solid var(--wu-line); border-radius: 6px; background: transparent; color: var(--wu-dim); cursor: pointer; }
+.wu-toggle-btn.wu-on { color: #fff; background: #ffffff1c; border-color: #ffffff55; }
 .wu-window-label { margin: 4px 0 0; font-size: 11px; color: var(--wu-dim); }
 
 /* Captions */

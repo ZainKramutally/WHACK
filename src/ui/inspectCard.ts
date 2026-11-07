@@ -46,8 +46,14 @@ export function mountInspectCard(
   const cmpTitle = el('h3', 'wu-h3');
   const table = el('table', 'wu-table wu-cmp');
   const win = el('div', 'wu-window');
+  const toggle = el('div', 'wu-toggle');
+  const selfBtn = el('button', 'wu-toggle-btn', 'This creature');
+  const otherBtn = el('button', 'wu-toggle-btn', 'If built from …');
+  selfBtn.type = 'button'; otherBtn.type = 'button';
+  toggle.append(selfBtn, otherBtn);
   const winLabel = el('p', 'wu-window-label');
-  card.append(title, closeBtn, kind, status, details, whyP, cmpTitle, table, win, winLabel);
+  card.append(title, closeBtn, kind, status, details, whyP, cmpTitle, table, win, toggle, winLabel);
+  let viewMode: 'self' | 'other' = 'self';
   root.append(card);
 
   let target: InspectTarget | null = null;
@@ -160,13 +166,21 @@ export function mountInspectCard(
     thead.append(head);
     table.replaceChildren(thead, ...body);
 
-    win.hidden = !other;
-    winLabel.hidden = !other;
-    if (other) {
-      winLabel.textContent = target.kind === 'organism'
-        ? `If this were built from ${other.id} (illustration)`
-        : `A patch of the ${other.id} world (illustration)`;
+    // Creatures only ever show themselves (carbon and silicon bodies must not mirror each other): no toggle for them.
+    const isOrg = target.kind === 'organism';
+    win.hidden = false;
+    winLabel.hidden = false;
+    toggle.hidden = !other || isOrg;
+    if (isOrg) viewMode = 'self';
+    if (other && !isOrg) {
+      selfBtn.textContent = 'This world';
+      otherBtn.textContent = `A ${other.id} world`;
+      selfBtn.classList.toggle('wu-on', viewMode === 'self');
+      otherBtn.classList.toggle('wu-on', viewMode === 'other');
     }
+    winLabel.textContent = isOrg
+      ? 'This creature (live)'
+      : viewMode === 'self' ? 'A patch of this world (illustration)' : `A patch of the ${other?.id ?? ''} world (illustration)`;
     place();
     reportWindow();
   }
@@ -202,14 +216,15 @@ export function mountInspectCard(
     if (card.hidden || win.hidden) return;
     const r = win.getBoundingClientRect();
     punchWindow(r);
-    const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
+    const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',') + viewMode;
     if (key === lastRect) return;
     lastRect = key;
-    bus.emit('inspect:window', { x: r.left, y: r.top, width: r.width, height: r.height });
+    bus.emit('inspect:window', { x: r.left, y: r.top, width: r.width, height: r.height, mode: viewMode });
   }
 
   function open(t: InspectTarget, at: { x: number; y: number }) {
     target = t;
+    viewMode = 'self';
     anchor = at;
     lastRec = null;
     lastPlan = undefined;
@@ -231,6 +246,19 @@ export function mountInspectCard(
     if (notify) bus.emit('inspect:close', {});
   }
 
+  const setMode = (m: 'self' | 'other') => {
+    if (viewMode === m) return;
+    viewMode = m;
+    selfBtn.classList.toggle('wu-on', m === 'self');
+    otherBtn.classList.toggle('wu-on', m === 'other');
+    if (target && other && target.kind !== 'organism') {
+      winLabel.textContent = m === 'self' ? 'A patch of this world (illustration)' : `A patch of the ${other.id} world (illustration)`;
+    }
+    lastRect = '';
+    reportWindow();
+  };
+  selfBtn.addEventListener('click', () => setMode('self'));
+  otherBtn.addEventListener('click', () => setMode('other'));
   closeBtn.addEventListener('click', () => close());
   // Click elsewhere closes. The render layer's own click (which opens a new card) comes after pointerdown.
   const onDown = (e: PointerEvent) => {

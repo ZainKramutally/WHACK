@@ -1,15 +1,13 @@
-// The inspect card's counterpart view: while the UI holds an `inspect:window` rect, draw a small scissored viewport
-// of the other world's version of the inspected thing, turning slowly. Organisms: the same genome re-run through
-// develop() with the other world's composition, as beads. Sea/ground/sky/producer: a swatch of the other world.
+// The inspect card's 3D window: while the UI holds an `inspect:window` rect, draw a small scissored viewport of the
+// inspected thing, turning slowly. Organisms: the creature itself, built from its own cached BodyPlan as beads (never
+// another chemistry's rebuild). Sea/ground/sky/producer: this world's swatch, or the other world's via the toggle.
 // Runs only while the window is set. Draws after the main scene render (it wraps renderer.render).
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { Bus } from '../bus';
-import type { InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
-import type { AnimalGenome } from '../sim/genome';
-import { develop, type DevelopInputs } from '../sim/develop';
+import type { BusEvents, InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
+import type { DevelopInputs } from '../sim/develop';
 import { gasDensity } from '../sim/models';
-import { OrganismField, ORGANISM_STRIDE, organismCount, readOrganism } from '../sim/organismLayout';
 import { beadLayout } from './layout';
 import { creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle, type Tone } from './palette';
 
@@ -26,6 +24,8 @@ export interface CounterpartDeps {
   /** Config of a world by id (the other world is looked up from here). */
   worldFor: (id: WorldId) => WorldConfig;
   getInputs: () => VisualInputs;
+  /** Bead layout of a creature as it lives in this world (from its BodyPlan), for the default 'self' view. */
+  layoutOf?: (id: number) => { layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number } | null;
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -57,6 +57,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   let backdrop: THREE.Mesh | null = null;
 
   let rect: { x: number; y: number; width: number; height: number } | null = null;
+  let mode: 'self' | 'other' = 'self';
   let target: InspectTarget | null = null;
   let builtFor = '';
   const disposables: { dispose(): void }[] = [];
@@ -147,25 +148,34 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     turntable.add(mesh);
   }
 
-  function organismContent(other: WorldConfig, inputs: VisualInputs, id: number) {
-    const buf = inputs.organisms;
-    const n = organismCount(buf);
-    let idx = -1;
-    for (let i = 0; i < n; i++) if (buf[i * ORGANISM_STRIDE + OrganismField.id] === id) { idx = i; break; }
-    if (idx < 0) return;
-    const rec = readOrganism(buf, idx);
-    const genome: AnimalGenome = {
-      body: rec.body,
-      climate: { prefTemp: rec.prefTemp, tolerance: rec.tolerance, chem: rec.chem },
-      comp: other.life.composition,
-      lineage: rec.lineage,
-    };
-    const plan = develop(genome, { light: Math.min(1, mid(other, 'light', 1)), heatBand: 0.5 }, developInputsFor(other));
-    beadsContent(beadLayout(plan), plan.chemistry === 'silicon', rec.body.diet, rect ? rect.width / rect.height : 2);
+  // Placeholder for a creature whose body plan hasn't arrived: a neutral label, never another chemistry's rebuild.
+  let notScanned: THREE.Mesh | null = null;
+  function notScannedContent() {
+    if (!notScanned) {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 96;
+      const g = c.getContext('2d');
+      if (g) {
+        g.fillStyle = 'rgba(20,24,32,0.85)'; g.fillRect(0, 0, 256, 96);
+        g.fillStyle = '#c8d0dc'; g.font = '24px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('Not scanned yet', 128, 48);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      notScanned = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicNodeMaterial({ map: tex, transparent: true, fog: false }));
+      notScanned.position.y = 0.6;
+    }
+    turntable.add(notScanned);
   }
 
-  function seaContent(other: WorldConfig) {
-    const s = seaStyle(other.solvent.name, false, other.solvent.solidSinks);
+  /** The clicked creature itself, in its own chemistry, from its own cached BodyPlan layout. */
+  function organismContent(id: number) {
+    const own = deps.layoutOf?.(id);
+    if (own) beadsContent(own.layout, own.silicon, own.diet, rect ? rect.width / rect.height : 2);
+    else notScannedContent();
+  }
+
+  function seaContent(other: WorldConfig, frozen = false) {
+    const s = seaStyle(other.solvent.name, frozen, other.solvent.solidSinks);
     const bed = new THREE.Mesh(geo(new THREE.BoxGeometry(2.4, 0.3, 2.4)), mat(groundColour(other.life.composition, 1)));
     bed.position.y = -0.15;
     const liquid = new THREE.Mesh(geo(new THREE.BoxGeometry(2.4, 0.7, 2.4)), mat(s.colour, { rough: 0.1, opacity: Math.max(0.3, s.opacity) }));
@@ -247,18 +257,19 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function build(inputs: VisualInputs) {
-    const key2 = `${inputs.world.id}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}`;
+    const key2 = `${inputs.world.id}|${mode}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}`;
     if (key2 === builtFor) return;
     builtFor = key2;
     clearContent();
     cam.position.set(0, 1.1, 3.4);
     cam.lookAt(0, 0.45, 0);
     if (!target) return;
-    const other = deps.worldFor(inputs.world.id === 'carbon' ? 'silicon' : 'carbon');
+    // 'self' shows this world's version of the thing; 'other' the opposite chemistry's.
+    const other = deps.worldFor(mode === 'self' ? inputs.world.id : inputs.world.id === 'carbon' ? 'silicon' : 'carbon');
     setBackdrop(other);
     switch (target.kind) {
-      case 'organism': organismContent(other, inputs, target.organismId); break;
-      case 'sea': seaContent(other); break;
+      case 'organism': organismContent(target.organismId); break;
+      case 'sea': seaContent(other, mode === 'self' && inputs.frozen); break;
       case 'ground': groundContent(other); break;
       case 'producer': producerContent(other); break;
       case 'sky': skyContent(other); break;
@@ -284,9 +295,14 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
   const ready = warmUp();
 
-  const onWindow = (w: typeof rect) => { rect = w; if (!w) { builtFor = ''; clearContent(); } };
-  const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
-  const onClose = () => { rect = null; target = null; builtFor = ''; clearContent(); };
+  const onWindow = (w: BusEvents['inspect:window']) => {
+    rect = w;
+    const m = target?.kind === 'organism' ? 'self' : (w?.mode ?? 'self'); // creatures never show another chemistry
+    if (m !== mode) { mode = m; builtFor = ''; }
+    if (!w) { builtFor = ''; clearContent(); }
+  };
+  const onOpen = (e: { target: InspectTarget }) => { target = e.target; mode = 'self'; builtFor = ''; };
+  const onClose = () => { rect = null; target = null; mode = 'self'; builtFor = ''; clearContent(); };
   bus.on('inspect:window', onWindow);
   bus.on('inspect:open', onOpen);
   bus.on('inspect:close', onClose);
@@ -316,6 +332,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       if (!rect || !target) return;
       build(inputs);
       turntable.rotation.y += dt * 0.6;
+      if (notScanned && notScanned.parent === turntable) notScanned.rotation.y = -turntable.rotation.y; // keep the label facing us
     },
     dispose() {
       bus.off('inspect:window', onWindow);
@@ -327,6 +344,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       for (const b of backdrops.values()) { b.geometry.dispose(); (b.material as THREE.Material).dispose(); }
       for (const m of Object.values(beadMat)) m.dispose();
       for (const g of Object.values(beadGeo)) g.dispose();
+      if (notScanned) { (notScanned.material as THREE.MeshBasicNodeMaterial).map?.dispose(); (notScanned.material as THREE.Material).dispose(); notScanned.geometry.dispose(); }
     },
   };
 }
