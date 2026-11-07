@@ -4,7 +4,7 @@ Hackathon project for WHACK 26, targeting the Marshall Wace "New Worlds" challen
 
 ## What we are building
 
-A browser experience built with three.js. The player completes the sentence "Life is ▢ based" by choosing an element from group 14 of the periodic table. A world that suits that chemistry is then generated procedurally around them while they walk through it in third person. Over a little more than two minutes, billions of years of that planet's history play out as a time-lapse: terrain forms, seas fill, an atmosphere settles, life appears, and life and planet change each other over time. A stats panel compares every condition with Earth and explains, in one plain sentence, why it is the way it is.
+A browser experience built with three.js. The player completes the sentence "Life is ▢ based" by choosing an element from group 14 of the periodic table. A world that suits that chemistry is then generated procedurally around them while they walk through it in third person. The world builds itself in about 20 seconds: terrain rises, seas fill, an atmosphere settles, and life grows from tiny worms to complex forms, all together. Then it lives: the ecology keeps running and evolving, and life and planet keep changing each other. A stats panel compares every condition with Earth and explains, in one plain sentence, why it is the way it is.
 
 The project is speculative by design. Our interpretation of "New Worlds" is imagining what new forms of life would look like if life were built on different chemistry. The speculation is the point, but it is disciplined: every world is built outward from real chemistry and physics, so judges can follow the reasoning from "silicon bonds are weaker" all the way to "so this world is frozen and has no oxygen".
 
@@ -26,11 +26,11 @@ This file covers the logic only. Look decisions (palettes, render style, materia
 
 **Science lives in data, not in rendering code.** Every number that describes a world (temperatures, pressures, gas fractions, rates, thresholds, coefficients) lives in that world's config file with a `why` sentence and a `sources` reference. Code may contain the *form* of an equation (for example, a radiative balance or a vapour-pressure lookup), but every coefficient it uses comes from config. Rendering and simulation code never hardcodes a world fact. If a value cannot be sourced, set `assumption: true` on it and open or link a GitHub issue for it (see "Open questions").
 
-**No natural disasters.** Conditions change only through slow, physically sensible processes: stellar brightening, rock weathering, gradual atmospheric escape, and life itself changing the atmosphere (see "Life changes the planet"). No eruptions, impacts, flares or random events.
+**No natural disasters.** Conditions change only through life itself changing the air and seas (see "Life changes the planet") and through the player's sliders. No eruptions, impacts, flares or random events.
 
 **Visuals are stylised but never contradict the stats.** The look can be vibrant and art-directed; it does not have to be photoreal. But anything that carries meaning must match the simulation: seas freeze only when the stats say the solvent is below its freezing point, sea level follows the sea-volume stat, forests appear only when life has reached land, and lighting gets warmer or dimmer in step with the star. If a visual and a stat disagree, fix the visual.
 
-**Deterministic demo.** All randomness comes from a seeded generator. Each world has a pinned demo seed, so with the sliders left at their defaults the live run matches rehearsal exactly. The simulation advances in fixed steps of simulated time. The worker paces those steps against the wall clock so the time-lapse plays in real time, running extra steps to catch up when it falls behind. The sequence of states therefore depends only on the seed and the slider input, never on frame rate, so a dropped frame cannot change the outcome.
+**Deterministic demo.** All randomness comes from a seeded generator. Each world has a pinned demo seed, so with the sliders left at their defaults the live run matches rehearsal exactly. The simulation advances in fixed 20 Hz ticks. During the build, the worker runs a fixed tick schedule that depends only on build time, many ticks per frame (see "The ecology clock"). After the build, it paces ticks against the wall clock at the live `timeScale`, running extra ticks to catch up when it falls behind. The sequence of states therefore depends only on the seed and the slider input, never on frame rate, so a dropped frame cannot change the outcome.
 
 **Performance.** 60 fps on the demo laptop at the resolution we present at. If it drops, reduce creature or plant counts before cutting features.
 
@@ -38,11 +38,11 @@ This file covers the logic only. Look decisions (palettes, render style, materia
 
 **Selection screen.** The sentence "Life is ▢ based" with group 14 shown as a column of the periodic table. Carbon and silicon are selectable and show their status labels. The rest of the column (germanium, tin, lead, flerovium) appears greyed out for visual completeness with a one-line reason, for example "Bonds even weaker than silicon's" for germanium, or "Made in a lab; atoms last only seconds" for flerovium. These are not selectable in the MVP. Clicking carbon or silicon selects it (carbon is selected by default). The three condition sliders sit beside the column, and the carbon and silicon cells show live whether their life could survive at the current settings. On the side of the screen, a **particle box** shows the selected element's chemistry as atoms and molecules, reacting live to every change (see "The particle box and the Generate transition"). Clicking **Generate** zooms into the box, and its particles multiply into the new world's ground. There is no loading screen.
 
-**Generation and exploration.** The world builds itself in phases (below). The player character spawns as soon as the particles have become solid ground, about six seconds in, and can walk and look around for the rest of the run. The screen shows only the world. Stats, sliders and explanations live in a Conditions panel and in inspect cards that open on click (see "In the world: a clean screen, and click to inspect"). Each phase change shows a one-line caption that fades.
+**Generation and exploration.** The world builds itself in one fast run of about 20 s (see "The build (one fast run)"). The player character spawns as soon as the particles have become solid ground, about six seconds in, and can walk and look around from then on. The screen shows only the world. Stats, sliders and explanations live in a Conditions panel and in inspect cards that open on click (see "In the world: a clean screen, and click to inspect"). A one-line caption fades in at the start of the build, and another when life appears.
 
-**Condition sliders.** Temperature, Nitrogen and Oxygen sliders are available the whole time, from the selection screen to the end of the run. On the selection screen they are on screen and set the planet's starting conditions. In the world they live in the Conditions panel, which is closed by default; there they change conditions live, and the player watches life respond. Each slider shows the same full range in every world, with red zones where that world's life would die. Once a world is running, the thumb cannot enter them (see "Condition sliders" below).
+**Condition sliders.** Temperature, Nitrogen and Oxygen sliders are available the whole time, from the selection screen for as long as the world runs. On the selection screen they are on screen and set the planet's starting conditions. In the world they live in the Conditions panel, which is closed by default; there they change conditions live, and the player watches life respond. Each slider shows the same full range in every world, with red zones where that world's life would die. Once a world is running, the thumb cannot enter them (see "Condition sliders" below).
 
-**End state.** When the timeline reaches the start of the present phase (130 s), `run:complete` fires and a summary card shows the world's final stats beside Earth's, plus the dominant life form's traits. The player can close it. The world keeps running in a stable state behind it.
+**After the build.** When the build finishes, `build:complete` fires and the world keeps living: the ecology keeps running and evolving live, and the sliders still make life respond. A summary card shows the world's current stats beside Earth's, plus the dominant life form's traits. It opens from the Conditions panel at any time and never pops up on its own. The player can close it, and the world keeps running behind it.
 
 ## Worlds
 
@@ -52,15 +52,15 @@ Each world is procedurally generated from its seed. The three sliders set the st
 
 | Stat | Range or trajectory | Earth today | Why |
 |---|---|---|---|
-| Mean surface temperature | 5 to 25 °C at present | about 15 °C | Water must be liquid; carbon chemistry in water works well in this band. Set by star brightness and the CO₂ greenhouse. |
+| Mean surface temperature | 5 to 25 °C at the end of the build | about 15 °C | Water must be liquid; carbon chemistry in water works well in this band. Set by star brightness and the CO₂ greenhouse. |
 | Surface pressure | About 1 bar by default; derived from the gases and gravity | about 1 bar | At 1 bar, water is liquid between 0 and 100 °C. |
 | Gravity | 0.8 to 1.3 g | 1 g | Enough to hold an atmosphere; within the range of rocky planets. |
-| Oxygen | 0%, rising to 15 to 25% | 21% | Starts near zero; produced by photosynthetic life, but only accumulates once rocks and volcanic gases stop soaking it up. |
+| Oxygen | 21% by default, nudged by life | 21% | Set by the Oxygen slider. Photosynthesis raises it, and consumers pull it back down. |
 | Nitrogen | 1 × Earth's by default | 1 × | Set by the Nitrogen slider. Life needs it for proteins and DNA. |
 | Main gas | Nitrogen | Nitrogen | Unreactive bulk gas that persists over billions of years. |
-| Carbon dioxide | High, falling to low | about 0.04% | Drawn down by rock weathering (faster when warm, which steadies the climate) and by photosynthesis. |
+| Carbon dioxide | Starts high, falls as life grows | about 0.04% | Drawn down by photosynthesis, and returned by consumers. |
 | Solvent | Water | Water | Liquid over a wide temperature range and dissolves many carbon compounds. |
-| Star | Sun-like, slowly brightening | The Sun | Sun-like stars brighten slowly over billions of years; the young Sun was about 30% dimmer. |
+| Star | Sun-like | The Sun | The reference. |
 | Pace of chemistry | 1 × Earth | 1 | The reference. |
 
 ### Silicon (status: speculative)
@@ -85,9 +85,9 @@ The reasoning chain the UI tells, one step at a time:
 | Oxygen | 0% throughout | 21% | Any free oxygen would turn silicon into rock. |
 | Nitrogen | Tens of × Earth's by default, most of it in the seas (pinned from the sea depth) | 1 × | Set by the Nitrogen slider. The seas exist only while there is more nitrogen than the air holds. |
 | Main gas | Nitrogen | Nitrogen | Bulk atmosphere, and in balance with the seas. |
-| Sea cover | Derived from nitrogen inventory minus what the air holds | about 71% | Seas shrink when life locks nitrogen into bodies, when gas escapes to space, or when warming moves more nitrogen into the air. |
+| Sea cover | Derived from nitrogen inventory minus what the air holds | about 71% | Seas shrink when life locks nitrogen into bodies, or when warming moves more nitrogen into the air. |
 | Solvent | Liquid nitrogen | Water | Cold, unreactive and does not attack silicon compounds. |
-| Star | Sun-like star about 10 times farther away than the Sun is from Earth, slowly brightening | The Sun | Explains the cold; at Saturn's distance, Titan's surface is about −180 °C. |
+| Star | Sun-like star about 10 times farther away than the Sun is from Earth | The Sun | Explains the cold; at Saturn's distance, Titan's surface is about −180 °C. |
 | Pace of chemistry | Shown as the Arrhenius estimate from the config's activation energy (around 10⁻²⁰ × Earth with a typical activation energy), labelled "compressed in the time-lapse" | 1 | Reactions slow sharply in the cold. The sim compresses this so evolution is visible, and says so. |
 | Pace of life (shown as the generation count, not a panel stat) | Slower than carbon life, fewer generations in the same time | n/a | Comes from the metabolism rule in config, not a hardcoded speed. |
 
@@ -95,28 +95,32 @@ We assume an oxygen-poor (reduced) planet where silicon is available in forms li
 
 ## Life changes the planet
 
-Conditions and life are coupled in both directions. The stats shape which organisms survive, and the population in turn shifts the stats. This two-way loop is the main source of change after the formation phases, and it is what makes the world feel alive rather than scripted.
+Conditions and life are coupled in both directions. The stats shape which organisms survive, and the population in turn shifts the stats. This two-way loop runs during the build and keeps running live after it. Apart from the sliders, it is the only source of change, and it is what makes the world feel alive rather than scripted. These feedbacks are light nudges, not slow geological processes: there is no deep time to run those over.
 
-On the carbon world, photosynthetic organisms produce oxygen and draw down carbon dioxide. Early on, that oxygen is soaked up by iron in the seas and by volcanic gases (an oxygen sink that weakens over time), so oxygen only starts to accumulate once the sink is used up. That delay is real, and it is why Earth's Great Oxidation Event came hundreds of millions of years after photosynthesis began. Consumers breathe oxygen and release carbon dioxide, so a booming animal population pulls oxygen back down. Rising oxygen makes larger body sizes viable. Falling carbon dioxide weakens the greenhouse effect and cools the climate, which favours cold-tolerant traits, while weathering slows in the cold and steadies the temperature. This is a simplification: on the real Earth, oxygen accumulates mainly because some organic carbon gets buried instead of decomposing, not simply because a lot is alive. The model treats net production as a stand-in for that, and the config marks it `assumption: true`.
+On the carbon world, photosynthetic organisms produce oxygen and draw down carbon dioxide. Consumers breathe oxygen and release carbon dioxide, so a booming animal population pulls oxygen back down. Oxygen starts at the slider value (21% by default) and moves from there. Rising oxygen makes larger body sizes viable. Falling carbon dioxide weakens the greenhouse effect and cools the climate, which favours cold-tolerant traits. This is a simplification: on the real Earth, oxygen accumulates mainly because some organic carbon gets buried instead of decomposing, not simply because a lot is alive, and it took billions of years. The model treats net production as a stand-in for that, at rates set per ecology second, and the config marks it `assumption: true`.
 
-On the silicon world, any feedback is speculative and labelled so. Organisms build their bodies from silicon–nitrogen compounds, so a growing population locks nitrogen away. Because the air is held at the seas' vapour pressure, the nitrogen comes out of the seas: sea level falls and the shallow, habitable margins shrink, which limits the population that caused it. When organisms die, their nitrogen slowly returns (`assumption: true`). Growth against decay gives a self-limiting cycle that follows from the world's own chemistry. Meanwhile the slowly brightening star warms the world a few degrees, which moves more nitrogen from the seas into the air: the seas shrink further and the air thickens. The config's targets keep the temperature well below nitrogen's critical point, so the seas never vanish in the demo.
+On the silicon world, any feedback is speculative and labelled so. Organisms build their bodies from silicon–nitrogen compounds, so a growing population locks nitrogen away. Because the air is held at the seas' vapour pressure, the nitrogen comes out of the seas: sea level falls and the shallow, habitable margins shrink, which limits the population that caused it. When organisms die, their bodies return the nitrogen (`assumption: true`). Growth against decay gives a self-limiting cycle that follows from the world's own chemistry. The config's targets keep the temperature well below nitrogen's critical point, so the seas never vanish in the demo.
 
-Every process and feedback rate lives in the world config with its reasoning, like any other stat.
+Every feedback rate lives in the world config with its reasoning, like any other stat, as a change per ecology second.
 
-## How conditions change over time
+## The build (one fast run)
 
-The timeline compresses the world's history into 130 seconds; after that the present phase holds steady. Each world defines phases, and each phase defines which processes are active. Changes are smooth and continuous. Each phase also carries a `startYears` anchor, and the history readout interpolates between anchors. Time is not spread evenly, so the dates in captions match the readout.
+After Generate, the world goes from nothing to a living world in one fast build of about 20 s (`build.durationSec`). It is one continuous run, with no stages to wait through. Everything happens together: terrain rises, seas fill, the air settles, and life grows from capsule worms to complex forms. `buildProgress` goes from 0 to 1 across the build. When it reaches 1, `build:complete` fires, and the world keeps living: the ecology runs and evolves live at `timeScale`, life keeps nudging the air and seas, and the sliders still make life respond.
 
-| Phase | Carbon world (years since formation) | Silicon world (years since formation, `assumption: true`) |
+| Build time | What happens | Config |
 |---|---|---|
-| Formation (0–10 s) | 0. Rock surface rises from flat; thick CO₂ and nitrogen atmosphere; dim young star. The CO₂ greenhouse keeps it warm. | 0. Rock surface rises; thick nitrogen atmosphere; cold from the distant star. |
-| Seas (10–25 s) | 0.1 billion. Water vapour condenses into oceans in the lowlands. | 0.1 billion. Nitrogen condenses into seas in the lowlands, and the air settles at the seas' vapour pressure. |
-| First life (25–50 s) | 0.7 billion. Microbial mats in shallow water. | 1.5 billion (later, because chemistry is slower). Speculative silicon–nitrogen chemistry in the shallows; first slow crystalline organisms. |
-| Life reshapes the air (50–90 s) | 1.9 billion. Photosynthesis begins; iron and volcanic gases soak up the oxygen at first, then oxygen rises (Earth's Great Oxidation Event was about 2.4 billion years ago, 2.1 billion years after formation); carbon dioxide falls and the climate cools. | 3 billion. The population locks nitrogen into bodies and sea level falls; the star slowly brightens and the air thickens. |
-| Complex life (90–130 s) | 3.9 billion. Oxygen climbs towards modern levels; land plants spread; animals diversify and start pulling oxygen back towards balance. | 4.5 billion. Shrinking seas and slow atmospheric escape squeeze the shallows. Some lineages retreat deeper; others take to the thick air or colonise the shore (speculative). |
-| Present (130 s onward) | 4.5 billion (today). Plants and animals hold oxygen near a stable level. | 6 billion. A stable but marginal balance between the population and its seas. |
+| 0 to about 6 s | The Generate transition: the camera pushes into the box, the particles settle into the ground, the terrain fades in, and the character spawns | `spawnSec` |
+| Whole build | Terrain `rise` and every landform machine's progress go from 0 to 1 | `durationSec` |
+| Seas window | Seas fill in the lowlands, liquid or frozen according to the temperature, and the air settles (on silicon, at the seas' vapour pressure) | `seasSec` |
+| Life appears | The founders appear in the shallows, and `build:life` fires | `lifeSec` |
+| Whole build | The ecology fast-forwards on a fixed tick schedule, reaching about 340 ecology-seconds on carbon (see "The ecology clock") | `ecologySec` |
+| After the build | The ecology runs live at `timeScale`, and the feedbacks keep going | |
 
-Population traits respond continuously to every change. The phase timings and year anchors are targets for the demo and live in config. Captions describe processes rather than outcomes the sliders can change, so they hold anywhere inside the living bands. Where the seas could be frozen, the phase has a frozen variant (`captionFrozen`).
+**The years counter is flavour.** During the build, a compressed "years since formation" counter runs from 0 to `build.yearsShown`: about 4.5 billion on carbon and about 6 billion on silicon. It follows `buildProgress`, nothing in the sim reads it, and the UI labels it illustrative.
+
+**Captions.** One when the build starts (`build.captions.start`, for example "A carbon world forms") and one when life appears (`build.captions.life`), plus the existing "why it moved" slider lines. Captions describe processes rather than outcomes the sliders can change, so they hold anywhere inside the living bands.
+
+Population traits respond continuously to every change. The build timings are demo targets and live in config.
 
 ## Life: creatures and plants
 
@@ -153,7 +157,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
   - **Always-on mutation** at `SIGMA` 0.075 (about ×1.5), declared as "a stressed young world".
   - **No developmental pull in the sim.** Body templates become anonymous look attractors in the art layer, applied read-only (DECISIONS §G.3, G.9).
   - **The plate-ledger fix**, so plates are cheap enough to spread.
-- **Founders:** at the first-life phase, a seeded group of at least 24 tiny capsule worms appears in the shallows, drawn from the world's seed. They carry standing variation: σ 0.12 on the listed genes, and about 15% start with tiny limb buds (`research/body-plans/notes/01-evolution-speed.md` §5). Complexity has to be earned.
+- **Founders:** when life appears in the build (`build.lifeSec`), a seeded group of at least 24 tiny capsule worms appears in the shallows, drawn from the world's seed. They carry standing variation: σ 0.12 on the listed genes, and about 15% start with tiny limb buds (`research/body-plans/notes/01-evolution-speed.md` §5). Complexity has to be earned.
   - F's atom prelude and copier are not used. The particle box plays that role before Generate, and seeding founders from the box would break the deterministic demo.
 
 **How F's inputs come from our worlds** (every scaling lives in config):
@@ -167,14 +171,14 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 | Air density | Real gas density, P·M/(R·T), scaled into F's range | Earth's air is about 1.2 kg/m³. The silicon world's 3.6 bar at −183 °C is about 13 kg/m³, so F's floaters (bells, sky whales) have a physical reason to appear there. Titan's air is about 4× denser than Earth's. On carbon, the Nitrogen slider changes it. |
 | Light | Starlight at the surface (star brightness and orbital distance) | The silicon world gets about 1% of Earth's sunlight, so F's rules give it big eyes and glow. |
 | Hunger | Derived, not a control: plant scarcity (demand ÷ supply) | A declared game rule; Caden's tests needed it for hunters to exist. Cold, dim light, low nitrogen or a population boom all raise it. |
-| Time | The phase timeline and the ecology clock (below) | |
+| Time | The build's fast-forward and the ecology clock (below) | |
 | Air oxygen (new, ours) | The Oxygen stat and slider | Aerobic metabolism, and the largest body that can breathe (the rule already in `population.ts`). Pinned at 0 on silicon. |
 
 **Silicon-world specifics** (speculative, labelled as such):
 - **Plates are silicon-nitride ceramic**, not silica stone, because there's no oxygen. Silicon nitride is a real, very hard ceramic. `assumption: true`.
 - **No builders.** F's builders need silicon plus oxygen to lay stone, and this world has no oxygen. The builder pathway is hard-off on silicon (it's gated on `o`, not on preset code), so life raises no spires and no glowing pores here.
 - **Relic ice landmarks.** The silicon world's arches and spires are **water-ice bedrock** left over from formation. Water exists on this world only as frozen bedrock (reasoning step 3). They are part of the seeded starting terrain, not grown by any process, and are marked `assumption: true` (see "Terrain and landforms").
-- **Leaving the sea.** Life starts in the shallows. As the seas shrink in the complex-life phase, some lineages go deeper, some take to the thick air, and some colonise the shore. Ceramic skins hold their internal nitrogen in, as waxy skins hold water. `assumption: true`.
+- **Leaving the sea.** Life starts in the shallows. As the seas shrink, some lineages go deeper, some take to the thick air, and some colonise the shore. Ceramic skins hold their internal nitrogen in, as waxy skins hold water. `assumption: true`.
 
 **What is already built.** `src/sim/population.ts` is the climate core that F's ecology grows from: extend it, don't start a second model. It already has:
 - the three climate genes and the pace rule
@@ -184,7 +188,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 
 Its tests show the comfort band following a warming climate, oxygen-rich air evolving bigger aerobic consumers, silicon life surviving slow warming, and fewer generations in the cold. Each step it takes an `Environment` (temperature, oxygen, light, habitat share, edge stress) and returns producer and consumer biomass as the drivers for the feedbacks.
 
-**The ecology clock.** Caden measured that F needs about 340 sim-seconds for legs, plates, horns and hunters. So the ecology runs about ×4 faster than demo time, set by `timeScale` in config and the same for both worlds. At a quarter of carbon's pace, silicon gets about a quarter of that. In the default run, silicon creatures therefore stay simpler: capsule worms, and perhaps legs and floaters. See issue #5.
+**The ecology clock.** Caden measured that about 340 sim-seconds of ecology produce legs, plates, horns and hunters. So during the build the worker fast-forwards the ecology: it runs many fixed 20 Hz ticks per frame, on a fixed tick schedule that depends only on build time, never on frame rate, so the run stays deterministic. On carbon the schedule reaches about 340 ecology-seconds (`build.ecologySec`) by the end of the build. After the build, the ecology drops to the live `timeScale` in config, the same for both worlds, and keeps evolving. If CPU is tight during the fast-forward, reduce render detail, not the tick schedule. Silicon still gets fewer generations through its pace rule, so in the default run its creatures stay simpler: capsule worms, and perhaps legs and floaters. See issue #5.
 
 **Presentation, under the clean-screen rule.**
 - **No camera pull-out:** the camera follows the player.
@@ -198,22 +202,22 @@ The simulation runs in a Web Worker so rendering never stutters. It posts snapsh
 
 ## Condition sliders
 
-Three sliders, and only these three, let the player change the conditions life depends on: **Temperature**, **Nitrogen** and **Oxygen**. They are available the whole time: on the selection screen, through every generation phase, and for the rest of the run. In the world they sit in the Conditions panel, closed by default. A slider change is the player asking "what if?", not a natural event, and the UI labels it that way.
+Three sliders, and only these three, let the player change the conditions life depends on: **Temperature**, **Nitrogen** and **Oxygen**. They are available the whole time: on the selection screen, through the build, and for as long as the world runs. In the world they sit in the Conditions panel, closed by default. A slider change is the player asking "what if?", not a natural event, and the UI labels it that way.
 
 **On the selection screen (before a world exists):**
-- **Starting positions.** The thumbs start at 15 °C, 1 × Earth's nitrogen and 0% oxygen. A young planet has no free oxygen until life makes it.
+- **Starting positions.** The thumbs start at 15 °C, 1 × Earth's nitrogen and 21% oxygen, Earth's values.
 - **The settings are the planet's starting conditions.**
   - Temperature: the sim solves for the orbital distance that gives that starting temperature.
   - Nitrogen: sets the planet's nitrogen inventory.
-  - Oxygen: sets the initial free oxygen. On the carbon world, any starting oxygen is soaked up by the early oxygen sink, which is what really happened on Earth.
+  - Oxygen: sets the initial free oxygen. Life then nudges it from there. On silicon, anything above a trace is in the red zone, so it glides to 0 on Generate.
 - **The thumbs move freely across the full range.** There is no world yet, so there is nothing to protect.
 - **The red zones are a preview** for the selected element, drawn lighter than in a running world. Hovering a red cell shows its reason.
 - **The carbon and silicon cells show live whether their life could survive at the current settings.** A cell lights up when it can. It turns red, with the reason on hover, when it can't. This is a small puzzle with real physics behind it:
   1. Drag Temperature down to −183 °C, and carbon goes red ("Too cold for surface life").
-  2. Silicon stays red ("Too little nitrogen for seas") until Nitrogen goes up, because a nitrogen sea can only exist if the planet has more nitrogen than its air can hold.
+  2. Silicon stays red ("Too little nitrogen for seas") until Nitrogen goes up, because a nitrogen sea can only exist if the planet has more nitrogen than its air can hold. It then stays red for oxygen until Oxygen comes down to a trace.
 - **Generate is never blocked.** When Generate is clicked, any slider sitting in the selected world's red zone glides to that world's default starting value, and a caption says why, for example "Silicon life can't survive at 15 °C, so this world starts at −183 °C". Sliders already inside the band keep the player's value. With untouched sliders, both worlds start from fixed values, so both demo runs stay deterministic.
 
-**Once a world is running**, from the first second of formation, the rules below apply. Before life appears, a red zone means "life could never start here".
+**Once a world is running**, from the first second of the build, the rules below apply. Before life appears, a red zone means "life could never start here".
 
 **Every world shows the same full range.** That way the player sees how narrow silicon's window is, and where it sits, compared with carbon's. Each track shows:
 - the full range, identical in every world
@@ -228,7 +232,7 @@ Three sliders, and only these three, let the player change the conditions life d
 - **How a band is found:** it is the range of positions where no limit fails, holding the other sliders' physical settings (orbital distance, nitrogen and oxygen inventories) still. Its edges are found numerically through the derived-stat models, so couplings show up without special cases.
 - **Example:** on the silicon world, a smaller nitrogen inventory evaporates completely at a lower temperature. So lowering Nitrogen slides the Temperature slider's upper red zone down.
 - **Coupled drags:** a drag on one slider that would push a coupled condition into its red zone stops there too, and shows that limit's reason.
-- **Slow drift:** if the world's own slow processes move a band edge onto the player's setting, the worker eases the setting back inside the band and shows the reason.
+- **Drift:** if life's feedbacks move a band edge onto the player's setting, the worker eases the setting back inside the band and shows the reason.
 
 The world never enters a red zone.
 
@@ -238,7 +242,7 @@ The world never enters a red zone.
 | **Nitrogen** | 0.01 to 1,000 × Earth's nitrogen per square metre of surface, log scale | How much nitrogen the planet has, in its air and (on silicon) its seas | **Lower edge: "Not enough nitrogen to build cells".** Placeholder about 0.05 × (`assumption: true`). Life needs nitrogen for proteins and DNA, and it thrived on the early Earth with perhaps half of today's air pressure. **No upper edge of its own:** high pressure alone doesn't kill, and life thrives at over 1,000 bar in the deep sea. More nitrogen does warm the planet a little, because thicker air strengthens the CO₂ greenhouse. So near the Temperature slider's upper edge, raising Nitrogen can stop at "too hot". | **Lower edge: "Too little nitrogen for seas".** Red below the amount the air must hold at the current temperature, because then the seas are gone. Adding nitrogen does not thicken this air: the seas hold the pressure, so extra nitrogen rains into the sea and sea level rises. Most of this world's nitrogen is in its seas, so the thumb sits far above Earth's marker. |
 | **Oxygen** | 0 to 40% | Free oxygen in the air | No red zone: Earth's life lived for more than a billion years without oxygen in the air. Animals suffer at low oxygen, and the population shows that. | Red above a trace (value in config, `assumption: true`): free oxygen turns silicon into rock. The thumb is pinned at zero, which is the point. |
 
-Temperature here is the mean surface temperature. On the carbon world, slider changes reach the population through the fitness rules and reach the atmosphere through the existing processes. For example, warming speeds up weathering, which draws down CO₂.
+Temperature here is the mean surface temperature. On the carbon world, slider changes reach the population through the fitness rules, and reach the atmosphere through life's feedbacks as the population responds.
 
 ## The particle box and the Generate transition
 
@@ -264,28 +268,28 @@ On the selection screen, a box beside the periodic table and sliders shows the s
 
 The box's state comes from a pure function, `boxState(world, conditions)`, built on `canLive` and the derived-stat models. The box can therefore never show living chains while the element's cell is red.
 
-**Clicking Generate** (all of it happens inside the formation phase, so phase timings and the demo script don't move):
+**Clicking Generate** (compressed into the start of the build, while the terrain is rising):
 1. `world:selected` fires. If `startingConditions` moves any slider, it glides first, and the box shows the fix happen. For example, silicon's nitrogen pool condenses as the temperature drops.
 2. **0–1.5 s:** the camera pushes into the box and its walls fade.
-3. **1.5–5 s:** the particles duplicate, doubling repeatedly up to a budget of about 30,000. They spread outward and downward, settle onto the ground surface as it stands at that moment of formation, and take on the ground's colours. They are drawn as points with one buffer update per frame; lower the budget if the frame rate drops below 60 fps.
-4. **5–6 s:** the terrain mesh fades in under the particles, they dissolve, and the character spawns. The terrain keeps rising until formation ends at 10 s.
+3. **1.5–5 s:** the particles duplicate, doubling repeatedly up to a budget of about 30,000. They spread outward and downward, settle onto the ground surface as it stands at that moment of the build, and take on the ground's colours. They are drawn as points with one buffer update per frame; lower the budget if the frame rate drops below 60 fps.
+4. **5–6 s:** the terrain mesh fades in under the particles, they dissolve, and the character spawns at about 6 s (`build.spawnSec`). The terrain keeps rising until the build ends.
 
 Both worlds' heightmaps come only from their demo seeds, so they are generated while the selection screen is up. The particles then know where to land the moment Generate is clicked.
 
 ## In the world: a clean screen, and click to inspect
 
 **Clean by default.** Once the character spawns, the screen shows only the world, plus the small Conditions icon. Just these appear on their own, and none of them are diagrams:
-- **Phase captions:** one short line, bottom centre, like a film subtitle. It fades after about 4 s.
+- **Build captions:** one when the build starts and one when life appears. Each is one short line, bottom centre, like a film subtitle, and fades after about 4 s.
 - **"Why it moved" lines:** when a slider glides or is blocked, the reason shows as the same kind of brief line.
 - **A controls hint** for whichever input was used last, which fades after a few seconds, and a small centre reticle while the gamepad is in use.
-- **The summary card** at the present phase, which the player can close.
 
-Everything else waits until the player asks for it.
+Everything else waits until the player asks for it, including the summary card.
 
 **The Conditions tab.** A small icon in a corner opens the Conditions panel. Tab or the gamepad's Y button toggles it, and using the D-pad sliders opens it too. It is closed by default, and the world keeps running while it's open. It holds:
 - the three condition sliders (still available the whole run, as in "Condition sliders")
 - the stats panel: every stat beside Earth's, with its "why", and assumptions marked
-- the history readout (years since formation) and the current phase
+- the years counter (years since formation, labelled illustrative)
+- a button that opens the summary card, at any time
 - on silicon, the reasoning chain and the caveat
 
 **Click to inspect.** These can be clicked:
@@ -306,7 +310,7 @@ Clicking one opens an inspect card beside it, never full screen. The card has:
 4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one, plus a small live 3D render of the counterpart turning slowly. No charts.
    - For an organism, the counterpart is **the same genome built with the other world's chemistry and look**: its genome run through `develop()` with the other world's composition. It is labelled "If this were built from carbon (illustration)".
    - For the sea, ground and sky, it is a small patch of the other world's version.
-   - The other world's numbers come from its `targets` (its default run at the present phase), labelled "today".
+   - The other world's numbers come from its `targets` (its default run at the end of its build), labelled "today".
 
 The card updates live while it is open. If the organism dies, the card says so and stays until closed. Only one card is open at a time; clicking elsewhere, Esc or the gamepad's B button closes it.
 
@@ -331,7 +335,7 @@ src/
   worlds/sources.ts    citation list referenced by id from configs
   worlds/types.ts      the data contract below
   worlds/controls.ts   the three slider definitions, shared by every world so ranges match
-  sim/                 worker, timeline/phase engine, population model, atmosphere and sea models, seeded RNG
+  sim/                 worker, build clock and fast-forward tick schedule, population model, atmosphere and sea models, seeded RNG
   sim/population.ts    the climate core of the ecology (built, tested); LifeRules is its slice of the world config
   sim/genome.ts        the 12 animal genes (DECISIONS G.1), mutation at SIGMA, founders with standing variation
   sim/develop.ts       pure develop(): genome + composition → body plan (chemistry is the grammar)
@@ -396,28 +400,21 @@ type InspectTarget =
   | { kind: 'producer'; cell: number }         // index into the 64² world grid
   | { kind: 'sea' | 'ground' | 'sky' };
 
-interface Phase {
-  id: string;
-  label: string;           // e.g. 'Seas form'
-  startSec: number;        // demo seconds since Generate was clicked
-  startYears: number;      // simulated years since formation at startSec; the readout interpolates between phases
-  caption: string;         // shown on phase change; describes processes, so it holds anywhere inside the living bands
-  captionFrozen?: string;  // used instead when the seas are frozen (e.g. 'Water vapour condenses and freezes into ice sheets')
-  processes: string[];     // ids of the SlowProcesses and Feedbacks active in this phase
+interface BuildConfig extends Sourced {
+  durationSec: number;        // about 20: Generate → living world
+  spawnSec: number;           // about 6: ground is solid, the character spawns
+  seasSec: [number, number];  // when seas fill, as build seconds
+  lifeSec: number;            // when the founders appear
+  ecologySec: number;         // ecology-seconds reached by the end of the build (about 340 on carbon); the worker's fixed tick schedule hits it
+  yearsShown: number;         // the illustrative years-counter end value
+  captions: { start: string; life: string };
 }
 
-interface SlowProcess extends Sourced {   // non-living change: stellar brightening, weathering, escape, oxygen sinks
-  id: string;
-  statId: string;          // stat it changes
-  driver: string;          // 'time', or a stat id (e.g. weathering is driven by 'temperature')
-  rate: number;            // change in stat per unit driver per billion simulated years
-}
-
-interface Feedback extends Sourced {      // change driven by life
+interface Feedback extends Sourced {      // change driven by life, during the build and live after it
   id: string;              // e.g. 'photosynthesis'
   statId: string;          // stat it changes
   driver: string;          // population quantity, e.g. 'producerBiomass'
-  rate: number;            // change in stat per unit driver per billion simulated years
+  rate: number;            // change in stat per unit driver per ecology second
 }
 
 interface DerivedStat extends Sourced {   // recomputed every tick from other stats, never integrated
@@ -445,14 +442,14 @@ interface ControlDef {             // in worlds/controls.ts, shared by every wor
   scale: 'linear' | 'log';
   moves: string;                   // what dragging changes: 'orbitDistance', 'nitrogenInventory', 'oxygenInventory'
   hint: string;                    // one line under the slider on what dragging does physically
-  default: number;                 // thumb position when the selection screen opens: 15, 1, 0
+  default: number;                 // thumb position when the selection screen opens: 15, 1, 21
 }
 
 interface LethalLimit extends Sourced {   // per world; one list read by the sliders and by the sim's kill conditions
   id: string;
   statId: string;                  // the condition it tests, e.g. 'temperature', 'nitrogen', 'oxygen', 'seaCover'
   side: 'below' | 'above';         // life dies below or above the edge
-  model: 'fixed' | 'solventFreezes' | 'solventCritical' | 'seasEmpty';   // test form in sim/limits.ts; 'seasEmpty' means seas could not exist at equilibrium, so it holds before the seas phase too
+  model: 'fixed' | 'solventFreezes' | 'solventCritical' | 'seasEmpty';   // test form in sim/limits.ts; 'seasEmpty' means seas could not exist at equilibrium, so it holds before the seas fill too
   params: Record<string, number>;  // every coefficient, e.g. { value: 122 } for a fixed edge
   reason: string;                  // short label on the red zone, e.g. 'Too little nitrogen for seas'
   boxEffect: 'freeze' | 'shakeApart' | 'dryUp' | 'starve' | 'rust';   // what the particle box plays when this limit fails
@@ -477,13 +474,12 @@ interface WorldConfig {
   caveat?: string;         // required when status is 'speculative': the strongest case against, one sentence
   ranges: Record<string, [number, number]>;    // sampling bounds for starting values the sliders don't set (e.g. gravity)
   startDefaults: Record<ControlDef['id'], number>;   // where a slider glides at world start if the player's setting is in this world's red zone
-  targets: Record<string, [number, number]>;   // where stats must sit at the present phase with the demo seed; tested
+  targets: Record<string, [number, number]>;   // where stats sit at the end of the build with the demo seed; tested
   solvent: Solvent;
   stats: StatDef[];
   facts: FactDef[];
   features: Record<'organism' | 'producer' | 'sea' | 'ground' | 'sky', FeatureDef>;   // inspect-card content
-  phases: Phase[];
-  processes: SlowProcess[];
+  build: BuildConfig;
   feedbacks: Feedback[];
   derived: DerivedStat[];
   limits: LethalLimit[];
@@ -504,9 +500,9 @@ interface WorldConfig {
 
 interface SimSnapshot {          // emitted on the bus at 20 Hz
   worldId: string;
-  phaseId: string;
   timeSec: number;
-  historyYears: number;          // e.g. 2.4e9, for the timeline readout
+  buildProgress: number;         // 0..1 across the build; 1 from build:complete onwards
+  yearsShown: number;            // illustrative years-since-formation counter, 0 → build.yearsShown
   stats: Record<string, number>; // every StatDef id (including 'seaCover'), plus 'seaLevel' in metres for the renderer
   population: { producers: number; consumers: number };
   generation: number;
@@ -532,14 +528,13 @@ declare function startingConditions(world: WorldConfig, requested: Conditions): 
 };
 ```
 
-Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on every element click and slider move on the selection screen; drives the particle box), `world:selected` (`{ worldId, requested: Conditions }`, fired when Generate is clicked, with the slider settings at that moment), `phase:changed` (with the phase object), `sim:snapshot`, `run:complete` (fires when the present phase begins), `control:set` (UI to sim: `{ controlId, value }`, with value in display units: °C, × Earth's or %; the worker clamps it to the living band), `control:blocked` (sim to UI: `{ controlId, limitId }`, fired when a drag or slow drift hits a red zone, and at world start for each slider `startingConditions` moved), `guide:newForm` (sim to UI: `{ binId, name, organismId }`, when a body plan first fills a field-guide bin), `inspect:open` (render to UI: `{ target: InspectTarget, at: { x, y } }`, the screen position to place the card), `inspect:window` (UI to render: the card's counterpart window as `{ x, y, width, height }` in CSS pixels, or `null`), and `inspect:close` (UI to render).
+Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on every element click and slider move on the selection screen; drives the particle box), `world:selected` (`{ worldId, requested: Conditions }`, fired when Generate is clicked, with the slider settings at that moment), `sim:snapshot`, `build:life` (sim to UI: when the founders appear), `build:complete` (sim to UI: when `buildProgress` reaches 1), `control:set` (UI to sim: `{ controlId, value }`, with value in display units: °C, × Earth's or %; the worker clamps it to the living band), `control:blocked` (sim to UI: `{ controlId, limitId }`, fired when a drag or a drift from life's feedbacks hits a red zone, and at world start for each slider `startingConditions` moved), `guide:newForm` (sim to UI: `{ binId, name, organismId }`, when a body plan first fills a field-guide bin), `inspect:open` (render to UI: `{ target: InspectTarget, at: { x, y } }`, the screen position to place the card), `inspect:window` (UI to render: the card's counterpart window as `{ x, y, width, height }` in CSS pixels, or `null`), and `inspect:close` (UI to render).
 
 **Changes from the first draft of this contract, pending the design partner's OK:**
-- Added `startYears` to `Phase`.
-- Added `SlowProcess`, `DerivedStat` and `Solvent`, so non-living processes, derived stats and phase data have a home in config instead of in code.
-- Added `sources` to `Feedback`, and defined rate units as per billion simulated years.
+- Added `DerivedStat` and `Solvent`, so derived stats and solvent data have a home in config instead of in code.
+- Added `sources` to `Feedback`.
 - Added `reasoning`, `caveat`, `targets` and `facts` (with `FactDef`, for text rows such as main gas and star) to `WorldConfig`.
-- Added `captionFrozen` to `Phase`, and the `partialPressures` model to `DerivedStat`.
+- Added the `partialPressures` model to `DerivedStat`.
 - Added `organisms` to `SimSnapshot`, so creature meshes can show individual genomes.
 - Added the condition sliders:
   - types: `ControlDef` (with `default`), `LethalLimit` (keyed by the stat it tests), `LivingBand` (with `empty`), `Conditions`
@@ -558,6 +553,16 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on eve
   - The organism buffer now carries the 12 genes, heading and locomotion mode.
   - The snapshot rate is 20 Hz.
   - Typed `life.inputs`: `solvent`, `airDensity` and `tissueDensity` are world-config facts, not sim constants (DECISIONS G.2 now has 15 constants).
+- 2026-11-07 one fast build (Caden's ruling):
+  - Deleted the `Phase` and `SlowProcess` interfaces, and `WorldConfig.phases` and `WorldConfig.processes`.
+  - Added `BuildConfig` and `WorldConfig.build`.
+  - `Feedback.rate` is now a change in stat per unit driver per ecology second.
+  - `SimSnapshot`: removed `phaseId` and `historyYears`; added `buildProgress` (0..1) and `yearsShown` (the illustrative counter).
+  - Bus events: removed `phase:changed` and `run:complete`; added `build:life` and `build:complete`.
+  - `targets` now means where stats sit at the end of the build with the demo seed.
+  - The Oxygen control's `default` is now 21.
+  - `VisualInputs`: `buildProgress` replaces `age` and `phaseId`.
+  - `TerrainConfig`: machine `rate` is no longer per billion years (see "Terrain and landforms"), and the spawn shore is measured once the seas have filled.
 
 ## Third-person player
 
@@ -565,11 +570,11 @@ Third person is part of the MVP. A stylised explorer character with a smooth fol
 - **Keyboard and mouse:** WASD moves. Dragging the mouse orbits the camera. A click without dragging inspects what is under the cursor. Tab toggles the Conditions panel, and Esc closes a card or the panel.
 - **Gamepad:** the left stick moves and the right stick orbits. While the gamepad is in use, a small reticle sits at screen centre. A inspects what is under the reticle, B closes, and Y toggles the Conditions panel.
 
-Both work at the same time so control can pass between people without switching modes. Handle gamepads connecting or disconnecting mid-run, apply a dead zone to the sticks, and show a small controls hint for whichever input was used last, which fades after a few seconds. Ground height is sampled from the terrain each frame so the character and camera stay on and above the surface. **The character can dive.** Below sea level the controller switches to swimming: full 3D movement, with the left stick or WASD moving relative to the camera and a rise/sink input (Space and Shift; gamepad bumpers). The camera follows underwater. Frozen seas are solid and can be walked on. If a frozen sea melts under the character, they start swimming. The character's suit is a declared illustration: no stat models the player. On the gamepad, the D-pad also works the condition sliders: up and down pick a slider, and left and right move it. Using it opens the Conditions panel if it is closed. A judge holding the controller can then use them without the mouse. A terrain patch of a few hundred metres with distance fog at the edges is the recommended setup because it keeps the controller and camera simple, but the engineering lead can choose another layout if it stays within the performance budget. The character spawns when the particles from the box have become solid ground (about 6 s in), and movement keeps working through every phase.
+Both work at the same time so control can pass between people without switching modes. Handle gamepads connecting or disconnecting mid-run, apply a dead zone to the sticks, and show a small controls hint for whichever input was used last, which fades after a few seconds. Ground height is sampled from the terrain each frame so the character and camera stay on and above the surface. **The character can dive.** Below sea level the controller switches to swimming: full 3D movement, with the left stick or WASD moving relative to the camera and a rise/sink input (Space and Shift; gamepad bumpers). The camera follows underwater. Frozen seas are solid and can be walked on. If a frozen sea melts under the character, they start swimming. The character's suit is a declared illustration: no stat models the player. On the gamepad, the D-pad also works the condition sliders: up and down pick a slider, and left and right move it. Using it opens the Conditions panel if it is closed. A judge holding the controller can then use them without the mouse. A terrain patch of a few hundred metres with distance fog at the edges is the recommended setup because it keeps the controller and camera simple, but the engineering lead can choose another layout if it stays within the performance budget. The character spawns when the particles from the box have become solid ground (about 6 s in), and movement keeps working through the rest of the build and after it.
 
 ## Generation sequence (what the judges watch)
 
-The particles from the box settle into the ground (see "The particle box and the Generate transition"), and the terrain then rises to its full heights by the end of formation. The terrain generator must put a shoreline near the spawn point in both worlds, or silicon life is never seen. Seas rise during the seas phase, liquid or frozen according to the current temperature and the solvent's freezing point, and then follow the sea stats for the rest of the run. The terrain patch stands in for the whole planet: `seaLevel` is the height at which the fraction of the patch lying below it equals `seaCover`. Plants are drawn by the art layer from the per-cell flora biomass, and they reach land only when the simulation says life has (the grid cell's biomass is zero until then). Creatures are F's lofted bodies, built from each genome's `develop()` plan and animated on the GPU (spines, IK legs, pulsing bells), so the population visibly changes as it evolves. Sky and light follow the star and atmosphere, art-directed to look vibrant. Each phase change triggers the caption in the UI. Generation is part of the show, so it should be smooth and legible, not hidden behind a loader.
+It all happens in one fast build of about 20 s (see "The build (one fast run)"). The particles from the box settle into the ground (see "The particle box and the Generate transition"), and the terrain then rises to its full heights by the end of the build. The terrain generator must put a shoreline near the spawn point in both worlds, or silicon life is never seen. Seas fill during the build's seas window (`build.seasSec`), liquid or frozen according to the current temperature and the solvent's freezing point, and then follow the sea stats for the rest of the run. The terrain patch stands in for the whole planet: `seaLevel` is the height at which the fraction of the patch lying below it equals `seaCover`. Plants are drawn by the art layer from the per-cell flora biomass, and they reach land only when the simulation says life has (the grid cell's biomass is zero until then). Creatures are F's lofted bodies, built from each genome's `develop()` plan and animated on the GPU (spines, IK legs, pulsing bells), so the population visibly changes as it evolves, on carbon from capsule worms to legged, plated and horned forms within the build, and on after it. Sky and light follow the star and atmosphere, art-directed to look vibrant. The UI shows a caption when the build starts and another when life appears. Generation is part of the show, so it should be smooth and legible, not hidden behind a loader.
 
 Silicon life starts in the shallows, so at first it must read from the shore, or close up when the player dives. Liquid nitrogen is clear and colourless, so organisms are visible through it. Crystalline flora grows along the sea margins, and as the seas shrink it leaves bands of dead crust behind, showing the feedback loop on screen. Later, floaters drift in the thick air, and some lineages walk the shore (speculative, see "Life: creatures and plants").
 
@@ -578,10 +583,10 @@ Silicon life starts in the shallows, so at first it must read from the shore, or
 The terrain is logic: the player, the sea level and the flora grid all read it. It lives in `src/gen/terrain.ts`, owned by the engineering lead. Every coefficient is in the world's `terrain` config (`TerrainConfig`), with `why` and `sources` or `assumption: true`.
 
 - **One height function, two backends.** `height(x, z, progress)` is a closed-form analytic function: base fBm, domain warp, and closed-form landform progress fields. It's written once as a TSL node for the GPU mesh and once as a pure TypeScript sampler that the player, flora and tests use. Tests check the two agree. This is the L0 layer of `docs/features/terrain-plan.md`. Its L1 simulated layer (erosion, talus, rimstone) stays in `docs/NOT_NOW.md`.
-- **Formation rise.** A `rise` input goes from 0 to 1 across the formation phase (0–10 s) and scales relief up from flat. The particles from the box land on `height(·, rise)` as it stands at that moment.
+- **Build rise.** A `rise` input goes from 0 to 1 across the build and scales relief up from flat. The particles from the box land on `height(·, rise)` as it stands at that moment.
 - **Sea level from sea cover.** The patch stands in for the planet. `seaLevel` is the height at which the fraction of the patch below it equals `seaCover`. The worker finds it numerically from the CPU sampler each snapshot.
-- **A shore near spawn.** The spawn point is on land, within `spawn.shoreDistance` metres of the shoreline at the seas-phase sea level. The height function carves a gentle shore ramp there, so it holds for every slider setting inside the living bands. This is tested for both worlds.
-- **The terrain clock.** Each landform machine turns `historyYears` into its own progress, using a rate per billion years from config. The phase `startYears` anchors set the order, so landforms appear in their real relative order. Only the overall speed is compressed.
+- **A shore near spawn.** The spawn point is on land, within `spawn.shoreDistance` metres of the shoreline once the seas have filled. The height function carves a gentle shore ramp there, so it holds for every slider setting inside the living bands. This is tested for both worlds.
+- **Landforms grow in the build.** Terrain `rise` and every landform machine's progress go from 0 to 1 over the build, then follow live state. For example, carbon shell stone tracks producer biomass, and silicon crust bands track sea level. Where a gate below reads age, it reads `buildProgress`.
 - **Landform heat.** Landform gates read `heatSolvent`, which is temperature normalised so that 0.5 sits at the solvent's freezing point (span in config). F's `Heat` input keeps the living-band normalisation ("How F's inputs come from our worlds").
 
 **Landforms per world** (machines and gates from `research/world-forms/`, rules 1–6):
@@ -600,9 +605,9 @@ The terrain is logic: the player, the sea level and the flora grid all read it. 
 interface TerrainConfig extends Sourced {
   patchSize: number;                 // metres; a few hundred, with fog at the edges
   base: Record<string, number>;      // fBm amplitude, octaves, warp and so on
-  spawn: { shoreDistance: number };  // metres from spawn to the seas-phase shoreline
+  spawn: { shoreDistance: number };  // metres from spawn to the shoreline once the seas have filled
   heatSolventSpan: number;           // °C span mapped onto heatSolvent 0..1
-  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];   // rate per billion simulated years
+  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];   // progress goes 0 → 1 over the build; rate is how fast it then follows live state, per ecology second
   relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
 }
 ```
@@ -614,9 +619,9 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 **What the art layer reads (`VisualInputs`, assembled each frame from the latest `SimSnapshot` and the `WorldConfig`):**
 - **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`.
 - **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
-- **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `age` (`historyYears` ÷ the present phase's `startYears`).
+- **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `buildProgress` (0..1 across the build).
 - **Terrain:** the TSL height node and the CPU sampler, the `rise` value, and the per-machine progress values.
-- **Life:** the `organisms` buffer, the `births` plans (`develop()` output), the per-cell `flora` grid, a `lifeOnLand` flag (true once any land cell has flora biomass), and `phaseId`.
+- **Life:** the `organisms` buffer, the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
 
 **Rules for the art layer:**
 - Everything that carries meaning must follow these inputs (see "Visuals are stylised but never contradict the stats").
@@ -626,42 +631,33 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 ## Honesty box (say it if asked)
 
 - **Emergent:** which body plans appear and which traits spread, population sizes, and how the air and seas change as life feeds back on them.
-- **Seeded:** the founders (at least 24 capsule worms at first life, with standing variation), the RNG seed, and the starting terrain, including silicon's relic ice arches and spires.
+- **Seeded:** the founders (at least 24 capsule worms when life appears, with standing variation), the RNG seed, and the starting terrain, including silicon's relic ice arches and spires.
 - **Designed, not emergent:**
   - `develop()` and its chemistry rules, the 12-gene layout, the trait-ledger coefficients and the locomotion costs
   - the 12 rules and the shared utility loop's structure
   - the form definition (DECISIONS §A) and the name generator
-  - every process and feedback rate
+  - every feedback rate
+  - the build timings, and the years counter, which is illustrative
 - **Tuning cheats:**
   - always-on raised mutation (`SIGMA` 0.075, about ×1.5)
   - the compressed pace rule
-  - the ×4 ecology clock
+  - the build fast-forward (about 340 ecology-seconds in 20 s) and the live timeScale
   - Hunger as plant scarcity
   - grazing that takes only a share
   - consumer interference
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
 - **Illustrations (render-only):** the particle box, the counterpart render in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), and the player's diving suit.
 
-## Demo script (three minutes, strict)
+## Demo script (to be rewritten)
 
-Generate is clicked at about 0:15, so the zoom into the box happens at 0:15–0:20, the character spawns at about 0:21, and phase starts land at: seas 0:25, first life 0:40, life reshapes the air 1:05, complex life 1:45, present and summary card 2:25.
-
-| Time | On screen | Talk track |
-|---|---|---|
-| 0:00–0:15 | Selection screen, sliders at their defaults (leave them untouched for the rehearsed run). The particle box shows carbon chains wiggling in water. Click Generate at 0:15. | "Every living thing on Earth is built on carbon. Carbon has siblings. You choose: life is what-based?" |
-| 0:15–0:40 | Zoom into the box, and the particles multiply into the ground. Formation and seas; the judge starts walking at about 0:21. | Explain that the world is generated outward from a chemistry, and every condition has a reason. Click the sea: the card shows water at 15 °C beside a silicon world's liquid nitrogen at −183 °C, with a small render of each. |
-| 0:40–1:45 | First life: tiny capsule worms in the shallows. The first legs appear at about 1:00 (a tuning target). The atmosphere starts changing. | Explain the two-way loop: conditions select which life survives, and that life changes the air. No disasters, just slow processes. Open Conditions to show oxygen staying flat at first, then rising. Click a creature: its traits, and what it would look like built from silicon. |
-| 1:45–2:25 | Complex life: legged grazers, hunters and plated prey (tuning targets). The judge opens Conditions (Tab, or Y on the controller) and moves the Temperature slider (mouse, or D-pad). | Point out evolution happening live: push Temperature up and traits shift towards heat tolerance, then the thumb stops at 122 °C, the hottest any known life grows. Bring it back down so the population recovers before the summary card. Mention the genome-based model running in the background. |
-| 2:25–3:00 | Summary card beside Earth | Close on the idea: "Carbon is life as we know it. Silicon is our best-reasoned guess at life as we don't." |
-
-A judge takes the controller (or keyboard) from the start and walks while we talk. If they stall, get lost or the clock gets tight, one of us takes over smoothly, ideally with the second input device so there is no handover fumble, and steers towards whatever the next talking point needs on screen. Rehearse both the judge-led run and the takeover.
+The three-minute demo script will be rewritten for the 20 s build, and that work is tracked in a GitHub issue. Until then, there are no fixed demo timings. The world is alive about 20 s after Generate, so the talk track has to fit around a living world rather than a slow time-lapse.
 
 Rehearse silicon as well, so we can switch to it if the judges ask "what about silicon?" Know the caveat line by heart. On silicon, the sliders are the fastest answer, and it can start on the selection screen:
 1. Select silicon. At 15 °C the box shows its nitrogen pool boiling off.
 2. Drag Temperature down to −183 °C, and carbon's cell goes red.
-3. Silicon stays red until you raise Nitrogen, because its seas need enough nitrogen to exist. When the pool condenses in the box, silicon chains start to form.
-4. Push Oxygen up, and the silicon rusts into grey rock in the box.
-5. Pull Oxygen back to zero and click Generate.
+3. Silicon stays red until you raise Nitrogen, because its seas need enough nitrogen to exist. When the pool condenses in the box, the silicon rusts into grey rock, because Oxygen is still at its 21% default.
+4. Pull Oxygen down to zero, and silicon chains start to form.
+5. Click Generate.
 6. In the running world, click a crystalline crust: what it is, and what it would look like built from carbon.
 7. Open Conditions. The same Temperature track shows a narrow living band at the cold end, and the Oxygen thumb won't move off zero.
 8. Lower Nitrogen and the Temperature red wall slides down, because a smaller sea evaporates completely at a lower temperature.
@@ -670,7 +666,7 @@ Rehearse silicon as well, so we can switch to it if the judges ask "what about s
 
 | Priority | Work |
 |---|---|
-| P0 (MVP) | Selection screen. Carbon world fully working end to end: generation phases, stats panel, captions, life–atmosphere feedback, population evolving, third-person walking. Silicon world with its own phases, stats, reasoning, caveat and feedback. Temperature, Nitrogen and Oxygen sliders with live red zones in both worlds. The particle box on the selection screen and the zoom-and-duplicate Generate transition. A clean in-world screen: the Conditions panel (closed by default), brief fading captions, and click-to-inspect cards with the side-by-side comparison and a live 3D render of the counterpart. Caden's creatures and plants: genome, `develop()`, the ecology with its state machine, lofted bodies with IK legs, L-system flora, and the field guide tab. Summary card beside Earth. Deterministic demo seeds. 60 fps. Recorded backup video. Devpost submission. |
+| P0 (MVP) | Selection screen. Carbon world fully working end to end: the 20 s build, stats panel, captions, life–atmosphere feedback, population evolving during the build and live after it, third-person walking. Silicon world with its own build, stats, reasoning, caveat and feedback. Temperature, Nitrogen and Oxygen sliders with live red zones in both worlds. The particle box on the selection screen and the zoom-and-duplicate Generate transition. A clean in-world screen: the Conditions panel (closed by default), brief fading captions, and click-to-inspect cards with the side-by-side comparison and a live 3D render of the counterpart. Caden's creatures and plants: genome, `develop()`, the ecology with its state machine, lofted bodies with IK legs, L-system flora, and the field guide tab. Summary card beside Earth, opened from the Conditions panel. Deterministic demo seeds. 60 fps. Recorded backup video. Devpost submission. |
 | P1 | Nothing yet. Creature inspection became click-to-inspect, which is now P0. |
 | P2 | Animated creature locomotion. Sound design that shifts per world. Procedural variation across non-demo seeds. Extra lighting and sky polish. |
 
@@ -683,7 +679,7 @@ Do not start P1 work until every P0 item works on the demo laptop.
     1. Scaffold Vite and three.js, with a plain placeholder render that reads `VisualInputs` (the art layer replaces it).
     2. `worlds/types.ts`, `worlds/controls.ts`, and the carbon config (unpinned values marked `assumption: true`).
     3. `sim/models.ts` and `sim/limits.ts`, with tests.
-    4. The worker: timeline, processes and feedbacks.
+    4. The worker: the build clock, the fixed fast-forward tick schedule, and feedbacks.
     5. A headless test that the carbon demo seed lands inside its targets.
 - **Creatures (Caden):**
   1. `sim/genome.ts` (15 genes), `sim/develop.ts` and `sim/constants.ts`, with a test per genome.
@@ -735,7 +731,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 | **1** | Once, before reporting a feature done | typecheck + full unit suite | < 60s |
 | **2** | Once per merge to `main` | Tier 1 + build + run the demo path once by hand | < 3 min |
 
-- **Test** the sim: the seeded RNG, the phase and year mapping, the derived-stat models (vapour pressure, sea volume, radiative balance), feedback integration, and that each world's demo seed lands inside its `targets` at the present phase. Also test that the same seed gives the same snapshot sequence, and every bug you fix (failing test first).
+- **Test** the sim: the seeded RNG, the derived-stat models (vapour pressure, sea volume, radiative balance), feedback integration, and that each world's demo seed lands inside its `targets` at the end of the build. Test that the build's tick schedule is frame-independent: the same build time gives the same ticks at any frame rate. Also test that the same seed gives the same snapshot sequence, and every bug you fix (failing test first).
 - **Test the sliders' logic:**
   - Living bands match the physics:
     - On silicon, lowering nitrogen lowers the upper temperature edge, and that edge never exceeds −147 °C.
@@ -743,7 +739,7 @@ Speed is the point. Run the cheapest tier that answers the question.
   - No sequence of `control:set` messages can put the world inside a red zone.
   - The sim's kill conditions sit exactly at the band edges.
   - `canLive` agrees with `livingBands`. For example, at −183 °C and 1 × nitrogen, both carbon and silicon are red, and silicon turns green once nitrogen is high enough.
-  - `startingConditions` keeps in-band values, replaces failing ones with `startDefaults` in the fixed order and reports each move. For example, untouched sliders on silicon move Temperature first, then Nitrogen.
+  - `startingConditions` keeps in-band values, replaces failing ones with `startDefaults` in the fixed order and reports each move. For example, untouched sliders on silicon move Temperature first, then Nitrogen, then Oxygen.
   - `livingBands` returns `empty` when no position works. For example, silicon's Nitrogen track at 15 °C.
 - **Test `boxState`:**
   - It never shows living chains when `canLive` fails, and it plays the failing limit's `boxEffect`.
@@ -751,18 +747,18 @@ Speed is the point. Run the cheapest tier that answers the question.
 - **Test determinism:** the default slider values give the same snapshot sequence on every run, for both worlds.
 - **Test the creatures (F):**
   - `develop()` is pure and gives the expected plan for each test genome. Silicon gives facets and 15° joints; carbon gives curves.
-  - The headless ecology runs each world's default seed and reaches its tuning targets (for example legs on carbon by about 1:00).
+  - The headless ecology runs each world's default seed and reaches its tuning targets. The carbon demo seed shows legs by the end of the build.
   - The DECISIONS §A variety metrics on headless runs. A new rule ships only if its A/B raises one.
   - Guardrails as tests: `sim/constants.ts` has ≤ 25 entries, and the builder output is zero on silicon.
 - **Test the terrain:** the CPU sampler matches the height formula; `seaLevel` gives the requested `seaCover`; spawn is within `shoreDistance` of the shore in both worlds at the default seeds; `rise` 0 is flat.
-- **Config checks as tests:** every stat, process, feedback, limit and reasoning step has `sources` or `assumption: true`; every id referenced by a phase exists; speculative worlds have a `caveat`.
+- **Config checks as tests:** every stat, feedback, limit, build config and reasoning step has `sources` or `assumption: true`; speculative worlds have a `caveat`.
 - **Don't test** rendering, UI, the character controller or styling. Check them by hand.
 - A test slower than 2s gets fixed or moved out of the default run. Fix the code, not the tests.
 
 ## Working conventions for Claude Code
 
-- Keep all world facts and rates in `src/worlds/` with `why` and `sources`, and never hardcode them elsewhere. When adding a stat, rule, process or feedback, add its source to `sources.ts` or mark it `assumption: true` and open or link a GitHub issue for it.
-- Keep the simulation deterministic for a given seed. Do not add random events or disasters.
+- Keep all world facts and rates in `src/worlds/` with `why` and `sources`, and never hardcode them elsewhere. When adding a stat, rule or feedback, add its source to `sources.ts` or mark it `assumption: true` and open or link a GitHub issue for it.
+- Keep the simulation deterministic for a given seed. The build's tick schedule depends only on build time, never on frame rate; if the fast-forward is slow, cut render detail, not ticks. Do not add random events, disasters or slow processes.
 - Do not change the data contract without flagging it, because the UI depends on it.
 - Prefer instanced meshes for anything repeated. Profile before optimising.
 - Read files before editing. Match existing patterns, and don't refactor adjacent code. No features beyond what was asked.
@@ -797,4 +793,4 @@ Considered and rejected: a dim red dwarf for the silicon world. Petkowski 2020 d
 
 Already verified, with DOIs in `research/silicon-life/REPORT.md`: Bains, W. (2004), "Many chemistries could be used to build living systems", *Astrobiology*. Petkowski, J. J., Bains, W. and Seager, S. (2020), "On the potential of silicon as a building block for life", *Life* (including Appendix C on silicon chemistry in cryosolvents, and the solubility limits in liquid nitrogen). National Research Council (2007), *The Limits of Organic Life in Planetary Systems*. Kan, S. B. J. et al. (2016), "Directed evolution of cytochrome c for carbon–silicon bond formation", *Science*, as a real-world aside on biology and silicon. Crust and body composition (28% Si, 0.02% C; body 18% C).
 
-Still to verify: NIST Chemistry WebBook for nitrogen phase data (triple point, vapour-pressure curve, critical point). A standard bond-energy table (for example the CRC Handbook) for C–C, Si–Si, Si–O and Si–H. Sagan and Mullen (1972) on the faint young Sun. Reviews of the Great Oxidation Event, the oxygen sinks that delayed it, and organic carbon burial as the source of atmospheric oxygen. Walker, Hays and Kasting (1981) on weathering as a climate thermostat. Takai, K. et al. (2008), *PNAS*, on growth at 122 °C (*Methanopyrus kandleri* strain 116). Snowball Earth reviews (for example Hoffman et al. 2017, *Science Advances*) for the carbon lower temperature bound. NIST densities of solid and liquid nitrogen (solid sinks). Goldblatt, C. et al. (2009), *Nature Geoscience*, on nitrogen-enhanced greenhouse warming. Som, S. M. et al. (2016), *Nature Geoscience*, on the early Earth's air pressure being under half of today's. NASA and ESA Cassini–Huygens material on Titan's surface temperature, pressure and seas.
+Still to verify: NIST Chemistry WebBook for nitrogen phase data (triple point, vapour-pressure curve, critical point). A standard bond-energy table (for example the CRC Handbook) for C–C, Si–Si, Si–O and Si–H. Reviews of organic carbon burial as the source of atmospheric oxygen. Takai, K. et al. (2008), *PNAS*, on growth at 122 °C (*Methanopyrus kandleri* strain 116). Snowball Earth reviews (for example Hoffman et al. 2017, *Science Advances*) for the carbon lower temperature bound. NIST densities of solid and liquid nitrogen (solid sinks). Goldblatt, C. et al. (2009), *Nature Geoscience*, on nitrogen-enhanced greenhouse warming. Som, S. M. et al. (2016), *Nature Geoscience*, on the early Earth's air pressure being under half of today's. NASA and ESA Cassini–Huygens material on Titan's surface temperature, pressure and seas.
