@@ -125,8 +125,10 @@ export function createSky(app: App): SkyPart {
         uHaze.value.copy(PAL_LIT.haze.value);
         uUnder.value = 0;
         fog.color.copy(LOOK.fogColor.value);
-        fog.near = patch * st.fogNearFrac;
-        fog.far = patch * st.fogFarFrac * 2.5;
+        // linear fog for the Standard materials (fauna), matched to the world material's exp air: starts where it
+        // starts and is ~92% by fogStart + 2.5 e-folds
+        fog.near = LOOK.fogStart.value;
+        fog.far = LOOK.fogStart.value + 2.5 * LOOK.fogDist.value;
         LOOK.hazeAmount.value = 0.42;
       }
       sun.color.setHex(st.starColour);

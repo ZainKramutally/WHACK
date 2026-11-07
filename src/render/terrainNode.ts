@@ -7,7 +7,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, uint, uniform, positionLocal, normalize, transformNormalToView, vertexStage,
-  floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp,
+  floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp, sin, positionWorld, cameraPosition,
 } from 'three/tsl';
 import { worldMaterial, PAL } from './material';
 import type { VisualInputs } from '../worlds/types';
@@ -205,8 +205,16 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N): N {
     c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.2, 0.8, eS).mul(flat.mul(0.6).add(0.4))));
     // the reference's patchy ground: low-frequency crimson hollows and sunlit flats
     const hollow = clamp(float(0.5).sub(mx_noise_float(vec3(x.div(60), 4.1, z.div(60))).mul(1.4)), 0, 1);
-    c.assign(mix(c, vec3(PAL.crimson), hollow.mul(0.6).mul(rise)));
+    c.assign(mix(c, vec3(PAL.crimson), hollow.mul(0.6)));
     c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.62, 0.9, vary).mul(flat).mul(0.35)));
+    // mid-scale two-tone mottling and near wind ripples: value structure that holds on low relief (the spawn frame at
+    // rise ≈ 0.3 is mostly gentle shore ramp)
+    const mott = mx_noise_float(vec3(x.div(16), 2.3, z.div(16))).add(fine.mul(0.25));
+    c.assign(mix(c, vec3(PAL.crimson), smoothstep(-0.12, -0.3, mott).mul(0.45)));
+    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.25, 0.42, mott).mul(flat).mul(0.3)));
+    const near = smoothstep(70, 25, positionWorld.sub(cameraPosition).length());
+    const rip = sin(x.mul(0.62).add(z.mul(0.38)).add(fine.mul(3.5)).add(vary.mul(6)));
+    c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), 0.3), smoothstep(0.82, 0.96, rip).mul(flat).mul(near).mul(0.35)));
 
     // strata: stepped bands on walls, keyed to the terrace height (index mod 3 → light / dark / mid)
     const band = floor(h.div(bandH).add(fine.mul(0.35)));
@@ -235,8 +243,8 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N): N {
     c.assign(mix(c, mix(vec3(PAL.blush), vec3(PAL.bone), 0.5), tide.mul(sea).mul(float(0.5).sub(GROUND.frozen.mul(0.5)))));
     c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), smoothstep(0, -8, d)), smoothstep(0.1, -0.6, d).mul(sea).mul(0.7)));
 
-    // freshly settled ground is even; relief and its colour arrive together
-    return mix(vec3(PAL.red), c, smoothstep(0.03, 0.45, rise));
+    // freshly settled ground is even; its colour structure is in place early (rise ≈ 0.15), so the spawn frame reads
+    return mix(vec3(PAL.red), c, smoothstep(0.0, 0.15, rise));
   })();
 }
 
