@@ -32,7 +32,7 @@ export function indexOfOrganism(buf: Float32Array, id: number): number {
 
 export function mountInspectCard(
   root: HTMLElement, bus: UiBus, world: WorldConfig, other: WorldConfig | undefined,
-  registry: LifeRegistry,
+  registry: LifeRegistry, floraSubmerged?: (cell: number) => boolean,
 ) {
   const card = el('aside', 'wu-card wu-inspect');
   card.hidden = true;
@@ -94,7 +94,7 @@ export function mountInspectCard(
         world: { composition: world.life.composition, solvent: world.solvent },
         light: s.stats.light ?? 1,
         heatBand: heatBand(s),
-      } as Parameters<typeof floraBin>[2]));
+      } as Parameters<typeof floraBin>[2], floraSubmerged?.(t.cell) ?? false));
       if (form) name = speciesName(form.species);
       rows.push(...producerRows(mat, canopy, form));
     } else if (t.kind === 'sea') {

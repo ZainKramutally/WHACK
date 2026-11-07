@@ -7,6 +7,7 @@ import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createWorldView } from './render/world';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
+import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
@@ -85,7 +86,7 @@ async function start(
   });
 
   // In-world UI. The player's input owns Tab/Esc/gamepad, so the UI skips its own.
-  const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true, seed });
+  const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true, seed, floraSubmerged: (cell) => cellSubmerged(cell, app.inputs) });
 
   // Player.
   const pick = view.pick;

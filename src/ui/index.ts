@@ -31,6 +31,8 @@ export interface WorldUIOptions {
   externalInput?: boolean;
   /** This run's seed, shown small in the Conditions panel with a link that replays it. */
   seed?: number;
+  /** Whether a flora cell is under the sea (render/floraForm cellSubmerged), so the producer card names the form the world draws. */
+  floraSubmerged?: (cell: number) => boolean;
 }
 
 type Panel = 'conditions' | 'guide';
@@ -45,7 +47,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   const summary = mountSummaryCard(host, world, registry);
   const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
   const guide = mountFieldGuide(registry, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
-  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry);
+  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged);
 
   // Tabs: closed by default.
   const tabs = el('nav', 'wu-tabs');
