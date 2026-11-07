@@ -6,6 +6,7 @@ import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen
 import { createLandmarks } from './gen/landmarks';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
+import { createGenerate, type LaunchHandle } from './render/generate';
 import { createWorldView } from './render/world';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
 import { cellSubmerged } from './render/floraForm';
@@ -40,27 +41,43 @@ function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, worl
   return { x: p.x, z: p.z };
 }
 
+/** One seed and one terrain per world for the whole page load: the transition plans against the same terrain the run then uses. */
+const runSeeds = new Map<WorldId, number>();
+const terrains = new Map<WorldId, TerrainSampler | Terrain>();
+function seedFor(worldId: WorldId): number {
+  let seed = runSeeds.get(worldId);
+  if (seed === undefined) { seed = pickSeed(location.search, worldFor(worldId).demoSeed).seed; runSeeds.set(worldId, seed); }
+  return seed;
+}
+function terrainFor(worldId: WorldId): TerrainSampler | Terrain {
+  let t = terrains.get(worldId);
+  if (!t) { t = createTerrainSampler(worldFor(worldId), seedFor(worldId)); terrains.set(worldId, t); }
+  return t;
+}
+
 // ---- boot ----
 
 /** World-agnostic setup, done while the selection screen is up: renderer, scene and every world's materials compile here. */
 async function prepare() {
   const app = await createApp();
   const view = createWorldView(app);
+  const gen = createGenerate(app);
   // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
   await view.ready;
-  return { app, view };
+  return { app, view, gen };
 }
 
 async function start(
-  { app, view }: Awaited<ReturnType<typeof prepare>>,
+  { app, view, gen }: Awaited<ReturnType<typeof prepare>>,
   worldId: WorldId,
   requested: Conditions,
+  handle?: LaunchHandle,
 ) {
   const world = worldFor(worldId);
   const otherWorld = worldFor(worldId === 'carbon' ? 'silicon' : 'carbon');
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
-  const { seed } = pickSeed(location.search, world.demoSeed);
-  const terrain = createTerrainSampler(world, seed);
+  const seed = seedFor(worldId);
+  const terrain = terrainFor(worldId);
   const landmarks = 'relics' in terrain
     ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
     : null;
@@ -89,6 +106,18 @@ async function start(
     }
     return visual ?? app.inputs;
   });
+
+  // The Generate transition (before the player's hook: it drives the camera until the character spawns, then lets go).
+  if (handle && 'relics' in terrain) {
+    gen.start({
+      worldId, requested, seed, terrain, handle,
+      snapshot: () => latest,
+      spawnFor: (s) => spawnFor(terrain, s, world),
+      groundAt: (x, z) => (latest ? terrain.height(x, z, terrainState(latest, world)) : 0),
+      seaLevelNow: () => latest?.stats.seaLevel ?? -1000,
+      frozenNow: () => (latest ? latest.stats.temperature < world.solvent.freezeC : false),
+    });
+  } else handle?.dispose();
 
   // In-world UI. The player's input owns Tab/Esc/gamepad, so the UI skips its own.
   const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true, seed, floraSubmerged: (cell) => cellSubmerged(cell, app.inputs) });
@@ -166,13 +195,19 @@ async function boot() {
   // If the renderer fails to come up, surface it; the selection screen is DOM only and must not be left covering the error.
   prepared.catch(fail);
   const screen = mountSelectionScreen(document.getElementById('ui') ?? document.body, bus, {
-    onGenerate: ({ worldId, requested }) => {
-      prepared
-        .then((p) => start(p, worldId, requested))
-        .then(() => screen.worldStarted())
-        .catch(fail);
+    onGenerate: ({ worldId, requested }, handle) => {
+      prepared.then((p) => start(p, worldId, requested, handle)).catch(fail);
     },
   });
+  // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
+  const prime = (worldId: WorldId, conditions: Conditions) => {
+    prepared.then(({ gen }) => {
+      const t = terrainFor(worldId);
+      if ('relics' in t) gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle);
+    }).catch(() => {});
+  };
+  bus.on('selection:changed', ({ worldId, conditions }) => prime(worldId, conditions));
+  prime('carbon', Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions);
 }
 
 function fail(e: unknown) {
