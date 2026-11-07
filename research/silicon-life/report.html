@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What if life was silicon-based? · Visual research summary</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --c:#2a78d6; --si:#eb6834; --s3:#1baf7a; --s4:#eda100; --ctx:#b9b7ae;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --on-fill:#ffffff; --on-warn:#0b0b0b;
+  --wash:rgba(42,120,214,0.08); --sib:rgba(235,104,52,0.14);
+  --pip:#2a78d6; --pip-off:#e1e0d9;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --c:#3987e5; --si:#d95926; --s3:#199e70; --s4:#c98500; --ctx:#77756e;
+    --wash:rgba(57,135,229,0.12); --sib:rgba(217,89,38,0.20);
+    --pip:#3987e5; --pip-off:#383835;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --c:#3987e5; --si:#d95926; --s3:#199e70; --s4:#c98500; --ctx:#77756e;
+  --wash:rgba(57,135,229,0.12); --sib:rgba(217,89,38,0.20);
+  --pip:#3987e5; --pip-off:#383835;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--c)}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 64px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;color:var(--ink2);font-size:13px}
+.topbar button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer}
+header.hero{padding:28px 0 8px}
+.kicker{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+h1{font-size:clamp(28px,4.4vw,44px);line-height:1.12;margin:0 0 12px;font-weight:700;letter-spacing:-.01em}
+.lede{font-size:17px;color:var(--ink2);max-width:760px;margin:0}
+section.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 22px 16px;margin:18px 0}
+.eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px;font-variant-numeric:tabular-nums}
+h2{font-size:clamp(19px,2.3vw,23px);line-height:1.3;margin:0 0 14px;font-weight:650;max-width:860px}
+.chart{width:100%;position:relative}
+.chart svg{display:block;overflow:visible}
+.caption{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink2);margin:0 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:50%;display:inline-block}
+.sw.bar{border-radius:3px;width:14px}
+.sw.ring{background:transparent!important;border:2px solid var(--ink2)}
+details{margin-top:8px;font-size:13px;color:var(--ink2)}
+details summary{cursor:pointer;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink2);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tblwrap{overflow-x:auto}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.t-ink{fill:var(--ink)} .t-ink2{fill:var(--ink2)} .t-mut{fill:var(--muted)}
+.gridl{stroke:var(--grid);stroke-width:1} .axisl{stroke:var(--axis);stroke-width:1}
+.tick{font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
+[data-tip]{cursor:default}
+[data-tip]:focus{outline:2px solid var(--c);outline-offset:2px}
+#tip{position:fixed;pointer-events:none;z-index:10;background:var(--surface);color:var(--ink);border:1px solid var(--border);
+  box-shadow:0 4px 18px rgba(0,0,0,.14);border-radius:8px;padding:8px 10px;font-size:12.5px;max-width:300px;line-height:1.4;display:none}
+#tip b{font-weight:650}
+/* status chips */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.dot{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--on-fill);line-height:1}
+.st-consensus{background:var(--good)} .st-plausible{background:var(--warn);color:var(--on-warn)} .st-disputed{background:var(--serious)} .st-refuted{background:var(--crit)}
+/* panels */
+.panels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 18px}
+.panel h3{font-size:13.5px;margin:0 0 2px;font-weight:650;display:flex;align-items:center;gap:6px}
+.panel .sub{font-size:12px;color:var(--muted);margin:0 0 4px;min-height:1.5em}
+.rowlabel{font-size:12px;color:var(--ink2);font-weight:600;margin:10px 0 4px;grid-column:1/-1}
+/* knobs */
+.knobs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.knob{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--page)}
+.knobs.steel{grid-template-columns:repeat(4,minmax(0,1fr))}
+.knob h3{font-size:14.5px;margin:0 0 6px}
+.knob .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:8px 0 2px}
+.knob p{margin:0;font-size:13px;color:var(--ink2)}
+.knob .arrow{font-size:12px;color:var(--muted);margin:6px 0}
+.trap{border:1px solid var(--serious);border-radius:12px;padding:12px 14px;margin-top:14px;font-size:13.5px;color:var(--ink2)}
+.trap b{color:var(--ink)}
+.placeholder{border:2px dashed var(--warn);border-radius:12px;padding:14px;margin-top:14px;font-size:13.5px;color:var(--ink2)}
+/* prior art */
+.pips{display:inline-flex;gap:3px;vertical-align:middle}
+.pips i{width:9px;height:9px;border-radius:2px;background:var(--pip-off);display:inline-block}
+.pips i.on{background:var(--pip)}
+footer{margin-top:28px;font-size:13.5px;color:var(--ink2)}
+footer h3{font-size:14px;color:var(--ink);margin:18px 0 6px}
+footer ul{margin:0;padding-left:18px}
+.tags{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px}
+.tag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--grid);color:var(--ink);padding:1px 6px;border-radius:5px;margin-right:6px}
+@media (max-width:820px){ .knobs,.knobs.steel{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:640px){
+  .wrap{padding:16px 12px 48px}
+  section.card{padding:16px 14px 12px;border-radius:12px}
+  .panels{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+  .knobs,.knobs.steel{grid-template-columns:1fr}
+  .lede{font-size:15.5px}
+  .panel .sub{min-height:3em}
+  #c9 thead{display:none}
+  #c9 tr{display:block;border-bottom:1px solid var(--grid);padding:8px 0}
+  #c9 td{display:block;border:0;padding:2px 0}
+}
+@media (forced-colors: active){ .dot,.sw{forced-color-adjust:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span>Whack 2026 · deep-research summary · 2026-11-07</span>
+    <button id="theme" type="button" aria-label="Toggle colour theme">Theme: auto</button>
+  </div>
+
+  <header class="hero">
+    <p class="kicker">Hook · “What if life was silicon-based?”</p>
+    <h1>Earth’s crust is 28% silicon and 0.02% carbon. You are 18% carbon. Life picked carbon anyway.</h1>
+    <p class="lede">Hackathon idea: let the player change how element groups behave — valence, bond strength, solvent, temperature — and watch chemistry climb into an ecosystem. This page is the research behind it, one finding per chart.</p>
+  </header>
+
+  <section class="card" id="s1">
+    <p class="eyebrow">01 · The hook</p>
+    <h2>Silicon outnumbers carbon 1,410 to 1 in the rock under your feet, yet your body runs the other way: 9,000 carbon atoms’ worth of mass for every silicon.</h2>
+    <div class="legend"><span><i class="sw" style="background:var(--c)"></i>Carbon (C)</span><span><i class="sw" style="background:var(--si)"></i>Silicon (Si)</span></div>
+    <div class="chart" id="c1"></div>
+    <p class="caption">Share of mass, log scale. Source: data/timeline.json relatable_facts (Wikipedia “Abundance of elements in Earth’s crust”, RSC; “Composition of the human body”). [POP]</p>
+    <details><summary>Data table</summary><div class="tblwrap" id="t1"></div></details>
+  </section>
+
+  <section class="card" id="s2">
+    <p class="eyebrow">02 · Why silicon loses in water</p>
+    <h2>Silicon’s chains are weak (Si–Si 222 vs C–C 346 kJ/mol) but its grip on oxygen is the strongest bond here — so in water and air, silicon ends up as rock.</h2>
+    <div class="legend"><span><i class="sw" style="background:var(--c)"></i>Carbon bond</span><span><i class="sw" style="background:var(--si)"></i>Silicon bond</span><span><i class="sw bar" style="background:var(--sib)"></i>Si–O minus Si–Si gap</span></div>
+    <div class="chart" id="c2"></div>
+    <p class="caption">Mean bond enthalpies, kJ/mol; whiskers = reported range. Source: Petkowski, Bains &amp; Seager 2020, Life 10:84 (doi:10.3390/life10060084) [REVIEW]; π components Wang &amp; Poirier 1998 (doi:10.1139/cjc-76-4-477) [PEER], via data/silicon.json + data/rules.json.</p>
+    <details><summary>Data table</summary><div class="tblwrap" id="t2"></div></details>
+  </section>
+
+  <section class="card" id="s3">
+    <p class="eyebrow">03 · Where else could it work</p>
+    <h2>Silicon’s best shots are worlds without liquid water: Titan’s methane lakes at 94 K or Venus’s sulfuric-acid clouds — and only water has been shown to host life.</h2>
+    <div class="legend" id="lg3"></div>
+    <div class="chart" id="c3"></div>
+    <p class="caption">Liquid range at 1 atm (melting → boiling point, K). Source: data/alt-biochem.json solvents (CRC Handbook; Engineering Toolbox); world temperatures from notes/01–02 and data/rules.json. Status labels per notes/02.</p>
+    <details><summary>Data table</summary><div class="tblwrap" id="t3"></div></details>
+  </section>
+
+  <section class="card" id="s4">
+    <p class="eyebrow">04 · The claims scoreboard</p>
+    <h2>Every headline “alien chemistry” claim of the last 15 years has been refuted or is still disputed; the only clean wins are lab-built genetics and enzymes.</h2>
+    <div class="legend" id="lg4"></div>
+    <div class="chart" id="c4"></div>
+    <p class="caption">Hollow dot = year claimed; filled dot = current status (resolution year, or today). Source: data/alt-biochem.json controversies + biochemistries; data/silicon.json arguments; data/timeline.json. Retraction: Science, 24 Jul 2025.</p>
+  </section>
+
+  <section class="card" id="s5">
+    <p class="eyebrow">05 · Our prototype</p>
+    <h2>With real bond energies, our toy model already reproduces the science: carbon in water builds giant molecules, silicon in water rusts to dead Si(OH)ₙ “sand” within ~120 steps, and silicon in cold methane survives.</h2>
+    <div class="legend" id="lg5"></div>
+    <div class="panels" id="c5"></div>
+    <p class="caption">Toy well-mixed stochastic bonding model, N = 3,000 atoms, 3,000 steps, seed 1; “dead” = backbone atoms with ≥ 2 of 4 valences on O. Source: data/prototype-results.json, prototype/bonding_model.py, notes/07. [INFERRED] — a model, not chemistry.</p>
+    <details><summary>All 9 scenarios — final values</summary><div class="tblwrap" id="t5"></div></details>
+  </section>
+
+  <section class="card" id="s6">
+    <p class="eyebrow">06 · Science → knobs</p>
+    <h2>Six player knobs, each anchored to a measured property — and the most interesting one, “oxygen hunger”, is where silicon is twice as greedy as carbon.</h2>
+    <div class="legend"><span><i class="sw bar" style="background:var(--c)"></i>Carbon value</span><span><i class="sw bar" style="background:var(--si)"></i>Silicon value</span></div>
+    <div class="knobs" id="c6"></div>
+    <div class="trap"><b>Prototype trap:</b> a “stronger Si–Si” slider alone does nothing in water (scenario 5a: still 100% dead). Hydrolysis is a polarity effect, not a strength effect — the UI should say so. Tuning target from notes/07: keep E<sub>backbone</sub>/kT ≈ 3.5–4.5, water attack on Si ≈ 0.03× toy rate, H:X ≈ 2 to avoid gelling.</div>
+    <div id="ph6"></div>
+    <p class="caption">Source: data/rules.json knobs + element table (round 2; non-C/Si attack scores are [INFERRED] game numbers), notes/06 §B–C, notes/03 §4, notes/07.</p>
+  </section>
+
+  <section class="card" id="s7">
+    <p class="eyebrow">07 · How life emerges in our sim</p>
+    <h2>The 3-minute demo climbs four layers — first bond at 0:05, first replicator by 0:55, first organism at 1:30, predators and three trophic levels by 2:45.</h2>
+    <div class="chart" id="c7"></div>
+    <p class="caption">Target times with tuned presets, not measurements [INFERRED]. Source: notes/03 §6 “Witnessable milestones”. Organism promotion uses Gánti’s chemoton criteria (membrane + template + metabolism).</p>
+  </section>
+
+  <section class="card" id="s8">
+    <p class="eyebrow">08 · Models we build on</p>
+    <h2>Particle Life is the only model that is both beautiful and element-controllable; we stack it with Hutton-style typed bonds (chemistry) and a Life-Engine-style ecology.</h2>
+    <div class="legend"><span><i class="sw" style="background:var(--c)"></i>In our stack</span><span><i class="sw" style="background:var(--si)"></i>Closest prior art (Tidemote)</span><span><i class="sw" style="background:var(--ctx)"></i>Other models</span><span style="color:var(--muted)">Dot size = build effort (S / M / L)</span></div>
+    <div class="chart" id="c8"></div>
+    <p class="caption">Scores 1–5, team judgement for a 24 h build; points nudged apart where they share a score. Source: data/alife-models.json, notes/03 §7. [INFERRED]</p>
+  </section>
+
+  <section class="card" id="s9">
+    <p class="eyebrow">09 · Seen-before check</p>
+    <h2>Tidemote already does “GPU ecosystem in the browser” — but no one lets the player author the periodic table, so our gap is the chemistry layer and the carbon-vs-silicon A/B.</h2>
+    <div class="tblwrap" id="c9"></div>
+    <p class="caption">Similarity 1–5 to our pitch. Source: data/alife-models.json prior_art; notes/05 (Tidemote site, repo and shaders read 2026-11-07). [POP]</p>
+  </section>
+
+  <section class="card" id="s10">
+    <p class="eyebrow">10 · Timeline of the idea</p>
+    <h2>Silicon life is a 135-year-old idea that fiction ran with while science kept saying no — and the next real test lands on Titan in 2034.</h2>
+    <div class="legend" id="lg10"></div>
+    <div class="chart" id="c10"></div>
+    <p class="caption">Source: data/timeline.json (1893 Reynolds address unverified); Dragonfly launch NET Jul 2028, arrival late 2034 per NASA mission page (notes/04).</p>
+  </section>
+
+  <footer>
+    <h3>Read more</h3>
+    <ul>
+      <li><a href="EXECUTIVE_SUMMARY.md">EXECUTIVE_SUMMARY.md</a> — one-page answer</li>
+      <li><a href="REPORT.md">REPORT.md</a> — full report with citations</li>
+      <li><a href="notes/01-silicon-chemistry.md">01 Silicon chemistry</a> · <a href="notes/02-alternative-biochemistries.md">02 Alternative biochemistries</a> · <a href="notes/03-emergent-simulation.md">03 Emergent simulation</a> · <a href="notes/04-history-and-hooks.md">04 History &amp; hooks</a> · <a href="notes/05-prior-art-and-gpu-bonding.md">05 Prior art &amp; GPU bonding</a> · <a href="notes/06-rules-and-steelman.md">06 Rules &amp; steelman</a> · <a href="notes/07-prototype-findings.md">07 Prototype findings</a></li>
+      <li>Data: <a href="data/silicon.json">silicon.json</a> · <a href="data/alt-biochem.json">alt-biochem.json</a> · <a href="data/alife-models.json">alife-models.json</a> · <a href="data/timeline.json">timeline.json</a> · <a href="data/prototype-results.json">prototype-results.json</a> · <a href="data/rules.json">rules.json</a></li>
+    </ul>
+    <h3>Evidence tags</h3>
+    <div class="tags">
+      <span><span class="tag">[PEER]</span>peer-reviewed, DOI checked</span>
+      <span><span class="tag">[REVIEW]</span>review article</span>
+      <span><span class="tag">[PREPRINT]</span>not yet peer-reviewed</span>
+      <span><span class="tag">[BOOK]</span>book / report</span>
+      <span><span class="tag">[POP]</span>popular, press or project page</span>
+      <span><span class="tag">[INFERRED]</span>our own reasoning or model</span>
+    </div>
+    <h3>Claim status</h3>
+    <div class="legend" id="lgf"></div>
+  </footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script type="application/json" id="data">{"abundance":{"crust":{"Si":28.2,"C":0.02},"body":{"C":18,"Si":0.002},"ratio_crust":1410,"ratio_body":9000},"bonds":[{"row":"X–X single bond","C":{"v":346,"r":[346,377]},"Si":{"v":222,"r":[222,226]},"cl":"C–C","sl":"Si–Si"},{"row":"X–H","C":{"v":411,"r":[411,414]},"Si":{"v":318,"r":[318,323]},"cl":"C–H","sl":"Si–H"},{"row":"X–O","C":{"v":358,"r":[358,360]},"Si":{"v":452,"r":[452,466]},"cl":"C–O","sl":"Si–O"},{"row":"X–N","C":{"v":305,"r":null},"Si":{"v":355,"r":null},"cl":"C–N","sl":"Si–N"},{"row":"π bond (X=X)","C":{"v":274,"r":null},"Si":{"v":97,"r":null},"cl":"C=C π","sl":"Si=Si π"}],"solvents":[{"name":"Water","formula":"H2O","mp_K":273.15,"bp_K":373.12,"where":"Earth; Europa/Enceladus subsurface oceans","status":"consensus"},{"name":"Ammonia","formula":"NH3","mp_K":195.4,"bp_K":239.8,"where":"Ammonia-water oceans in icy moons; giant-planet clouds","status":"plausible/theorised"},{"name":"Methane","formula":"CH4","mp_K":90.7,"bp_K":111.7,"where":"Titan lakes and rain","status":"plausible/theorised"},{"name":"Ethane","formula":"C2H6","mp_K":90.4,"bp_K":184.6,"where":"Titan seas","status":"plausible/theorised"},{"name":"Hydrogen fluoride","formula":"HF","mp_K":189.8,"bp_K":292.7,"where":"No known natural reservoir","status":"plausible/theorised"},{"name":"Sulfuric acid (conc.)","formula":"H2SO4","mp_K":283.5,"bp_K":610,"where":"Venus cloud droplets, 48-60 km","status":"plausible/theorised"},{"name":"Formamide","formula":"HCONH2","mp_K":275.7,"bp_K":483,"where":"ISM, comets; prebiotic scenarios","status":"plausible/theorised"},{"name":"Hydrogen cyanide","formula":"HCN","mp_K":259.9,"bp_K":298.8,"where":"Titan atmosphere, comets","status":"plausible/theorised"},{"name":"Hydrogen sulfide","formula":"H2S","mp_K":187.7,"bp_K":213.6,"where":"Volcanic gases","status":"plausible/theorised"},{"name":"Nitrogen (liquid)","formula":"N2","mp_K":63.15,"bp_K":77.36,"where":"Triton, possibly Pluto","status":"plausible/theorised"},{"name":"Supercritical carbon dioxide","formula":"CO2","mp_K":null,"bp_K":null,"where":"Venus lower atmosphere (~740 K, 92 bar); some exoplanets","status":"plausible/theorised"}],"controversies":[{"name":"Arsenic life (GFAJ-1)","year_claimed":2010,"year_resolved":2025,"outcome":"refuted: phosphate-dependent and arsenate-resistant (2012); Science retracted 2025-07-24","sources":["wolfesimon2011","reaves2012","erb2012","retraction2025","westheimer1987"]},{"name":"Phosphine in Venus clouds","year_claimed":2020,"year_resolved":null,"outcome":"disputed: re-analyses and SOFIA upper limit vs. original-team rebuttals; unresolved","sources":["greaves2020","snellen2020","akins2021","villanueva2021","cordiner2022","greaves2023"]},{"name":"Azotosome membranes on Titan","year_claimed":2015,"year_resolved":2020,"outcome":"disputed, leaning refuted: QM thermodynamics says no self-assembly","sources":["stevenson2015","sandstrom2020","palmer2017"]},{"name":"Assembly theory as life detector","year_claimed":2021,"year_resolved":null,"outcome":"disputed: critiques say it reduces to compression measures","sources":["marshall2021","sharma2023","uthamacumaran2024","jaeger2024","ozelim2026"]}],"proto":{"scen":[{"name":"1_carbon_water_300K","backbone":"C","solvent":"water","T":300,"series":[[0,3,0.0],[30,1450,0.0252],[60,2512,0.0415],[90,2734,0.0511],[120,2830,0.0526],[150,2865,0.0541],[180,2874,0.0563],[210,2882,0.0585],[240,2898,0.0585],[270,2907,0.0585],[300,2906,0.0585],[330,2909,0.0585],[360,2916,0.0593],[390,2924,0.0607],[420,2922,0.0607],[450,2925,0.0607],[480,2925,0.0607],[510,2930,0.0607],[540,2922,0.0607],[570,2929,0.0615],[600,2934,0.0615],[630,2929,0.0615],[660,2931,0.0615],[690,2931,0.0615],[720,2932,0.0615],[750,2941,0.0615],[780,2938,0.0615],[810,2947,0.0615],[840,2944,0.0615],[870,2941,0.0615],[900,2940,0.0615],[930,2939,0.0615],[960,2943,0.0615],[990,2944,0.0615],[1020,2950,0.0615],[1050,2943,0.0615],[1080,2935,0.0615],[1110,2935,0.0615],[1140,2945,0.0615],[1170,2946,0.0615],[1200,2947,0.0607],[1230,2941,0.0607],[1260,2947,0.0607],[1290,2948,0.0607],[1320,2953,0.0607],[1350,2954,0.0607],[1380,2952,0.0607],[1410,2956,0.0607],[1440,2950,0.0607],[1470,2948,0.0607],[1530,2938,0.0607],[1560,2941,0.0607],[1590,2939,0.0607],[1620,2939,0.0607],[1650,2939,0.0607],[1680,2946,0.0607],[1710,2947,0.0607],[1740,2940,0.0607],[1770,2932,0.0607],[1800,2936,0.0607],[1830,2933,0.0607],[1860,2938,0.0607],[1890,2933,0.0607],[1920,2930,0.0607],[1950,2935,0.0607],[1980,2937,0.0607],[2010,2941,0.0607],[2040,2941,0.0607],[2070,2940,0.0607],[2100,2938,0.06],[2130,2938,0.06],[2160,2938,0.06],[2190,2937,0.06],[2220,2937,0.06],[2250,2943,0.06],[2280,2944,0.0607],[2310,2939,0.0607],[2340,2936,0.0607],[2370,2943,0.0607],[2400,2952,0.0607],[2430,2952,0.0607],[2460,2953,0.0607],[2490,2956,0.0607],[2520,2955,0.0607],[2550,2951,0.0607],[2580,2951,0.0607],[2610,2949,0.0607],[2640,2945,0.0607],[2670,2939,0.0607],[2700,2942,0.0607],[2730,2938,0.0607],[2760,2939,0.0607],[2790,2941,0.0607],[2820,2938,0.0607],[2850,2935,0.0607],[2880,2940,0.0607],[2910,2949,0.0607],[2940,2948,0.0607],[2970,2944,0.0607],[3000,2949,0.0607]],"final":{"step":3000,"largest_molecule":2949,"largest_chain":1292,"species_count":3,"complex_molecules":1,"dead_fraction":0.0607,"bonds":3606,"breaks":13}},{"name":"2_silicon_water_300K","backbone":"Si","solvent":"water","T":300,"series":[[0,3,0.0],[30,89,0.0926],[60,518,0.2644],[90,313,0.4489],[120,358,0.5978],[150,173,0.7133],[180,78,0.8044],[210,65,0.8711],[240,35,0.9156],[270,32,0.9474],[300,20,0.963],[330,17,0.9726],[360,16,0.9822],[390,16,0.9867],[420,15,0.9933],[450,15,0.9956],[480,15,0.997],[510,15,0.9985],[540,15,1.0],[570,15,1.0],[600,15,1.0],[630,15,1.0],[660,15,1.0],[690,15,1.0],[720,15,1.0],[750,15,1.0],[780,15,1.0],[810,15,1.0],[840,15,1.0],[870,15,1.0],[900,15,1.0],[930,15,1.0],[960,15,1.0],[990,15,1.0],[1020,15,1.0],[1050,15,1.0],[1080,15,1.0],[1110,15,1.0],[1140,15,1.0],[1170,15,1.0],[1200,15,1.0],[1230,15,1.0],[1260,15,1.0],[1290,15,1.0],[1320,15,1.0],[1350,15,1.0],[1380,15,1.0],[1410,15,1.0],[1440,15,1.0],[1470,15,1.0],[1530,15,1.0],[1560,15,1.0],[1590,15,1.0],[1620,15,1.0],[1650,15,1.0],[1680,15,1.0],[1710,15,1.0],[1740,15,1.0],[1770,15,1.0],[1800,15,1.0],[1830,15,1.0],[1860,15,1.0],[1890,15,1.0],[1920,15,1.0],[1950,15,1.0],[1980,15,1.0],[2010,15,1.0],[2040,15,1.0],[2070,15,1.0],[2100,15,1.0],[2130,15,1.0],[2160,15,1.0],[2190,15,1.0],[2220,15,1.0],[2250,15,1.0],[2280,15,1.0],[2310,15,1.0],[2340,15,1.0],[2370,15,1.0],[2400,15,1.0],[2430,15,1.0],[2460,15,1.0],[2490,15,1.0],[2520,15,1.0],[2550,15,1.0],[2580,15,1.0],[2610,15,1.0],[2640,15,1.0],[2670,15,1.0],[2700,15,1.0],[2730,15,1.0],[2760,15,1.0],[2790,15,1.0],[2820,15,1.0],[2850,15,1.0],[2880,15,1.0],[2910,15,1.0],[2940,15,1.0],[2970,15,1.0],[3000,15,1.0]],"final":{"step":3000,"largest_molecule":15,"largest_chain":1,"species_count":7,"complex_molecules":0,"dead_fraction":1.0,"bonds":599,"breaks":0}},{"name":"3_silicon_methane_94K","backbone":"Si","solvent":"methane","T":94,"series":[[0,2,0.0],[30,6,0.0022],[60,8,0.0074],[90,13,0.0133],[120,23,0.0156],[150,27,0.0193],[180,35,0.0244],[210,65,0.0304],[240,174,0.0333],[270,248,0.0363],[300,383,0.04],[330,775,0.0452],[360,1228,0.0504],[390,1562,0.0533],[420,1768,0.0548],[450,1940,0.0556],[480,2070,0.0578],[510,2106,0.0585],[540,2209,0.06],[570,2275,0.0607],[600,2313,0.0607],[630,2322,0.0615],[660,2359,0.0615],[690,2402,0.0615],[720,2429,0.0615],[750,2496,0.0622],[780,2511,0.063],[810,2558,0.063],[840,2574,0.063],[870,2604,0.063],[900,2621,0.063],[930,2637,0.063],[960,2648,0.0637],[990,2660,0.0637],[1020,2667,0.0644],[1050,2680,0.0644],[1080,2685,0.0644],[1110,2692,0.0644],[1140,2720,0.0644],[1170,2737,0.0644],[1200,2751,0.0644],[1230,2757,0.0644],[1260,2760,0.0652],[1290,2769,0.0652],[1320,2769,0.0652],[1350,2773,0.0652],[1380,2795,0.0652],[1410,2796,0.0652],[1440,2796,0.0652],[1470,2802,0.0659],[1530,2814,0.0659],[1560,2826,0.0659],[1590,2831,0.0659],[1620,2833,0.0659],[1650,2845,0.0659],[1680,2848,0.0659],[1710,2848,0.0659],[1740,2851,0.0659],[1770,2851,0.0659],[1800,2851,0.0659],[1830,2851,0.0659],[1860,2854,0.0659],[1890,2856,0.0659],[1920,2861,0.0659],[1950,2863,0.0659],[1980,2875,0.0659],[2010,2875,0.0659],[2040,2878,0.0659],[2070,2878,0.0659],[2100,2883,0.0659],[2130,2886,0.0659],[2160,2886,0.0659],[2190,2886,0.0659],[2220,2886,0.0659],[2250,2888,0.0659],[2280,2889,0.0659],[2310,2892,0.0659],[2340,2896,0.0659],[2370,2898,0.0659],[2400,2898,0.0659],[2430,2898,0.0659],[2460,2902,0.0659],[2490,2906,0.0659],[2520,2906,0.0659],[2550,2906,0.0659],[2580,2911,0.0659],[2610,2913,0.0659],[2640,2913,0.0659],[2670,2913,0.0659],[2700,2913,0.0659],[2730,2913,0.0659],[2760,2913,0.0659],[2790,2913,0.0659],[2820,2914,0.0667],[2850,2914,0.0667],[2880,2914,0.0667],[2910,2916,0.0667],[2940,2916,0.0667],[2970,2917,0.0667],[3000,2917,0.0667]],"final":{"step":3000,"largest_molecule":2917,"largest_chain":1259,"species_count":5,"complex_molecules":1,"dead_fraction":0.0667,"bonds":3527,"breaks":0}},{"name":"4_silicon_h2so4_330K_hybrid","backbone":"Si+C","solvent":"h2so4","T":330,"series":[[0,4,0.0015],[30,980,0.0474],[60,2385,0.08],[90,2543,0.1141],[120,2631,0.1504],[150,2595,0.1807],[180,2594,0.2156],[210,2526,0.2459],[240,2426,0.28],[270,2407,0.3163],[300,2353,0.337],[330,2258,0.3659],[360,2164,0.3963],[390,2091,0.4237],[420,2032,0.4496],[450,1987,0.4793],[480,1872,0.5059],[510,1776,0.5252],[540,1580,0.5556],[570,1309,0.5726],[600,974,0.5896],[630,805,0.6141],[660,770,0.6341],[690,209,0.6474],[720,192,0.6637],[750,122,0.68],[780,131,0.6963],[810,104,0.7081],[840,117,0.7163],[870,96,0.7274],[900,98,0.7393],[930,49,0.7519],[960,65,0.757],[990,46,0.7726],[1020,47,0.7756],[1050,48,0.7881],[1080,54,0.7933],[1110,58,0.8],[1140,50,0.8044],[1170,54,0.8089],[1200,32,0.8141],[1230,32,0.8244],[1260,32,0.8289],[1290,32,0.8348],[1320,30,0.8415],[1350,24,0.8489],[1380,23,0.8563],[1410,21,0.8585],[1440,21,0.8652],[1470,23,0.8711],[1530,23,0.8756],[1560,23,0.8778],[1590,22,0.8793],[1620,22,0.8822],[1650,22,0.8844],[1680,22,0.8859],[1710,22,0.8881],[1740,22,0.8896],[1770,22,0.8919],[1800,22,0.8926],[1830,22,0.8933],[1860,21,0.8963],[1890,21,0.8985],[1920,21,0.8993],[1950,21,0.9],[1980,21,0.9],[2010,21,0.9],[2040,21,0.9007],[2070,21,0.903],[2100,21,0.9037],[2130,21,0.9037],[2160,19,0.9052],[2190,20,0.9059],[2220,20,0.9067],[2250,20,0.9081],[2280,20,0.9074],[2310,20,0.9074],[2340,20,0.9081],[2370,20,0.9089],[2400,20,0.9096],[2430,20,0.9104],[2460,20,0.9096],[2490,20,0.9104],[2520,20,0.9126],[2550,20,0.9126],[2580,20,0.9133],[2610,20,0.917],[2640,20,0.9178],[2670,20,0.9178],[2700,18,0.9185],[2730,18,0.9185],[2760,18,0.9185],[2790,18,0.9193],[2820,18,0.9193],[2850,18,0.9222],[2880,18,0.923],[2910,17,0.923],[2940,17,0.9237],[2970,17,0.9237],[3000,17,0.9244]],"final":{"step":3000,"largest_molecule":17,"largest_chain":5,"species_count":62,"complex_molecules":3,"dead_fraction":0.9244,"bonds":1444,"breaks":13}},{"name":"5a_silicon_water_300K_SiSi+50","backbone":"Si","solvent":"water","T":300,"series":[[0,3,0.0],[30,497,0.1304],[60,1322,0.3637],[90,993,0.5393],[120,191,0.6933],[150,65,0.8163],[180,41,0.8911],[210,34,0.937],[240,25,0.963],[270,23,0.977],[300,23,0.9867],[330,23,0.9941],[360,23,0.9956],[390,20,0.9985],[420,19,0.9985],[450,18,0.9993],[480,18,1.0],[510,18,1.0],[540,18,1.0],[570,18,1.0],[600,18,1.0],[630,18,1.0],[660,18,1.0],[690,18,1.0],[720,18,1.0],[750,18,1.0],[780,18,1.0],[810,18,1.0],[840,18,1.0],[870,18,1.0],[900,18,1.0],[930,17,1.0],[960,17,1.0],[990,17,1.0],[1020,17,1.0],[1050,17,1.0],[1080,17,1.0],[1110,17,1.0],[1140,17,1.0],[1170,17,1.0],[1200,17,1.0],[1230,17,1.0],[1260,17,1.0],[1290,17,1.0],[1320,17,1.0],[1350,17,1.0],[1380,17,1.0],[1410,17,1.0],[1440,17,1.0],[1470,17,1.0],[1530,17,1.0],[1560,17,1.0],[1590,17,1.0],[1620,17,1.0],[1650,17,1.0],[1680,17,1.0],[1710,17,1.0],[1740,17,1.0],[1770,17,1.0],[1800,17,1.0],[1830,17,1.0],[1860,17,1.0],[1890,17,1.0],[1920,17,1.0],[1950,17,1.0],[1980,17,1.0],[2010,17,1.0],[2040,17,1.0],[2070,17,1.0],[2100,17,1.0],[2130,17,1.0],[2160,17,1.0],[2190,17,1.0],[2220,17,1.0],[2250,17,1.0],[2280,17,1.0],[2310,17,1.0],[2340,17,1.0],[2370,17,1.0],[2400,17,1.0],[2430,17,1.0],[2460,17,1.0],[2490,17,1.0],[2520,17,1.0],[2550,17,1.0],[2580,17,1.0],[2610,17,1.0],[2640,17,1.0],[2670,17,1.0],[2700,17,1.0],[2730,17,1.0],[2760,17,1.0],[2790,17,1.0],[2820,17,1.0],[2850,17,1.0],[2880,17,1.0],[2910,17,1.0],[2940,17,1.0],[2970,17,1.0],[3000,17,1.0]],"final":{"step":3000,"largest_molecule":17,"largest_chain":1,"species_count":9,"complex_molecules":0,"dead_fraction":1.0,"bonds":586,"breaks":0}},{"name":"5b_silicon_none_300K_SiSi+50","backbone":"Si","solvent":"none","T":300,"series":[[0,3,0.0],[30,1444,0.0333],[60,2448,0.0511],[90,2718,0.0541],[120,2778,0.0593],[150,2836,0.06],[180,2843,0.0615],[210,2854,0.0615],[240,2856,0.0615],[270,2871,0.0622],[300,2866,0.063],[330,2874,0.0637],[360,2871,0.0637],[390,2882,0.0637],[420,2883,0.0637],[450,2886,0.0637],[480,2878,0.0637],[510,2882,0.0637],[540,2888,0.0637],[570,2888,0.0637],[600,2882,0.0637],[630,2871,0.0637],[660,2874,0.0637],[690,2868,0.0637],[720,2873,0.0637],[750,2881,0.0637],[780,2886,0.0637],[810,2893,0.0637],[840,2894,0.0637],[870,2894,0.0637],[900,2902,0.0637],[930,2894,0.0637],[960,2887,0.0637],[990,2901,0.0644],[1020,2893,0.0644],[1050,2878,0.0644],[1080,2882,0.0644],[1110,2881,0.0644],[1140,2874,0.0644],[1170,2876,0.0644],[1200,2880,0.0644],[1230,2870,0.0644],[1260,2876,0.0644],[1290,2884,0.0644],[1320,2888,0.0644],[1350,2892,0.0644],[1380,2887,0.0644],[1410,2896,0.0644],[1440,2894,0.0644],[1470,2899,0.0644],[1530,2899,0.0644],[1560,2897,0.0644],[1590,2900,0.0644],[1620,2896,0.0644],[1650,2897,0.0644],[1680,2895,0.0644],[1710,2892,0.0644],[1740,2891,0.0644],[1770,2882,0.0644],[1800,2881,0.0644],[1830,2880,0.0644],[1860,2882,0.0644],[1890,2892,0.0644],[1920,2881,0.0644],[1950,2881,0.0644],[1980,2880,0.0644],[2010,2884,0.0644],[2040,2887,0.0644],[2070,2882,0.0644],[2100,2877,0.0644],[2130,2880,0.0652],[2160,2887,0.0652],[2190,2882,0.0652],[2220,2884,0.0652],[2250,2890,0.0652],[2280,2893,0.0652],[2310,2891,0.0652],[2340,2894,0.0652],[2370,2912,0.0652],[2400,2896,0.0652],[2430,2907,0.0652],[2460,2911,0.0652],[2490,2908,0.0652],[2520,2909,0.0652],[2550,2907,0.0652],[2580,2905,0.0652],[2610,2908,0.0652],[2640,2905,0.0652],[2670,2901,0.0652],[2700,2895,0.0652],[2730,2890,0.0652],[2760,2879,0.0652],[2790,2879,0.0652],[2820,2858,0.0652],[2850,2866,0.0652],[2880,2869,0.0652],[2910,2876,0.0652],[2940,2878,0.0652],[2970,2872,0.0652],[3000,2868,0.0652]],"final":{"step":3000,"largest_molecule":2868,"largest_chain":1306,"species_count":6,"complex_molecules":1,"dead_fraction":0.0652,"bonds":3550,"breaks":23}},{"name":"5c_silicon_methane_94K_SiSi+50","backbone":"Si","solvent":"methane","T":94,"series":[[0,2,0.0],[30,7,0.0007],[60,16,0.0044],[90,33,0.0104],[120,44,0.0133],[150,87,0.0259],[180,236,0.0311],[210,827,0.0341],[240,1243,0.0356],[270,1463,0.04],[300,1673,0.043],[330,1884,0.043],[360,2012,0.0444],[390,2170,0.0459],[420,2261,0.0496],[450,2348,0.0519],[480,2415,0.0541],[510,2461,0.0541],[540,2486,0.0548],[570,2531,0.0563],[600,2563,0.0563],[630,2628,0.057],[660,2655,0.0578],[690,2684,0.0585],[720,2701,0.0593],[750,2716,0.06],[780,2726,0.06],[810,2744,0.0607],[840,2750,0.0607],[870,2753,0.0607],[900,2770,0.0615],[930,2782,0.0615],[960,2789,0.0622],[990,2795,0.0622],[1020,2798,0.0622],[1050,2809,0.0622],[1080,2818,0.0622],[1110,2824,0.0622],[1140,2827,0.0622],[1170,2834,0.0622],[1200,2838,0.0622],[1230,2842,0.0622],[1260,2856,0.0622],[1290,2866,0.0622],[1320,2873,0.0622],[1350,2874,0.0622],[1380,2874,0.0622],[1410,2876,0.0622],[1440,2878,0.0622],[1470,2884,0.063],[1530,2885,0.063],[1560,2886,0.063],[1590,2887,0.063],[1620,2887,0.063],[1650,2889,0.063],[1680,2892,0.063],[1710,2892,0.0637],[1740,2892,0.0637],[1770,2893,0.0637],[1800,2893,0.0637],[1830,2897,0.0637],[1860,2898,0.0644],[1890,2902,0.0644],[1920,2902,0.0644],[1950,2907,0.0644],[1980,2907,0.0644],[2010,2907,0.0644],[2040,2907,0.0644],[2070,2907,0.0644],[2100,2907,0.0644],[2130,2907,0.0644],[2160,2908,0.0652],[2190,2908,0.0652],[2220,2908,0.0652],[2250,2909,0.0652],[2280,2912,0.0652],[2310,2913,0.0652],[2340,2916,0.0652],[2370,2916,0.0652],[2400,2916,0.0652],[2430,2919,0.0652],[2460,2920,0.0652],[2490,2920,0.0652],[2520,2921,0.0652],[2550,2923,0.0652],[2580,2926,0.0652],[2610,2926,0.0652],[2640,2927,0.0652],[2670,2927,0.0652],[2700,2927,0.0652],[2730,2927,0.0652],[2760,2927,0.0652],[2790,2927,0.0652],[2820,2927,0.0652],[2850,2928,0.0652],[2880,2928,0.0652],[2910,2928,0.0652],[2940,2928,0.0652],[2970,2928,0.0652],[3000,2928,0.0652]],"final":{"step":3000,"largest_molecule":2928,"largest_chain":1298,"species_count":5,"complex_molecules":1,"dead_fraction":0.0652,"bonds":3567,"breaks":0}},{"name":"6_carbon_water_300K_O_free","backbone":"C","solvent":"water","T":300,"series":[[0,3,0.0],[30,929,0.0],[60,2014,0.0],[90,2449,0.0],[120,2584,0.0],[150,2678,0.0],[180,2737,0.0],[210,2758,0.0],[240,2773,0.0],[270,2778,0.0],[300,2761,0.0],[330,2768,0.0],[360,2783,0.0],[390,2804,0.0],[420,2814,0.0],[450,2814,0.0],[480,2817,0.0],[510,2815,0.0],[540,2804,0.0],[570,2819,0.0],[600,2825,0.0],[630,2825,0.0],[660,2809,0.0],[690,2789,0.0],[720,2825,0.0],[750,2823,0.0],[780,2824,0.0],[810,2834,0.0],[840,2841,0.0],[870,2833,0.0],[900,2835,0.0],[930,2833,0.0],[960,2830,0.0],[990,2824,0.0],[1020,2807,0.0],[1050,2795,0.0],[1080,2806,0.0],[1110,2800,0.0],[1140,2807,0.0],[1170,2801,0.0],[1200,2802,0.0],[1230,2826,0.0],[1260,2826,0.0],[1290,2826,0.0],[1320,2819,0.0],[1350,2822,0.0],[1380,2823,0.0],[1410,2822,0.0],[1440,2830,0.0],[1470,2823,0.0],[1530,2829,0.0],[1560,2837,0.0],[1590,2832,0.0],[1620,2838,0.0],[1650,2835,0.0],[1680,2838,0.0],[1710,2848,0.0],[1740,2848,0.0],[1770,2838,0.0],[1800,2833,0.0],[1830,2826,0.0],[1860,2829,0.0],[1890,2828,0.0],[1920,2827,0.0],[1950,2829,0.0],[1980,2823,0.0],[2010,2827,0.0],[2040,2835,0.0],[2070,2841,0.0],[2100,2839,0.0],[2130,2841,0.0],[2160,2850,0.0],[2190,2851,0.0],[2220,2844,0.0],[2250,2846,0.0],[2280,2840,0.0],[2310,2840,0.0],[2340,2838,0.0],[2370,2850,0.0],[2400,2858,0.0],[2430,2859,0.0],[2460,2859,0.0],[2490,2858,0.0],[2520,2853,0.0],[2550,2852,0.0],[2580,2852,0.0],[2610,2845,0.0],[2640,2849,0.0],[2670,2835,0.0],[2700,2845,0.0],[2730,2836,0.0],[2760,2837,0.0],[2790,2841,0.0],[2820,2839,0.0],[2850,2837,0.0],[2880,2837,0.0],[2910,2827,0.0],[2940,2818,0.0],[2970,2813,0.0],[3000,2811,0.0]],"final":{"step":3000,"largest_molecule":2811,"largest_chain":1311,"species_count":6,"complex_molecules":1,"dead_fraction":0.0,"bonds":3445,"breaks":13}},{"name":"ctrl_silicon_none_300K","backbone":"Si","solvent":"none","T":300,"series":[[0,3,0.0],[30,178,0.0437],[60,1843,0.0644],[90,2429,0.0689],[120,2510,0.0719],[150,2611,0.0719],[180,2670,0.0741],[210,2681,0.0741],[240,2666,0.0741],[270,2714,0.0741],[300,2653,0.0741],[330,2692,0.0741],[360,2729,0.0741],[390,2681,0.0741],[420,2643,0.0741],[450,2674,0.0741],[480,2704,0.0741],[510,2739,0.0741],[540,2699,0.0741],[570,2677,0.0741],[600,2743,0.0741],[630,2759,0.0741],[660,2746,0.0741],[690,2700,0.0741],[720,2716,0.0741],[750,2707,0.0741],[780,2673,0.0741],[810,2685,0.0741],[840,2642,0.0741],[870,2698,0.0741],[900,2712,0.0741],[930,2720,0.0741],[960,2735,0.0741],[990,2727,0.0741],[1020,2710,0.0741],[1050,2702,0.0741],[1080,2680,0.0741],[1110,2728,0.0741],[1140,2711,0.0741],[1170,2728,0.0741],[1200,2693,0.0741],[1230,2704,0.0741],[1260,2698,0.0741],[1290,2691,0.0741],[1320,2700,0.0741],[1350,2722,0.0741],[1380,2770,0.0741],[1410,2707,0.0741],[1440,2710,0.0741],[1470,2681,0.0741],[1530,2684,0.0741],[1560,2672,0.0741],[1590,2714,0.0741],[1620,2718,0.0741],[1650,2654,0.0741],[1680,2697,0.0741],[1710,2711,0.0741],[1740,2717,0.0741],[1770,2681,0.0741],[1800,2691,0.0741],[1830,2648,0.0741],[1860,2691,0.0741],[1890,2706,0.0741],[1920,2679,0.0741],[1950,2763,0.0741],[1980,2736,0.0741],[2010,2753,0.0741],[2040,2755,0.0741],[2070,2742,0.0741],[2100,2746,0.0741],[2130,2718,0.0741],[2160,2715,0.0741],[2190,2703,0.0741],[2220,2722,0.0741],[2250,2736,0.0741],[2280,2707,0.0741],[2310,2717,0.0741],[2340,2761,0.0741],[2370,2757,0.0741],[2400,2733,0.0741],[2430,2713,0.0741],[2460,2737,0.0741],[2490,2733,0.0741],[2520,2704,0.0741],[2550,2693,0.0741],[2580,2724,0.0741],[2610,2735,0.0741],[2640,2773,0.0741],[2670,2765,0.0741],[2700,2733,0.0741],[2730,2751,0.0741],[2760,2747,0.0741],[2790,2735,0.0748],[2820,2767,0.0748],[2850,2732,0.0748],[2880,2756,0.0748],[2910,2799,0.0748],[2940,2780,0.0748],[2970,2740,0.0748],[3000,2702,0.0748]],"final":{"step":3000,"largest_molecule":2702,"largest_chain":1052,"species_count":18,"complex_molecules":3,"dead_fraction":0.0748,"bonds":3193,"breaks":153}}],"N":3000},"rules":{"knobs":[{"name":"Group 14 backbone (C <-> Si <-> Ge slider)","controls":"interpolates self_bond, bond_to_O, pi_bond_ability, electronegativity of the backbone type","physical_meaning":"Going down group 14 the atom gets bigger and less electronegative: X-X single bond 346 -> 222 -> ~188 kJ/mol, pi bond 274 -> 97 kJ/mol, X-O bond 358 -> 452 kJ/mol","emergent_effect":"[INFERRED] Carbon end: long chains, rings and double-bond motifs persist -> high motif diversity. Silicon end: chains short-lived in polar solvents, few rigid/unsaturated motifs, O captures Si into inert silica blocks -> reef/sand worlds","sources":["petkowski2020","wang_poirier1998","textbook_bonds"]},{"name":"Bond count (valence / hypervalency)","controls":"maxBonds per particle 1-6; hypervalent toggle lets Si/P/S hold 5-6 transiently","physical_meaning":"Valence 1 terminates, 2 makes chains/rings, 3-4 branches/networks. Si can be 5-6-coordinate; the 5-coordinate intermediate speeds both catalysis and hydrolysis","emergent_effect":"[INFERRED] valence <=2: only chains and rings, no complex branching; 4: tree-like polymers and catalytic sets; 5-6: faster reaction but faster decay (trade-off)","sources":["petkowski2020"]},{"name":"Oxygen hunger","controls":"ratio bond_to_O / self_bond (C 1.03, Si 2.04) -> probability a backbone atom next to O converts irreversibly to an oxide sink","physical_meaning":"Si-O (452) is far stronger than Si-Si (222); SiO2 polymerises into insoluble solid; making SiH4 from silica costs +434 kJ/mol vs methane from CO2 -142","emergent_effect":"[INFERRED] high hunger: oxide waste accumulates as solid, entombs organisms, energy budget drains; low hunger (C): gaseous waste diffuses away, clean recycling","sources":["petkowski2020"]},{"name":"Solvent","controls":"world preset: solvent_attack per element, dielectric, solubility/mobility","physical_meaning":"Protic polar solvents (water, NH3) attack delta+ Si; aprotic cryosolvents attack nothing but dissolve almost nothing; conc. H2SO4 is electrophilic and spares Si relative to water","emergent_effect":"[INFERRED] water: Si worlds stall at 'first chain'; Titan/N2: Si chains survive but nothing meets (no metabolism); H2SO4: Si-C hybrids thrive (best Si world)","sources":["petkowski2020","nrc2007","bains2021life","seager2023"]},{"name":"Temperature","controls":"global kT -> Arrhenius rate factor for both bond making and breaking; clamped to solvent liquid range","physical_meaning":"k ~ exp(-Ea/RT). Ea=50 kJ/mol: 94 K is ~1e-19 x, 220 K ~7e-4 x, 330 K ~6 x, 1500 K ~1e7 x the 300 K rate. Petkowski cites 2-3 x drop per 10 C","emergent_effect":"[INFERRED] Goldilocks band: too cold = frozen museum (bonds last but no reactions), too hot = soup that never holds structure. Weak bonds (Si-Si) need colder worlds; use log-compressed rate in the sim","sources":["arrhenius_calc","petkowski2020"]},{"name":"Energy source","controls":"rate and type of energy injection: UV (surface/cloud top), redox gradient (vents), thermal cycling, radiolysis","physical_meaning":"Life needs disequilibrium: chemosynthesis and photosynthesis on Earth; radiolytic H2 powers a single-species ecosystem 2.8 km down; Titan C2H2 + 3H2 -> 2CH4 proposed","emergent_effect":"[INFERRED] localised sources (vents) give patchy ecosystems and competition for hotspots; diffuse UV gives surface mats; low energy + slow T = sparse life","sources":["nrc2007","lin2006","mckay_smith2005"]}],"elements":[{"symbol":"C","group":14,"valence":4,"max_coordination":4,"valence_0to1":1.0,"electronegativity":2.55,"self_bond_kJ":346,"self_bond_0to1":0.69,"bond_to_O_kJ":358,"bond_to_O_0to1":0.72,"oxygen_hunger":1.03,"pi_bond_ability":1.0,"pi_note":"C=C pi ~274 kJ/mol (65.4 kcal, ethene, GVB) ; stable in water","abundance_cosmic_atoms_per_1e6Si":10100000.0,"abundance_cosmic_0to1":0.67,"abundance_crust_ppm":200,"abundance_crust_0to1":0.41,"verified":"C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified","sources":["petkowski2020","wang_poirier1998","en_wiki_data"]},{"symbol":"Si","group":14,"valence":4,"max_coordination":6,"valence_0to1":1.0,"electronegativity":1.9,"self_bond_kJ":222,"self_bond_0to1":0.44,"bond_to_O_kJ":452,"bond_to_O_0to1":0.9,"oxygen_hunger":2.04,"pi_bond_ability":0.35,"pi_note":"Si=Si pi ~97 kJ/mol (23.2 kcal, disilene, GVB) = 0.35 x C=C; Si=C pi ~132 kJ/mol; needs bulky shields (West 1981)","abundance_cosmic_atoms_per_1e6Si":1000000.0,"abundance_cosmic_0to1":0.57,"abundance_crust_ppm":282000,"abundance_crust_0to1":0.96,"verified":"C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified","sources":["petkowski2020","wang_poirier1998","west1981","en_wiki_data"]}],"eiw":[{"symbol":"C","world":"water","solvent_attack_0to1":0.02,"bond_lifetime_rel":1.0,"bond_lifetime_log10":0.0,"rationale":"alkanes, C-C, C=C stable in water; CCl4 lasts years","status":"consensus","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"Si","world":"water","solvent_attack_0to1":0.9,"bond_lifetime_rel":0.111,"bond_lifetime_log10":-1.0,"rationale":"'Almost all Si-X bonds, incl. Si-Si, readily hydrolysed'; Si-H -> Si-OH in hours; SiCl4 instantly; Si-C survives (hybrid route)","status":"consensus","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"C","world":"ammonia","solvent_attack_0to1":0.02,"bond_lifetime_rel":1460.0,"bond_lifetime_log10":3.2,"rationale":"hydrocarbons stable in NH3","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"Si","world":"ammonia","solvent_attack_0to1":0.75,"bond_lifetime_rel":385.0,"bond_lifetime_log10":2.6,"rationale":"NH3 is nucleophilic like water, so ammonolysis of delta+ Si expected; slower at 220 K; UNTESTED (Petkowski: 'not studied')","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"C","world":"titan","solvent_attack_0to1":0.01,"bond_lifetime_rel":1.21e+19,"bond_lifetime_log10":19.1,"rationale":"hydrocarbons are the solvent itself","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"Si","world":"titan","solvent_attack_0to1":0.03,"bond_lifetime_rel":1.19e+19,"bond_lifetime_log10":19.1,"rationale":"'almost any chemistry is stable' in aprotic cryosolvent; majority of Si chemical space available; solubility is the limit","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"C","world":"venus_clouds","solvent_attack_0to1":0.5,"bond_lifetime_rel":0.0832,"bond_lifetime_log10":-1.1,"rationale":"C backbone survives but many functional groups destroyed: sugars charred <1 min, most terrestrial biochemicals half-life <1 s; nucleobases & most amino acids stable; dipeptides solvolyse within weeks","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"Si","world":"venus_clouds","solvent_attack_0to1":0.3,"bond_lifetime_rel":0.116,"bond_lifetime_log10":-0.9,"rationale":"chlorosilanes hours-days in 100% H2SO4 (vs instant in water); Si-Si more stable than Si-C; Si-H allowed; alternating Si-C polymers stable in 98% H2SO4 at 90 C; small strained Si rings explode","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"C","world":"magma","solvent_attack_0to1":1.0,"bond_lifetime_rel":1.1e-09,"bond_lifetime_log10":-9.0,"rationale":"oxidised to CO/CO2 or graphite; no molecular C chains","status":"consensus","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"},{"symbol":"Si","world":"magma","solvent_attack_0to1":0.95,"bond_lifetime_rel":6.57e-09,"bond_lifetime_log10":-8.2,"rationale":"Si-O network bonds break/reform on a ms timescale; no stable information","status":"plausible/theorised","number_basis":"[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"}],"worlds":[{"name":"water","solvent":"H2O","T_K":300},{"name":"ammonia","solvent":"NH3","T_K":220},{"name":"titan","solvent":"CH4/C2H6 (+N2)","T_K":94},{"name":"venus_clouds","solvent":"81-98% H2SO4","T_K":330},{"name":"magma","solvent":"molten silicate","T_K":1500}]},"models":[{"name":"Particle Life / Clusters","year":2022,"type":"particle force-matrix","emergence_speed":"seconds","visual_appeal_1to5":5,"element_controllable_1to5":4,"effort":"S","evidence":"POP"},{"name":"Hutton evolvable self-replicating molecules","year":2002,"type":"artificial chemistry (typed atoms + states + bond rules)","emergence_speed":"tens of seconds-minutes with seeded replicator","visual_appeal_1to5":3,"element_controllable_1to5":5,"effort":"M","evidence":"PEER"},{"name":"Hutton evolvable self-reproducing cells (2D AC)","year":2007,"type":"artificial chemistry with membranes","emergence_speed":"slow (many thousands of steps per division)","visual_appeal_1to5":3,"element_controllable_1to5":5,"effort":"L","evidence":"PEER"},{"name":"squirm3 / Living Physics","year":2006,"type":"artificial chemistry implementation","emergence_speed":"seconds-minutes","visual_appeal_1to5":2,"element_controllable_1to5":5,"effort":"M","evidence":"POP"},{"name":"AlChemy","year":1994,"type":"lambda-calculus artificial chemistry","emergence_speed":"slow, non-spatial","visual_appeal_1to5":1,"element_controllable_1to5":1,"effort":"L","evidence":"PEER"},{"name":"Artificial Chemistries review","year":2001,"type":"review/framework","emergence_speed":"n/a","visual_appeal_1to5":1,"element_controllable_1to5":3,"effort":"S","evidence":"REVIEW"},{"name":"Autocatalytic sets / RAF theory","year":2004,"type":"reaction-network theory","emergence_speed":"instant (analytic threshold)","visual_appeal_1to5":1,"element_controllable_1to5":5,"effort":"S","evidence":"PEER"},{"name":"Hypercycle","year":1977,"type":"replicator network","emergence_speed":"seconds (spatial spirals)","visual_appeal_1to5":3,"element_controllable_1to5":2,"effort":"S","evidence":"PEER"},{"name":"Gray-Scott reaction-diffusion","year":1993,"type":"reaction-diffusion PDE","emergence_speed":"seconds","visual_appeal_1to5":4,"element_controllable_1to5":3,"effort":"S","evidence":"PEER"},{"name":"Chemical organisation theory","year":2007,"type":"reaction-network theory","emergence_speed":"n/a","visual_appeal_1to5":1,"element_controllable_1to5":3,"effort":"S","evidence":"PEER"},{"name":"Chemoton","year":2003,"type":"minimal-life theory","emergence_speed":"n/a","visual_appeal_1to5":1,"element_controllable_1to5":2,"effort":"S","evidence":"BOOK"},{"name":"Self-reproducing metabolisms in combinatory-logic AC","year":2021,"type":"artificial chemistry","emergence_speed":"slow","visual_appeal_1to5":1,"element_controllable_1to5":1,"effort":"L","evidence":"PEER"},{"name":"Primordial Particle Systems","year":2016,"type":"single-rule particle motion","emergence_speed":"~hundreds-thousands of steps (~30 s)","visual_appeal_1to5":4,"element_controllable_1to5":2,"effort":"S","evidence":"PEER"},{"name":"Lenia","year":2019,"type":"continuous CA","emergence_speed":"instant if seeded; random soups rarely","visual_appeal_1to5":5,"element_controllable_1to5":2,"effort":"M","evidence":"PEER"},{"name":"Flow-Lenia","year":2023,"type":"mass-conserving continuous CA with embedded parameters (evolution)","emergence_speed":"creatures fast; evolution minutes-hours","visual_appeal_1to5":5,"element_controllable_1to5":3,"effort":"L","evidence":"PEER"},{"name":"Particle Lenia","year":2022,"type":"energy-based particles","emergence_speed":"~10k Euler steps","visual_appeal_1to5":4,"element_controllable_1to5":2,"effort":"M","evidence":"POP"},{"name":"Growing Neural Cellular Automata","year":2020,"type":"learned CA","emergence_speed":"instant (pretrained)","visual_appeal_1to5":4,"element_controllable_1to5":1,"effort":"L","evidence":"PEER"},{"name":"SmoothLife","year":2011,"type":"continuous CA","emergence_speed":"seconds","visual_appeal_1to5":4,"element_controllable_1to5":1,"effort":"M","evidence":"PREPRINT"},{"name":"Tierra","year":1991,"type":"digital evolution (self-replicating code)","emergence_speed":"parasites within hours","visual_appeal_1to5":1,"element_controllable_1to5":1,"effort":"L","evidence":"BOOK"},{"name":"Avida","year":2004,"type":"digital evolution platform","emergence_speed":"hours","visual_appeal_1to5":1,"element_controllable_1to5":1,"effort":"L","evidence":"PEER"},{"name":"Polyworld","year":1994,"type":"neural-agent ecology","emergence_speed":"minutes-hours","visual_appeal_1to5":2,"element_controllable_1to5":1,"effort":"L","evidence":"BOOK"},{"name":"Evolved Virtual Creatures","year":1994,"type":"morphology+controller evolution","emergence_speed":"offline hours","visual_appeal_1to5":4,"element_controllable_1to5":1,"effort":"L","evidence":"PEER"},{"name":"ALIEN","year":2024,"type":"GPU bonded-particle artificial life (CUDA)","emergence_speed":"minutes (seeded creatures)","visual_appeal_1to5":5,"element_controllable_1to5":3,"effort":"L","evidence":"POP"},{"name":"The Life Engine","year":2020,"type":"grid organism ecology (cell-type grammar)","emergence_speed":"predators within minutes","visual_appeal_1to5":3,"element_controllable_1to5":3,"effort":"M","evidence":"POP"},{"name":"Biogenesis","year":2006,"type":"segmented organism ecology","emergence_speed":"minutes","visual_appeal_1to5":3,"element_controllable_1to5":2,"effort":"M","evidence":"POP"},{"name":"Tidemote","year":2026,"type":"WebGPU particle biosphere (producers/grazers/hunters/scavengers)","emergence_speed":"seeded 2% life; ecology in minutes","visual_appeal_1to5":5,"element_controllable_1to5":2,"effort":"L","evidence":"POP"},{"name":"Swarm Chemistry","year":2009,"type":"heterogeneous boids recipes","emergence_speed":"seconds","visual_appeal_1to5":4,"element_controllable_1to5":2,"effort":"S","evidence":"PEER"}],"prior_art":[{"name":"Tidemote","url":"https://tidemote.com","similarity_1to5":5,"how_we_differ":"Fixed abstract chemistry; ours exposes periodic-table group knobs (valence, EN, bond energy, solvent, T) and a carbon-vs-silicon A/B; player authors laws rather than observing"},{"name":"ALIEN","url":"https://github.com/chrxh/alien","similarity_1to5":4,"how_we_differ":"CUDA desktop with designed/evolved creatures; ours is browser and creatures arise from player-set element rules"},{"name":"Particle Life apps (Mohr, Ahmad, SandboxScience)","url":"https://particle-life.com","similarity_1to5":3,"how_we_differ":"Random/abstract matrix, no replication or ecology; ours derives the matrix from chemistry and stacks replication + ecosystem"},{"name":"The Life Engine","url":"https://thelifeengine.net","similarity_1to5":3,"how_we_differ":"Pre-made cell types; ours requires chemistry to produce organisms first and genome = atom sequence"},{"name":"squirm3 / Living Physics","url":"https://github.com/timhutton/livingphysics","similarity_1to5":3,"how_we_differ":"Abstract atom types, no ecosystem or spectacle; we map types to real element groups and add ecology layers"},{"name":"Habitat Sim","url":"https://matt-bat.github.io/habitat-sim/","similarity_1to5":3,"how_we_differ":"Aggregate deterministic planet model, no particle visuals; ours is a visible particle chemistry"},{"name":"Spore cell stage / Thrive / Species: ALRE","url":"https://revolutionarygamesstudio.com","similarity_1to5":2,"how_we_differ":"Scripted or designed creatures; we have no scripted creatures, the periodic table is the level editor"},{"name":"Lenia / Flow-Lenia playgrounds (e.g. lenia-life-lab)","url":"https://github.com/baditaflorin/lenia-life-lab","similarity_1to5":2,"how_we_differ":"No chemistry semantics"},{"name":"Non-Carbon-Based-Life-Simulation","url":"https://github.com/azadmanesh92/Non-Carbon-Based-Life-Simulation","similarity_1to5":2,"how_we_differ":"Trivial script, no emergence or visuals; same hook only"}],"events":[{"year":1891,"title":"First proposal of silicon-based life","who":"Julius Scheiner","type":"science","summary":"Credited as first to suggest life could be based on silicon rather than carbon. Secondary attribution only; no primary text located."},{"year":1893,"title":"British Association address (UNVERIFIED)","who":"James Emerson Reynolds","type":"science","summary":"Reynolds was a chemist who made over 16 silicon derivatives; the address itself was not found. Do not cite until checked."},{"year":1894,"title":"Another Basis for Life (essay)","who":"H. G. Wells","type":"fiction","summary":"Essay listed in Wells bibliography (1894). Text and the widely-quoted 'silicon-aluminium ... gaseous sulphur' wording NOT retrieved or verified."},{"year":1934,"title":"A Martian Odyssey","who":"Stanley G. Weinbaum","type":"fiction","summary":"Wonder Stories, July 1934. A pyramid-building creature is realised to be silicon-based; it removes silica bricks from its mouth every ten minutes; the bricks are its waste. Landmark for alien logic (Tweel)."},{"year":1955,"title":"The Talking Stone (siliconies)","who":"Isaac Asimov","type":"fiction","summary":"F&SF Oct 1955. Siliconies: silicon-based creatures about 2 in long on asteroids that absorb gamma rays from radioactive ore. Petkowski et al. say the Horta is possibly based on them."},{"year":1961,"title":"Not as We Know It (essay, Sept 1961 - not 1962)","who":"Isaac Asimov","type":"fiction","summary":"F&SF essay on alternative biochemistry, reprinted in View from a Height (1963). The 'six biochemistries' claim is unverified."},{"year":1966,"title":"Island of Terror","who":"film (UK)","type":"fiction","summary":"British horror film featuring a silicon-based life form with corrosive properties."},{"year":1967,"title":"The Devil in the Dark (the Horta)","who":"Gene L. Coon (writer), Joseph Pevney (dir.), Janos Prohaska (Horta)","type":"fiction","summary":"Star Trek TOS S1E25, aired 9 Mar 1967. Silicon-based rock-burrowing mother protecting her eggs; Spock modifies phasers for silicon; McCoy heals it with silicon cement ('I'm a doctor, not a bricklayer'). Monster turns out to be a mother; miners and Horta collaborate."},{"year":1973,"title":"'Carbon chauvinist'","who":"Carl Sagan","type":"science","summary":"Sagan famously called himself a 'carbon chauvinist' (Rolling Stone, June 1973, as cited)."},{"year":1982,"title":"Genetic Takeover and the Mineral Origins of Life (follow-up: Seven Clues, 1985)","who":"A. G. Cairns-Smith","type":"science","summary":"Hypothesis that silicate clay crystals were the first replicators and carbon biochemistry formed around them. 1982 from memory; Wikipedia cites the 1987 paperback."},{"year":2007,"title":"The Limits of Organic Life in Planetary Systems ('Weird Life' report)","who":"US National Research Council","type":"science","summary":"NRC report published 26 Jun 2007. Only title/date/publisher checked."},{"year":2010,"title":"Arsenic life claim (GFAJ-1)","who":"Wolfe-Simon et al.","type":"controversy","summary":"Science, announced Dec 2010. Refuted in 2012. Retracted by Science 24 Jul 2025. Cautionary tale for alien-chemistry claims."},{"year":2016,"title":"Directed evolution of cytochrome c for carbon-silicon bond formation: Bringing silicon to life","who":"S. B. J. Kan, R. D. Lewis, K. Chen, F. H. Arnold","type":"science","summary":"Science, 25 Nov 2016. An evolved enzyme forms Si-C bonds, which are unknown in biology. Arnold won the 2018 Nobel Prize in Chemistry (directed evolution; from my knowledge, not re-checked)."},{"year":2020,"title":"On the Potential of Silicon as a Building Block for Life","who":"Petkowski, Bains, Seager","type":"science","summary":"Life 10(6):84, 10 Jun 2020. First systematic review. In no environment is life primarily based on silicon chemistry plausible; sulfuric acid supports more organosilicon chemistry than water; silicon likely only a rare heteroatom in water."},{"year":2020,"title":"Phosphine gas in the cloud decks of Venus","who":"Greaves et al.","type":"controversy","summary":"Nature Astronomy, 14 Sep 2020. Detection widely disputed afterwards (dispute from my knowledge, not re-checked)."},{"year":2024,"title":"Confronting risks of mirror life","who":"Adamala et al. (38 scientists)","type":"controversy","summary":"Science, 20 Dec 2024 issue (press 12 Dec). Warns mirror-image bacteria could cause unprecedented and irreversible harm."},{"year":2028,"title":"Dragonfly rotorcraft to Titan (NET)","who":"NASA","type":"mission","summary":"Launch NET July 2028, arrival late 2034, per NASA page last updated 29 Oct 2026. Titan has liquid hydrocarbon lakes."},{"year":2034,"title":"Dragonfly arrives at Titan (late 2034)","who":"NASA","type":"mission","summary":"Arrival late 2034 per NASA mission page (notes/04)."}]}</script>
+<script>
+(function(){
+"use strict";
+var D = JSON.parse(document.getElementById("data").textContent);
+var NS = "http://www.w3.org/2000/svg";
+
+/* ---------- theme ---------- */
+var tb = document.getElementById("theme"), modes = ["auto","light","dark"], mi = 0;
+tb.addEventListener("click", function(){
+  mi = (mi+1)%3; var m = modes[mi];
+  if (m==="auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", m);
+  tb.textContent = "Theme: "+m;
+});
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function lin(d0,d1,r0,r1){ return function(v){ return r0 + (v-d0)/(d1-d0)*(r1-r0); }; }
+function logs(d0,d1,r0,r1){ var a=Math.log10(d0), b=Math.log10(d1); return function(v){ return r0 + (Math.log10(v)-a)/(b-a)*(r1-r0); }; }
+function tw(s, px){ return String(s).length * (px||11) * 0.56; }
+function fmt(n){ return n.toLocaleString("en-US"); }
+function svg(w,h,body,label){ return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'">'+body+'</svg>'; }
+function txt(x,y,s,cls,extra){ return '<text x="'+x+'" y="'+y+'" class="'+(cls||"t-ink2")+'" '+(extra||"")+'>'+esc(s)+'</text>'; }
+function tip(html){ return ' data-tip="'+esc(html)+'" tabindex="0"'; }
+/* greedy label lanes: items [{x0,x1}] sorted by x0 -> assigns .lane */
+function lanes(items, gap){
+  var ends=[]; items.slice().sort(function(a,b){return a.x0-b.x0;}).forEach(function(it){
+    var l=0; while(ends[l]!==undefined && ends[l]+gap>it.x0) l++; ends[l]=it.x1; it.lane=l; });
+  return ends.length;
+}
+function statusOf(s){
+  s=(s||"").toLowerCase();
+  if (s.indexOf("refuted")===0) return "refuted";
+  if (s.indexOf("disputed")===0) return "disputed";
+  if (s.indexOf("consensus")===0) return "consensus";
+  return "plausible";
+}
+var ST = {consensus:{label:"Consensus",icon:"✓",col:"var(--good)",ink:"var(--on-fill)"},
+          plausible:{label:"Plausible / theorised",icon:"~",col:"var(--warn)",ink:"var(--on-warn)"},
+          disputed:{label:"Disputed",icon:"?",col:"var(--serious)",ink:"var(--on-fill)"},
+          refuted:{label:"Refuted",icon:"✕",col:"var(--crit)",ink:"var(--on-fill)"}};
+function stLegend(id, keys){
+  document.getElementById(id).innerHTML = (keys||["consensus","plausible","disputed","refuted"]).map(function(k){
+    return '<span><i class="dot st-'+k+'" aria-hidden="true">'+ST[k].icon+'</i>'+ST[k].label+'</span>'; }).join("");
+}
+function table(id, head, rows, numCols){
+  numCols = numCols||[];
+  var h = '<table><thead><tr>'+head.map(function(c,i){return '<th'+(numCols.indexOf(i)>=0?' class="num"':'')+'>'+esc(c)+'</th>';}).join("")+'</tr></thead><tbody>'+
+    rows.map(function(r){return '<tr>'+r.map(function(c,i){return '<td'+(numCols.indexOf(i)>=0?' class="num"':'')+'>'+esc(c)+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table>';
+  document.getElementById(id).innerHTML = h;
+}
+function W(id){ return Math.max(280, document.getElementById(id).clientWidth); }
+function marker(x,y,r,col,t){ return '<circle cx="'+x+'" cy="'+y+'" r="'+(r+2)+'" fill="var(--surface)"/><circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+col+'"'+(t?tip(t):"")+'/>'; }
+
+/* ---------- 1 hero ---------- */
+function c1(){
+  var w=W("c1"), narrow=w<600, L=narrow?92:170, R=24, rowH=74, top=18, h=top+rowH*2+34;
+  var x=logs(0.001,100,L,w-R), A=D.abundance, b="";
+  [0.001,0.01,0.1,1,10,100].forEach(function(t){ var xx=x(t);
+    b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*2)+'"/>';
+    b+=txt(xx, top+rowH*2+18, (t<1?String(t):fmt(t))+"%", "tick", 'text-anchor="middle"'); });
+  var rows=[{lab:narrow?"Crust":"Earth’s crust",sub:"by mass",a:["C",A.crust.C],b:["Si",A.crust.Si],ratio:fmt(A.ratio_crust)+"× more Si"},
+            {lab:narrow?"Body":"Human body",sub:"by mass",a:["Si",A.body.Si],b:["C",A.body.C],ratio:fmt(A.ratio_body)+"× more C"}];
+  rows.forEach(function(r,i){
+    var y=top+rowH*i+rowH/2, xa=x(r.a[1]), xb=x(r.b[1]);
+    b+=txt(0,y-2,r.lab,"t-ink",'font-size="13" font-weight="600"')+txt(0,y+14,r.sub,"t-mut",'font-size="11.5"');
+    b+='<line x1="'+xa+'" x2="'+xb+'" y1="'+y+'" y2="'+y+'" stroke="var(--axis)" stroke-width="2"/>';
+    b+=txt((xa+xb)/2, y-10, r.ratio, "t-ink", 'text-anchor="middle" font-size="12.5" font-weight="600"');
+    [r.a,r.b].forEach(function(p){ var xx=x(p[1]), col=p[0]==="C"?"var(--c)":"var(--si)";
+      b+=marker(xx,y,7,col,"<b>"+(p[0]==="C"?"Carbon":"Silicon")+"</b> · "+r.lab+": "+p[1]+"% of mass");
+      b+=txt(xx,y+24,p[0]+" "+p[1]+"%","t-ink2",'text-anchor="middle" font-size="12"'); });
+  });
+  document.getElementById("c1").innerHTML=svg(w,h,b,"Paired dot plot of carbon and silicon mass share in Earth's crust and the human body, log scale");
+}
+table("t1",["Where","Silicon (% mass)","Carbon (% mass)","Ratio"],[
+  ["Earth’s crust",D.abundance.crust.Si,D.abundance.crust.C,fmt(D.abundance.ratio_crust)+"× Si over C"],
+  ["Human body",D.abundance.body.Si,D.abundance.body.C,fmt(D.abundance.ratio_body)+"× C over Si"]],[1,2]);
+
+/* ---------- 2 bonds ---------- */
+function c2(){
+  var w=W("c2"), narrow=w<600, L=narrow?98:150, R=20, rowH=46, top=8, n=D.bonds.length, h=top+rowH*n+30;
+  var x=lin(0,500,L,w-R), b="";
+  [0,100,200,300,400,500].forEach(function(t){ var xx=x(t);
+    b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*n)+'"/>'+txt(xx,top+rowH*n+16,t,"tick",'text-anchor="middle"'); });
+  b+=txt(w-R, top+rowH*n+28, "kJ/mol", "tick", 'text-anchor="end"');
+  var siSi=D.bonds[0].Si.v;
+  D.bonds.forEach(function(r,i){
+    var y=top+rowH*i+rowH/2;
+    b+=txt(0,y+4,r.row,"t-ink",'font-size="12.5"');
+    if (i===2){ /* Si–O vs Si–Si gap */
+      var x0=x(siSi), x1=x(r.Si.v);
+      b+='<rect x="'+x0+'" y="'+(y-9)+'" width="'+(x1-x0)+'" height="18" rx="4" fill="var(--sib)"'+tip("<b>Si–O − Si–Si = "+(r.Si.v-siSi)+" kJ/mol</b><br>Silicon gains far more by bonding oxygen than by bonding itself, so O drains Si out of chains into silica (rock).")+'/>';
+      b+='<circle cx="'+x0+'" cy="'+y+'" r="5" fill="none" stroke="var(--si)" stroke-width="1.5"/>';
+      if (!narrow) b+=txt(x0,y-14,"Si–Si 222","t-mut",'text-anchor="middle" font-size="10.5"');
+      b+=txt((x0+x1)/2, y+23, "+"+(r.Si.v-siSi)+" kJ/mol: O traps Si", "t-ink", 'text-anchor="middle" font-size="11.5" font-weight="600"');
+    }
+    var pts=[["C",r.C,r.cl,"var(--c)"],["Si",r.Si,r.sl,"var(--si)"]];
+    b+='<line x1="'+x(r.C.v)+'" x2="'+x(r.Si.v)+'" y1="'+y+'" y2="'+y+'" stroke="var(--axis)" stroke-width="2"/>';
+    pts.forEach(function(p){
+      if (p[1].r && p[1].r[1]>p[1].r[0]) b+='<line x1="'+x(p[1].r[0])+'" x2="'+x(Math.min(500,p[1].r[1]))+'" y1="'+y+'" y2="'+y+'" stroke="'+p[3]+'" stroke-width="2" stroke-linecap="round" opacity=".55"/>';
+      b+=marker(x(p[1].v),y,6,p[3],"<b>"+p[2]+"</b>: "+p[1].v+" kJ/mol"+(p[1].r?" (range "+p[1].r[0]+"–"+p[1].r[1]+")":""));
+    });
+    /* selective direct labels: X–X, X–O and π */
+    if (i===0||i===2||i===4){
+      var lo=r.C.v<r.Si.v?pts[0]:pts[1], hi=lo===pts[0]?pts[1]:pts[0];
+      if (narrow){
+        b+=txt(x(lo[1].v),y-11,lo[1].v,"t-ink2",'text-anchor="middle" font-size="11"');
+        b+=txt(x(hi[1].v),y-11,hi[1].v,"t-ink2",'text-anchor="middle" font-size="11"');
+      } else {
+      b+=txt(x(lo[1].v)-11,y+4,lo[2]+" "+lo[1].v,"t-ink2",'text-anchor="end" font-size="11.5"');
+      var hx=x(hi[1].r?Math.min(500,hi[1].r[1]):hi[1].v)+11;
+      b+=txt(hx,y+4,hi[2]+" "+hi[1].v,"t-ink2",'font-size="11.5"'+(hx>w-60?' text-anchor="end" dy="-12"':''));
+      }
+    }
+  });
+  document.getElementById("c2").innerHTML=svg(w,h,b,"Dumbbell chart of carbon versus silicon bond energies");
+}
+table("t2",["Bond type","Carbon","kJ/mol","Silicon","kJ/mol"], D.bonds.map(function(r){return [r.row,r.cl,r.C.v+(r.C.r?" ("+r.C.r.join("–")+")":""),r.sl,r.Si.v+(r.Si.r?" ("+r.Si.r.join("–")+")":"")];}),[2,4]);
+
+/* ---------- 3 solvents ---------- */
+var SOLV = D.solvents.slice().sort(function(a,b){ return (a.mp_K==null?9e9:a.mp_K)-(b.mp_K==null?9e9:b.mp_K); });
+stLegend("lg3",["consensus","plausible"]);
+function c3(){
+  var w=W("c3"), narrow=w<600, L=narrow?112:180, R=14, rowH=narrow?24:26, top=44, n=SOLV.length, h=top+rowH*n+32;
+  var X1=650, x=lin(50,X1,L,w-R), b="";
+  [100,200,300,400,500,600].forEach(function(t){ var xx=x(t);
+    b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*n)+'"/>'+txt(xx,top+rowH*n+16,narrow?t:t+" K","tick",'text-anchor="middle"'); });
+  if (narrow) b+=txt(w-R,top+rowH*n+28,"kelvin","tick",'text-anchor="end"');
+  var marks=[{k:94,l:"Titan 94 K"},{k:288,l:"Earth 288 K"},{k:330,l:"Venus clouds ~330 K"}];
+  marks.forEach(function(m){ var xx=x(m.k), lw=tw(m.l,11); m.x0=xx-lw/2; m.x1=xx+lw/2; });
+  lanes(marks,6);
+  marks.forEach(function(m){ var xx=x(m.k), ly=top-8-m.lane*15;
+    b+='<line x1="'+xx+'" x2="'+xx+'" y1="'+(ly+4)+'" y2="'+(top+rowH*n)+'" stroke="var(--ink2)" stroke-width="1"/>';
+    b+=txt(xx,ly,m.l,"t-ink",'text-anchor="middle" font-size="11" font-weight="600"'); });
+  SOLV.forEach(function(s,i){
+    var y=top+rowH*i+rowH/2, st=statusOf(s.status), col=ST[st].col;
+    var nm = narrow ? s.name.replace("Supercritical carbon dioxide","Supercrit. CO₂").replace("Sulfuric acid (conc.)","Sulfuric acid").replace("Hydrogen ","H. ").replace("Nitrogen (liquid)","Liquid N₂") : s.name;
+    b+=txt(0,y+4,nm,"t-ink",'font-size="12"');
+    var t="<b>"+s.name+"</b> ("+s.formula+")<br>"+(s.mp_K!=null?("Liquid "+s.mp_K+"–"+s.bp_K+" K"):"Supercritical above 304 K, 73 atm")+"<br>"+s.where+"<br>Status: "+s.status;
+    var a,z;
+    if (s.mp_K==null){ a=x(304); z=x(X1); b+='<rect x="'+a+'" y="'+(y-5)+'" width="'+(z-a)+'" height="10" rx="4" fill="'+col+'" opacity=".55"'+tip(t)+'/>'+txt(a+6,y-8,narrow?"supercritical >304 K":"supercritical above 304 K →","t-mut",'font-size="10.5"'); }
+    else { a=x(s.mp_K); z=x(Math.min(X1,s.bp_K)); b+='<rect x="'+a+'" y="'+(y-5)+'" width="'+Math.max(4,z-a)+'" height="10" rx="4" fill="'+col+'"'+tip(t)+'/>'; }
+  });
+  document.getElementById("c3").innerHTML=svg(w,h,b,"Range bars of solvent liquid ranges in kelvin with markers for Titan, Earth and Venus cloud temperatures");
+}
+table("t3",["Solvent","Melts (K)","Boils (K)","Where","Status"], SOLV.map(function(s){return [s.name, s.mp_K==null?"—":s.mp_K, s.bp_K==null?"—":s.bp_K, s.where, s.status];}),[1,2]);
+
+/* ---------- 4 scoreboard ---------- */
+var CL = [
+  {n:"Arsenic life (GFAJ-1)", c:2010, r:2025, s:"refuted", note:"Refuted 2012; Science retracted 24 Jul 2025"},
+  {n:"XNA heredity (synthetic genetics)", c:2012, r:2012, s:"consensus", note:"In-vitro heredity and evolution demonstrated; not standalone life"},
+  {n:"Azotosome membranes on Titan", c:2015, r:2020, s:"disputed", note:"Leaning refuted: QM thermodynamics says no self-assembly (2020)"},
+  {n:"Enzymes that make Si–C bonds", c:2016, r:2016, s:"consensus", note:"Result is solid; relevance to Si-life is disputed"},
+  {n:"Hachimoji 8-letter DNA", c:2019, r:2019, s:"consensus", note:"Lab demonstration meets structural needs for evolution"},
+  {n:"Phosphine in Venus clouds", c:2020, r:null, s:"disputed", note:"Re-analyses and SOFIA upper limit vs. original-team rebuttals; unresolved"},
+  {n:"Silicon-backbone life (any solvent)", c:2020, r:null, s:"disputed", note:"Judged implausible in every solvent assessed by the major review (Petkowski, Bains & Seager 2020), but not disproven; Si most likely only as a heteroatom"},
+  {n:"Si heteroatoms in sulfuric acid", c:2021, r:null, s:"plausible", note:"Strongest silicon case in the literature (Venus-like cloud droplets)"},
+  {n:"Assembly theory as life detector", c:2021, r:null, s:"disputed", note:"Critiques say it reduces to compression measures"},
+  {n:"Mirror life", c:2024, r:null, s:"plausible", note:"Feasible; 38 scientists recommend against building it"}
+];
+stLegend("lg4");
+function c4(){
+  var w=W("c4"), narrow=w<600, L=narrow?10:330, R=16, rowH=narrow?50:36, top=6, n=CL.length, h=top+rowH*n+26, TODAY=2026.85;
+  var x=lin(2009,2027,L,w-R), b="";
+  (narrow?[2010,2015,2020,2025]:[2010,2012,2014,2016,2018,2020,2022,2024,2026]).forEach(function(t){ var xx=x(t);
+    b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*n)+'"/>'+txt(xx,top+rowH*n+16,t,"tick",'text-anchor="middle"'); });
+  CL.forEach(function(c,i){
+    var y=top+rowH*i+rowH/2+(narrow?8:0), s=ST[c.s], xc=x(c.c), xr=x(c.r==null?TODAY:c.r);
+    b+=txt(0,y+(narrow?-15:4),c.n,"t-ink",'font-size="12.5"');
+    if (narrow) b+=txt(w,y-15,s.label.split(" /")[0],"t-mut",'font-size="11" text-anchor="end"');
+    else b+=txt(L-12,y+4,s.label.split(" /")[0],"t-mut",'font-size="11" text-anchor="end"');
+    if (xr-xc>1) b+='<line x1="'+xc+'" x2="'+xr+'" y1="'+y+'" y2="'+y+'" stroke="var(--axis)" stroke-width="2"/>';
+    var tt="<b>"+c.n+"</b><br>Claimed "+c.c+(c.r?" · resolved "+c.r:" · open")+"<br>"+s.label+": "+c.note;
+    if (xr-xc>1) b+='<circle cx="'+xc+'" cy="'+y+'" r="5" fill="var(--surface)" stroke="var(--ink2)" stroke-width="1.5"/>';
+    b+='<g'+tip(tt)+'><circle cx="'+xr+'" cy="'+y+'" r="11" fill="var(--surface)"/><circle cx="'+xr+'" cy="'+y+'" r="9" fill="'+s.col+'"/>'+
+       '<text x="'+xr+'" y="'+(y+4)+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+s.ink+'">'+s.icon+'</text></g>';
+  });
+  b+=txt(x(TODAY),top-0,"","t-mut");
+  document.getElementById("c4").innerHTML=svg(w,h,b,"Status strip of alternative-biochemistry claims by year claimed and current status");
+}
+
+/* ---------- 5 prototype ---------- */
+var PS = {}; D.proto.scen.forEach(function(s){ PS[s.name]=s; });
+var PANELS = [
+  {k:"1_carbon_water_300K", s:"C · water · 300 K", t:"Carbon · water · 300 K", col:"var(--c)", note:"grows a giant molecule"},
+  {k:"2_silicon_water_300K", s:"Si · water · 300 K", t:"Silicon · water · 300 K", col:"var(--si)", note:"hydrolysed to dust"},
+  {k:"3_silicon_methane_94K", s:"Si · methane · 94 K", t:"Silicon · methane · 94 K", col:"var(--s3)", note:"slow, then survives"},
+  {k:"4_silicon_h2so4_330K_hybrid", s:"Si+C · H₂SO₄ · 330 K", t:"Si + C · sulfuric acid · 330 K", col:"var(--ctx)", note:"richest early soup, then decays", ctx:true}
+];
+document.getElementById("lg5").innerHTML = PANELS.map(function(p){return '<span><i class="sw" style="background:'+p.col+'"></i>'+p.t+'</span>';}).join("");
+function c5(){
+  var host=document.getElementById("c5"), w=W("c5"), cols=w<600?2:4, gap=w<600?12:18, pw=Math.floor((w-gap*(cols-1))/cols);
+  var metrics=[{i:1,lab:"Largest molecule (atoms)",max:3000,ticks:[0,1000,2000,3000],f:function(v){return fmt(v);}},
+               {i:2,lab:"Dead fraction (backbone X–O locked)",max:1,ticks:[0,0.5,1],f:function(v){return Math.round(v*100)+"%";}}];
+  var html="";
+  metrics.forEach(function(m,mi){
+    html+='<div class="rowlabel">'+esc(m.lab)+'</div>';
+    PANELS.forEach(function(p,pi){
+      var s=PS[p.k], H=120, L=pi%cols===0?34:6, Rr=6, T=8, B=22, x=lin(0,3000,L,pw-Rr), y=lin(0,m.max,H-B,T), b="";
+      m.ticks.forEach(function(t){ b+='<line class="gridl" x1="'+L+'" x2="'+(pw-Rr)+'" y1="'+y(t)+'" y2="'+y(t)+'"/>'; if (pi%cols===0) b+=txt(L-4,y(t)+3,m.f(t),"tick",'text-anchor="end" font-size="10"'); });
+      b+='<line class="axisl" x1="'+L+'" x2="'+(pw-Rr)+'" y1="'+(H-B)+'" y2="'+(H-B)+'"/>';
+      [0,1500,3000].forEach(function(t,ti){ b+=txt(x(t),H-B+14,t===0?"0":fmt(t),"tick",'font-size="10" text-anchor="'+(ti===0?"start":ti===2?"end":"middle")+'"'); });
+      var d=s.series.map(function(r,j){return (j?"L":"M")+x(r[0]).toFixed(1)+","+y(r[m.i]).toFixed(1);}).join("");
+      b+='<path d="'+d+'" fill="none" stroke="'+p.col+'" stroke-width="2" stroke-linejoin="round"/>';
+      var last=s.series[s.series.length-1];
+      b+='<circle cx="'+x(last[0])+'" cy="'+y(last[m.i])+'" r="4" fill="'+p.col+'" stroke="var(--surface)" stroke-width="2"/>';
+      b+='<g class="xh" style="display:none"><line y1="'+T+'" y2="'+(H-B)+'" stroke="var(--ink2)" stroke-width="1"/><circle r="4" fill="'+p.col+'" stroke="var(--surface)" stroke-width="2"/></g>';
+      b+='<rect class="hit" x="'+L+'" y="0" width="'+(pw-Rr-L)+'" height="'+H+'" fill="transparent"/>';
+      html+='<div class="panel" data-k="'+p.k+'" data-m="'+mi+'" data-pl="'+L+'" data-pr="'+(pw-Rr)+'">'+('<h3><i class="sw" style="background:'+p.col+'"></i>'+esc(p.s)+'</h3>'+(mi===0?'<p class="sub">'+esc(p.note)+'</p>':''))+
+        svg(pw,H,b,p.t+" "+m.lab)+'</div>';
+    });
+  });
+  host.innerHTML=html;
+  host.querySelectorAll(".panel").forEach(function(el){
+    var s=PS[el.dataset.k], m=metrics[+el.dataset.m], L=+el.dataset.pl, Rr=+el.dataset.pr, H=120, x=lin(0,3000,L,Rr), y=lin(0,m.max,H-22,8);
+    var hit=el.querySelector(".hit"), g=el.querySelector(".xh");
+    function move(ev){
+      var r=hit.getBoundingClientRect(), px=ev.clientX-r.left+L, st=(px-L)/(Rr-L)*3000, best=s.series[0];
+      s.series.forEach(function(q){ if (Math.abs(q[0]-st)<Math.abs(best[0]-st)) best=q; });
+      var xx=x(best[0]), yy=y(best[m.i]); g.style.display="";
+      g.querySelector("line").setAttribute("x1",xx); g.querySelector("line").setAttribute("x2",xx);
+      g.querySelector("circle").setAttribute("cx",xx); g.querySelector("circle").setAttribute("cy",yy);
+      showTip("<b>"+esc(PANELS.filter(function(p){return p.k===s.name;})[0].t)+"</b><br>Step "+fmt(best[0])+"<br>Largest molecule: "+fmt(best[1])+" atoms<br>Dead fraction: "+Math.round(best[2]*1000)/10+"%", ev.clientX, ev.clientY);
+    }
+    hit.addEventListener("pointermove",move);
+    hit.addEventListener("pointerleave",function(){ g.style.display="none"; hideTip(); });
+  });
+}
+table("t5",["Scenario","Backbone","Solvent","T (K)","Largest molecule","Dead fraction","Species"], D.proto.scen.map(function(s){
+  return [s.name, s.backbone, s.solvent, s.T, fmt(s.final.largest_molecule), Math.round(s.final.dead_fraction*100)+"%", s.final.species_count];}),[3,4,5,6]);
+
+/* ---------- 6 knobs ---------- */
+function arr(t){ return String(t).replace(/<->/g,"↔").replace(/->/g,"→"); }
+function c6(){
+  var host=document.getElementById("c6"), R=D.rules;
+  if (!R){
+    host.innerHTML="";
+    document.getElementById("ph6").innerHTML='<div class="placeholder"><b>PLACEHOLDER — data/rules.json not found.</b> Fill from data/rules.json + notes/06.</div>';
+    return;
+  }
+  var E={}; R.elements.forEach(function(e){E[e.symbol]=e;});
+  var A={}; R.eiw.forEach(function(e){ (A[e.world]=A[e.world]||{})[e.symbol]=e; });
+  function mini(rows, max, unit){
+    var w=240, rh=16, h=rows.length*rh*2+4, L=74, x=lin(0,max,L,w-40), b="";
+    rows.forEach(function(r,i){ var y0=i*rh*2+2;
+      b+=txt(0,y0+rh-2,r.l,"t-ink2",'font-size="10.5"');
+      [["C",r.c,"var(--c)"],["Si",r.s,"var(--si)"]].forEach(function(p,j){ var yy=y0+j*(rh-2)+1, ww=Math.max(3,x(p[1])-L);
+        b+='<rect x="'+L+'" y="'+yy+'" width="'+ww+'" height="'+(rh-6)+'" rx="3" fill="'+p[2]+'"'+tip("<b>"+r.l+" · "+p[0]+"</b>: "+p[1]+(unit||""))+'/>';
+        b+=txt(L+ww+4,yy+9,p[0]+" "+p[1],"t-ink2",'font-size="10"'); });
+    });
+    return '<svg width="100%" height="'+h+'" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Carbon vs silicon values">'+b+'</svg>';
+  }
+  var minis = [
+    mini([{l:"X–X bond",c:E.C.self_bond_kJ,s:E.Si.self_bond_kJ},{l:"X–O bond",c:E.C.bond_to_O_kJ,s:E.Si.bond_to_O_kJ}],500," kJ/mol"),
+    mini([{l:"valence",c:E.C.valence,s:E.Si.valence},{l:"max coord.",c:E.C.max_coordination,s:E.Si.max_coordination}],6,""),
+    mini([{l:"O hunger",c:E.C.oxygen_hunger,s:E.Si.oxygen_hunger}],2.5,"× (X–O ÷ X–X)"),
+    mini(["water","venus_clouds","titan"].filter(function(k){return A[k];}).map(function(k){return {l:k==="venus_clouds"?"H₂SO₄ attack":k==="titan"?"Titan attack":"water attack",c:A[k].C.solvent_attack_0to1,s:A[k].Si.solvent_attack_0to1};}),1,"  (0–1 attack score, [INFERRED])"),
+    null, null
+  ];
+  host.innerHTML = R.knobs.map(function(k,i){
+    return '<div class="knob"><h3>'+esc(arr(k.name))+'</h3>'+
+      '<p class="lab">Science</p><p>'+esc(arr(k.physical_meaning))+'</p>'+
+      (minis[i]?'<div style="margin-top:8px">'+minis[i]+'</div>':'')+
+      '<p class="lab">Sim parameter</p><p>'+esc(arr(k.controls))+'</p>'+
+      '<p class="lab">What emerges</p><p>'+esc(arr(k.emergent_effect.replace("[INFERRED] ","")))+' <span class="tag">[INFERRED]</span></p></div>';
+  }).join("");
+  var SM=[["Sulfuric-acid hybrid (Venus clouds)","plausible","Si–Si, Si–H, Si–C kinetically protected in 81–98% H₂SO₄ below 100 °C; Si becomes a common heteroatom. Strongest case — use as the “best silicon world” preset."],
+          ["Cryogenic N₂ / CH₄ silicon world","plausible","Almost no Si bond is attacked, but almost nothing dissolves (SiH₄ ~ppt) and rates fall ~10⁻¹⁹×. Disfavoured — the “frozen museum” preset."],
+          ["Carbon life that recruits silicon","consensus","Diatoms and sponges already build glass; evolved enzymes make Si–C bonds. Silicon-rich, not silicon-based."],
+          ["High pressure makes Si carbon-like","refuted","Pressure makes Si more rock-like and turns CO₂ quartz-like — the reverse of what we want."]];
+  document.getElementById("ph6").innerHTML='<p class="lab" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:16px 0 6px">Steelman — the best case for silicon (notes/06 §B)</p><div class="knobs steel">'+
+    SM.map(function(s){ return '<div class="knob"><h3 style="display:flex;gap:8px;align-items:flex-start"><i class="dot st-'+s[1]+'" aria-hidden="true">'+ST[s[1]].icon+'</i>'+esc(s[0])+'</h3><p class="chip" style="margin-bottom:4px">'+(s[1]==="refuted"?"Rejected (no support)":ST[s[1]].label)+'</p><p>'+esc(s[2])+'</p></div>'; }).join("")+'</div>';
+}
+
+/* ---------- 7 milestones ---------- */
+var MS=[
+  {t:5,l:"First bond",L:1},{t:20,l:"First chain (≥6)",L:2},{t:40,l:"First ring / membrane",L:2},{t:55,l:"First replicator",L:2},
+  {t:70,l:"Autocatalytic set",L:2},{t:90,l:"First organism",L:3},{t:120,l:"Producer bloom",L:4},{t:140,l:"Grazer → predator",L:4},{t:165,l:"3 trophic levels",L:4}];
+var LAYERS=["L1 · Atoms","L2 · Molecules & protocells","L3 · Organisms","L4 · Ecosystem"];
+function mmss(t){ return Math.floor(t/60)+":"+("0"+(t%60)).slice(-2); }
+function c7(){
+  var w=W("c7"), b="", h;
+  if (w<600){ /* vertical */
+    var rowH=36, top=10, n=MS.length; h=top+rowH*n+8; var ax=48;
+    b+='<line class="axisl" x1="'+ax+'" x2="'+ax+'" y1="'+top+'" y2="'+(top+rowH*(n-1)+rowH/2)+'"/>';
+    MS.forEach(function(m,i){ var y=top+rowH*i+rowH/2;
+      b+=txt(ax-14,y+4,mmss(m.t),"tick",'text-anchor="end" font-size="11.5"');
+      b+=marker(ax,y,6,"var(--c)","<b>"+m.l+"</b> at "+mmss(m.t)+" · "+LAYERS[m.L-1]);
+      b+=txt(ax+14,y,m.l,"t-ink",'font-size="12.5" font-weight="600"')+txt(ax+14,y+14,LAYERS[m.L-1],"t-mut",'font-size="11"'); });
+  } else {
+    var L=180, R=24, rowH=52, top=10; h=top+rowH*4+30; var x=lin(0,180,L,w-R);
+    [0,30,60,90,120,150,180].forEach(function(t){ var xx=x(t);
+      b+='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+(top+rowH*4)+'"/>'+txt(xx,top+rowH*4+16,mmss(t),"tick",'text-anchor="middle"'); });
+    LAYERS.forEach(function(lname,li){ var y=top+rowH*li+rowH/2;
+      b+=txt(0,y+4,lname,"t-ink",'font-size="12.5" font-weight="600"');
+      var its=MS.filter(function(m){return m.L===li+1;}).map(function(m){ var xx=x(m.t), lw=tw(m.l,11.5); return {m:m,x0:xx-4,x1:xx+lw+10}; });
+      lanes(its,6);
+      its.forEach(function(it){ var xx=x(it.m.t), ly=y+4+(it.lane? -13 : 0)+(it.lane?0:0);
+        var dy = it.lane===0 ? -9 : 15;
+        b+=marker(xx,y,6,"var(--c)","<b>"+it.m.l+"</b> at "+mmss(it.m.t)+" · "+lname);
+        b+=txt(xx+10,y+dy,it.m.l,"t-ink2",'font-size="11.5"'); });
+    });
+    /* arrow of the climb */
+    var pts=MS.map(function(m){return x(m.t).toFixed(1)+","+(top+rowH*(m.L-1)+rowH/2).toFixed(1);}).join(" ");
+    b='<polyline points="'+pts+'" fill="none" stroke="var(--wash)" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>'+b;
+  }
+  document.getElementById("c7").innerHTML=svg(w,h,b,"Milestone timeline across four simulation layers over a three minute demo");
+}
+
+/* ---------- 8 scatter ---------- */
+var STACK={"Particle Life / Clusters":"Particle Life","Hutton evolvable self-replicating molecules":"Hutton 2002 replicators","squirm3 / Living Physics":"squirm3","The Life Engine":"Life Engine","Gray-Scott reaction-diffusion":"Gray-Scott field","Autocatalytic sets / RAF theory":"RAF (HUD check)","Chemoton":"Chemoton (criteria)"};
+function c8(){
+  var w=W("c8"), narrow=w<600, L=40, R=narrow?14:150, T=14, B=40, h=narrow?380:440;
+  var x=lin(0.5,5.5,L,w-R), y=lin(0.5,5.5,h-B,T), b="";
+  for (var t=1;t<=5;t++){ b+='<line class="gridl" x1="'+x(t)+'" x2="'+x(t)+'" y1="'+T+'" y2="'+(h-B)+'"/><line class="gridl" x1="'+L+'" x2="'+(w-R)+'" y1="'+y(t)+'" y2="'+y(t)+'"/>';
+    b+=txt(x(t),h-B+16,t,"tick",'text-anchor="middle"')+txt(L-10,y(t)+4,t,"tick",'text-anchor="end"'); }
+  b+=txt((L+w-R)/2,h-6,"Element-knob controllability →","t-ink2",'text-anchor="middle" font-size="12"');
+  b+=txt(12,(T+h-B)/2,"Visual appeal →","t-ink2",'text-anchor="middle" font-size="12" transform="rotate(-90 12 '+((T+h-B)/2)+')"');
+  b+='<rect x="'+x(3.5)+'" y="'+y(5.5)+'" width="'+(x(5.5)-x(3.5))+'" height="'+(y(3.5)-y(5.5))+'" rx="8" fill="var(--wash)"/>';
+  b+=txt(x(5.5)-6,y(5.5)+14,"sweet spot","t-mut",'text-anchor="end" font-size="11"');
+  var cells={}; D.models.forEach(function(m){ var k=m.element_controllable_1to5+","+m.visual_appeal_1to5; (cells[k]=cells[k]||[]).push(m); });
+  var size={S:5,M:7,L:9}, pts=[], cw=(x(2)-x(1));
+  Object.keys(cells).forEach(function(k){ var g=cells[k], n=g.length;
+    g.forEach(function(m,i){ var ang=(i/n)*Math.PI*2-Math.PI/2, rad=n>1?Math.min(cw*0.3,9+n*2.5):0;
+      pts.push({m:m,cx:x(m.element_controllable_1to5)+Math.cos(ang)*rad,cy:y(m.visual_appeal_1to5)+Math.sin(ang)*rad}); }); });
+  var lab=[];
+  pts.sort(function(a,b){ return (STACK[a.m.name]||a.m.name==="Tidemote"?1:0)-(STACK[b.m.name]||b.m.name==="Tidemote"?1:0); });
+  pts.forEach(function(p){ var m=p.m, inS=!!STACK[m.name], td=m.name==="Tidemote", col=td?"var(--si)":inS?"var(--c)":"var(--ctx)";
+    var t="<b>"+esc(m.name)+"</b> ("+m.year+")<br>"+esc(m.type)+"<br>Appeal "+m.visual_appeal_1to5+" · controllability "+m.element_controllable_1to5+" · effort "+m.effort+"<br>Emergence: "+esc(m.emergence_speed)+" · "+m.evidence;
+    b+='<circle cx="'+p.cx.toFixed(1)+'" cy="'+p.cy.toFixed(1)+'" r="'+(size[m.effort]+2)+'" fill="var(--surface)"/><circle cx="'+p.cx.toFixed(1)+'" cy="'+p.cy.toFixed(1)+'" r="'+size[m.effort]+'" fill="'+col+'"'+tip(t)+'/>';
+    if (inS||td) lab.push({p:p,s:td?"Tidemote":(narrow?STACK[m.name].replace(" replicators","").replace(" (criteria)","").replace(" (HUD check)","").replace(" field",""):STACK[m.name])});
+  });
+  lab.forEach(function(l){ var p=l.p, right=p.cx < w-R-40 || !narrow; var lx=p.cx+size[p.m.effort]+5;
+    var anchor="start"; if (narrow && lx+tw(l.s,11)>w-4){ lx=p.cx-size[p.m.effort]-5; anchor="end"; }
+    b+='<text x="'+lx.toFixed(1)+'" y="'+(p.cy+4).toFixed(1)+'" class="t-ink" font-size="11" text-anchor="'+anchor+'" paint-order="stroke" stroke="var(--surface)" stroke-width="3">'+esc(l.s)+'</text>'; });
+  document.getElementById("c8").innerHTML=svg(w,h,b,"Scatter of artificial-life models by visual appeal and element controllability");
+}
+
+/* ---------- 9 prior art ---------- */
+(function(){
+  var rows=D.prior_art.slice().sort(function(a,b){return b.similarity_1to5-a.similarity_1to5;});
+  document.getElementById("c9").innerHTML='<table><thead><tr><th>Project</th><th>Similarity</th><th>How we differ</th></tr></thead><tbody>'+
+    rows.map(function(r){ var p=""; for(var i=1;i<=5;i++) p+='<i class="'+(i<=r.similarity_1to5?"on":"")+'"></i>';
+      return '<tr><td><a href="'+esc(r.url)+'">'+esc(r.name)+'</a></td><td style="white-space:nowrap"><span class="pips" role="img" aria-label="'+r.similarity_1to5+' of 5">'+p+'</span> <span style="font-variant-numeric:tabular-nums">'+r.similarity_1to5+'/5</span></td><td>'+esc(r.how_we_differ)+'</td></tr>'; }).join("")+'</tbody></table>';
+})();
+
+/* ---------- 10 timeline ---------- */
+var TT=[["science","Science","var(--c)"],["fiction","Fiction","var(--si)"],["controversy","Controversy","var(--s3)"],["mission","Mission","var(--s4)"]];
+document.getElementById("lg10").innerHTML=TT.map(function(t){return '<span><i class="sw" style="background:'+t[2]+'"></i>'+t[1]+'</span>';}).join("");
+var SHORT={1891:"Scheiner proposes Si-life",1893:"Reynolds (unverified)",1894:"H. G. Wells essay",1934:"A Martian Odyssey",1955:"Asimov: siliconies",1961:"Asimov: Not as We Know It",1966:"Island of Terror",1967:"Star Trek: the Horta",1973:"Sagan: ‘carbon chauvinist’",1982:"Cairns-Smith clay genes",2007:"NRC ‘Weird Life’",2016:"Arnold: Si–C enzymes",2028:"Dragonfly launch",2034:"Dragonfly at Titan"};
+function shortOf(e){ if (e.year===2020) return e.type==="controversy"?"Venus phosphine":"Petkowski review"; if (e.year===2010) return "Arsenic life"; if (e.year===2024) return "Mirror-life warning"; return SHORT[e.year]||e.title; }
+function c10(){
+  var w=W("c10"), narrow=w<600, L=narrow?80:100, R=narrow?10:20, top=6, x=lin(1885,2040,L,w-R), b="", fs=narrow?10.5:11.5, y0=top, b2="";
+  var rowY=[];
+  TT.forEach(function(t,ti){
+    var ev=D.events.filter(function(e){return e.type===t[0];}).map(function(e){ var s=shortOf(e), xx=x(e.year), lw=tw(s,fs);
+      var it={e:e,s:s,x:xx,anchor:"start",x0:xx-2,x1:xx+lw+2};
+      if (xx+lw+2>w-R){ it.anchor="end"; it.x0=xx-lw-2; it.x1=xx+2; } return it; });
+    var nl=lanes(ev,8), yc=y0+14, rh=24+nl*15+6;
+    b+='<line class="gridl" x1="'+L+'" x2="'+(w-R)+'" y1="'+(y0+rh)+'" y2="'+(y0+rh)+'"/>';
+    b+='<line class="axisl" x1="'+L+'" x2="'+(w-R)+'" y1="'+yc+'" y2="'+yc+'"/>';
+    b+=txt(0,yc+4,t[1],"t-ink",'font-size="12.5" font-weight="600"');
+    ev.forEach(function(it){ var ly=yc+24+it.lane*15;
+      b+='<line x1="'+it.x+'" x2="'+it.x+'" y1="'+yc+'" y2="'+(ly-10)+'" stroke="var(--axis)" stroke-width="1"/>';
+      b2+=txt(it.x+(it.anchor==="start"?-2:2),ly,it.s,"t-ink2",'font-size="'+fs+'" text-anchor="'+it.anchor+'" paint-order="stroke" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round"');
+    });
+    ev.forEach(function(it){ b+=marker(it.x,yc,5,t[2],"<b>"+it.e.year+" · "+esc(it.e.title)+"</b><br>"+esc(it.e.who)+"<br>"+esc(it.e.summary)); });
+    y0+=rh;
+  });
+  var ticks=narrow?[1900,1950,2000,2030]:[1890,1910,1930,1950,1970,1990,2010,2030];
+  ticks.forEach(function(t){ var xx=x(t); b='<line class="gridl" x1="'+xx+'" x2="'+xx+'" y1="'+top+'" y2="'+y0+'"/>'+b; b+=txt(xx,y0+16,t,"tick",'text-anchor="middle"'); });
+  var xn=x(2026.85); b+=b2; b='<line x1="'+xn+'" x2="'+xn+'" y1="'+top+'" y2="'+y0+'" stroke="var(--ink2)" stroke-width="1"/>'+b; b+=txt(xn,y0+30,"today","t-mut",'text-anchor="middle" font-size="10.5"');
+  document.getElementById("c10").innerHTML=svg(w,y0+36,b,"Timeline of silicon-life ideas 1891 to 2034 in science, fiction, controversy and mission rows");
+}
+stLegend("lgf");
+
+/* ---------- tooltip ---------- */
+var TIP=document.getElementById("tip");
+function showTip(html,cx,cy){ TIP.innerHTML=html; TIP.style.display="block";
+  var r=TIP.getBoundingClientRect(), x=cx+14, y=cy+14;
+  if (x+r.width>innerWidth-8) x=cx-r.width-14; if (y+r.height>innerHeight-8) y=cy-r.height-14;
+  TIP.style.left=Math.max(8,x)+"px"; TIP.style.top=Math.max(8,y)+"px"; }
+function hideTip(){ TIP.style.display="none"; }
+document.addEventListener("pointerover",function(e){ var t=e.target.closest&&e.target.closest("[data-tip]"); if(t) showTip(t.getAttribute("data-tip"),e.clientX,e.clientY); });
+document.addEventListener("pointermove",function(e){ var t=e.target.closest&&e.target.closest("[data-tip]"); if(t) showTip(t.getAttribute("data-tip"),e.clientX,e.clientY); });
+document.addEventListener("pointerout",function(e){ var t=e.target.closest&&e.target.closest("[data-tip]"); if(t) hideTip(); });
+document.addEventListener("focusin",function(e){ var t=e.target.closest&&e.target.closest("[data-tip]"); if(t){ var r=t.getBoundingClientRect(); showTip(t.getAttribute("data-tip"),r.right,r.bottom);} });
+document.addEventListener("focusout",hideTip);
+
+/* ---------- render ---------- */
+function all(){ c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c10(); }
+all(); var rt; addEventListener("resize",function(){ clearTimeout(rt); rt=setTimeout(all,120); });
+})();
+</script>
+</body>
+</html>
