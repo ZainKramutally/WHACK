@@ -172,9 +172,10 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
   const legBones = legPairs === 0 ? 0 : silicon ? 2 : 2 + Math.round(4 * comp.c * g.limbLen);
   // short legs sprawl (lizard posture: low hips, feet out wide); long legs stand tall (stilts)
   const tall = sstep(0.2, 0.9, g.limbLen);
-  const stand = gait === 'hop' ? 0.42 : (silicon ? 0.5 : 0.48) + 0.32 * tall; // hoppers crouch on folded legs
+  // hoppers crouch on folded legs; many-legged walkers carry the body low between knees raised above it (beetle)
+  const stand = gait === 'hop' ? 0.42 : legPairs > 2 ? 0.38 + 0.3 * tall : (silicon ? 0.5 : 0.48) + 0.32 * tall;
   const hipHeight = legLen * stand;
-  const splay = (legPairs > 2 ? 0.5 : 0.42) - 0.22 * tall;
+  const splay = (legPairs > 2 ? 0.62 : 0.42) - 0.22 * tall;
   const duty = DUTY[gait];
   // Stride: the hip may travel ±half a stance stride over a planted foot within reach (IK never overstretches).
   const reach = Math.sqrt(Math.max(0, 1 - stand * stand - splay * splay * 0.5)) * legLen;

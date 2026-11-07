@@ -228,7 +228,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
         const foot = footAt(gp + off, plan.duty, plant, lift).pos;
         const front = leg.u < 0.4 && plan.legPairs > 1;
         const pole: V3 = rod || plan.legPairs > 2
-          ? add(add(scl(b0.U, 0.45), scl(b0.R, side * 1)), scl(b0.T, front ? 0.25 : -0.25)) // elbows out (sprawl)
+          ? add(add(scl(b0.U, 0.7), scl(b0.R, side * 1)), scl(b0.T, front ? 0.35 : -0.35)) // knees up and out (sprawl), front legs reach forward
           : add(add(scl(b0.T, front ? -0.8 : 0.8), scl(b0.R, side * 0.35)), scl(b0.U, 0.2));
         const rr = plan.legRadius;
         const thighT: PartType = rod ? 'thighSi' : 'thighC', shinT: PartType = rod ? 'rodSi' : 'rodC';

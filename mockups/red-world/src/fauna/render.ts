@@ -82,7 +82,7 @@ export function partGeometries(): Record<PartType, any> {
   }, false);
   const eyeDot = banded(new THREE.IcosahedronGeometry(1, 1), (c) => (c.clone().normalize().distanceTo(new THREE.Vector3(0.35, 0.5, 0.79)) < 0.42 ? 1 : 0), false);
   return {
-    rodSi: banded(lathe([[0, 0], [1, 0], [1, 0.06], [0.78, 1], [0, 1]], 6), (c) => (c.y > 0.55 ? 1 : 0), true),
+    rodSi: banded(lathe([[0, 0], [0.9, 0], [1, 0.08], [0.82, 0.55], [0.55, 1], [0, 1]], 6), (c) => (c.y > 0.55 ? 1 : 0), true), // crystal taper
     rodC: banded(lathe([[0, -0.12], [0.7, -0.07], [1, 0.03], [0.8, 1.0], [0.55, 1.07], [0, 1.1]], 10), (c) => (c.y > 0.5 ? 1 : 0), false),
     plateSi: banded(lathe([[0, -0.5], [1, -0.5], [1, 0.1], [0.78, 0.5], [0, 0.5]], 6), (c) => (c.y > 0.25 ? 0 : 1), true),
     plateC: banded(lathe([[0, -0.4], [1, -0.4], [1, -0.1], [0.85, 0.25], [0.5, 0.45], [0, 0.5]], 12), (c) => (c.y > 0 ? 0 : 1), false),
