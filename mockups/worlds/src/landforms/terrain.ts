@@ -79,9 +79,9 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
       // terraced mesas with soft risers + fine dune ripples
       const wx = x + 40 * noise2(x / 170, z / 170, s + 3), wz = z + 40 * noise2(x / 170 + 9, z / 170, s + 4);
       const n = fbm2(wx / 150, wz / 150, 3, s) * 0.5 + 0.5;
-      const rip = Math.sin((x * 0.5 + z * 0.22 + 6 * noise2(x / 22, z / 22, s + 5)) * 1.1) * 0.12;
-      const hotAmp = mix(0.12, 1, smoothstep(0.08, 0.5, uu));
-      h += p.hot * (14 * terrace(n, 7, 0.22) * hotAmp + rip * (0.4 + 0.6 * smoothstep(0.1, 0.5, floor)));
+      const rip = Math.sin((x * 0.9 + z * 0.35 + 6 * noise2(x / 22, z / 22, s + 5)) * 1.1) * 0.12;
+      const hotAmp = smoothstep(0.05, 0.5, uu); // zero on the path so the eye never sits inside a terrace
+      h += p.hot * (14 * terrace(n, 7, 0.22) * hotAmp + rip * 2.4 + 0.9 * terrace(fbm2(x / 48, z / 48, 2, s + 17) * 0.5 + 0.5, 5, 0.25) * amp);
     }
     if (p.snow > 0) {
       const wx = x + 12 * noise2(x / 60, z / 60, s + 6);
