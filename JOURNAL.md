@@ -8,3 +8,4 @@
 - ~14:50: landforms merged (391921d). First full integration: 46 tests, 60fps all presets. Snapshot design/iteration/2026-11-07-1450-integrated.
 - ~15:10: flora r2 merged (b8482d3). Landforms r2 reverted then re-applied (1f98330): the fps drop was GPU contention from parallel captures, best-of-3 = 60 on all. Asked core for robust fps (best/median).
 - ~15:45: round 3 merged (core bfc8867/3d38b51, landforms e490698 resolved to branch tip, flora 6218a10). 49 tests, 60fps best+median all presets.
+- ~16:00: core done + shut down (417983a). Flora r4 merged (2f1aab5). 49 tests, 60fps best+median. Awaiting landforms eco14 final + flora caps/floor.
