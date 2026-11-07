@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { floraForm, floraBin, formForBin } from './floraForm';
+import { floraForm, floraBin, formForBin, cellSubmerged } from './floraForm';
 import { makeStubVisualInputs } from './visualInputs';
 import type { VisualInputs } from '../worlds/types';
 
@@ -48,10 +48,35 @@ describe('floraForm', () => {
     expect(dim.species).toBe('cup');
     expect(dark.species).toBe('cup'); expect(dark.glow).toBeGreaterThan(dim.glow);
   });
-  it('a mat-dominant cell in the dark on a water world is a translucent dome', () => {
-    const dome = floraForm(0, inputs({ mat: 1, canopy: 0, light: 0.01 }))!;
-    expect(dome.species).toBe('dome'); expect(dome.translucent).toBe(true);
-    expect(floraForm(0, inputs({ mat: 1, canopy: 0, light: 1 }))!.species).toBe('tuft');
+  it('a mat-dominant submerged cell on a water world is a translucent dome; the same cell on land is a tuft', () => {
+    const i = inputs({ mat: 1, canopy: 0, light: 1 });
+    const dome = formForBin(floraBin(1, 0, i, true));
+    expect(dome.species).toBe('dome'); expect(dome.translucent).toBe(true); expect(dome.submerged).toBe(true);
+    expect(floraForm(0, i)!.species).toBe('tuft');
+  });
+  it('submerged is read per cell from the terrain height against sea level', () => {
+    const base = inputs({ mat: 1, canopy: 0 });
+    const i = { ...base, seaLevel: 0, terrain: { ...base.terrain, patchSize: 400, height: (x: number) => (x < 0 ? -5 : 5) } };
+    expect(cellSubmerged(0, i)).toBe(true);       // cell 0 is at the patch's -x edge
+    expect(cellSubmerged(63, i)).toBe(false);
+    expect(cellSubmerged(0, { ...i, terrain: { ...i.terrain, patchSize: undefined } })).toBe(false);
+    i.flora[63 * 2] = 1;
+    expect(floraForm(0, i)!.species).toBe('dome');
+    expect(floraForm(63, i)!.species).toBe('tuft');
+  });
+  it('biomass magnitude gives sparse, normal and lush variants', () => {
+    const i = inputs();
+    const f = (m: number, c: number) => formForBin(floraBin(m, c, i));
+    expect(new Set([f(0.1, 0).lush, f(0.6, 0).lush, f(0.8, 0.5).lush])).toEqual(new Set([0, 1, 2]));
+    expect(f(0.8, 0.5).capScale).toBeGreaterThan(f(0.1, 0).capScale);
+  });
+  it('one world shows at least 4 archetypes from per-cell axes alone (carbon and silicon)', () => {
+    for (const si of [false, true]) {
+      const i = inputs({ si });
+      const keys = new Set<string>();
+      for (const sub of [false, true]) for (const [m, c] of [[0.1, 0], [0.9, 0], [0.5, 0.4], [0.4, 1], [0.3, 0.9]]) keys.add(formForBin(floraBin(m, c, i, sub)).key);
+      expect(keys.size).toBeGreaterThanOrEqual(4);
+    }
   });
   it('heat band sets height: cold is taller than hot', () => {
     const cold = floraForm(0, inputs({ canopy: 1, heatBand: 0 }))!, hot = floraForm(0, inputs({ canopy: 1, heatBand: 1 }))!;

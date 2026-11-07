@@ -282,10 +282,10 @@ export const silicon: WorldConfig = {
       floraLightGain: 100, // assumption: crystalline flora is adapted to ~1% starlight, so it still grows; eyes and glow still see the real light
       upkeepScale: 0.02, // converts B0·M^0.75 into matter per ecology second; sets generation time near 25 s
       cellMass: 40, // matter in a cell fully covered by flora
-      shadeK: 1.2, // Beer–Lambert canopy shading of ground mats
+      shadeK: 4, // Beer–Lambert canopy shading of ground mats. assumption: true: raised from 1.2 so a dense canopy starves the mat under it and cells shift between mat- and canopy-dominant (flora tune)
       waterAttn: 0.1, // light lost per metre of liquid depth. assumption: true (issue #31): 0.3 left deep cells at about half the food of the shallows and only 11–28% of animals in the sea; 0.1 gives 55% in water (41% deep) and 69% of swimmers in water on silicon with population and OTU unchanged
-      canopyRate: 0.3, // canopy growth relative to mat growth
-      floraDecay: 0.02, // share of flora lost per ecology second; returned as nutrients
+      canopyRate: 0.45, // canopy growth relative to mat growth. assumption: true: raised from 0.3 with shadeK so 15–30% of flora cells are canopy-dominant (flora tune)
+      floraDecay: 0.035, // share of flora lost per ecology second; returned as nutrients. assumption: true: raised from 0.02 for faster turnover, so mat and canopy keep trading places (flora tune)
       spread: 0.5, // how strongly neighbouring mats seed an empty cell, so flora colonises land from the shore
       seedMat: 0.3, // flora biomass planted in the shallows when life appears
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts

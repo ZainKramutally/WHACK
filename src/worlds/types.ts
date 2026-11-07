@@ -185,7 +185,7 @@ export interface VisualInputs {
   light: number;
   airDensity: number;
   buildProgress: number;
-  terrain: { rise: number; progress: Record<string, number>; height: (x: number, z: number) => number };
+  terrain: { rise: number; progress: Record<string, number>; height: (x: number, z: number) => number; /** metres; lets the art layer map flora cells to world positions */ patchSize?: number };
   organisms: Float32Array;
   births: SimSnapshot['births'];
   flora: Float32Array;

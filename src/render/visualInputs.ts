@@ -104,7 +104,7 @@ export function buildVisualInputs(
     light: stats.light ?? 1,
     airDensity: world.life.inputs.airDensity.scale * gasDensity(stats.pressure, t, world.life.inputs.airDensity.molarMass),
     buildProgress: snapshot.buildProgress,
-    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => terrain.height(x, z, state) },
+    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => terrain.height(x, z, state), patchSize: terrain.patchSize },
     organisms: snapshot.organisms,
     births,
     flora: snapshot.flora,
