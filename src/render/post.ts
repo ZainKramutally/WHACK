@@ -31,6 +31,12 @@ export interface Post {
   update(inputs?: VisualInputs): void;
   /** Compile the scene's materials for the pass's own render target (its formats differ from the canvas). */
   compile(scene: THREE.Object3D, camera: THREE.Camera): Promise<void>;
+  /**
+   * Pixel-size multiplier on top of the ~360 px base (default 1; 4 = four times chunkier). Cheap to tween every frame:
+   * the effective canvas-px-per-pixel is rounded to an integer, so the pass targets only resize when that integer
+   * changes. No-op under ?style=smooth.
+   */
+  setPixelScale(scale: number): void;
 }
 
 export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.Camera): Post {
@@ -73,14 +79,29 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     return vec4(c.add(bl.mul(q.div(mag.max(1e-4)))), 1);
   })();
 
+  let baseK = 3; // from the canvas height
+  let pixelScale = 1;
+  let appliedK = 0;
+  const applyK = () => {
+    const kk = Math.max(1, Math.round(baseK * pixelScale));
+    if (kk === appliedK) return;
+    appliedK = kk;
+    k.value = kk;
+    scenePass.setResolutionScale(1 / kk + 1e-6);
+    b.setResolutionScale(1 / kk);
+  };
+
   return {
     render: () => pipeline.render(),
     resize(h) {
       if (!PIXEL) return;
-      const kk = Math.max(1, Math.round(h / INTERNAL_H));
-      k.value = kk;
-      scenePass.setResolutionScale(1 / kk + 1e-6);
-      b.setResolutionScale(1 / kk);
+      baseK = Math.max(1, Math.round(h / INTERNAL_H));
+      applyK();
+    },
+    setPixelScale(scale) {
+      if (!PIXEL || !(scale > 0)) return;
+      pixelScale = scale;
+      applyK();
     },
     update() {
       nearU.value = cam.near;
