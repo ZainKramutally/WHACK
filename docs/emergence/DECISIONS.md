@@ -277,6 +277,48 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
 | 14 | `TSR_LAND` | 0.1 | [sci] Forster 2012 `[verified]` | R9 |
 | 15 | `SPORE_VIABILITY` (when the dormant spore bank, ≤ 24 recent-survivor genomes, may germinate) | see code | [game]; declared exception to guardrail 8 (owner, #6) | R8 |
 
+**Tunables vs implementation constants** (bar-raiser finding, 2026-11-07). The ≤ 25 cap applies to **tunables**: values that are modelling choices. Implementation constants are exempt but must be listed here.
+
+**Test:** a value is a tunable if changing it by ×0.5 to ×2 moves any pass-bar metric (§A, §5) beyond seed noise. Otherwise it's an implementation constant. #25 should spot-check the borderline ones (`SCAN`, `DECIDE_EVERY`, `SPORES_PER_TICK`) and promote any that fail.
+
+**Move into `sim/constants.ts` (6 tunables; the cap goes 15 → 21, leaving 4 headroom):**
+
+| From | Name | Why it's a tunable |
+|---|---|---|
+| `ecology.ts` | `REACH` (strike range, cells) | sets predation success, so it sets hunter persistence (the #25 hunter cycle) |
+| `ecology.ts` | `SPORE_BELOW` (germinate below N animals) | decides when the declared rescue fires (guardrail 8 exception) |
+| `ecology.ts` | `FOUNDER_CELLS` (founder spread) | early competition and which lineages get a start |
+| `simulation.ts` | `EDGE_ZONE` (edge-stress ramp width) | how hard life is squeezed near a lethal limit, so it sets population response to sliders |
+| `population.ts` | `SPAWN_SPREAD` (child dispersal) | spatial structure and kin clustering |
+| `population.ts` | `WANDER` (consumer drift) | encounter rates and patch use |
+
+**Move to world config, not constants (science lives in data):** `MOLAR_MASS_AIR` (`simulation.ts`) is a world fact, N₂ on both worlds. It belongs in `life.inputs` next to `airDensity`, with `why` and `sources`.
+
+**Implementation constants (exempt, listed):**
+- **Structure (owner-ruled):** `TICK_HZ` 20, `CAP` 1,024, `SPORE_BANK` 24
+- **Cadences:**
+  - `DECIDE_EVERY` 4 (staggered re-decision)
+  - `RISK_EVERY` 40
+  - `FLORA_EVERY` 4
+  - `BAND_EVERY` 10
+  - `LIQUID_EVERY` 100
+- **Caps and bounds:**
+  - `SCAN` 12 (neighbours per cell)
+  - `SPORES_PER_TICK` 8
+  - `BLOCKED_REPEAT` 20 (UI repeat)
+- **Refresh triggers:** `LIQUID_MOVE_M` 0.25, `LIQUID_PROGRESS` 0.05
+- **Numeric slack:** `EPS`, `EDGE_INSET`, `EDGE_EPS`
+- **Search resolution:** `GRID` 600, `BISECT` 60 (`limits.ts`)
+- **Universal physics:** `GAS_CONSTANT`, `KELVIN`
+- **Field-guide labels:**
+  - `FORM_RADIUS`, `MIN_MEMBERS`
+  - `DIET_GRAZER_MAX`, `DIET_HUNTER_MIN`
+  - `BUOY_FLOATER`
+  - `LIMBS_PRESENT`, `LIMBS_LONG`
+  - `SEGMENTS_LONG`
+
+  These are exempt only while they never feed back into the sim (guardrail 9). If a label ever changes behaviour, it becomes a tunable.
+
 **World facts, not sim constants** (moved to each world's config, `life.inputs`, each with a `why` and `sources`, per `CLAUDE.md`): `solvent` {ρ, μ, ε_r, liquid band} ([sci] handbook `[recalled]`; R2, R10), `airDensity` ([sci] `[INFERRED]`, P·M/(R·T); R1, R10; `develop()` already takes it as an input), `tissueDensity` {C 1.05, Si 2.2} ([sci] `[recalled]`; R10).
 
 **Structure, not tunable (guardrail 6):** `GRID 64`, `TICK 20 Hz`, `CAP 1024`. Render constants (κ 0.5 look-snap, discovery thresholds) live in the renderer and can't touch the sim.
