@@ -114,7 +114,7 @@ export function makeStubVisualInputs(): VisualInputs {
       solvent: { name: 'Water', freezeC: 0, criticalC: 374, solidSinks: false, vapourPressure: [[0, 0.006], [100, 1.013]], sources: [] },
       composition: { c: 0.8, si: 0.0, o: 0.2 },
     },
-    stats: { temperature: 15, pressure: 1, oxygen: 21, nitrogen: 1, seaCover: 0.7, seaLevel: 0 },
+    stats: { temperature: 15, pressure: 1, oxygen: 21, nitrogen: 1, seaCover: 70, seaLevel: 0 },
     seaLevel: 0,
     frozen: false,
     heatBand: 0.5,
