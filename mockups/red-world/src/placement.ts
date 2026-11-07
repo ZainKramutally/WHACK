@@ -39,7 +39,7 @@ export function poissonDisk(rng: () => number, rect: Rect, minDist: number, acce
   return pts.filter(([x, z]) => rng() < accept(x, z));
 }
 
-type Spec = { species: SpeciesId; rect: Rect; minDist: number; h: [number, number]; mask: (x: number, z: number, d: number) => number; variants: number };
+type Spec = { species: SpeciesId; rect: Rect; minDist: number; h: [number, number]; absScale?: boolean; mask: (x: number, z: number, d: number) => number; variants: number };
 
 const angOf = (x: number, z: number) => Math.atan2(-x, -z);
 const HERO_ANG = angOf(HERO.x, HERO.z), EXP_ANG = angOf(EXPLORER.x, EXPLORER.z);
@@ -57,7 +57,7 @@ function clear(x: number, z: number, tall: boolean, pad: number): boolean {
 }
 
 const SPECS: Spec[] = [
-  { species: 'groundCover', rect: { x0: -90, x1: 90, z0: -170, z1: 6 }, minDist: 2.1, h: [0.7, 2.4], variants: 3,
+  { species: 'groundCover', rect: { x0: -90, x1: 90, z0: -170, z1: 6 }, minDist: 2.1, h: [0.8, 1.7], absScale: true, variants: 3,
     mask: (x, z, d) => (1 - smoothstep(25, 170, d)) * (0.55 + 0.45 * smoothstep(-0.2, 0.3, fbm(x / 18, z / 18, 2, 5))) },
   { species: 'lanternPods', rect: { x0: -320, x1: 320, z0: -520, z1: -12 }, minDist: 45, h: [7, 18], variants: 3,
     mask: (x, z) => 0.6 * smoothstep(0.2, 0.45, fbm(x / 90, z / 90, 2, 8)) },
@@ -85,14 +85,14 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   { species: 'coilSpire', variant: 1, x: 150, z: -300, h: 60, yaw: 1.7 },
   { species: 'coilSpire', variant: 0, x: 168, z: -480, h: 92, yaw: 0.3 },
   // foreground framing: weeper arching over the top-left corner, pods + fans on the bottom corners
-  { species: 'weeper', variant: 2, x: -19, z: -24, h: 34, yaw: -0.25, tilt: [0, -0.06] },
+  { species: 'weeper', variant: 2, x: -26, z: -16, h: 30, yaw: -0.75, tilt: [0, -0.04] },
   { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
   { species: 'lanternPods', variant: 1, x: 10.5, z: -14, h: 7, yaw: 2.2 },
   { species: 'ribFan', variant: 1, x: 15, z: -21, h: 10, yaw: -0.4 },
   { species: 'ribFan', variant: 0, x: -24, z: -52, h: 13, yaw: 0.9 },
 ];
 
-export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: number) => number): PlantInstance[] {
+export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: number) => number, variantsOf?: (s: SpeciesId) => number): PlantInstance[] {
   const rng = mulberry32(seed);
   const out: PlantInstance[] = [];
   for (const p of HAND) out.push({ species: p.species, variant: p.variant, position: [p.x, 0, p.z], yaw: p.yaw, scale: p.h / heightOf(p.species, p.variant), tilt: p.tilt });
@@ -103,9 +103,9 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
     const pts = poissonDisk(rng, s.rect, s.minDist, (x, z) => (clear(x, z, tall, pad) ? s.mask(x, z, Math.hypot(x, z)) : 0));
     for (const [x, z] of pts) {
       if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
-      const variant = Math.floor(rng() * s.variants);
+      const variant = Math.floor(rng() * (variantsOf?.(s.species) ?? s.variants));
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
-      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
+      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }
   }
   return out;

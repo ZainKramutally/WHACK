@@ -51,7 +51,7 @@ scene.add(buildLandforms());
 const lib = buildFloraLibrary(SEED);
 const avgH = new Map<string, number>();
 for (const a of lib.archetypes) avgH.set(`${a.species}:${a.variant}`, a.height);
-const plants = placePlants(SEED, (s, v) => avgH.get(`${s}:${v}`) ?? lib.bySpecies(s)[0]?.height ?? 1);
+const plants = placePlants(SEED, (s, v) => avgH.get(`${s}:${v}`) ?? lib.bySpecies(s)[0]?.height ?? 1, (s) => Math.max(1, lib.bySpecies(s).length));
 const known = new Set(lib.archetypes.map((a) => `${a.species}:${a.variant}`));
 scene.add(buildInstances(lib, plants.filter((p) => known.has(`${p.species}:${p.variant}`))));
 scene.add(buildExplorer(EXPLORER.x, EXPLORER.z, 2.6));
