@@ -73,7 +73,10 @@ export interface FaunaPlan {
   glow: number;             // expressed glow 0..1 (glow gene × darkness)
   glowSpots: number;        // number of cyan patches
   pattern: Pattern;
-  back: PaletteKey; belly: PaletteKey; mark: PaletteKey; plate: PaletteKey; limbHi: PaletteKey; limbLo: PaletteKey;
+  back: PaletteKey; belly: PaletteKey; mark: PaletteKey; plate: PaletteKey; limbHi: PaletteKey; limbLo: PaletteKey; // all = body (bell: carrier parts maroon)
+  body: PaletteKey;         // the one full-body colour
+  accent: PaletteKey;       // the one accent colour
+  accentOn: 'horns' | 'glow' | 'plates' | 'dorsal' | 'eyes'; // the single feature that carries it
   // motion character
   tick: boolean;            // stiff, stepped heading/look updates (silicon)
   undulate: number;         // lateral wave amplitude share (carbon follow-through)
@@ -226,10 +229,15 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
 
   // --- skin: value-inverted bands, dark under / pale back (ART_DIRECTION §1.4) -------------------------------
   const pattern: Pattern = g.segments > 0.6 ? 'bands' : g.plates > 0.5 ? 'patch' : 'spots';
-  // backs are always pale (bone/blush) so walkers separate in value from the red ground; marks carry the crimson
-  const back: PaletteKey = silicon ? rng.pick(['bone', 'bone', 'blush'] as const) : rng.pick(['blush', 'bone', 'blush'] as const);
-  const belly: PaletteKey = silicon ? 'ink' : rng.pick(['maroon', 'ink'] as const);
-  const mark: PaletteKey = 'crimson';
+  // ONE body colour + at most ONE accent (owner feedback 2026-11-07): shading does the form work, not painted bands.
+  // Body: floaters blush (pale against the ground, soft against the sky); armoured bodies maroon; light-makers ink
+  // (their glow reads on dark); the rest bone (silicon) or blush (carbon). Accent = the dominant display trait.
+  const body: PaletteKey = mode === 'hover' ? 'blush' : g.plates > 0.5 ? 'maroon' : glow > 0.3 ? 'ink' : silicon ? 'bone' : 'blush';
+  const dark = body === 'maroon' || body === 'ink';
+  const accentOn: FaunaPlan['accentOn'] = g.horns > 0.4 && hornCount > 0 ? 'horns' : glow > 0.3 ? 'glow' : plates.length ? 'plates'
+    : dorsalCount > 0 ? 'dorsal' : 'eyes';
+  const accent: PaletteKey = accentOn === 'glow' ? 'glow' : dark ? 'bone' : 'ink';
+  const back = body, belly = body, mark = body;
 
   const out: FaunaPlan = {
     seed, chemistry: silicon ? 'silicon' : 'carbon', comp: { ...comp }, mode,
@@ -241,7 +249,7 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
     eyeKind, eyeCount, eyeRadius, headWidth, dorsal, dorsalCount, dorsalHeight,
     tendrils, tendrilLen: scale * (0.25 + 0.25 * g.buoy), arms, armLen: scale * (0.35 + 0.4 * g.limbLen),
     glow, glowSpots: Math.round(glow * (3 + 1.5 * segments)), pattern,
-    back, belly, mark, plate: silicon ? 'bone' : 'blush', limbHi: 'maroon', limbLo: 'ink',
+    back, belly, mark, plate: body, limbHi: body, limbLo: body, body, accent, accentOn,
     tick: comp.si > 0.6, undulate: mode === 'crawl' ? 0.12 + 0.1 * comp.c : 0.03 * comp.c, breathHz: 0.5 / Math.max(0.5, scale) ** 0.25,
     social: Math.max(1, Math.round(1 + 7 * sstep(0.5, 1, g.sociality) * (1 - g.size))),
     form: 'body', age: grow, bellR: 0, bodyLen: 0, gripArms: 0,
@@ -262,6 +270,8 @@ export function develop(genes: BodyGenes, comp: Composition, seed: number, cond:
     eyeRadius: bodyLen * 0.12 * Math.sqrt(eyeArea) * grow ** -0.35,
     tendrils: 3 + Math.round(3 * g.buoy), tendrilLen: scale * (0.8 + 0.45 * grow),
     plates: [], dorsalCount: 0, glowSpots: 0, hornCount: 0,
-    back: 'blush', mark: 'crimson', belly: 'maroon', limbHi: 'maroon', limbLo: 'ink',
+    // bell: blush gas bell; the clinging body, arms and tendrils are maroon; accent = cyan points if it glows, else the rim
+    back: 'blush', mark: 'blush', belly: 'maroon', limbHi: 'maroon', limbLo: 'maroon', body: 'blush',
+    accentOn: glow > 0.3 ? 'glow' : 'eyes', accent: glow > 0.3 ? 'glow' : 'bone',
   };
 }

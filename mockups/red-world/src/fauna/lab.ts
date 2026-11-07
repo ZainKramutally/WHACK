@@ -14,12 +14,14 @@ import { stadium, type Path } from './path';
 import { buildHerd, type Individual } from './render';
 import { spineAt } from './rig';
 import { createLabCam } from './labcam';
+import { LOFT } from './loft';
 
 const q = new URLSearchParams(location.search);
 const view = q.get('view') ?? 'lineup';
 const pick = Number(q.get('i') ?? 0);
 const seed = Number(q.get('seed') ?? 1);
 const fixedT = q.has('t') ? Number(q.get('t')) : null;
+LOFT.facet = q.get('facet') === '1'; // A/B: the old faceted silicon look
 
 const plans = VARIANTS.map((v) => develop(v.genes, v.comp, seed, undefined, v.age ?? 1));
 

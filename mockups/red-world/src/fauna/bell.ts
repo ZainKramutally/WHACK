@@ -130,7 +130,7 @@ export function poseBell(plan: FaunaPlan, t: number, path: Path, inst: Instance,
       const fan = scl(spread, sl * 0.7 * (1 - kk * 0.6));
       const q = add(add(add(add(p, scl(down, sl * 0.9)), lag), latW), fan);
       const wide = norm(cross(sub(q, p), fwd));
-      ribbon(sink, p, q, Math.max(0.01, br * 0.55 * (1 - 0.4 * kk)), wide, k < 2 ? plan.belly : k < 4 ? 'crimson' : 'blush', k < 2 ? 'crimson' : k < 4 ? 'blush' : 'bone');
+      ribbon(sink, p, q, Math.max(0.01, br * 0.55 * (1 - 0.4 * kk)), wide, plan.belly, plan.belly);
       // fronds: feathery fins along the last links, fluttering
       if (k >= M - 3) {
         const d = norm(sub(q, p));
@@ -138,10 +138,10 @@ export function poseBell(plan: FaunaPlan, t: number, path: Path, inst: Instance,
           const flut = 0.5 * Math.sin(4.2 * tt + k * 1.3 + i + sd);
           const out = norm(add(scl(wide, sd), scl(fwd, 0.3 * flut)));
           const fl = sl * (1.3 - 0.2 * (M - k));
-          sink.part('frill', p, scl(d, sl * 1.15), scl(out, fl * 0.8), scl(cross(d, out), fl * 0.8), 'bone', 'blush', 0);
+          sink.part('frill', p, scl(d, sl * 1.15), scl(out, fl * 0.8), scl(cross(d, out), fl * 0.8), plan.back, plan.back, 0);
         }
       }
-      if (k === M - 3 && plan.glow > 0.3 && i % 2 === 0) {
+      if (k === M - 3 && plan.accentOn === 'glow' && i % 2 === 0) {
         const gr = Math.max(0.008, 0.004 * H);
         sink.part('eyeDot', q, [gr, 0, 0], [0, gr, 0], [0, 0, gr], 'glow', 'glow', 1);
       }

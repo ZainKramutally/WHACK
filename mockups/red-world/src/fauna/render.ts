@@ -8,7 +8,7 @@ import { worldMaterial, U, PIXEL } from '../material';
 import { tube } from '../geo';
 import type { PaletteKey } from '../contracts';
 import type { FaunaPlan } from './develop';
-import { loftTemplate, writeLoft, type LoftTemplate } from './loft';
+import { LOFT, loftTemplate, writeLoft, type LoftTemplate } from './loft';
 import { PART_TYPES, pose, type Instance, type PartType, type Sink } from './rig';
 import type { Path } from './path';
 
@@ -74,21 +74,26 @@ const thigh = (segs: number, flat: boolean) => banded(lathe(flat
   ? [[0, 0], [0.8, 0], [1, 0.16], [0.88, 0.5], [0.5, 0.94], [0, 1]]
   : [[0, -0.1], [0.8, -0.06], [1.0, 0.12], [0.96, 0.35], [0.72, 0.68], [0.48, 0.92], [0.4, 1.03], [0, 1.08]], segs), (c) => (c.y > 0.62 ? 1 : 0), flat);
 
-export function partGeometries(): Record<PartType, any> {
+export function partGeometries(facet = LOFT.facet): Record<PartType, any> {
   const eyeRing = banded(new THREE.IcosahedronGeometry(1, 3), (c) => {
     const n = c.clone().normalize();
     const glint = n.distanceTo(new THREE.Vector3(0.32, 0.42, 0.85).normalize()) < 0.2;
     return glint || (n.z > 0.55 && n.z < 0.8) ? 1 : 0;
   }, false);
-  const eyeDot = banded(new THREE.IcosahedronGeometry(1, 1), (c) => (c.clone().normalize().distanceTo(new THREE.Vector3(0.35, 0.5, 0.79)) < 0.42 ? 1 : 0), false);
+  const eyeDot = banded(new THREE.IcosahedronGeometry(1, facet ? 1 : 2), (c) => (c.clone().normalize().distanceTo(new THREE.Vector3(0.35, 0.5, 0.79)) < 0.42 ? 1 : 0), false);
   return {
-    rodSi: banded(lathe([[0, 0], [0.9, 0], [1, 0.08], [0.82, 0.55], [0.55, 1], [0, 1]], 6), (c) => (c.y > 0.55 ? 1 : 0), true), // crystal taper
+    // silicon parts: straight, tapering, flat-plated shapes (the chemistry reads in silhouette), smooth unless ?facet=1
+    rodSi: facet ? banded(lathe([[0, 0], [0.9, 0], [1, 0.08], [0.82, 0.55], [0.55, 1], [0, 1]], 6), (c) => (c.y > 0.55 ? 1 : 0), true)
+      : banded(lathe([[0, -0.07], [0.72, -0.05], [0.96, 0.05], [0.84, 0.5], [0.58, 0.96], [0.32, 1.03], [0, 1.06]], 10), (c) => (c.y > 0.55 ? 1 : 0), false),
     rodC: banded(lathe([[0, -0.12], [0.7, -0.07], [1, 0.03], [0.8, 1.0], [0.55, 1.07], [0, 1.1]], 10), (c) => (c.y > 0.5 ? 1 : 0), false),
-    plateSi: banded(lathe([[0, -0.5], [1, -0.5], [1, 0.1], [0.78, 0.5], [0, 0.5]], 6), (c) => (c.y > 0.25 ? 0 : 1), true),
+    plateSi: facet ? banded(lathe([[0, -0.5], [1, -0.5], [1, 0.1], [0.78, 0.5], [0, 0.5]], 6), (c) => (c.y > 0.25 ? 0 : 1), true)
+      : banded(lathe([[0, -0.5], [0.88, -0.5], [1, -0.3], [1, 0.05], [0.86, 0.38], [0.5, 0.5], [0, 0.52]], 12), (c) => (c.y > 0.25 ? 0 : 1), false),
     plateC: banded(lathe([[0, -0.4], [1, -0.4], [1, -0.1], [0.85, 0.25], [0.5, 0.45], [0, 0.5]], 12), (c) => (c.y > 0 ? 0 : 1), false),
-    hornSi: banded(lathe([[0, 0], [1, 0], [0.62, 0.5], [0, 1]], 6), (c) => (c.y > 0.5 ? 1 : 0), true),
+    hornSi: facet ? banded(lathe([[0, 0], [1, 0], [0.62, 0.5], [0, 1]], 6), (c) => (c.y > 0.5 ? 1 : 0), true)
+      : banded(lathe([[0, -0.06], [0.8, -0.04], [1, 0.04], [0.62, 0.5], [0.22, 0.9], [0, 1]], 10), (c) => (c.y > 0.5 ? 1 : 0), false),
     hornC: curvedHorn(),
-    thighSi: thigh(6, true), thighC: thigh(10, false), skullSi: skull(6, true), skullC: skull(12, false),
+    thighSi: facet ? thigh(6, true) : thigh(10, false), thighC: thigh(10, false),
+    skullSi: facet ? skull(6, true) : skull(12, false), skullC: skull(12, false),
     frill: frillGeometry(),
     eyeRing, eyeDot,
   };

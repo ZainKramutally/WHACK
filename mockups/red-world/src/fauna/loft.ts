@@ -6,7 +6,6 @@ import { LINEAR, add, cross, norm, scl, sub, type V3 } from '../flora/mesh';
 import type { PaletteKey } from '../contracts';
 import type { FaunaPlan } from './develop';
 import { hash01, spineAt, type Spine } from './rig';
-import { KEY_LIGHT } from './bell';
 
 interface Ring { x: number; rj: number; rf: number } // fractional joint index, joint radius to use (−1 = interpolate), factor
 
@@ -25,7 +24,7 @@ export interface LoftTemplate {
 function ringsFor(plan: FaunaPlan): Ring[] {
   const n = plan.segments;
   const R: Ring[] = [];
-  if (plan.chemistry === 'silicon' && plan.mode === 'sessile') {
+  if (LOFT.facet && plan.chemistry === 'silicon' && plan.mode === 'sessile') {
     R.push({ x: 0.02, rj: 0, rf: 0 });
     for (let i = 0; i < n; i++) {
       const w = i % 2 ? 0.94 : 1; // alternating repeat units
@@ -38,7 +37,7 @@ function ringsFor(plan: FaunaPlan): Ring[] {
     const ch = Math.min(1.2, (plan.radii[0] * 1.05) / segL), ct = Math.min(1, (plan.radii[n] * 1.2) / segL);
     const dome: [number, number][] = [[1, 0.02], [0.86, 0.5], [0.6, 0.8], [0.3, 0.96]];
     if (plan.mode !== 'sessile') for (const [f, rf] of dome) R.push({ x: -ch * f, rj: 0, rf });
-    const per = plan.form === 'bell' ? 4 : 3;
+    const per = plan.form === 'bell' ? 4 : LOFT.facet ? 3 : 4;
     for (let k = 0; k <= per * n; k++) R.push({ x: k / per, rj: -1, rf: 1 });
     for (const [f, rf] of [...dome].reverse()) R.push({ x: n + ct * f, rj: n, rf: plan.mode === 'sessile' ? 0.98 - f * 0.4 : rf });
   }
@@ -46,60 +45,27 @@ function ringsFor(plan: FaunaPlan): Ring[] {
 }
 
 /** Skin colour of ring band i, side j (d = sin θ: +1 dorsal, −1 ventral). */
-function skin(plan: FaunaPlan, x: number, j: number, d: number, th = 0): { key: PaletteKey; glow: number } {
-  if (plan.form === 'bell') {
-    // gas bell: pale crown → blush → crimson → maroon rim in stepped bands, mottled with spots that grow denser lower
-    const u = x / plan.segments;
-    // mottling: a few large organic blotches (3–5 on juveniles, a few more and smaller on adolescents), each with a
-    // ragged edge and a freckle halo, instead of per-cell noise that reads as a checkerboard at a distance
-    const nBl = Math.round(6 + 6 * plan.age + hash01(plan.seed, 41) * 1.4); // all round the bell: 3–5 face the viewer
-    const scaleBl = 1.2 - 0.3 * plan.age;
-    let inBlot = false, freckle = false;
-    for (let b = 0; b < nBl; b++) {
-      const uc = 0.25 + 0.55 * hash01(plan.seed + b, 43), tc = 2 * Math.PI * ((b + 0.6 * hash01(plan.seed + b, 47)) / nBl);
-      const ru = (0.07 + 0.06 * hash01(plan.seed + b, 53)) * scaleBl, rt = ru * (2.2 + hash01(plan.seed + b, 59));
-      let dt = th - tc; dt = Math.atan2(Math.sin(dt), Math.cos(dt));
-      const d = Math.hypot((u - uc) / ru, dt / rt);
-      const ragged = 0.85 + 0.3 * hash01(plan.seed + Math.floor(x * 4) * 13 + b, j);
-      if (d < ragged) inBlot = true;
-      else if (d < 1.5 && hash01(plan.seed + Math.floor(x * 4) * 7, j + b * 97) < 0.18) freckle = true;
-    }
-    const cell = inBlot || freckle ? 0 : 1;
-    // soft specular: a bone patch where the bell faces the key light (bell vertex dir = (sin θ, ·, cos θ))
-    const kl = Math.hypot(KEY_LIGHT[0], KEY_LIGHT[2]);
-    const face = (Math.sin(th) * KEY_LIGHT[0] + Math.cos(th) * KEY_LIGHT[2]) / kl;
-    if (face > 0.9 + ((u - 0.66) / 0.12) ** 2 * 0.1 && u > 0.5 && u < 0.8) return { key: 'bone', glow: 0 };
-    const band = u > 0.8 ? 4 : u > 0.56 ? 3 : u > 0.3 ? 2 : u > 0.12 ? 1 : 0;
-    const baseK: PaletteKey[] = ['maroon', 'crimson', 'blush', 'blush', 'bone'];
-    const spotK: PaletteKey[] = ['crimson', 'maroon', 'crimson', 'crimson', 'blush'];
-    return { key: cell === 0 && band > 0 ? spotK[band] : baseK[band], glow: 0 };
-  }
-  const n = plan.segments;
-  const seg = Math.floor(Math.max(0, x));
-  const h = plan.seed;
-  if (plan.mode !== 'sessile' && x < 0.35 && d < -0.1 && plan.gape > 0.25) return { key: 'ink', glow: 0 }; // mouth line
-  if (d < -0.45) return { key: plan.belly, glow: 0 };
-  if (d < -0.05) {
-    // flank: crimson (or maroon when the back is crimson)
-    return { key: plan.back === 'crimson' || plan.chemistry === 'silicon' ? 'maroon' : 'crimson', glow: 0 };
-  }
-  let mark = false;
-  if (plan.pattern === 'bands') mark = seg % 2 === 1;
-  else if (plan.pattern === 'spots') mark = hash01(h + Math.floor(x * 2.5) * 17, j) < 0.14;
-  else mark = hash01(h + Math.floor(x / 1.5) * 13, Math.floor(j / 3)) < 0.22; // sparse marks: the back stays pale
-  return { key: mark ? plan.mark : plan.back, glow: 0 };
+/** Skin colour: one full-body colour (owner feedback): shading does the form work. */
+function skin(plan: FaunaPlan): { key: PaletteKey; glow: number } {
+  return { key: plan.body, glow: 0 };
 }
+
+export { LOFT } from './opts';
+import { LOFT } from './opts';
 
 export function loftTemplate(plan: FaunaPlan): LoftTemplate {
   const rings = ringsFor(plan);
-  const S = plan.sides, flat = plan.flat, perFace = flat || plan.form === 'bell';
+  // smooth by default: more sides, smooth normals for every chemistry; the silicon/carbon difference lives in
+  // silhouette and motion. ?facet=1 restores the grammar's hex facets.
+  const S = LOFT.facet ? plan.sides : Math.max(plan.sides, plan.form === 'bell' ? 40 : 16);
+  const flat = LOFT.facet && plan.flat, perFace = flat;
   const theta = Array.from({ length: S }, (_, j) => (S === 6 ? Math.PI / 2 + ((j + 0.5) * 2 * Math.PI) / 6 : (j * 2 * Math.PI) / S));
   const nr = rings.length;
   const col: number[] = [], glw: number[] = [];
   const push = (k: PaletteKey, g: number) => { const c = LINEAR[k]; col.push(c[0], c[1], c[2]); glw.push(g); };
   let index: number[] | null = null;
   if (!perFace) {
-    for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) { const s = skin(plan, rings[i].x, j, Math.sin(theta[j])); push(s.key, s.glow); }
+    for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) { const s = skin(plan); push(s.key, s.glow); }
     index = [];
     for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
       const a = i * S + j, b = i * S + ((j + 1) % S), c = a + S, d = b + S;
@@ -108,7 +74,8 @@ export function loftTemplate(plan: FaunaPlan): LoftTemplate {
   } else {
     for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
       const mid = (theta[j] + theta[(j + 1) % S] + (j === S - 1 ? 2 * Math.PI : 0)) / 2;
-      const s = skin(plan, (rings[i].x + rings[i + 1].x) / 2, j, Math.sin(mid), mid);
+      void mid;
+      const s = skin(plan);
       for (let v = 0; v < 6; v++) push(s.key, s.glow);
     }
   }
@@ -117,7 +84,7 @@ export function loftTemplate(plan: FaunaPlan): LoftTemplate {
 
 /** Place the template on a posed spine: writes positions and normals at vertex offset `off`. */
 export function writeLoft(tp: LoftTemplate, plan: FaunaPlan, sp: Spine, pos: Float32Array, nor: Float32Array, off: number) {
-  const smooth = plan.chemistry === 'carbon';
+  const smooth = plan.chemistry === 'carbon' || !LOFT.facet;
   const S = tp.sides, nr = tp.rings.length, n = plan.segments;
   const G: V3[] = new Array(nr * S);
   for (let i = 0; i < nr; i++) {

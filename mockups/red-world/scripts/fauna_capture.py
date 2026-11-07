@@ -81,6 +81,8 @@ def main():
             if not r: sys.exit(1)
             pg, info = r
             pg.close()
+            r = shot("lineup-smooth", "view=lineup&t=9&style=smooth")
+            if r: r[0].close()
             names = [v["name"] for v in info["variants"]]
             idx = [int(i) for i in a.only.split(",")] if a.only else range(len(names))
             for i in idx:

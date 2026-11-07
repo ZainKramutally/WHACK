@@ -8,6 +8,7 @@ import type { FaunaPlan } from './develop';
 import { footAt, legPhase, plantDistance, twoBoneIK } from './ik';
 import type { Path } from './path';
 import { poseBell } from './bell';
+import { LOFT } from './opts';
 
 export type PartType = 'rodSi' | 'rodC' | 'plateSi' | 'plateC' | 'hornSi' | 'hornC' | 'frill' | 'eyeRing' | 'eyeDot'
   | 'thighSi' | 'thighC' | 'skullSi' | 'skullC';
@@ -204,7 +205,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
     r.push(rr);
   }
   const spine: Spine = { P, T, U, R, r };
-  const at = (u: number) => spineAt(spine, u * n, smooth);
+  const at = (u: number) => spineAt(spine, u * n, smooth || !LOFT.facet); // parts sit on the same curve as the loft
   const humpAt = (u: number) => { const x = Math.min(n, Math.max(0, u * n)), i = Math.min(n - 1, Math.floor(x)); return 1 + plan.hump[i] + (plan.hump[i + 1] - plan.hump[i]) * (x - i); };
 
   // ---- legs ------------------------------------------------------------------------------------------------
@@ -238,7 +239,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
           for (let i = 0; i < n; i++) {
             const d = norm(add(rotate(dir, UP, (i - (n - 1) / 2) * 0.5), [0, -0.25, 0]));
             const o: V3 = [f[0], rr * 0.22, f[2]];
-            bone(sink, 'hornSi', o, add(o, scl(d, len)), rr * 0.24, UP, plan.limbLo, 'bone');
+            bone(sink, 'hornSi', o, add(o, scl(d, len)), rr * 0.24, UP, plan.body, plan.body);
           }
         };
         const pad = (f: V3, r: number) => sink.part(rod ? 'plateSi' : 'plateC', [f[0], rr * 0.12, f[2]], scl(b0.T, r), [0, rr * 0.24, 0], scl(b0.R, r), plan.limbLo, plan.limbLo, 0);
@@ -300,6 +301,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
 
   // ---- armour --------------------------------------------------------------------------------------------------
   const pType: PartType = smooth ? 'plateC' : 'plateSi';
+  const plateC = plan.accentOn === 'plates' ? plan.accent : plan.body;
   for (const pl of plan.plates) {
     const f = at(pl.u);
     if (isSessile) {
@@ -308,17 +310,17 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
         const th = (2 * Math.PI * k2) / plan.radialOrder + pl.u * 4;
         const out = norm(add(scl(f.U, Math.cos(th)), scl(f.R, Math.sin(th))));
         const o = add(f.p, scl(out, f.r * 0.92));
-        sink.part(pType, o, scl(f.T, seg * 0.5 * pl.size), scl(out, f.r * 0.14), scl(cross(f.T, out), f.r * 0.55 * pl.size), plan.plate, plan.belly, 0);
+        sink.part(pType, o, scl(f.T, seg * 0.5 * pl.size), scl(out, f.r * 0.14), scl(cross(f.T, out), f.r * 0.55 * pl.size), plateC, plateC, 0);
       }
       continue;
     }
     const y = norm(sub(f.U, scl(f.T, 0.35))); // shingled: each plate's back edge lifts over the next
     const o = add(f.p, scl(f.U, f.r * plan.aspect * 0.8 * humpAt(pl.u)));
-    sink.part(pType, o, scl(f.T, seg * 0.7 * pl.size), scl(y, f.r * 0.1), scl(f.R, f.r * 0.62 * pl.size), plan.plate, plan.belly, 0);
+    sink.part(pType, o, scl(f.T, seg * 0.7 * pl.size), scl(y, f.r * 0.1), scl(f.R, f.r * 0.62 * pl.size), plateC, plateC, 0);
   }
 
   // ---- glow: small cyan photophores in lines along the flanks (the accent stays small) -----------------------------
-  if (plan.glowSpots > 0) {
+  if (plan.glowSpots > 0 && plan.accentOn === 'glow') {
     const nS = plan.glowSpots;
     for (let k2 = 0; k2 < nS; k2++) {
       const side = k2 % 2 ? 1 : -1;
@@ -361,7 +363,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
     } else if (plan.eyeKind === 'glossy') {
       eye(sculpt ? hp(0.16, 0.62, 0) : add(add(SC, scl(F, hr * 0.5)), scl(fr.U, hr * 0.42)), add(scl(F, 0.8), scl(fr.U, 0.45)), er, 'eyeRing', false, true);
     } else if (plan.eyeKind === 'dots' || plan.eyeKind === 'glowDots') {
-      const g = plan.eyeKind === 'glowDots';
+      const g = plan.eyeKind === 'glowDots' && plan.accentOn === 'glow';
       const nE = plan.eyeCount;
       const clusters = nE === 6 ? [-1, 1] : [0];
       const per = nE / clusters.length;
@@ -380,20 +382,22 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
     }
     if (plan.hornCount > 0) {
       const hl = plan.hornLen;
+      const hornC = plan.accentOn === 'horns' ? plan.accent : plan.body;
       if (plan.hornCurved) for (const e of [-1, 1]) {
         const o = hp(-0.1, 0.72, e * 0.5);
         const y = norm(add(add(scl(fr.U, 0.75), scl(fr.R, e * 0.55)), scl(F, 0.25)));
         const z = norm(sub(scl(F, -1), scl(y, dot(scl(F, -1), y))));
-        sink.part('hornC', o, scl(cross(y, z), hl * 0.16), scl(y, hl), scl(z, hl * 0.16), plan.belly, 'bone', 0);
+        sink.part('hornC', o, scl(cross(y, z), hl * 0.16), scl(y, hl), scl(z, hl * 0.16), hornC, hornC, 0);
       } else {
         const dirs: [V3, V3][] = [[hp(0.36, 0.6, 0), add(scl(F, 0.6), scl(fr.U, 0.8))]];
         if (plan.hornCount === 3) for (const e of [-1, 1]) dirs.push([hp(0.0, 0.8, e * 0.45), add(add(scl(F, 0.45), scl(fr.U, 0.8)), scl(fr.R, e * 0.35))]);
-        dirs.forEach(([o, d], i) => bone(sink, 'hornSi', o, add(o, scl(norm(d), i === 0 ? hl : hl * 0.6)), hl * (i === 0 ? 0.17 : 0.13), F, plan.belly, 'bone'));
+        dirs.forEach(([o, d], i) => bone(sink, 'hornSi', o, add(o, scl(norm(d), i === 0 ? hl : hl * 0.6)), hl * (i === 0 ? 0.17 : 0.13), F, hornC, hornC));
       }
     }
   }
 
   // ---- dorsal row: frills (carbon) wave in phase along the spine; rods (silicon) tick ------------------------------
+  const dorsalC = plan.accentOn === 'dorsal' ? plan.accent : plan.body;
   for (let k2 = 0; k2 < plan.dorsalCount; k2++) {
     const u = plan.headLen + ((k2 + 0.5) / plan.dorsalCount) * (0.92 - plan.headLen);
     const f = at(u);
@@ -402,12 +406,12 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
     if (plan.dorsal === 'frills') {
       const wav = 0.35 * Math.sin(2.2 * tt - u * 9);
       const y = norm(add(f.U, scl(f.R, wav)));
-      sink.part('frill', o, scl(f.T, -seg * 1.9), scl(y, hgt), scl(cross(f.T, y), hgt), plan.mark, plan.back, 0);
+      sink.part('frill', o, scl(f.T, -seg * 1.9), scl(y, hgt), scl(cross(f.T, y), hgt), dorsalC, dorsalC, 0);
     } else {
       let a = 0.35 + 0.15 * Math.sin(1.4 * tt - u * 5);
       a = snapA(a, 15);
       const d = norm(add(scl(f.U, Math.cos(a)), scl(f.T, -Math.sin(a))));
-      bone(sink, 'rodSi', o, add(o, scl(d, hgt)), f.r * 0.09, f.R, plan.belly, plan.mark);
+      bone(sink, 'rodSi', o, add(o, scl(d, hgt)), f.r * 0.09, f.R, dorsalC, dorsalC);
     }
   }
 
@@ -426,8 +430,8 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
         const swy = Math.sin(1.3 * tt - k2 * 0.55 + i * 1.7) * k2 * sl * 0.22;
         const lateral = side * f.r * 0.45 + swy;
         const nxt: V3 = [q.p[0] + rt[0] * lateral, y0 - k2 * sl * 0.75, q.p[2] + rt[2] * lateral];
-        const tip = k2 === M && i % 2 === 0 && plan.glow > 0.3;
-        bone(sink, 'rodC', prev, nxt, f.r * 0.028 * (1 - 0.6 * (k2 / M)), f.T, k2 < 3 ? plan.belly : plan.mark, tip ? 'glow' : plan.mark, tip ? 1 : 0);
+        const tip = k2 === M && i % 2 === 0 && plan.accentOn === 'glow';
+        bone(sink, 'rodC', prev, nxt, f.r * 0.028 * (1 - 0.6 * (k2 / M)), f.T, plan.body, tip ? 'glow' : plan.body, tip ? 1 : 0);
         prev = nxt;
       }
     }
@@ -439,7 +443,7 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
       sink.part('frill', o, scl(f.T, -L * 0.14), scl(out, L * 0.17), scl(cross(f.T, out), L * 0.17), plan.belly, plan.back, 0);
       const ft = at(0.98);
       const outT = norm(add(scl(ft.R, side), scl(ft.U, 0.25 * flap)));
-      sink.part('frill', ft.p, scl(ft.T, -L * 0.12), scl(outT, L * 0.13), scl(cross(ft.T, outT), L * 0.13), plan.belly, plan.mark, 0);
+      sink.part('frill', ft.p, scl(ft.T, -L * 0.12), scl(outT, L * 0.13), scl(cross(ft.T, outT), L * 0.13), plan.body, plan.body, 0);
     }
   }
 
@@ -460,11 +464,11 @@ export function pose(plan: FaunaPlan, t: number, path: Path, inst: Instance, sin
         const e = tick ? snapA(elev, 15) : elev;
         const d = rotate(outD, axis, -e);
         const q = add(p, scl(d, segA * (inner ? 0.8 : 1)));
-        bone(sink, 'rodSi', p, q, rTop * 0.13 * (1 - 0.25 * k2), UP, k2 === 0 ? plan.belly : plan.back, k2 === 2 ? plan.mark : plan.back);
+        bone(sink, 'rodSi', p, q, rTop * 0.13 * (1 - 0.25 * k2), UP, plan.body, plan.body);
         p = q;
         elev -= (12 + 10 * sweep) * D2R;
       }
-      if (plan.glow > 0.3 && !inner) sink.part('eyeDot', p, [rTop * 0.07, 0, 0], [0, rTop * 0.07, 0], [0, 0, rTop * 0.07], 'glow', 'glow', 1);
+      if (plan.accentOn === 'glow' && !inner) sink.part('eyeDot', p, [rTop * 0.07, 0, 0], [0, rTop * 0.07, 0], [0, 0, rTop * 0.07], 'glow', 'glow', 1);
     }
   }
 
