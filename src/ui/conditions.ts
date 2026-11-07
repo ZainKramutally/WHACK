@@ -253,6 +253,10 @@ export function mountConditions(
     selected = (selected + delta + controls.length) % controls.length;
     controls.forEach((c, i) => views.get(c.id)?.root.classList.toggle('wu-selected', i === selected));
   }
+  function setSelected(index: number) {
+    selected = Math.max(0, Math.min(controls.length - 1, index));
+    selectSlider(0);
+  }
   function nudgeSelected(dir: number) {
     const v = views.get(controls[selected].id);
     if (v) request(v, fracToValue(valueToFrac(v.value, v.def) + dir * STEP, v.def));
@@ -263,6 +267,7 @@ export function mountConditions(
     el: drawer,
     update,
     selectSlider,
+    setSelected,
     nudgeSelected,
     dispose() { offs.forEach((f) => f()); drawer.remove(); },
   };

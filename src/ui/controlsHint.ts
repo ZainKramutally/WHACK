@@ -17,7 +17,12 @@ export interface HintCallbacks {
   onDpad(dx: number, dy: number): void;
 }
 
-export function mountControlsHint(root: HTMLElement, cb: HintCallbacks) {
+export interface HintOptions {
+  /** The host owns gamepad input (player/input.ts): skip our own polling and drive the mode via setMode(). */
+  externalInput?: boolean;
+}
+
+export function mountControlsHint(root: HTMLElement, cb: HintCallbacks, opts: HintOptions = {}) {
   const hint = el('div', 'wu-hint-bar');
   const reticle = el('div', 'wu-reticle');
   reticle.hidden = true;
@@ -70,9 +75,10 @@ export function mountControlsHint(root: HTMLElement, cb: HintCallbacks) {
     }
     prev = b;
   }
-  raf = requestAnimationFrame(poll);
+  if (!opts.externalInput) raf = requestAnimationFrame(poll);
 
   return {
+    setMode,
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(timer);

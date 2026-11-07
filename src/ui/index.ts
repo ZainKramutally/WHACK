@@ -22,6 +22,11 @@ export interface WorldUIOptions {
   controls?: ControlDef[];
   /** The other world, for the "A carbon world" comparison column. Omit to show Earth only. */
   otherWorld?: WorldConfig;
+  /**
+   * The host owns keyboard/gamepad input (player/input.ts): the UI skips its own Tab/Esc handling and gamepad polling.
+   * Drive it through the returned toggleConditions / close / selectSlider / nudgeSlider / setInputKind instead.
+   */
+  externalInput?: boolean;
 }
 
 type Panel = 'conditions' | 'guide';
@@ -77,7 +82,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     if (e.key === 'Tab') { e.preventDefault(); toggle('conditions'); }
     else if (e.key === 'Escape') closeTop();
   };
-  window.addEventListener('keydown', onKey);
+  if (!opts.externalInput) window.addEventListener('keydown', onKey);
 
   const hint = mountControlsHint(host, {
     onY: () => toggle('conditions'),
@@ -87,7 +92,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
       if (dy) conditions.selectSlider(dy);
       if (dx) conditions.nudgeSelected(dx);
     },
-  });
+  }, { externalInput: opts.externalInput });
 
   const offSnap = listen(bus, 'sim:snapshot', (s) => {
     latest = s;
@@ -100,6 +105,22 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     /** Programmatic access for the host app (e.g. hide UI during the Generate transition). */
     captions,
     showCaption: captions.show,
+    toggleConditions: () => toggle('conditions'),
+    /** Esc / B: close the topmost card or panel. */
+    close: closeTop,
+    /** Gamepad D-pad: pick slider `index` (opens Conditions if closed). */
+    selectSlider(index: number) {
+      if (open !== 'conditions') show('conditions');
+      conditions.setSelected(index);
+    },
+    /** Gamepad D-pad: move slider `index` by -1 or +1 step (opens Conditions if closed). */
+    nudgeSlider(index: number, delta: -1 | 1) {
+      if (open !== 'conditions') show('conditions');
+      conditions.setSelected(index);
+      conditions.nudgeSelected(delta);
+    },
+    /** Last-used input device, for the controls hint and the gamepad reticle. */
+    setInputKind: hint.setMode,
     dispose() {
       offSnap();
       window.removeEventListener('keydown', onKey);
