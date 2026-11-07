@@ -124,9 +124,10 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
       // lit = max(NdotL_cel, luminance(vertexColor) * 0.8 * max(-N.y, 0)): thin pale bands glow through, dark ones stay shadowed
       const trans = dot(base, vec3(0.2126, 0.7152, 0.0722)).mul(0.8).mul(max(N.y.negate(), 0)).toVar();
       // the hero's lowest cap keeps a dark rim/underside so its silhouette still wins against the sky
-      const heroLow = float(1).sub(smoothstep(70, 95, positionWorld.xz.sub(vec2(HERO.x, HERO.z)).length()))
-        .mul(float(1).sub(smoothstep(HERO_BASE_Y + HERO.height * 0.66, HERO_BASE_Y + HERO.height * 0.72, positionWorld.y)));
-      trans.mulAssign(float(1).sub(heroLow.mul(0.8)));
+      // the hero keeps the darkest silhouette against the sky: translucency capped on all its caps (lowest cap darkest)
+      const heroNear = float(1).sub(smoothstep(70, 95, positionWorld.xz.sub(vec2(HERO.x, HERO.z)).length()));
+      const heroLow = float(1).sub(smoothstep(HERO_BASE_Y + HERO.height * 0.66, HERO_BASE_Y + HERO.height * 0.72, positionWorld.y));
+      trans.assign(mix(trans, trans.min(mix(0.22, 0.1, heroLow)), heroNear));
       shade.assign(shade.min(float(1).sub(trans)));
     }
     if (PIXEL) shade.assign(floor(shade.mul(2).add(0.5)).div(2));
@@ -151,8 +152,8 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
         // glow is pushed toward the focal area (hero neck/caps, pods around the explorer) and calmer elsewhere
         const pxz = positionWorld.xz;
         const focal = max(float(1).sub(smoothstep(60, 240, pxz.sub(vec2(HERO.x, HERO.z)).length())),
-          float(1).sub(smoothstep(12, 45, pxz.sub(vec2(EXPLORER.x, EXPLORER.z)).length())));
-        out.assign(mix(out, hdr.mul(mix(0.65, 1.5, focal)), glowW.mul(f.oneMinus())));
+          float(1).sub(smoothstep(14, 40, pxz.sub(vec2(EXPLORER.x, EXPLORER.z)).length())).mul(1.6));
+        out.assign(mix(out, hdr.mul(mix(0.65, 1.5, focal)), glowW.mul(f.oneMinus()).mul(mix(1, 1.6, focal.sub(1).clamp(0, 1).mul(1.6))).clamp(0, 1)));
       }
     }
     return vec4(out, 1);

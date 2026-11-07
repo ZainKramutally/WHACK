@@ -21,6 +21,8 @@ VIEWS = [  # name, camera xyz, target xyz (y is added to terrain-ish height by e
     ("fly-south", (100, 220, -900), (200, 0, 900)),
     ("fly-east", (-400, 200, -200), (1500, 0, -300)),
     ("hero-base", (60, 4, -330), (95, 80, -470)),
+    ("behind-start", (10, 5, -20), (-90, 2, 90)),
+    ("fly-high", (0, 420, 900), (0, 0, -600)),
 ]
 
 
@@ -43,7 +45,7 @@ def main():
                 pg.wait_for_timeout(700)
                 f = out / f"{name}.png"; pg.screenshot(path=str(f)); shots.append(f)
             b.close()
-            sheet = Image.new("RGB", (960 * 2, 540 * 4))
+            sheet = Image.new("RGB", (960 * 2, 540 * ((len(shots) + 1) // 2)))
             for i, f in enumerate(shots):
                 sheet.paste(Image.open(f).convert("RGB"), ((i % 2) * 960, (i // 2) * 540))
             sheet.save(out / "sheet.png")
