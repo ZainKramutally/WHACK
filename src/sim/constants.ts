@@ -59,6 +59,8 @@ export const CONSTANTS = deepFreeze({
   FOUNDER_CELLS: c(24, 'game'),
   /** Share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1. */
   EDGE_ZONE: c(0.1, 'game'),
+  /** Edge stress ramps as (1 − distance/EDGE_ZONE)^EDGE_POWER: negligible until the last few per cent of the band, then a cliff at the edge. */
+  EDGE_POWER: c(3, 'game'),
   /** population.ts: how far from its parent a child appears, as a share of the patch. */
   SPAWN_SPREAD: c(0.03, 'game'),
   /** population.ts: how far a consumer drifts per reference-time unit, as a share of the patch. */
