@@ -36,3 +36,4 @@
 - 18:02: scene r6 merged (bdee1e0): left fg pod cluster lightened. 84 tests, 60fps. Final ask: distant cap-top tint + bottom-right fold, then standby.
 - 18:11: scene r7 merged (20f1656): distance tint on pale flora (groves read as masses from air), left fg pods cropped. 84 tests, 60fps. rw-scene on standby. Leftover nits filed as GH issue.
 - 18:17: scene final pair merged (278b042): bottom-right terrain fold. 84 tests. rw-scene standby. #28 partially done.
+- 18:23: fauna v1 merged (62deb17): develop() from sim genes, 8 variants, IK gaits w/ no sliding, 10 draws, 98 tests, 60fps. Art verdict: reads as boxy furniture; sky whale from ref NOT done. Sent r2: sky whale first, then anatomy/heads/weight.
