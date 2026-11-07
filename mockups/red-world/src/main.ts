@@ -21,6 +21,7 @@ const params = new URLSearchParams(location.search);
 const FREE = params.has('free');
 const CAPTURE = location.hash.includes('capture');
 const HERO_LOCK = params.has('hero');
+const DRIFT_K = 0.4; // hero-shot drift amplitude (render critique: was 1)
 const SEED = Number(params.get('seed') ?? 2026);
 
 const renderer = new THREE.WebGPURenderer({ antialias: !PIXEL, powerPreference: 'high-performance' });
@@ -95,9 +96,11 @@ renderer.setAnimationLoop(() => {
   U.lamp.value.copy(explorer.position);
   if (controls) controls.update();
   else if (!player?.update(dt)) {
-    // tiny drift: a slow breathing dolly + sub-degree yaw
-    camera.position.set(base.x + Math.sin(t * 0.07) * 0.6, base.y + Math.sin(t * 0.11) * 0.12, base.z + Math.sin(t * 0.05) * 0.8);
-    look(Math.sin(t * 0.045) * 0.004, Math.sin(t * 0.06) * 0.0015);
+    // tiny drift: a slow breathing dolly + sub-degree yaw, at 40% amplitude around the #capture pose (t = 12) so the
+    // near foreground doesn't out-move the hero; capture output is unchanged
+    const d = (f: (u: number) => number) => f(12) + DRIFT_K * (f(t) - f(12));
+    camera.position.set(base.x + d((u) => Math.sin(u * 0.07) * 0.6), base.y + d((u) => Math.sin(u * 0.11) * 0.12), base.z + d((u) => Math.sin(u * 0.05) * 0.8));
+    look(d((u) => Math.sin(u * 0.045) * 0.004), d((u) => Math.sin(u * 0.06) * 0.0015));
   }
   post.render();
   if (++frames === 4) (window as any).__ready = true;
