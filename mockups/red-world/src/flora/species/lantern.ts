@@ -1,5 +1,6 @@
 // Lantern pod cluster (5-25 m): thin arching stems from a root knot, each carrying a ribbed pod
 // (diatom / radiolarian lantern) whose mouth glows cyan. The main accent carrier.
+import type { PaletteKey } from '../../contracts';
 import { MeshBuilder, add, bead, bezier, clamp01, norm, revolve, scl, sub, sweep, type ProfilePt, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
@@ -65,43 +66,44 @@ export function lanternPods(rng: Rng, variant: number) {
   return b.build();
 }
 
-/** Ribbed pod hanging/standing from `o` along `d`. Mouth at the far end glows. */
+/**
+ * Segmented, ribbed pod hanging/standing from `o` along `d` (radiolarian lantern). Smooth lobed ribs,
+ * grooves between body segments, stepped colour per segment, a pale "translucent" bone band at the
+ * mouth and a cupped glowing mouth. 28 segments x ~20 rings: reads as living tissue up close.
+ */
+const POD: Record<Cfg['shape'], { len: number; widest: number; neck: number; mouth: number; seg: PaletteKey[]; ribs: number; spike: number }> = {
+  lantern: { len: 2.25, widest: 0.5, neck: 0.22, mouth: 0.42, seg: ['crimson', 'blush', 'bone'], ribs: 8, spike: 0 },
+  onion: { len: 2.3, widest: 0.38, neck: 0.18, mouth: 0.2, seg: ['crimson', 'crimson', 'blush', 'bone'], ribs: 10, spike: 1.2 },
+  orb: { len: 1.8, widest: 0.48, neck: 0.3, mouth: 0.38, seg: ['maroon', 'crimson', 'blush', 'bone'], ribs: 7, spike: 0 },
+};
+
 function pod(b: MeshBuilder, o: V3, d: V3, P: number, shape: Cfg['shape'], sway: number) {
-  const ribs = (j: number) => 1 + (j % 2 ? 0.09 : -0.09);
+  const c = POD[shape];
   const sw = clamp01(sway);
-  let prof: ProfilePt[];
-  if (shape === 'lantern') {
-    prof = [
-      { r: 0, y: 0, key: 'crimson', sway: sw },
-      { r: P * 0.25, y: P * 0.1, key: 'crimson', sway: sw },
-      { r: P * 0.8, y: P * 0.55, key: 'blush', sway: sw, mod: ribs },
-      { r: P * 1.0, y: P * 1.2, key: 'blush', sway: sw, mod: ribs },
-      { r: P * 0.8, y: P * 1.85, key: 'bone', sway: sw, mod: ribs },
-      { r: P * 0.45, y: P * 2.2, key: 'maroon', sway: sw, crease: true },
-      { r: P * 0.36, y: P * 2.3, key: 'glow', glow: 1, sway: sw },
-      { r: 0, y: P * 2.1, key: 'glow', glow: 1, sway: sw },
-    ];
-  } else if (shape === 'onion') {
-    prof = [
-      { r: 0, y: 0, key: 'crimson', sway: sw },
-      { r: P * 0.6, y: P * 0.3, key: 'crimson', sway: sw, mod: ribs },
-      { r: P * 1.0, y: P * 0.9, key: 'blush', sway: sw, mod: ribs },
-      { r: P * 0.85, y: P * 1.5, key: 'bone', sway: sw, mod: ribs },
-      { r: P * 0.45, y: P * 2.0, key: 'bone', sway: sw, mod: ribs },
-      { r: P * 0.22, y: P * 2.4, key: 'glow', glow: 1, sway: sw, crease: true },
-      { r: P * 0.1, y: P * 2.75, key: 'crimson', sway: sw },
-      { r: 0, y: P * 3.6, key: 'crimson', sway: sw },
-    ];
-  } else {
-    prof = [
-      { r: 0, y: 0, key: 'maroon', sway: sw },
-      { r: P * 0.7, y: P * 0.3, key: 'crimson', sway: sw, mod: ribs },
-      { r: P * 1.0, y: P * 1.0, key: 'blush', sway: sw, mod: ribs },
-      { r: P * 0.7, y: P * 1.7, key: 'blush', sway: sw, mod: ribs, crease: true },
-      { r: P * 0.4, y: P * 1.85, key: 'glow', glow: 1, sway: sw },
-      { r: 0, y: P * 1.75, key: 'glow', glow: 1, sway: sw },
-    ];
+  const k = Math.log(0.5) / Math.log(c.widest);
+  const nSeg = c.seg.length;
+  const ribs = (_j: number, th: number) => 1 + 0.055 * Math.cos(c.ribs * th);
+  const N = 18;
+  const prof: ProfilePt[] = [{ r: 0, y: 0, key: 'maroon', sway: sw }];
+  for (let i = 1; i <= N; i++) {
+    const u = i / N;
+    const env = Math.pow(Math.sin(Math.PI * Math.pow(u, k)), 0.85);
+    let r = P * (c.neck * Math.pow(1 - u, 3) + c.mouth * Math.pow(u, 5) + env * (1 - 0.35 * u));
+    // grooves between body segments
+    for (let q = 1; q < nSeg; q++) r *= 1 - 0.13 * Math.exp(-Math.pow((u - q / nSeg) / 0.035, 2));
+    const key = c.seg[Math.min(nSeg - 1, Math.floor(u * nSeg - 1e-9))];
+    prof.push({ r, y: u * c.len * P, key: i === N ? 'maroon' : key, sway: sw, mod: ribs, crease: i === N });
   }
-  revolve(b, o, d, prof, 20);
-  if (shape === 'lantern') bead(b, add(o, scl(d, P * 2.55)), d, P * 0.18, 6, 3, 'glow', 1, sw);
+  // lip, then the cupped glowing mouth
+  prof.push({ r: P * c.mouth * 0.92, y: c.len * P + P * 0.05, key: 'glow', glow: 1, sway: sw, crease: true });
+  if (c.spike) {
+    prof.push({ r: P * c.mouth * 0.55, y: c.len * P + P * 0.18, key: 'crimson', sway: sw, crease: true });
+    prof.push({ r: P * 0.07, y: c.len * P + P * 0.55, key: 'crimson', sway: sw });
+    prof.push({ r: 0, y: (c.len + c.spike) * P, key: 'crimson', sway: sw });
+  } else {
+    prof.push({ r: P * c.mouth * 0.6, y: c.len * P - P * 0.04, key: 'glow', glow: 1, sway: sw });
+    prof.push({ r: 0, y: c.len * P - P * 0.2, key: 'glow', glow: 1, sway: sw });
+  }
+  revolve(b, o, d, prof, 28);
+  if (shape === 'lantern') bead(b, add(o, scl(d, P * 2.45)), d, P * 0.14, 10, 5, 'glow', 1, sw);
 }

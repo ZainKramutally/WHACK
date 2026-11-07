@@ -3,7 +3,8 @@
 
 Writes lineup.png (true scale), grid.png (one cell per archetype), grid-sil.png (ink silhouettes),
 lineup-low.png and grid-low.png (2 m eye height looking up, ?cam=low), and lineup-low-trans.png
-(&trans=1: proposed translucency term for pale bands, a scene-material suggestion).
+(&trans=1: proposed translucency term for pale bands, a scene-material suggestion),
+lineup-top.png and grid-top.png (?cam=top: ~200 m up, 45 degrees down).
 Usage (from mockups/red-world):
   python3 scripts/flora_capture.py                 # starts its own vite on 127.0.0.1
   python3 scripts/flora_capture.py --url http://127.0.0.1:5183 --seed 7 --tag r2
@@ -56,6 +57,8 @@ def main():
                 ("lineup-low", "view=lineup&cam=low", (1920, 1080)),
                 ("grid-low", "view=grid&cam=low", (1920, 1440)),
                 ("lineup-low-trans", "view=lineup&cam=low&trans=1", (1920, 1080)),
+                ("lineup-top", "view=lineup&cam=top", (1920, 1080)),
+                ("grid-top", "view=grid&cam=top", (1920, 1440)),
             ]:
                 pg = b.new_page(viewport={"width": vp[0], "height": vp[1]}, device_scale_factor=1)
                 errs = []

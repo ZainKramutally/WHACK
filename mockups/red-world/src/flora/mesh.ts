@@ -236,7 +236,7 @@ export function bead(b: MeshBuilder, c: V3, axis: V3, r: number, segs: number, r
  * Two-sided sheet over a grid G[i][j] (rows i along the sheet, cols j across). Each band (row i -> i+1)
  * gets its own rows so colours stay flat steps. Front faces point along cross(dRow, dCol).
  */
-export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => PaletteKey, sway: (p: V3) => number, thick: number) {
+export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => PaletteKey, sway: (p: V3) => number, thick: number, skip?: (i: number, j: number) => boolean) {
   const rows = G.length, cols = G[0].length;
   const nrm = (i: number, j: number): V3 => {
     const dr = sub(G[Math.min(rows - 1, i + 1)][j], G[Math.max(0, i - 1)][j]);
@@ -254,6 +254,7 @@ export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => PaletteKey,
         B.push(v(add(G[i + 1][j], scl(nb, thick)), nb, key(i), 0, sway(G[i + 1][j])));
       }
       for (let j = 0; j < cols - 1; j++) {
+        if (skip?.(i, j)) continue; // perforation
         if (side > 0) b.idx.push(A[j], B[j], A[j + 1], A[j + 1], B[j], B[j + 1]);
         else b.idx.push(A[j], A[j + 1], B[j], A[j + 1], B[j + 1], B[j]);
       }

@@ -1,33 +1,37 @@
-// Ground cover (0.3-3 m), <= 300 tris each: urchin spikes, polyp nubs, crimson bristle tuft, puff pods.
-import { MeshBuilder, add, bead, clamp01, norm, revolve, scl, sweep, type V3 } from '../mesh';
+// Ground cover (0.5-4 m), <= 450 tris each, smooth enough to walk right up to:
+//  0 urchin: ribbed dome bristling with radial spikes
+//  1 polyp nubs: flared, ribbed tubes with dark cupped mouths
+//  2 bristle tuft: fountain of curved crimson blades
+//  3 spike crowns: 2-4 m stalks topped with thistle-like bristle crowns (crops well along the frame bottom)
+import { MeshBuilder, add, clamp01, norm, revolve, scl, sweep, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
 export function groundCover(rng: Rng, variant: number) {
   const b = new MeshBuilder();
   if (variant === 0) {
-    // urchin: low dome bristling with long radial spikes (3-sided cones)
     const R = rng.range(0.32, 0.4);
+    const ribs = (_j: number, th: number) => 1 + 0.06 * Math.cos(9 * th);
     revolve(b, [0, -0.05, 0], [0, 1, 0], [
-      { r: R * 1.05, y: 0, key: 'ink', sway: 0 },
-      { r: R, y: R * 0.45, key: 'maroon', sway: 0.1 },
-      { r: R * 0.6, y: R * 0.85, key: 'maroon', sway: 0.2 },
-      { r: 0, y: R * 1.0, key: 'maroon', sway: 0.2 },
-    ], 7);
-    bead(b, [0, R * 0.98, 0], [0, 1, 0], R * 0.18, 4, 2, 'glow', 1, 0.2);
-    const n = 34;
+      { r: R * 1.08, y: 0, key: 'ink', sway: 0 },
+      { r: R * 1.04, y: R * 0.25, key: 'maroon', sway: 0.05, mod: ribs },
+      { r: R * 0.95, y: R * 0.55, key: 'maroon', sway: 0.12, mod: ribs },
+      { r: R * 0.72, y: R * 0.82, key: 'crimson', sway: 0.18, mod: ribs },
+      { r: R * 0.36, y: R * 0.98, key: 'crimson', sway: 0.2, crease: true },
+      { r: R * 0.18, y: R * 1.0, key: 'glowDeep', glow: 0.6, sway: 0.2 },
+      { r: 0, y: R * 0.94, key: 'glowDeep', glow: 0.6, sway: 0.2 },
+    ], 12);
+    const n = 52;
     for (let k = 0; k < n; k++) {
-      // fibonacci hemisphere
-      const y = 0.08 + 0.92 * (k + 0.5) / n;
+      const y = 0.06 + 0.94 * (k + 0.5) / n; // fibonacci hemisphere
       const a = k * 2.39996 + rng.range(-0.1, 0.1);
       const rr = Math.sqrt(1 - y * y);
       const d = norm([Math.cos(a) * rr, y, Math.sin(a) * rr]);
-      const p0: V3 = add([0, R * 0.45, 0], scl(d, R * 0.75));
-      const l = R * rng.range(1.4, 2.4);
-      sweep(b, [p0, add(p0, scl(d, l))], { segs: 3, radius: (s) => (s < 1 ? R * 0.07 : 0), key: () => (k % 4 ? 'crimson' : 'blush'), sway: (s) => 0.2 + 0.5 * s * y });
+      const p0: V3 = add([0, R * 0.45, 0], scl(d, R * 0.72));
+      const l = R * rng.range(1.4, 2.6);
+      sweep(b, [p0, add(p0, scl(d, l))], { segs: 4, radius: (s) => (s < 1 ? R * 0.065 : 0), key: () => (k % 4 ? 'crimson' : 'blush'), sway: (s) => 0.2 + 0.5 * s * y });
     }
   } else if (variant === 1) {
-    // polyp nubs: stubby flared tubes with cupped dark mouths
-    const n = 6;
+    const n = 5;
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + rng.range(-0.3, 0.3);
       const rad = k === 0 ? 0 : rng.range(0.25, 0.55);
@@ -36,17 +40,18 @@ export function groundCover(rng: Rng, variant: number) {
       const o: V3 = [Math.cos(a) * rad, -0.05, Math.sin(a) * rad];
       const ax = norm([Math.cos(a) * rad * 0.6, 1, Math.sin(a) * rad * 0.6]);
       const sw = (y: number) => clamp01((y / 1.6) * 0.8);
+      const ribs = (_j: number, th: number) => 1 + 0.07 * Math.cos(5 * th);
       revolve(b, o, ax, [
-        { r: r * 1.6, y: 0, key: 'maroon', sway: 0 },
-        { r: r * 0.8, y: h * 0.55, key: 'crimson', sway: sw(h * 0.55) },
-        { r: r * 1.7, y: h, key: 'blush', sway: sw(h), crease: true },
-        { r: r * 1.1, y: h * 1.02, key: 'maroon', sway: sw(h) },
+        { r: r * 1.6, y: 0, key: 'ink', sway: 0 },
+        { r: r * 0.85, y: h * 0.5, key: 'maroon', sway: sw(h * 0.5), mod: ribs },
+        { r: r * 1.15, y: h * 0.85, key: 'crimson', sway: sw(h * 0.85), mod: ribs },
+        { r: r * 1.75, y: h, key: 'blush', sway: sw(h), crease: true },
+        { r: r * 1.2, y: h * 1.02, key: 'maroon', sway: sw(h) },
         { r: 0, y: h * 0.8, key: 'maroon', sway: sw(h) },
-      ], 7, rng.range(0, 1));
+      ], 10, rng.range(0, 1));
     }
   } else if (variant === 2) {
-    // bristle tuft: fountain of curved crimson blades with bone tips
-    const n = 15;
+    const n = 18;
     const H = rng.range(2.2, 2.8);
     for (let k = 0; k < n; k++) {
       const a = k * 2.39996;
@@ -55,27 +60,48 @@ export function groundCover(rng: Rng, variant: number) {
       const h = H * (1.05 - 0.5 * lean) * rng.range(0.85, 1.05);
       const out = H * 0.55 * lean;
       const pts: V3[] = [];
-      for (let i = 0; i <= 3; i++) {
-        const s = i / 3;
+      for (let i = 0; i <= 4; i++) {
+        const s = i / 4;
         pts.push(add(scl(d, 0.05 + out * s * s), [0, h * Math.sin(s * Math.PI * 0.5) - 0.05, 0]));
       }
       sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : 0.05 * (1 - 0.7 * s)), key: (s) => (s < 0.3 ? 'maroon' : s < 0.66 ? 'crimson' : 'blush'), sway: (s) => s });
     }
   } else {
-    // puff pods: three ribbed bulbs on a shared crust, one pore glows
-    for (let k = 0; k < 3; k++) {
-      const a = (k / 3) * Math.PI * 2 + rng.range(-0.4, 0.4);
-      const o: V3 = [Math.cos(a) * 0.17, -0.03, Math.sin(a) * 0.17];
-      const P = rng.range(0.12, 0.2) * (k === 0 ? 1.4 : 1);
-      const ribs = (j: number) => 1 + (j % 2 ? 0.1 : -0.1);
-      revolve(b, o, norm([Math.cos(a) * 0.3, 1, Math.sin(a) * 0.3]), [
-        { r: P * 0.6, y: 0, key: 'maroon', sway: 0 },
-        { r: P * 0.95, y: P * 0.45, key: 'crimson', sway: 0.1, mod: ribs },
-        { r: P, y: P * 0.95, key: 'blush', sway: 0.15, mod: ribs },
-        { r: P * 0.7, y: P * 1.5, key: 'bone', sway: 0.25, mod: ribs, crease: true },
-        { r: P * 0.35, y: P * 1.65, key: k === 0 ? 'glow' : 'crimson', glow: k === 0 ? 1 : 0, sway: 0.3 },
-        { r: 0, y: P * 1.5, key: k === 0 ? 'glow' : 'crimson', glow: k === 0 ? 1 : 0, sway: 0.3 },
-      ], 10);
+    // spike crowns: 2-3 tall stalks, each a thistle crown of radiating bristles around a dark knob
+    const n = rng.int(2, 3);
+    const H = rng.range(2.6, 3.2);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + rng.range(-0.4, 0.4);
+      const h = H * (k === 0 ? 1 : rng.range(0.55, 0.8));
+      const lean = k === 0 ? 0.04 : rng.range(0.12, 0.22);
+      const top: V3 = [Math.cos(a) * h * lean, h, Math.sin(a) * h * lean];
+      const base: V3 = [Math.cos(a) * 0.08, -0.05, Math.sin(a) * 0.08];
+      const pts: V3[] = [];
+      for (let i = 0; i <= 5; i++) {
+        const s = i / 5;
+        pts.push(add(scl(base, 1 - s), scl(add(top, [0, -0.15 * h * s * (1 - s), 0]), s)));
+      }
+      const sw = (y: number) => clamp01(Math.pow(Math.max(0, y) / H, 1.4));
+      sweep(b, pts, { segs: 5, radius: (s) => 0.05 * (1.4 - 0.7 * s), key: (s) => (s < 0.2 ? 'ink' : s < 0.7 ? 'maroon' : 'crimson'), sway: (_s, p) => sw(p[1]) });
+      // knob
+      const R = 0.12 + 0.04 * (k === 0 ? 1 : 0);
+      revolve(b, add(top, [0, -R * 0.6, 0]), [0, 1, 0], [
+        { r: 0, y: 0, key: 'maroon', sway: sw(h) },
+        { r: R, y: R * 0.6, key: 'maroon', sway: sw(h) },
+        { r: R * 0.8, y: R * 1.3, key: 'crimson', sway: sw(h) },
+        { r: 0, y: R * 1.6, key: 'crimson', sway: sw(h) },
+      ], 6);
+      // bristle crown: long spikes radiating up/out, short ones drooping below (thistle)
+      const m = 22;
+      for (let q = 0; q < m; q++) {
+        const yy = -0.35 + 1.3 * (q + 0.5) / m;
+        const az = q * 2.39996 + k;
+        const rr = Math.sqrt(Math.max(0, 1 - Math.min(1, yy * yy)));
+        const dir = norm([Math.cos(az) * rr, yy, Math.sin(az) * rr]);
+        const l = (yy > 0 ? 0.55 : 0.3) * rng.range(0.7, 1.2) * (k === 0 ? 1.2 : 1);
+        const p0 = add(top, scl(dir, R * 0.8));
+        sweep(b, [p0, add(p0, scl(dir, l))], { segs: 3, radius: (s) => (s < 1 ? 0.022 : 0), key: () => (q % 3 ? 'crimson' : 'blush'), sway: (s) => clamp01(sw(h) + 0.2 * s) });
+      }
     }
   }
   return b.build();

@@ -114,9 +114,14 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
   // lip (zigzag rim)
   prof.push({ r: R * 1.025, y: cup * R + FLARE * R + th * 0.5, key: 'maroon', sway: sw(R, cup * R), crease: true, mod: zig(0.025), lift: pleat(gill) });
   // top, inward
-  const tops: [number, PaletteKey][] = [[0.97, 'blush'], [0.86, 'bone'], [0.6, 'bone'], [0.35, 'bone'], [0.12, 'bone']];
-  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: th + cup * R * f * f + FLARE * R * Math.pow(f, 5) + dome * R * (1 - f) * (1 - f), key, sway: sw(R * f, cup * R), crease: i === 0 }));
-  prof.push({ r: 0, y: th + dome * R, key: 'bone', sway: sw(0, dome * R) });
+  // top, inward: stepped bone/blush growth rings, faint radial spokes (pleat lift), crimson umbo ring
+  const tops: [number, PaletteKey][] = [
+    [0.97, 'blush'], [0.88, 'bone'], [0.75, 'blush'], [0.72, 'bone'], [0.54, 'blush'], [0.51, 'bone'],
+    [0.33, 'blush'], [0.3, 'bone'], [0.14, 'crimson'], [0.09, 'bone'],
+  ];
+  const ty = (f: number) => th + cup * R * f * f + FLARE * R * Math.pow(f, 5) + dome * R * (1 - f) * (1 - f);
+  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: ty(f), key, sway: sw(R * f, cup * R), crease: i === 0, lift: i > 0 ? pleat(R * 0.012 * f) : undefined }));
+  prof.push({ r: 0, y: ty(0), key: 'bone', sway: sw(0, dome * R) });
   revolve(b, o, axis, prof, 48, rng.range(0, 1));
   // dangling fringe filaments from the rim underside
   if (d.fringe) {

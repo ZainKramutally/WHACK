@@ -1,7 +1,7 @@
 // Rib fan (10-40 m), four distinct body plans:
 //  0 fan: cupped radial ribs + rungs + scalloped membrane web (radiolarian lattice / sea fan)
 //  1 whorl: a vertical pinwheel of in-plane spiral arms around a ribbed hub, on a stalk
-//  2 sheaf: a splayed bundle of spatulate, cupped paddles on narrow stems
+//  2 sieve spiral: perforated, cupped sieve-plates (diatom-like) spiralling up a twisted column at the golden angle
 //  3 crinoid: sea-lily stalk, calyx cup and inward-curling pinnulate arms
 import type { PaletteKey } from '../../contracts';
 import { MeshBuilder, add, bead, bezier, clamp01, cross, curl, norm, revolve, scl, sheet, sub, sweep, type V3 } from '../mesh';
@@ -11,7 +11,7 @@ interface Cfg { H: number; form: 'fan' | 'whorl' | 'sheaf' | 'crinoid'; span: nu
 const VARIANTS: Cfg[] = [
   { H: 32, form: 'fan', span: 0.75, ribs: 9, rungs: 3, fans: 1, cup: 0.18, web: 0.66 },
   { H: 28, form: 'whorl', span: 0, ribs: 9, rungs: 0, fans: 0, cup: 0.1, web: 0 },
-  { H: 34, form: 'sheaf', span: 0, ribs: 9, rungs: 0, fans: 0, cup: 0.45, web: 0 },
+  { H: 34, form: 'sheaf', span: 0, ribs: 13, rungs: 0, fans: 0, cup: 0.35, web: 0 },
   { H: 24, form: 'crinoid', span: 0, ribs: 7, rungs: 0, fans: 0, cup: 0, web: 0 },
 ];
 
@@ -197,48 +197,59 @@ function whorl(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) =
   return b.build();
 }
 
-/** Splayed bundle of spatulate paddles: narrow stems widening into cupped, rounded blades. */
+/** Sieve spiral: cupped, perforated round plates on short petioles, spiralling up a column (phyllotaxis). */
 function sheaf(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) => number) {
-  const m = c.ribs, W = H * 0.085, rS = H * 0.011;
-  revolve(b, [0, -0.2, 0], [0, 1, 0], [
-    { r: H * 0.07, y: 0, key: 'ink', sway: 0 },
-    { r: H * 0.05, y: H * 0.03, key: 'ink', sway: swayY(H * 0.03) },
-    { r: 0, y: H * 0.06, key: 'maroon', sway: swayY(H * 0.06) },
-  ], 9);
-  const sm = (a: number, b2: number, x: number) => { const t = clamp01((x - a) / (b2 - a)); return t * t * (3 - 2 * t); };
-  for (let k = 0; k < m; k++) {
-    const a = (k / m) * Math.PI * 2 + rng.range(-0.3, 0.3);
-    const out: V3 = [Math.cos(a), 0, Math.sin(a)];
-    const lean = k === 0 ? 0.1 : rng.range(0.7, 1.5);
-    const h = H * (k === 0 ? 0.97 : rng.range(0.5, 0.85));
-    const p0 = scl(out, H * 0.03);
-    const C = bezier(p0, add(p0, [0, h * 0.4, 0]), add(scl(out, h * 0.22 * lean), [0, h * 0.75, 0]), add(scl(out, h * 0.45 * lean), [0, h, 0]), 11);
-    const sideK: V3 = [-out[2], 0, out[0]];
-    const Wk = W * rng.range(0.8, 1.15) * (k === 0 ? 1.2 : 1);
-    const G: V3[][] = [];
-    const cols = 7;
-    for (let i = 0; i < C.length; i++) {
-      const s = Math.min(0.985, i / (C.length - 1));
-      const T = norm(sub(C[Math.min(C.length - 1, i + 1)], C[Math.max(0, i - 1)]));
-      const nK = norm(cross(sideK, T));
-      const tipRound = s > 0.8 ? Math.sqrt(Math.max(0, 1 - Math.pow((s - 0.8) / 0.2, 2))) : 1;
-      const w = Wk * (0.06 + 0.94 * sm(0.55, 0.8, s)) * tipRound;
-      const row: V3[] = [];
-      for (let j = 0; j < cols; j++) {
-        const x = -1 + (2 * j) / (cols - 1);
-        row.push(add(add(C[i], scl(sideK, x * w)), scl(nK, c.cup * w * x * x)));
-      }
-      G.push(row);
-    }
-    sheet(b, G, (i) => { const s = i / (C.length - 1); return s < 0.12 ? 'ink' : s < 0.4 ? 'maroon' : s < 0.62 ? 'crimson' : 'blush'; }, (p) => swayY(p[1]), rS * 0.15);
-    sweep(b, C.slice(0, 10), {
-      segs: 5, radius: (s) => rS * (1.2 - 0.8 * s), key: (s) => (s < 0.15 ? 'ink' : s < 0.5 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]),
-    });
-    if (k % 3 === 1) {
-      const T = norm(sub(C[9], C[7]));
-      const nK = norm(cross(sideK, T));
-      bead(b, add(C[8], scl(nK, Wk * 0.08)), nK, Wk * 0.12, 6, 3, 'glow', 1, swayY(C[8][1]));
-    }
+  const m = c.ribs, rS = H * 0.02, colH = H * 0.88;
+  // column with a slow twist (banded so the spiral reads)
+  const col: V3[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    col.push([Math.sin(t * 2.2) * H * 0.02, -0.2 + t * colH, Math.cos(t * 2.2) * H * 0.02 - H * 0.02]);
   }
+  sweep(b, col, {
+    segs: 8, radius: (s, i) => rS * (1.5 - 0.9 * s) * (i === 0 ? 1.5 : 1),
+    key: (s, i) => (s < 0.1 ? 'ink' : s < 0.45 ? (i % 2 ? 'maroon' : 'ink') : i % 2 ? 'crimson' : 'maroon'), sway: (_s, p) => swayY(p[1]),
+  });
+  for (let k = 0; k < m; k++) {
+    const t = 0.22 + 0.74 * (k / (m - 1));
+    const a = k * 2.39996 + rng.range(-0.08, 0.08);
+    const out: V3 = [Math.cos(a), 0, Math.sin(a)];
+    const at = col[Math.round(t * 20)];
+    const Rd = H * 0.11 * (1 - 0.3 * t) * rng.range(0.9, 1.1);
+    // petiole arcs out and up to the plate centre
+    const ctr = add(add(at, scl(out, Rd * 1.45)), [0, Rd * 0.3, 0]);
+    sweep(b, bezier(at, add(at, scl(out, Rd * 0.35)), add(ctr, [0, -Rd * 0.3, 0]), ctr, 6), {
+      segs: 5, radius: (s) => rS * 0.5 * (1 - 0.4 * s), key: (s) => (s < 0.5 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]),
+    });
+    // plate: polar grid around its normal (tilted outward/up), cupped, one ring of perforations
+    const n = norm(add(scl(out, 0.85), [0, 0.5, 0])); // plates face outward: discs, not a conifer
+    const u = norm(cross(n, [0, 1, 0]).every((x) => Math.abs(x) < 1e-6) ? [1, 0, 0] : cross([0, 1, 0], n));
+    const v = cross(n, u);
+    const rows = [0.12, 0.3, 0.48, 0.62, 0.8, 1.0], cols = 16;
+    const G = rows.map((f) => {
+      const row: V3[] = [];
+      for (let j = 0; j <= cols; j++) {
+        const th = (j / cols) * Math.PI * 2;
+        const rr = Rd * f * (1 + (f === 1 ? 0.06 * Math.cos(8 * th) : 0)); // scalloped rim
+        row.push(add(add(ctr, add(scl(u, Math.cos(th) * rr), scl(v, Math.sin(th) * rr))), scl(n, c.cup * Rd * f * f)));
+      }
+      return row;
+    });
+    const rowKey = ['crimson', 'blush', 'blush', 'bone', 'blush'] as PaletteKey[];
+    sheet(b, G, (i) => rowKey[i], (p) => swayY(p[1]), rS * 0.12, (i, j) => (i === 2 && j % 2 === 0) || (i === 1 && j % 4 === 1));
+    // boss over the petiole join
+    revolve(b, add(ctr, scl(n, -Rd * 0.04)), n, [
+      { r: Rd * 0.16, y: 0, key: 'maroon', sway: swayY(ctr[1]) },
+      { r: Rd * 0.12, y: Rd * 0.08, key: 'maroon', sway: swayY(ctr[1]) },
+      { r: 0, y: Rd * 0.12, key: k % 4 === 2 ? 'glowDeep' : 'crimson', glow: k % 4 === 2 ? 0.7 : 0, sway: swayY(ctr[1]) },
+    ], 8);
+  }
+  // crown bud
+  const top = col[20];
+  revolve(b, top, [0, 1, 0], [
+    { r: rS * 0.8, y: 0, key: 'crimson', sway: swayY(top[1]) },
+    { r: rS * 1.8, y: H * 0.04, key: 'blush', sway: swayY(top[1]), mod: (_j, th) => 1 + 0.1 * Math.cos(6 * th) },
+    { r: 0, y: H * 0.1, key: 'blush', sway: 1 },
+  ], 12);
   return b.build();
 }

@@ -9,6 +9,7 @@ const q = new URLSearchParams(location.search);
 const view = q.get('view') ?? 'lineup';
 const sil = q.get('sil') === '1';
 const low = q.get('cam') === 'low'; // explorer eye height (~2 m) looking up
+const top = q.get('cam') === 'top'; // flying: ~200 m up looking down at 45 degrees
 // proposal for the scene material: pale (thin) bands transmit light, so undersides keep their pale steps
 const trans = q.get('trans') === '1';
 const seed = Number(q.get('seed') ?? 1234);
@@ -84,7 +85,11 @@ if (view === 'grid') {
     scene.add(mesh);
     const h = a.height, r = Math.max(a.radius, h * 0.3);
     const fit = Math.max(h * 1.3, r * 2.4 * (ch / cw)) / 2 / Math.tan((cam.fov * Math.PI) / 360);
-    if (low) {
+    if (top) {
+      const dd = Math.max(h, r * 2) * 2.1;
+      cam.position.set(0, h * 0.4 + dd * 0.7071, dd * 0.7071);
+      cam.lookAt(0, h * 0.4, 0);
+    } else if (low) {
       // stand ~0.7 h away at eye height 2 m (or half the plant for ground cover) and look up
       const eye = Math.min(2, h * 0.45);
       cam.position.set(0, eye, Math.max(h * 0.62, r * 1.25) + r * 0.3);
@@ -124,8 +129,13 @@ if (view === 'grid') {
     scene.add(f);
     x += r + gap;
   }
-  const cam = new THREE.PerspectiveCamera(low ? 62 : 24, innerWidth / innerHeight, 1, 60000);
-  if (low) {
+  const cam = new THREE.PerspectiveCamera(low ? 62 : top ? 50 : 24, innerWidth / innerHeight, 1, 60000);
+  if (top) {
+    // 200 m up, 45 degrees down onto the titans + coil spires
+    const x0 = xs[0] - 40, x1 = xs[7] + 20, cx = (x0 + x1) / 2;
+    cam.position.set(cx, 200 + 60, 260);
+    cam.lookAt(cx, 60, 0);
+  } else if (low) {
     // 2 m eye height, close under the titans + coil spires, looking up at the caps
     const x0 = xs[0] - 40, x1 = xs[7] + 20, cx = (x0 + x1) / 2;
     cam.position.set(cx, 2, 210);

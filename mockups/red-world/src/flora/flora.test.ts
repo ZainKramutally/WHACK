@@ -8,7 +8,7 @@ const ALL: SpeciesId[] = ['parasolTitan', 'coilSpire', 'lanternPods', 'weeper', 
 const GLOW_KEYS: PaletteKey[] = ['glow', 'glowDeep'];
 const SIZE: Record<SpeciesId, [number, number]> = {
   parasolTitan: [60, 180 * 1.06], coilSpire: [30, 120 * 1.06], lanternPods: [5, 25 * 1.07],
-  weeper: [15, 60 * 1.06], ribFan: [10, 40 * 1.06], groundCover: [0.3, 3],
+  weeper: [15, 60 * 1.06], ribFan: [10, 40 * 1.06], groundCover: [0.3, 4.2],
 };
 const keyOf = (c: ArrayLike<number>, i: number): PaletteKey | undefined =>
   (Object.keys(LINEAR) as PaletteKey[]).find((k) => LINEAR[k].every((x, q) => Math.abs(x - c[i * 3 + q]) < 1e-6));
@@ -36,8 +36,8 @@ describe('flora library', () => {
 
   it('meets triangle budgets', () => {
     const total = lib.archetypes.reduce((s, a) => s + a.triangles, 0);
-    expect(total).toBeLessThanOrEqual(400_000);
-    for (const a of lib.bySpecies('groundCover')) expect(a.triangles).toBeLessThanOrEqual(300);
+    expect(total).toBeLessThanOrEqual(150_000);
+    for (const a of lib.bySpecies('groundCover')) expect(a.triangles).toBeLessThanOrEqual(450);
     for (const a of lib.archetypes) expect(a.triangles).toBe(a.geometry.index.count / 3);
   });
 
