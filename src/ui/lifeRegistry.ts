@@ -2,7 +2,7 @@
 // belongs to, how many of each form are alive, and which form dominates. Re-uses the sim's pure clustering and
 // naming (sim/guide.ts), so a form's name here is the one the sim announced.
 import { clusterForms, functionalType, nameForm, type FunctionalType, type GuideAnimal } from '../sim/guide';
-import type { BodyPlan } from '../sim/develop';
+import type { BodyPlan, LocomotionMode } from '../sim/develop';
 import { organismCount, readOrganism } from '../sim/organismLayout';
 import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
@@ -19,13 +19,14 @@ export interface Analysis {
 export const EMPTY_ANALYSIS: Analysis = { nameOf: new Map(), forms: new Map(), dominant: null };
 
 /** Cluster the live animals in an organism buffer and name the clusters. Pure. */
-export function analyseAnimals(buf: Float32Array): Analysis {
+export function analyseAnimals(buf: Float32Array, modeOf: (id: number) => LocomotionMode | undefined = () => undefined): Analysis {
   const animals: GuideAnimal[] = [];
   for (let i = 0; i < organismCount(buf); i++) {
     const r = readOrganism(buf, i);
     if (r.role < 0.5) continue; // producers are not animals
     animals.push({
       id: r.id,
+      mode: modeOf(r.id), // the plan's real mode (stable), not the buffer's current-medium mode
       genome: { body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage },
     });
   }
@@ -33,16 +34,16 @@ export function analyseAnimals(buf: Float32Array): Analysis {
   const forms = new Map<string, FormInfo>();
   const biggest = new Map<string, number>(); // size of the largest cluster seen under each name
   for (const cl of clusterForms(animals)) {
-    const name = nameForm(cl.centroid);
+    const name = nameForm(cl.centroid, cl.hint);
     let info = forms.get(name);
     if (!info) {
-      info = { name, type: functionalType(cl.centroid), alive: 0, repId: cl.members[0] };
+      info = { name, type: functionalType(cl.centroid, cl.hint), alive: 0, repId: cl.members[0] };
       forms.set(name, info);
     }
     info.alive += cl.members.length;
     if (cl.members.length > (biggest.get(name) ?? 0)) {
       biggest.set(name, cl.members.length);
-      info.type = functionalType(cl.centroid);
+      info.type = functionalType(cl.centroid, cl.hint);
       info.repId = cl.members[0];
     }
     for (const id of cl.members) nameOf.set(id, name);
@@ -76,7 +77,7 @@ export function mountLifeRegistry(bus: UiBus) {
       }
       if (now - lastAt >= ANALYSE_EVERY_SEC || now < lastAt) {
         lastAt = now;
-        analysis = analyseAnimals(s.organisms);
+        analysis = analyseAnimals(s.organisms, (id) => plans.get(id)?.mode);
         for (const [name, info] of analysis.forms) { const k = known.get(name); if (k) k.type = info.type; }
         if (plans.size > MAX_PLANS) {
           const alive = new Set<number>();

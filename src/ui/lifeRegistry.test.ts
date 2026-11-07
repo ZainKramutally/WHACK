@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createBus } from '../bus';
 import { makeFounders, type AnimalGenome } from '../sim/genome';
 import { ORGANISM_STRIDE, packOrganism, type OrganismRecord } from '../sim/organismLayout';
-import { PLAN_LENGTH, PLAN_VERSION } from '../sim/plan';
+import { PLAN_FIELDS, PLAN_LENGTH, PLAN_VERSION } from '../sim/plan';
+import { LOCOMOTION } from '../sim/develop';
+import { organismRows } from './lifeText';
 import { analyseAnimals, mountLifeRegistry } from './lifeRegistry';
 import type { SimSnapshot } from '../worlds/types';
 
@@ -38,6 +40,50 @@ describe('analyseAnimals', () => {
     const names = [...analyseAnimals(buffer(si)).forms.keys()];
     expect(names.length).toBeGreaterThan(0);
     expect(names.every((n) => /^(Glass|Prism|Ceramic|Shard|Monolith|Fleck) /.test(n))).toBe(true);
+  });
+});
+
+describe('form name and card agree on locomotion', () => {
+  // Genes that would read as a floater (high buoy), but whose real, cost-picked mode is walking.
+  const walkers = makeFounders(4, 12, { c: 0.8, si: 0, o: 0.2 }).map((g) => ({ ...g, body: { ...g.body, buoy: 0.9, limbPairs: 0.5, limbLen: 0.3 } }));
+
+  it('uses the plan mode, so a walker cluster is named and typed as a walker, not a drifter', () => {
+    const buf = buffer(walkers);
+    const byGenes = analyseAnimals(buf);
+    expect([...byGenes.forms.keys()].every((n) => n.endsWith('Drifter'))).toBe(true); // genes alone say floater
+    const byMode = analyseAnimals(buf, () => LOCOMOTION.walk);
+    for (const f of byMode.forms.values()) {
+      expect(f.name).toMatch(/Walker$/);
+      expect(f.type.locomotion).toBe('walker');
+    }
+  });
+
+  it('the card says "Walks on the ground" for a member of that walker cluster', () => {
+    const buf = buffer(walkers);
+    const a = analyseAnimals(buf, () => LOCOMOTION.walk);
+    const name = a.nameOf.get(100)!;
+    const plan = { mode: LOCOMOTION.walk, diet: 0.1 } as Parameters<typeof organismRows>[1];
+    const rows = organismRows(
+      { ...({} as Parameters<typeof organismRows>[0]), size: 0.2, prefTemp: 15, tolerance: 5, chem: 0.5, energy: 0.5, generation: 1, mode: LOCOMOTION.swim, body: walkers[0]!.body },
+      plan, { chemistry: 'carbon', form: { name, recognised: true }, alive: true },
+    );
+    expect(name).toMatch(/Walker$/);
+    expect(rows.find(([k]) => k === 'Moves')![1]).toBe('Walks on the ground'); // plan mode wins over rec.mode (swim)
+  });
+
+  it('mountLifeRegistry feeds plan modes into the analysis', () => {
+    const bus = createBus();
+    const reg = mountLifeRegistry(bus);
+    const buf = buffer(walkers);
+    const plan = new Float32Array(PLAN_LENGTH);
+    plan[0] = PLAN_VERSION;
+    plan[1 + PLAN_FIELDS.indexOf('mode')] = LOCOMOTION.walk;
+    plan[1 + PLAN_FIELDS.indexOf('segmentCount')] = 4;
+    plan[1 + PLAN_FIELDS.indexOf('sides')] = 12;
+    const births = walkers.map((_, i) => ({ id: 100 + i, plan }));
+    bus.emit('sim:snapshot', { timeSec: 3, organisms: buf, births } as SimSnapshot);
+    expect(reg.formOf(100)!.name).toMatch(/Walker$/);
+    reg.dispose();
   });
 });
 
