@@ -77,20 +77,17 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 <div class="desk">
   <div class="shadowbox"><article class="sheet">
     <header class="titleblock">
-      <h1>Life Is <span class="slot" aria-live="polite"><span data-r="sym"></span></span> Based</h1>
-      <p class="subtitle">Choosing a chemistry for a new world</p>
-      <p class="authors">WHACK 26 Team</p>
-      <p class="affil">Marshall Wace “New Worlds” challenge</p>
-      <p class="date">8 November 2026</p>
-      <section class="abstract" aria-labelledby="absTitle"><h2 id="absTitle">Abstract</h2><p data-r="abstract"></p></section>
+      <div class="tl">
+        <h1>Life Is <span class="slot" aria-live="polite"><span data-r="sym"></span></span> Based</h1>
+        <p class="byline">Choosing a chemistry for a new world · WHACK 26 Team · Marshall Wace “New Worlds” challenge · 8 November 2026</p>
+      </div>
+      <section class="abstract" aria-labelledby="absTitle"><p><b id="absTitle">Abstract.</b> <span data-r="abstract"></span></p></section>
     </header>
-    <div class="columns">
-      <div class="col">
+    <div class="page">
+      <div class="colL">
         <section aria-labelledby="s1">
-          <h2 class="sec" id="s1"><span class="no">1</span>Choose an element</h2>
-          <p>Group 14 shares carbon’s four bonding hands. Table 1 lists the column; only carbon and silicon can be chosen. The last column reports whether that chemistry’s life could persist under the conditions set in Section 2.</p>
+          <h2 class="sec" id="s1"><span class="no">1</span>Choose an element <small>(Table 1: Group 14; the last column is the live viability test)</small></h2>
           <figure>
-            <figcaption><b>Table 1:</b> Group 14 of the periodic table. Select a row.</figcaption>
             <div class="tablewrap"><table aria-label="Group 14 of the periodic table">
               <thead><tr><th></th><th class="num"><span class="m">Z</span></th><th>Element</th><th>Status</th><th>Viability now</th></tr></thead>
               <tbody data-r="rows" role="radiogroup" aria-label="Choose an element"></tbody>
@@ -99,24 +96,15 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         </section>
         <section aria-labelledby="s2">
           <h2 class="sec" id="s2"><span class="no">2</span>Starting conditions</h2>
-          <p>Every condition is drawn on the same full range for every world. Checkered intervals mark where the selected world’s life would die; the dashed line marks Earth. Drag a marker, or focus an axis and use the arrow keys. The bounds are given by Eq. (1).</p>
           <figure>
             <div class="axes" data-r="controls"></div>
-            <figcaption><b>Figure 1:</b> Starting conditions for the selected world. On this page the checkered intervals are a preview; once a world is running, a marker cannot enter them.</figcaption>
+            <figcaption><b>Figure 1:</b> Checkered: life would die (preview). Dashed: Earth. Drag, or use arrow keys.</figcaption>
           </figure>
-          <div class="eq" aria-live="polite"><div class="body" data-r="eqBody"></div><div class="no">(1)</div></div>
-          <p class="eqnote" data-r="eqNote"></p>
-          <p class="note" data-r="notice"></p>
-          <div class="actions">
-            <button class="btn" data-r="standardise" type="button">Standardise to optimum</button>
-            <button class="btn primary" data-r="generate" type="button">Generate world</button>
-          </div>
         </section>
       </div>
-      <div class="col">
+      <div class="colR">
         <section aria-labelledby="s3">
           <h2 class="sec" id="s3"><span class="no">3</span>Observation</h2>
-          <p>Figure 2 shows the selected chemistry in miniature. It is driven by the same viability test as Table 1, so the two never disagree: chains link and copy where life can persist, and each failing bound has its own signature.</p>
           <figure class="boxfig">
             <div class="frame" data-r="frame">
               <canvas data-r="box" width="150" height="150" role="img" aria-label="Atoms and molecules of the selected world"></canvas>
@@ -127,10 +115,31 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
             <p class="fail" data-r="boxFail"></p>
           </figure>
         </section>
-        <section class="refs" aria-labelledby="refs"><h2 id="refs">References</h2><ol data-r="refs"></ol></section>
+        <div class="eq" aria-live="polite"><div class="body" data-r="eqBody"></div><div class="no">(1)</div></div>
+        <p class="eqnote" data-r="eqNote"></p>
+        <p class="note" data-r="notice"></p>
+        <div class="actions">
+          <button class="btn" data-r="standardise" type="button">Standardise to optimum</button>
+          <button class="btn primary" data-r="generate" type="button">Generate world</button>
+        </div>
       </div>
     </div>
     <div class="footnotes"><p data-r="footnote"></p></div>
+    <details class="more">
+      <summary>Read more: method notes and references</summary>
+      <div class="morebody">
+        <div>
+          <h2 class="sec"><span class="no">1</span>Choose an element</h2>
+          <p>Group 14 shares carbon’s four bonding hands. Table 1 lists the column; only carbon and silicon can be chosen. The last column reports whether that chemistry’s life could persist under the conditions set in Section 2.</p>
+          <h2 class="sec"><span class="no">2</span>Starting conditions</h2>
+          <p>Every condition is drawn on the same full range for every world. The bounds are given by Eq. (1).</p>
+          <ul class="hints" data-r="hints"></ul>
+          <h2 class="sec"><span class="no">3</span>Observation</h2>
+          <p>Figure 2 shows the selected chemistry in miniature. It is driven by the same viability test as Table 1, so the two never disagree: chains link and copy where life can persist, and each failing bound has its own signature.</p>
+        </div>
+        <section class="refs" aria-labelledby="refs"><h2 id="refs">References</h2><ol data-r="refs"></ol></section>
+      </div>
+    </details>
     <div class="pageno">1</div>
   </article></div>
 </div>
@@ -183,7 +192,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       pickRows.set(e.worldId, tr);
     } else {
       tr.className = 'grey';
-      tr.innerHTML = `<td></td><td class="num">${e.z}</td><td>${esc(e.name)} (${e.symbol})</td><td>Not in this version</td><td class="via">${esc(e.reason ?? '')}</td>`;
+      tr.innerHTML = `<td></td><td class="num">${e.z}</td><td>${esc(e.name)} (${e.symbol})</td><td>Locked</td><td class="via">${esc(e.reason ?? '')}</td>`;
       tr.addEventListener('click', () => {
         tr.classList.remove('flash'); void tr.offsetWidth; tr.classList.add('flash');
         announce(`${e.name} can’t be chosen: ${e.reason}.`);
@@ -198,14 +207,13 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const id = def.id;
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-      <div class="ctl-head"><span id="sel-lab-${id}">${SYM[id]}, ${esc(def.label.toLowerCase())}${def.scale === 'log' ? ' (log scale)' : ''}</span><output data-o="${id}"></output></div>
+      <div class="ctl-head" title="${esc(def.hint)}"><span id="sel-lab-${id}">${SYM[id]}, ${esc(def.label.toLowerCase())}${def.scale === 'log' ? ' (log scale)' : ''}</span><span class="reason" data-re="${id}"></span><output data-o="${id}"></output></div>
       <div class="axis" role="slider" tabindex="0" aria-labelledby="sel-lab-${id}" data-a="${id}">
         <div class="zone low"></div><div class="band"></div><div class="zone high"></div>
         <div class="earth"><span>⊕ Earth</span></div><div class="marker"></div>
       </div>
       <div class="ticks">${ticksFor(def).map((v) => `<span style="left:${valueToFrac(v, def) * 100}%">${tickLabel(def, v)}</span>`).join('')}</div>
-      <div class="reason" data-re="${id}"></div>
-      <p class="hint">${esc(def.hint)}</p>`;
+      `;
     r('controls').append(wrap);
     const ax = wrap.querySelector<HTMLElement>('.axis')!;
     axes.set(id, ax);
@@ -229,6 +237,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       if (nv !== null) { e.preventDefault(); change(id, nv); }
     });
   }
+
+  r('hints').innerHTML = controlList.map((d) => `<li><b>${esc(d.label)}:</b> ${esc(d.hint)}</li>`).join('');
 
   // ---- Particle box ----
   const boxCanvas = r('box') as HTMLCanvasElement;
@@ -452,7 +462,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       box.frame(now, dt, world, state.conditions);
       const tag = box.liquidTag(world), tl = r('tagLiq');
       tl.hidden = !tag;
-      if (tag) { tl.textContent = tag.text; tl.style.top = `calc(${tag.y * 100}% + 8px)`; }
+      if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 28px))`; }
     } else if (launch) {
       const t = launch.draw(now);
       // Lift the cover once the particles are ground and the real world has had time to spawn the character.
