@@ -491,7 +491,12 @@ interface WorldConfig {
     rules: LifeRules;      // climate and metabolism rules (type in src/sim/population.ts)
     composition: { c: number; si: number; o: number };   // the world's fixed body recipe, F's Recipe
     ledger: unknown;       // F's trait-ledger coefficients for this world (typed when sim/ecology.ts lands)
-    inputs: unknown;       // scalings from our stats into F's heat, light, air density and hunger ranges
+    inputs: {              // world facts the ecology reads (DECISIONS §G.2 moved them out of sim/constants.ts); each needs why + sources, or assumption: true
+      solvent: { rho: number; mu: number; epsilonR: number; liquidBandC: [number, number] } & Sourced;   // density, viscosity, permittivity, liquid range
+      airDensity: Sourced & { scale: number };       // multiplies the live P·M/(R·T) into develop()'s scale, where unbuoyed carbon tissue = 1
+      tissueDensity: Sourced & { C: number; Si: number };   // relative tissue density by chemistry
+      scalings: unknown;   // remaining scalings from our stats into F's heat, light and hunger ranges
+    };
   };
   terrain: TerrainConfig;  // see "Terrain and landforms"
   starType: string;        // a world fact (e.g. 'G-type'); every look decision lives in the art layer, not here
@@ -552,6 +557,7 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on eve
   - Added `SimSnapshot.flora` (per-cell biomass) and the `producer` inspect target.
   - The organism buffer now carries the 12 genes, heading and locomotion mode.
   - The snapshot rate is 20 Hz.
+  - Typed `life.inputs`: `solvent`, `airDensity` and `tissueDensity` are world-config facts, not sim constants (DECISIONS G.2 now has 15 constants).
 
 ## Third-person player
 
