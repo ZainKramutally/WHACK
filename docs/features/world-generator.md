@@ -35,7 +35,7 @@ Each output is a pure function of the dials, implemented in one file (`derive.ts
 | `snow` | Methane cold frosts the ground | `sea.methane·(1−heat)²` | R4 |
 | `life` | Life peaks in the Goldilocks band | `exp(−((heat−0.5)/0.28)²)` | DESIGN §2 |
 | `glow` | Dark makes glow | `life·(1−light)^1.5` | R8 |
-| `glowHue` | Life is the colour | recipe-weighted: C amber `#FFA41B`, Si cyan `#27AAA6`, O magenta `#DA1B58`. Pores always glow Spark amber/orange. | R9 |
+| `glowHue` | Life is the colour | **Dominant-weighted** (weights = recipe⁴, normalised; circular hue mean; saturation held high, never an RGB average, which goes beige): C amber `#FFA41B`, Si cyan `#27AAA6`, O magenta `#DA1B58`. Pores always glow Spark amber/orange. | R9 |
 | `capWidth` / `stalkHeight` | Light makes caps; dark makes tall reachers | `capWidth = light`, `stalkHeight = (1−light)·(1−heat)` | R7, R8 |
 | `fog` | Methane is thick, heat is clear and bleached | density per sea × `(1.2−heat)`. Height fog plus distance fog. | R4 |
 | `char` | Hot, bright, old: carbon survivors go black | `sat(heat·light·age·c·6)` | R6 |
