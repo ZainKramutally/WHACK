@@ -746,8 +746,8 @@ Speed is the point. Run the cheapest tier that answers the question.
 | Tier | When | Runs | Budget |
 |---|---|---|---|
 | **0** | Every edit loop | typecheck + related tests for the files you touched | < 15s |
-| **1** | Once, before reporting a feature done | typecheck + full unit suite | < 60s |
-| **2** | Once per merge to `main` | Tier 1 + build + run the demo path once by hand | < 3 min |
+| **1** | Once, before reporting a feature done | typecheck + `npx vitest related --run <every file you changed>` + `npm run build` | < 60s |
+| **2** | Once per merge to `main` (team lead) | Tier 1 on the merged diff + `npm run smoke` | < 3 min |
 
 - **Test** the sim: the seeded RNG, the derived-stat models (vapour pressure, sea volume, radiative balance), feedback integration, and that each world's demo seed lands inside its `targets` at the end of the build. Test that the build's tick schedule is frame-independent: the same build time gives the same ticks at any frame rate. Also test that the same seed gives the same snapshot sequence, and every bug you fix (failing test first).
 - **Test the sliders' logic:**
@@ -771,7 +771,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 - **Test the terrain:** the CPU sampler matches the height formula; `seaLevel` gives the requested `seaCover`; spawn is within `shoreDistance` of the shore in both worlds at the default seeds; `rise` 0 is flat.
 - **Config checks as tests:** every stat, feedback, limit, build config and reasoning step has `sources` or `assumption: true`; speculative worlds have a `caveat`.
 - **Don't test** rendering, UI, the character controller or styling. Check them by hand.
-- A test slower than 2s gets fixed or moved out of the default run. Fix the code, not the tests.
+- **Banned (owner ruling):** `npm test` (the full suite) and `npm run test:slow`. Run only `npx vitest related --run <files>`. Any test slower than 1 s goes behind `it.skipIf(!process.env.SLOW)` and isn't part of any tier. Fix the code, not the tests.
 
 ## Working conventions for Claude Code
 
