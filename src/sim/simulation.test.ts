@@ -290,6 +290,35 @@ describe('WorldSimulation', () => {
       run(sim, 20, 0.5);
       return { before, after: sim.snapshot().stats };
     };
+    describe('carbon air at the ecology steady state (#31)', () => {
+      // Late-build ecology: producers ≈ 3,250, consumers ≈ 170 biomass units.
+      const steady = { producerBiomass: 3250, consumerBiomass: 170, deadBiomass: 0 };
+      const over = (d: Partial<LifeDrivers>, sec = 300) => {
+        const sim = new WorldSimulation(carbon, EARTH, { life: new FixedLife({ ...steady, ...d }) });
+        const before = sim.snapshot().stats;
+        run(sim, sec, 1);
+        const after = sim.snapshot().stats;
+        return { co2: after.co2 - before.co2, oxygen: after.oxygen - before.oxygen };
+      };
+      it('holds still when idle: under 0.03 % CO₂ and 0.3 % O₂ in 5 minutes', () => {
+        const d = over({});
+        expect(Math.abs(d.co2)).toBeLessThan(0.03);
+        expect(Math.abs(d.oxygen)).toBeLessThan(0.3);
+      });
+      it('a consumer crash raises O₂ and lowers CO₂; a consumer boom does the opposite', () => {
+        const crash = over({ consumerBiomass: 0 });
+        expect(crash.oxygen).toBeGreaterThan(0.3);
+        expect(crash.co2).toBeLessThan(-0.01);
+        const boom = over({ consumerBiomass: 700 });
+        expect(boom.oxygen).toBeLessThan(-0.3);
+        expect(boom.co2).toBeGreaterThan(0.01);
+      });
+      it('a producer crash lowers O₂ and raises CO₂ (less photosynthesis, same respiration)', () => {
+        const crash = over({ producerBiomass: 0 });
+        expect(crash.oxygen).toBeLessThan(-0.3);
+        expect(crash.co2).toBeGreaterThan(0.01);
+      });
+    });
     it('carbon: producers raise oxygen and draw down CO₂; consumers pull oxygen back down', () => {
       const p = through(carbon, { producerBiomass: 100 });
       expect(p.after.oxygen).toBeGreaterThan(p.before.oxygen);
@@ -538,6 +567,25 @@ describe('WorldSimulation', () => {
       for (const [id, [lo, hi]] of Object.entries(w.targets)) {
         expect(stats[id], `${w.id} ${id}`).toBeGreaterThanOrEqual(lo);
         expect(stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
+      }
+    });
+    it.skipIf(!slow)('carbon holds O₂, CO₂ and temperature inside targets for 10 minutes after the build, idle (SLOW, #31)', { timeout: 120000 }, () => {
+      const sim = new WorldSimulation(carbon, EARTH);
+      sim.advance(carbon.build.durationSec);
+      const first = sim.snapshot().stats;
+      for (let i = 0; i < 20; i++) {
+        sim.advance(30);
+        const s = sim.snapshot();
+        expect(s.population.consumers, `consumers at ${(i + 1) * 30} s`).toBeGreaterThan(0);
+        for (const id of ['oxygen', 'co2', 'temperature', 'pressure']) {
+          const [lo, hi] = carbon.targets[id];
+          expect(s.stats[id], `${id} at ${(i + 1) * 30} s`).toBeGreaterThanOrEqual(lo);
+          expect(s.stats[id], `${id} at ${(i + 1) * 30} s`).toBeLessThanOrEqual(hi);
+        }
+        if (i === 19) {
+          expect(Math.abs(s.stats.co2 - first.co2), 'CO₂ drift over 10 min').toBeLessThan(0.1);
+          expect(Math.abs(s.stats.temperature - first.temperature), 'temperature drift over 10 min').toBeLessThan(2);
+        }
       }
     });
     it.skipIf(!slow).each([carbon, silicon])('stays alive and in band for a minute after the build ($id) (SLOW)', { timeout: 60000 }, (w: WorldConfig) => {
