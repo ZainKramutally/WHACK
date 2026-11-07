@@ -40,9 +40,8 @@ async function boot() {
   const terrain = createTerrainSampler(world);
   const view = createWorldView(app);
   if ('relics' in terrain) view.setTerrainSampler(terrain);
-  // Compile the terrain, sea, sky, fauna and flora materials now, not lazily on the first frames.
-  // (three allows one precompile at a time and the counterpart's own warm-up may be in flight: a clash only means lazy compile.)
-  await app.renderer.compileAsync(app.scene, app.camera).catch((e: unknown) => console.warn('precompile skipped:', e));
+  // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
+  await view.ready;
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
