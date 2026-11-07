@@ -147,9 +147,10 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
   - Each animal carries the 12 genes of DECISIONS G.1: size, segments, limbPairs, limbLen, plates, horns, gape, diet, eyes, buoy, glow and sociality. It also inherits its body composition {c, si, o}, which is not a gene.
   - It also carries our three climate genes from `population.ts`, used as built: preferred temperature, tolerance, and oxygen need (carbon) or cold stability (silicon). The genome is 15 genes in total.
 - **Plants:** **per-cell flora biomass** on the 64² grid (mat and canopy), not individual agents. These are the producers. Plant shapes (L-system twigs and caps, and forms such as lantern cups or jellyshroom domes) are drawn by the art layer as a pure function of each cell's composition, light, `heatBand` and mat/canopy biomass (see "Logic → art interface"). There is no flora genome: plants do not evolve as agents, and the gene budget is full.
-- **Development:** a pure `develop()` turns the genes plus body composition plus conditions into a body plan. It is the only place genes become traits. Chemistry is the grammar:
-  - Silicon bodies grow hexagonal faceted segments, straight rod limbs with joints snapped to 15°, and clusters of dot eyes.
-  - Carbon bodies grow round, curling, many-jointed shapes with ring eyes.
+- **Development:** a pure `develop()` turns the genes plus body composition plus conditions into a body plan. It is the only place genes become traits. **Chemistry picks the body architecture, not just the skin**, so carbon and silicon life are fundamentally different and never mirror each other (owner ruling, 2026-11-07). The same 12 genes are read through a different grammar on each world:
+  - **Carbon: bilateral and axial.** A head-to-tail chain of soft, round, curling segments, paired limbs hanging from segments, a tail, and paired ring eyes at the head. Flexible, many-jointed and continuous.
+  - **Silicon: radial and lattice.** No head or tail. A faceted crystal hub with 3-, 4- or 6-fold symmetry, straight rod arms radiating from it (joints snapped to 15°), facet tiers that accrete as it grows, ceramic tiles on facets, and dot-eye clusters at the arm tips. It moves by tripod-stepping on its arms, rolling, drifting as a bell, or staying rooted as a crystal colony.
+  - So a silicon genome and a carbon genome with the same numbers build unrelated bodies. For example, `segments` is spine length on carbon but facet tiers on silicon, and `limbPairs` is leg pairs on carbon but arm count (by symmetry order) on silicon.
   - The traits derived from these (radius profile, symmetry, eye and horn count, and so on) are listed in DECISIONS G.1.
 - **Ecology:** DECISIONS §3, the 12 rules. One utility loop (forage, hunt, flee, home, rest, bud) runs over relationships derived from bodies (eats, afraid, rival, kin). There's one trait ledger, where every gene pays somewhere and earns somewhere.
 - **Glow comes from darkness, on both worlds.** The `glow` gene pays for itself as a lure only when light is scarce, so the dim silicon world evolves glow without any oxygen. On silicon the chemistry behind it is non-oxygen chemiluminescence, marked `assumption: true`. This replaces F's and DECISIONS' "glow ∝ oxygen".
@@ -312,14 +313,14 @@ Clicking one opens an inspect card beside it, never full screen. The card has:
    - The ground: what the rock is.
    - The sky and star: star type, brightness, air pressure and main gas.
 3. Why it is like this: one sentence, from config like every other world fact.
-4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one, plus a small live 3D render of the counterpart turning slowly. No charts.
-   - For an organism, the counterpart is **the same genome built with the other world's chemistry and look**: its genome run through `develop()` with the other world's composition. It is labelled "If this were built from carbon (illustration)".
-   - For the sea, ground and sky, it is a small patch of the other world's version.
+4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one. No charts.
+   - Beside it, a small live 3D view of **the clicked thing itself**, turning: the creature in its own chemistry, or this world's sea, ground or sky.
+   - **No creature counterparts.** Carbon and silicon life are fundamentally different body architectures (see "Development"), so a creature has no "same genome in the other chemistry" twin, and the card never shows one. For the sea, ground and sky, a toggle may show the other world's version.
    - The other world's numbers come from its `targets` (its default run at the end of its build), labelled "today".
 
 The card updates live while it is open. If the organism dies, the card says so and stays until closed. Only one card is open at a time; clicking elsewhere, Esc or the gamepad's B button closes it.
 
-The counterpart render is drawn in a scissored viewport of the main canvas, behind a transparent window in the card. It runs only while a card is open, at low resolution. Both worlds' creature and material builders are compiled while the selection screen is up, so opening a card never stalls.
+The live view is drawn in a scissored viewport of the main canvas, behind a transparent window in the card. It runs only while a card is open, at low resolution. Both worlds' creature and material builders are compiled while the selection screen is up, so opening a card never stalls.
 
 ## Stack
 
@@ -360,7 +361,7 @@ src/
   render/fauna.ts      lofted bodies, limbs, plates and eyes (F §3.6)
   render/flora.ts      plant shapes drawn from the per-cell flora grid (art layer)
   render/pick.ts       raycast picking for click-to-inspect (organisms by id, sea, ground, sky)
-  render/counterpart.ts  the inspect card's live render of the other world's counterpart
+  render/counterpart.ts  the inspect card's live view of the clicked thing (no creature counterparts)
   player/              third-person character controller and camera, keyboard/mouse and gamepad input
   ui/                  selection screen, Conditions panel, field guide, captions, inspect cards, summary card (design partner)
   bus.ts               typed event bus between sim, render and UI
@@ -661,7 +662,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - consumer interference
   - spores: a dormant bank of recent survivors that germinates after a crash (owner override of the no-rescue guardrail, `assumption: true`)
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
-- **Illustrations (render-only):** the particle box, the counterpart render in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 3 m × (size ÷ 0.15)^0.4, so a founder worm draws about 3 m long and a 9.6 m giant about 16 m; the size order is kept but the ~64× real range is compressed to ~5× so creatures read from the follow camera.
+- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 3 m × (size ÷ 0.15)^0.4, so a founder worm draws about 3 m long and a 9.6 m giant about 16 m; the size order is kept but the ~64× real range is compressed to ~5× so creatures read from the follow camera.
 
 ## Demo script (to be rewritten)
 
@@ -714,7 +715,7 @@ Do not start P1 work until every P0 item works on the demo laptop.
 Then, in order:
 1. The Generate transition.
 2. The silicon config and its look.
-3. Click-to-inspect, with counterpart renders. These need both worlds' looks and `develop()`.
+3. Click-to-inspect, with the live view of the clicked thing.
 4. Rehearse, record the backup video, and submit to Devpost by 10:30.
 
 If time runs short, cut in this order:
@@ -724,7 +725,7 @@ If time runs short, cut in this order:
 4. Field-guide thumbnails (keep the names).
 5. Lofted skinning, falling back to bead bodies.
 
-Never cut the sliders, the particle box, the Generate transition, the Conditions panel, the inspect cards and their counterpart renders, the summary card, silicon's faceted development, or IK legs.
+Never cut the sliders, the particle box, the Generate transition, the Conditions panel, the inspect cards and their live views, the summary card, silicon's faceted development, or IK legs.
 
 ## Commands
 
