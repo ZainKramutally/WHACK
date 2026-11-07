@@ -65,6 +65,8 @@ Per-atom **colour jitter**: ±5° hue and ±8% lightness per atom instance (seed
 
 **Tested** (`design/concept/2026-11-07-palette-test.jpg`): carbon, silicon and oxygen read in all four seas. A pale-gold Spark vanished on the pale seas, so we switched it to saturated amber with a white-hot centre. An apricot Acid field killed the Spark, so it's lemon-sulfur. Bone stone is low-contrast on Methane and Acid by design, and the cel shadow step in the sea's shadow hue gives it form.
 
+**Calibrated palette field (2026-11-07):** the environment presets (`docs/features/world-generator.md`) match their pins' measured colours *exactly* at their dial settings, and blend towards the sea palettes above as the dials move away. The sea palettes are the defaults. The pins are calibrated anchors.
+
 **Bloom strength per sea:** 0.25 on Water and Ammonia, **0.15** on Methane and Acid (pale fields wash out).
 
 **Sea switch:** lerp every field value over 1.5s `power1.inOut` through the `Cycles` module. Families don't change, so the life "stays" while the world changes around it.

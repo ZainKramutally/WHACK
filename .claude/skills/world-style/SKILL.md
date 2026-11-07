@@ -52,7 +52,7 @@ Sibling skills these mention but we **didn't install** (`threejs-shaders`, `thre
 - **Palette texture.** Props sample one small palette image (≤ 32 swatches, `NearestFilter`) by UV. Artists paint UVs onto swatches in Blender. Colour changes happen in one file.
 - **Shadows and bounce are coloured, never grey or black.** Pick a saturated shadow hue that complements the key light (Bruno: warm key over violet shadows).
 - **Glow only through HDR.** Bloom threshold 1.0 at low strength (~0.25). Only emissives above 1 glow. Nothing else blooms.
-- **Tilt-shift DOF** blurs the top and bottom thirds and keeps the middle band sharp. This is what makes it read as a *miniature*.
+- **Tilt-shift DOF** blurs the top and bottom thirds and keeps the middle band sharp. This is what makes it read as a *miniature*. **Pond/sim view only.** Full-scale environments (`docs/features/world-generator.md`) drop it and sell scale with layered aerial haze, a low eye-level camera and landforms running out of frame.
 - **Fog** in palette colours hides the edge of the world. The world ends in mood, not in a void.
 - **Shape language:** chunky, rounded, low-poly, slightly oversized relative to the player. No outlines. No photo textures.
 - **Colliders from Blender names:** nodes named `physical-fixed|dynamic`, children `cuboid*` / `ball*` / `hull*` / `trimesh*`. No code per prop.
