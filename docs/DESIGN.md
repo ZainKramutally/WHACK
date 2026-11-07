@@ -27,6 +27,8 @@ The model is Conway's Game of Life and Particle Life: tiny rules, huge variety. 
 
 ## 2. The model in one screen
 
+> **Revised controls proposed** in [`WORLD_ATLAS.md` §5](WORLD_ATLAS.md#5-working-backwards-the-controls): **Recipe** (C·Si·O triangle) · **Sea** · **Heat** · **Light** · **Hunger**, plus a **Time** clock. They're derived backwards from the mood board. The per-family dials below become hidden presets and an expert Lab drawer.
+
 Everything is **atoms in a pond**. Atoms belong to a few **families**. Atoms bond into shapes, shapes come alive, and living shapes eat, move and copy.
 
 ### Families (4)
