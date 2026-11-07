@@ -1,0 +1,199 @@
+// Fauna review lab (fauna.html). ?view=lineup (default) | one&i=N (orbit close-up) | strip&i=N (6-frame walk strip)
+// &seed=N re-rolls variation inside each genome. &style=smooth turns the pixel pass off. &t=SEC freezes time.
+// Capture hooks: window.__ready, window.__info (variants + cadence), window.__fps.
+import * as THREE from 'three/webgpu';
+import { Fn, positionWorld, vec3, mix, smoothstep, mx_noise_float, float } from 'three/tsl';
+import { PALETTE } from '../contracts';
+import { U, worldMaterial, PIXEL } from '../material';
+import { skyNode } from '../sky';
+import { createPost } from '../post';
+import { buildExplorer } from '../explorer';
+import { develop, type FaunaPlan } from './develop';
+import { VARIANTS } from './variants';
+import { stadium, type Path } from './path';
+import { buildHerd, type Individual } from './render';
+import { spineAt } from './rig';
+
+const q = new URLSearchParams(location.search);
+const view = q.get('view') ?? 'lineup';
+const pick = Number(q.get('i') ?? 0);
+const seed = Number(q.get('seed') ?? 1);
+const fixedT = q.has('t') ? Number(q.get('t')) : null;
+
+const plans = VARIANTS.map((v) => develop(v.genes, v.comp, seed));
+
+// ---- layout: each variant walks its own stadium loop (or roots / floats) ----------------------------------------
+const ext = (p: FaunaPlan) => Math.max(p.scale, p.legLen * 1.2, p.armLen * 2);
+// loops are wide enough that turning never folds the body (radius ≥ 1.3 body lengths)
+const LOOSE = view !== 'lineup'; // close-ups and strips get wide loops; the lineup uses tighter ones so it fits
+const loopA = (p: FaunaPlan) => (p.mode === 'hover' ? 1.2 * p.scale : Math.max((LOOSE ? 2 : 1.1) * p.scale, ext(p) * (LOOSE ? 1 : 0.6)));
+const loopB = (p: FaunaPlan) => (p.mode === 'hover' ? 1.3 * p.scale : Math.max((LOOSE ? 1.3 : 0.9) * p.scale, 0.8 * p.legLen, LOOSE ? 1 : 0.5));
+function loopFor(p: FaunaPlan, cx: number, cz: number): Path { return stadium(cx, cz, loopA(p), loopB(p)); }
+function individualsFor(i: number, cx: number, cz: number): Individual[] {
+  const p = plans[i];
+  const out: Individual[] = [];
+  for (let k = 0; k < p.social; k++) {
+    const e = ext(p);
+    const path = k === 0 ? loopFor(p, cx, cz) : stadium(cx, cz, loopA(p), loopB(p) + (k % 2 ? 1 : -1) * e * 0.35 * Math.ceil(k / 2));
+    out.push({ plan: k === 0 ? p : develop(VARIANTS[i].genes, VARIANTS[i].comp, seed + k * 101), path, inst: { s0: -k * e * 0.9, phase: k * 1.37 } });
+  }
+  return out;
+}
+
+const individuals: Individual[] = [];
+const lanes: { i: number; cx: number; cz: number }[] = [];
+const LINEUP_FOV = 34;
+if (view === 'lineup') {
+  // two rows sorted by size (small ones in front), each row placed at the depth where its loops fill the frame width;
+  // the explorer stands by the rhinosaur for true scale and the floater drifts overhead at the back
+  const ground = plans.map((p, i) => ({ p, i })).filter((d) => d.p.mode !== 'hover').sort((a, b) => ext(a.p) - ext(b.p));
+  const hf = Math.tan(((LINEUP_FOV / 2) * Math.PI) / 180) * (innerWidth / innerHeight);
+  const rows = [ground.slice(0, 3), ground.slice(3)];
+  rows.forEach((row) => {
+    const w = row.map((d) => 2 * (loopA(d.p) + loopB(d.p)) + 1.5);
+    const total = w.reduce((x, y) => x + y, 0);
+    const D = total / (2 * hf * 0.92) + Math.max(...row.map((d) => loopB(d.p)));
+    let x = -total / 2;
+    row.forEach((d, k) => { lanes.push({ i: d.i, cx: x + w[k] / 2, cz: -D }); x += w[k]; });
+  });
+  plans.forEach((p, i) => { if (p.mode === 'hover') lanes.push({ i, cx: 0, cz: -150 }); });
+  for (const l of lanes) individuals.push(...individualsFor(l.i, l.cx, l.cz));
+} else {
+  lanes.push({ i: pick, cx: 0, cz: 0 });
+  individuals.push(...individualsFor(pick, 0, 0));
+}
+const herd = buildHerd(individuals);
+
+// ---- scene ---------------------------------------------------------------------------------------------------
+const renderer = new THREE.WebGPURenderer({ antialias: !PIXEL });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+await renderer.init();
+
+U.fgPush.value = 0;
+U.lightDir.value.set(-0.5, 0.62, 0.6).normalize(); // lab: key light from the camera side (front-left 3/4) so forms read          // the lab views creatures close up; the scene's foreground ink push would blacken them
+U.fogStart.value = 120; U.fogDist.value = 900; U.hazeAmount.value = 0.15;
+
+const scene = new THREE.Scene();
+scene.backgroundNode = skyNode();
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.castShadow = true;
+light.shadow.mapSize.set(4096, 4096);
+const SH = view === 'lineup' ? 60 : 30;
+const sc = light.shadow.camera;
+sc.left = -SH; sc.right = SH; sc.top = SH; sc.bottom = -SH; sc.near = 1; sc.far = 600;
+light.shadow.bias = -0.0004; light.shadow.normalBias = 0.05;
+light.position.copy(U.lightDir.value).multiplyScalar(250);
+scene.add(light, light.target);
+
+// red ground with pebble-scale variation (so planted feet can be judged against it)
+const groundCol = Fn(() => {
+  const p = positionWorld.xz;
+  const n = mx_noise_float(p.mul(0.35)).add(mx_noise_float(p.mul(1.7)).mul(0.5));
+  const c = mix(vec3(...rgb(PALETTE.red)), vec3(...rgb(PALETTE.redLight)), smoothstep(0.1, 0.6, n)).toVar();
+  c.assign(mix(c, vec3(...rgb(PALETTE.crimson)), smoothstep(-0.25, -0.6, n).mul(0.8)));
+  const peb = smoothstep(0.55, 0.62, mx_noise_float(p.mul(6.0)));
+  c.assign(mix(c, vec3(...rgb(PALETTE.maroon)), peb.mul(float(0.6))));
+  return c;
+})();
+function rgb(hex: number): [number, number, number] { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; }
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), worldMaterial({ colorNode: groundCol, bounce: false }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground, herd.group);
+
+const explorers = (view === 'lineup' ? lanes.filter((l) => l.i === 0) : lanes).map((l) => {
+  const e = ext(plans[l.i]);
+  const m = buildExplorer(0, 0, 0.5);
+  m.position.set(l.cx + (view === 'lineup' ? loopA(plans[l.i]) + 1 : e * 1.6 + 0.8), -0.05, l.cz + (view === 'lineup' ? loopB(plans[l.i]) + 0.5 : -e * 0.2));
+  scene.add(m);
+  return m;
+});
+const camera = new THREE.PerspectiveCamera(view === 'lineup' ? LINEUP_FOV : 34, innerWidth / innerHeight, 0.05, 4000);
+
+// ---- cameras -----------------------------------------------------------------------------------------------------
+const P0 = plans[pick];
+const height = (p: FaunaPlan) => (p.mode === 'hover' ? p.scale * 0.6 : p.mode === 'sessile' ? p.scale + p.armLen * 0.5 : Math.max(p.hipHeight + p.radii.reduce((a, b) => Math.max(a, b), 0) * 2, p.scale * 0.35));
+const centreOf = (idx: number) => {
+  const sp = herd.spines[idx];
+  return sp ? spineAt(sp, sp.P.length / 2, true).p : [0, 0, 0];
+};
+if (view === 'lineup') {
+  camera.position.set(0, 2.2, 0);
+  camera.lookAt(0, 3.2, -60);
+}
+void explorers;
+const post = createPost(renderer, scene, camera);
+const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); post.resize(innerHeight); };
+addEventListener('resize', resize);
+resize();
+
+const cycle = P0.cadence > 0 ? 1 / P0.cadence : P0.mode === 'crawl' ? (0.55 * P0.scale) / Math.max(1e-3, P0.speed) : 4;
+function placeCamera(t: number, mode: 'orbit' | 'side', tc = t) {
+  const c = centreOf(0) as number[];
+  const e = Math.max(ext(P0), height(P0));
+  const hh = height(P0);
+  if (mode === 'orbit') {
+    const a = 1.9 + 0.15 * (t - 7);
+    const hov = P0.mode === 'hover';
+    camera.position.set(c[0] + Math.cos(a) * e * 1.9, hov ? c[1] * 0.35 : Math.max(0.4, hh * 0.55 + e * 0.35), c[2] + Math.sin(a) * e * 1.9);
+    camera.lookAt(c[0], hov ? c[1] : Math.max(c[1] * 0.8, hh * 0.4), c[2]);
+  } else {
+    herd.update(tc);
+    const sp = herd.spines[0];
+    const f = spineAt(sp, sp.P.length / 2, true);
+    const cc = f.p;
+    const R = f.R[0] * U.lightDir.value.x + f.R[2] * U.lightDir.value.z < 0 ? [-f.R[0], 0, -f.R[2]] : f.R; // lit side
+    const d = e * 1.7;
+    const hov = P0.mode === 'hover';
+    camera.position.set(cc[0] + R[0] * d, hov ? cc[1] * 0.5 : Math.max(0.35, hh * 0.45), cc[2] + R[2] * d);
+    camera.lookAt(cc[0], hov ? cc[1] : Math.max(cc[1] * 0.75, hh * 0.4), cc[2]);
+  }
+}
+
+const info = document.getElementById('info')!;
+(window as any).__info = { variants: VARIANTS.map((v, i) => ({ name: v.name, why: v.why, mode: plans[i].mode, gait: plans[i].gait, scale: plans[i].scale, cycle: plans[i].cadence ? 1 / plans[i].cadence : 4 })), stats: herd.stats() };
+
+if (view === 'strip') {
+  // 6 frames across one gait cycle from a fixed side camera, composed into a 3×2 sheet
+  const cw = 640, ch = 400;
+  renderer.setSize(cw, ch); camera.aspect = cw / ch; camera.updateProjectionMatrix(); post.resize(ch);
+  const out = document.createElement('canvas');
+  out.width = cw * 3; out.height = ch * 2;
+  renderer.domElement.style.display = 'none';
+  document.body.appendChild(out);
+  const ctx = out.getContext('2d')!;
+  const t0 = fixedT ?? (P0.speed > 0 ? Math.max(0, (loopA(P0) - 0.5 * P0.speed * cycle) / P0.speed) : 6);
+  placeCamera(t0, 'side', t0 + cycle / 2);
+  const raf = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+  for (let k = 0; k < 6; k++) {
+    const t = t0 + (k / 6) * cycle;
+    U.time.value = t;
+    herd.update(t);
+    post.render();
+    await raf(); await raf();
+    const bmp = await createImageBitmap(renderer.domElement);
+    ctx.drawImage(bmp, (k % 3) * cw, Math.floor(k / 3) * ch);
+    ctx.fillStyle = '#22060f'; ctx.font = '14px ui-monospace, monospace';
+    ctx.fillText(`${VARIANTS[pick].name}  t+${(t - t0).toFixed(2)}s  (${P0.gait === 'none' ? P0.mode : P0.gait} cycle ${cycle.toFixed(2)}s)`, (k % 3) * cw + 8, Math.floor(k / 3) * ch + 18);
+  }
+  (window as any).__ready = true;
+} else {
+  const t0 = performance.now();
+  let frames = 0, fpsT = t0, fps = 0;
+  renderer.setAnimationLoop(() => {
+    const now = performance.now();
+    const t = fixedT ?? (now - t0) / 1000 + 4;
+    U.time.value = t;
+    herd.update(t);
+    if (view === 'one') placeCamera(t, 'orbit');
+    post.render();
+    frames++;
+    if (now - fpsT > 1000) { fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; (window as any).__fps = fps; }
+    const st = herd.stats();
+    info.textContent = `${view === 'one' ? VARIANTS[pick].name + ' · ' : ''}seed ${seed} · ${st.individuals} animals · ${st.drawCalls} fauna draws · ${fps.toFixed(0)} fps`;
+    if (frames === 3 || (window as any).__ready) (window as any).__ready = true;
+  });
+}
