@@ -227,7 +227,7 @@ Format for each: **Decision**, then Why, Cost (S < 2 h, M 2–5 h, L > 5 h of on
 | 2 | **One of everything** | One utility loop (R5), one relationship function (R6), one `develop()` (R9) and one ledger (R3). No per-species FSM, no basin special cases in the sim |
 | 3 | **Derive, don't author** | Roles, relationships, niches, channel shares, bulk forage, boldness, range and litter size are all *derived*. The 7 named basins leave the sim: they become **anonymous look attractors in the renderer**, and names come from a trait-based name generator |
 | 4 | **Small genome** | **15 genes: 12 body genes (below) + the 3 climate genes already built in `src/sim/population.ts`** (preferred temperature, tolerance width, and oxygen need on carbon / cold stability on silicon). Owner ruling 2026-11-07. Down from F's 32; the other 20 become derived look or behaviour, or go to NOT_NOW. A new gene costs a removal |
-| 5 | **Tunables cap** | 16 sim constants in `sim/constants.ts` today (below): 11 `[game]`, 5 `[sci]`. That becomes **23 after the 7 tunable moves** listed under "Tunables vs implementation constants", which leaves **2 slots of headroom**, and every addition costs one removal. Per-world facts (solvent, air and tissue density) live in each world's config (`life.inputs`), per `CLAUDE.md`'s "science lives in data" rule, and don't count here |
+| 5 | **Tunables cap** | 16 sim constants in `sim/constants.ts` today (below): 11 `[game]`, 5 `[sci]`. That becomes **23 after the 7 tunable moves** listed under "Tunables vs implementation constants", which leaves **2 slots of headroom**, and every addition costs one removal. The §D issue decisions add **0** tunables (new values are world config or exempt), so the count is still 23 of 25. Per-world facts (solvent, air and tissue density) live in each world's config (`life.inputs`), per `CLAUDE.md`'s "science lives in data" rule, and don't count here |
 | 6 | **Minimal world state** | One 64² grid. Per-cell fields: C, Si, O nutrient, light energy, flora biomass (mat + canopy), stone, liquid depth (static), derived risk. Fixed 20 Hz tick. **1,024 animals** (owner ruling; never fewer than 1,000, no 512 tier). ⏩ = more 20 Hz ticks per frame |
 | 7 | **Feature gate** | A rule or feature ships only if a headless A/B raises a §A variety metric or the readability metric (§5 acceptance rule) |
 | 8 | **No cheats, no preset code** | No midwives, no rescues, no `if preset ==`, no seeded lineages. Presets = dial values only. Fallbacks that broke this were removed (Q3, Q4, hunters). The menagerie is flagged for the owner. **One declared exception (owner ruling, issue #6): spores.** A dormant bank of up to 24 recent-survivor genomes germinates when conditions are viable again, so a fast slider drag inside the living band can't wipe out life for good. It's in `CLAUDE.md`'s honesty box |
@@ -304,6 +304,7 @@ Plus the **3 climate genes** from `population.ts`, used as built: `prefTemp`, `t
   - `FLORA_EVERY` 4
   - `BAND_EVERY` 10
   - `LIQUID_EVERY` 100
+  - `CONTROL_EASE_SEC` 1 (slider ease on the demo clock; proxy decision #3, §D)
 - **Caps and bounds:**
   - `SCAN` 12 (neighbours per cell)
   - `SPORES_PER_TICK` 8
@@ -426,7 +427,30 @@ Solvent values are `[recalled]` handbook figures at the liquid's typical tempera
 - liquid fraction (fixed)
 - light spectrum and UV pigment (render-only, allowed by guardrail 9)
 
-None needs a new gene or constant to stay as it is. Anything more goes to NOT_NOW.
+None needs a new gene or constant to stay as it is. Anything more goes to NOT_NOW. **Update (§D, #27):** liquid fraction is now LIVE (sea cover → sea level → liquid grid via `LIQUID_EVERY`). The liquid band already feeds `heatBand` and `pace()`. Gravity is proposed for Rule 10 behind an A/B. Spectrum stays render-only, because both stars are Sun-like.
+
+---
+
+## D. Issue decisions (proxy)
+
+The owner delegated these to an agent on 2026-11-07. Each decision is posted as a comment on its GitHub issue, with its why, its honesty note and its verification. The spec owner writes accepted answers into `CLAUDE.md` and closes the issues; until then every row is "proxy, awaiting spec". Owner tiebreakers, in order: (1) emergence, (2) grounded honesty, (3) the demo lands, (4) buildable without creep.
+
+**Budget effect: 0 tunables, 0 genes, 0 rules added.** The count stays at 23 of 25 tunables after the planned moves, 15 genes and 12 rules. All new values are world config (science lives in data) or exempt implementation constants.
+
+| # | Question | Decision | Tunable / rule impact | Status |
+|---|---|---|---|---|
+| 1 | Compression exponent; lower silicon Ea? | `compression` stays 0.03 on both worlds. Silicon Ea goes 50 → **32 kJ/mol**, derived as 50 × Si–Si/C–C (222/346, Bell–Evans–Polanyi `[recalled]`). Silicon pace at −183 °C goes 0.25 → 0.42 of carbon's. Fallback: 50 | world config only; the pace stat `why` changes to ≈ 10⁻¹³ and `targets.pace` widens | proxy, awaiting spec |
+| 2 | Silicon feedstock and energy | Feedstock: reduced Si-nitride and silicide minerals (nierite Si₃N₄ in enstatite chondrites, Lee 1995 `[verified]` Crossref). Energy: dim starlight via Rule 1. Caveat: N₂ fixation is costly (Burgess & Lowe 1996) and is folded into upkeep | none (existing `supplySi`); a new FactDef | proxy, awaiting spec |
+| 3 | Slider instant or eased | **Ease** linearly over 1 s on the demo clock, between in-band values. Fallback: instant | `CONTROL_EASE_SEC` = 1, an **implementation constant** (exempt, listed in G.2) | proxy, awaiting spec |
+| 4 | Generate in a red zone: default or nearest | **Glide to `startDefaults`** (as built). The nearest value sits in the cubic edge ramp and kills founders. Fallback: nearest in-band value, inset by `EDGE_ZONE` | none | proxy, awaiting spec |
+| 5 | Silicon creatures vs pace | **Accept as honest**, helped only by #1 (about 1.6× more generations). No silicon-only clock, no seeded advanced founders. Fallback: raise `build.ecologySec` equally for both worlds | none | proxy, awaiting spec |
+| 7 | Life input scalings | `airDensity.scale` **0.05** on both worlds (keeps the real 11× ratio; the lift compression is declared). `lightFull` 1, `hungerPerScarcity` 1, Heat = `heatBand`. Fallback: raise the shared scale, never per world | world config only | proxy, awaiting spec |
+| 8 | Project name | Proposed: keep **"Life Is ▢ Based"** (plain text "Life Is _ Based"). Alternatives: "Group 14", "Other Bonds". **Owner's call to confirm** | none | proxy proposal; owner must confirm |
+| 27 | Quantities feeding nothing | Liquid band: (b), already feeds `heatBand` and `pace()`. Gravity: (a), Rule 10 walk/hover cost × g, ships only if the guardrail-7 A/B passes, else (b). Liquid fraction: already LIVE. Spectrum/UV: (b), render-only (same Sun-like spectrum) | Rule 10 text gains "× g" if the A/B passes; no new rule, gene or tunable | proxy, awaiting spec |
+| 32 | Default Oxygen 21% | **Confirm 21%.** 0% would pin carbon bodies at the O₂ size cap with no sink in the build. Label the start `assumption: true` | none | proxy, awaiting spec |
+| 34 | Falling CO₂ cools carbon? | **Yes.** `referenceCo2` 0.04, `co2PerDoublingK` 3 (Myhre 1998, Sherwood 2020, Crossref-checked). The hook already exists in `simulation.ts`. Instant equilibrium response declared. Fallback: 0 and drop the spec sentence | world config (DerivedStat params) | proxy, awaiting spec |
+| 35 | `floraLightGain` 100; steadier hunters; lifespan 40 | Keep 100, reframed as **light saturation at 1% sunlight** (Jassby & Platt 1976; Manske 2005 low-light phototrophs). **Accept the hunter cycling** (Huffaker 1958). Accept lifespan 40. Fallback: pin a demo seed with hunters up | world config only; no rule spent | proxy, awaiting spec |
+| 36 | Plant form from conditions | **(a)**: pure `floraForm(cell, VisualInputs)`. si → straight 60° facets, c → curl, light → caps / dark → glow, `heatBand` → height, mat vs canopy → species. Archetypes cached per quantised bin. Fallback: (c) seed-only, declared | render-only (exempt) | proxy, awaiting spec |
 
 ---
 
@@ -472,6 +496,13 @@ Keep, though authored: the `develop()` grammar, the ledger, render-side look att
 14. Spectrum-tuned eye pigments as a gene (render tint stays).
 15. Pre-evolved menagerie, if the owner rules it a "rescue" (guardrail 8).
 16. Generation-time constant `GEN0` and fear-memory duration `FEAR_T` (both replaced by derived values).
+17. A second producer energy path for silicon: chemosynthesis, or a Titan-style photochemical "food rain" (McKay & Smith 2005). Each needs a new supply process (#2, #35).
+18. A silicon-only time scale, or silicon founders seeded further along (#5; the second breaks guardrail 8).
+19. A rule spent on steadier hunters (#35; the cycling is accepted as emergent).
+20. Capping thumb speed during a run (#3; easing plus spores cover it).
+21. A flora genome evolved in the sim (F §5 L-system genes; #36). Plants stay per-cell biomass, and the gene budget is full.
+22. Starting at the nearest in-band value on Generate (#4; fallback only).
+23. Gravity in Rule 10, if its guardrail-7 A/B fails (#27).
 
 ---
 

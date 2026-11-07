@@ -24,3 +24,10 @@ Ideas that are good but **not in the 12 rules**. They wait here so they don't cr
 | 2026-11-07 | decisions | Gravity per world (Titan-like 0.14 g for methane) | science fidelity, body form | Parked |
 | 2026-11-07 | decisions | Spectrum-tuned eye pigments as a gene (render tint stays) | science fidelity | Parked |
 | 2026-11-07 | decisions | Generation-time constant `GEN0`, fear-memory duration `FEAR_T` | — | Replaced by derived values |
+| 2026-11-07 | proxy decisions | Second producer energy path for silicon: chemosynthesis or Titan-style photochemical food rain (McKay & Smith 2005) | silicon productivity | Deferred (#2, #35) |
+| 2026-11-07 | proxy decisions | A silicon-only time scale, or silicon founders seeded further along | silicon evolution speed | Rejected: honest slowness instead (#5); seeding breaks guardrail 8 |
+| 2026-11-07 | proxy decisions | A rule spent on steadier hunters | hunter persistence | Rejected: cycling accepted as emergent (#35) |
+| 2026-11-07 | proxy decisions | Capping slider thumb speed during a run | survival under fast drags | Deferred: easing + spores cover it (#3) |
+| 2026-11-07 | proxy decisions | A flora genome evolved in the sim (F §5 L-system genes) | plant variety | Deferred: plants stay per-cell biomass; gene budget is full (#36) |
+| 2026-11-07 | proxy decisions | Start at the nearest in-band value on Generate | UX | Fallback only (#4) |
+| 2026-11-07 | proxy decisions | Gravity in Rule 10 | science fidelity | Only if its guardrail-7 A/B passes (#27) |
