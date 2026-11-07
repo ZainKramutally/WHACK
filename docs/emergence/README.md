@@ -1,5 +1,7 @@
 # Emergence designs A–F: adversarial review and recommended hybrid
 
+> **2026-11-07 update:** `mockups/worlds`, `docs/features/world-generator.md` and the old art-direction docs were removed. The art direction is now `docs/ART_DIRECTION.md` (Red World), and the reference build is `mockups/red-world/` (world material, pixel post, terrain, procedural flora). Where this doc says "reuse `mockups/worlds`" or cites old `ART_DIRECTION §n` rules, read it as "reuse `mockups/red-world`" and "follow the current art direction". The generation logic here still stands.
+
 > Reviewer's brief: read all six designs (A `chemistry-up`, B `growth-first`, C `field-first`, D `energy-first`, E `scale-zoom`, F `body-plan-first`) against `.claude/agents/designer.md`, `docs/WORLD_ATLAS.md`, `docs/DESIGN.md`, `docs/ART_DIRECTION.md`, `docs/TRACK.md`, `world-style`, and `docs/features/world-generator.md` (the built `mockups/worlds`). Re-score independently. **Weight fauna complexity heavily** (team concern: atom/cell-level life tops out at blobs, worms and rings).
 
 ## 1. Verdict

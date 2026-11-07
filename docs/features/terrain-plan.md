@@ -1,5 +1,7 @@
 # Terrain plan: geology you can watch happen
 
+> **2026-11-07 update:** `mockups/worlds`, `docs/features/world-generator.md` and the old art-direction docs were removed. The art direction is now `docs/ART_DIRECTION.md` (Red World), and the reference build is `mockups/red-world/` (world material, pixel post, terrain, procedural flora). Where this doc says "reuse `mockups/worlds`" or cites old `ART_DIRECTION §n` rules, read it as "reuse `mockups/red-world`" and "follow the current art direction". The generation logic here still stands.
+
 > **Proposal to the art lead.** `mockups/worlds` is owned by the art-direction session. Nothing here has been built, and §9 lists every proposed code change. Inputs: `research/world-forms/` (REPORT, response matrix, methods, notes 01–03), `docs/WORLD_ATLAS.md` (R1–R12, §7 decisions), `docs/features/world-generator.md`, and generator code read at `session/art-direction` 303da71 (contracts with `medium`/`surfaceY`/`submerged`/`ramp`, `atmos/caustics.ts`).
 > **Final scores** (§10.2): Science 4 · Live morph 4 · Spectacle 4 · Performance 4 · Integration 4 · Buildability 4.
 

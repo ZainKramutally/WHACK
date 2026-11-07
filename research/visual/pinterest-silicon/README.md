@@ -4,7 +4,7 @@
 - Use: **reference only.** We borrow ideas, never these pixels. Artists are mostly uncredited on the pins, so see the credits column.
 - `manifest.json`: file, section, image URL and the 6-colour median-cut palette for each pin.
 - `sheets/`: contact sheets with palette strips (12 per sheet).
-- The art direction built from this board is in [`docs/ART_DIRECTION.md`](../../../docs/ART_DIRECTION.md).
+- Reference only. The current art direction is [`docs/ART_DIRECTION.md`](../../../docs/ART_DIRECTION.md) (Red World), which does not derive from these pins.
 
 | File | What it is | Steal this | Credit (as signed) |
 |---|---|---|---|
