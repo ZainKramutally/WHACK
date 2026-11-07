@@ -23,6 +23,8 @@ Every control has an obvious first effect the player can call before they touch 
 
 The model is Conway's Game of Life and Particle Life: tiny rules, huge variety. **If a rule doesn't make creatures more varied or more readable, cut it.**
 
+**Simplicity guardrails** (anti feature creep): ≤ 12 rules (one in, one out), one of every system (no per-species code), ~12 visible genes, ≤ 25 tunables in one file, three nutrients + light on one 64² grid, no cheats or preset code, rendering is read-only, and every feature must win a headless A/B on a variety metric. Full list: [`emergence/DECISIONS.md`](emergence/DECISIONS.md#simplicity-guardrails). Parked ideas: [`NOT_NOW.md`](NOT_NOW.md).
+
 ---
 
 ## 2. The model in one screen
