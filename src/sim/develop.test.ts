@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { develop, LOCOMOTION, type DevelopConditions, type DevelopInputs } from './develop';
-import { makeFounders, type AnimalGenome } from './genome';
+import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from './genome';
+import { makeRng } from './rng';
 
 const base = makeFounders(1, 1, { c: 0.8, si: 0.05, o: 0.15 })[0]!;
 const legged = (g: AnimalGenome): AnimalGenome => ({
@@ -22,24 +23,36 @@ describe('develop', () => {
     expect(develop(silicon, day, water)).toEqual(develop(silicon, day, water));
   });
 
-  it('silicon: hex facets, rod limbs, 15° joints, dot eyes', () => {
+  it('silicon: radial faceted hub, rod arms with 15° joints, dot-eye clusters at the arm tips', () => {
     const p = develop(silicon, day, water);
     expect(p.chemistry).toBe('silicon');
-    expect(p.sides).toBe(6);
+    expect(p.architecture).toBe('radial');
+    expect([3, 4, 6]).toContain(p.symmetry);
+    expect(p.sides).toBe(p.symmetry);
+    expect(p.segmentCount).toBe(0); // no spine
+    expect(p.tiers).toBeGreaterThanOrEqual(1);
+    expect(p.tierRadii).toHaveLength(p.tiers);
+    expect(p.arms).toHaveLength(p.symmetry);
+    for (const a of p.arms) expect(a.azimuthDeg % 15).toBe(0);
     expect(p.flatShaded).toBe(true);
     expect(p.limbKind).toBe('rod');
     expect(p.limbSegments).toBe(2);
     expect(p.limbJointAngles.length).toBeGreaterThan(0);
     for (const a of p.limbJointAngles) expect(Math.abs(a % 15)).toBe(0);
     expect(p.bodyJointMaxDeg % 15).toBe(0);
-    expect([3, 4, 6]).toContain(p.eyeCount);
+    expect(p.eyeCount % p.symmetry).toBe(0); // the same number of dots at every arm tip
     expect(p.eyeKind).toBe('dots');
     expect(p.curl).toBe(0);
   });
 
-  it('carbon: round curling segments, tentacle limbs, ring eyes', () => {
+  it('carbon: axial head-to-tail chain of round curling segments, tentacle limbs, a pair of ring eyes', () => {
     const p = develop(carbon, day, water);
     expect(p.chemistry).toBe('carbon');
+    expect(p.architecture).toBe('axial');
+    expect(p.symmetry).toBe(2);
+    expect(p.segmentCount).toBeGreaterThanOrEqual(3);
+    expect(p.tiers).toBe(0);
+    expect(p.arms).toEqual([]);
     expect(p.sides).toBe(12);
     expect(p.flatShaded).toBe(false);
     expect(p.curl).toBeGreaterThan(0);
@@ -110,5 +123,107 @@ describe('develop', () => {
     const cost = (lp: number) => develop({ ...base, body: { ...base.body, limbPairs: lp } }, day, water).modeCosts.walk;
     expect(develop({ ...base, body: { ...base.body, limbPairs: 0.1 } }, day, water).legPairs).toBe(0);
     expect(cost(0.1)).toBeLessThan(cost(0));
+  });
+
+  it('limbPairs sets the symmetry order on silicon (arm count) and the leg pairs on carbon', () => {
+    const at = (g: AnimalGenome, lp: number) => develop({ ...g, body: { ...g.body, limbPairs: lp } }, day, water);
+    expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(silicon, lp).symmetry)).toEqual([3, 3, 4, 6, 6]);
+    expect([0, 0.25, 0.5, 0.75, 1].map((lp) => at(carbon, lp).legPairs)).toEqual([0, 1, 2, 3, 4]);
+    expect(at(carbon, 1).symmetry).toBe(2);
+  });
+
+  it('segments is spine length on carbon and facet tiers on silicon', () => {
+    const at = (g: AnimalGenome, seg: number) => develop({ ...g, body: { ...g.body, segments: seg } }, day, water);
+    expect(at(carbon, 1).segmentCount).toBeGreaterThan(at(carbon, 0).segmentCount);
+    expect(at(carbon, 1).tiers).toBe(0);
+    expect(at(silicon, 1).tiers).toBeGreaterThan(at(silicon, 0).tiers);
+    expect(at(silicon, 1).segmentCount).toBe(0);
+    expect(at(silicon, 1).tiers).toBeLessThanOrEqual(5);
+  });
+
+  it('the same genes build structurally different plans in each chemistry', () => {
+    const g = legged(base);
+    const c = develop({ ...g, comp: { c: 0.9, si: 0.05, o: 0.05 } }, day, water);
+    const si = develop({ ...g, comp: { c: 0.05, si: 0.9, o: 0.05 } }, day, water);
+    expect(c.architecture).toBe('axial');
+    expect(si.architecture).toBe('radial');
+    expect(c.arms.length).toBe(0);
+    expect(si.arms.length).toBeGreaterThan(0);
+    expect(c.symmetry).not.toBe(si.symmetry);
+    expect(c.sides).not.toBe(si.sides);
+    expect(c.limbKind).not.toBe(si.limbKind);
+    expect(c.eyeKind).not.toBe(si.eyeKind);
+  });
+
+  describe('for any genome', () => {
+    const rng = makeRng(7)('develop-property');
+    const randomGenome = (comp: AnimalGenome['comp']): AnimalGenome => {
+      const body = {} as BodyGenes;
+      for (const gene of BODY_GENES) body[gene] = rng();
+      return { ...base, body, comp };
+    };
+    const carbonComp = () => { const si = 0.5 * rng(); const o = (1 - si) * 0.3 * rng(); return { c: 1 - si - o, si, o }; };
+    const siliconComp = () => { const si = 0.51 + 0.49 * rng(); const o = (1 - si) * 0.5 * rng(); return { c: 1 - si - o, si, o }; };
+    const worlds: DevelopInputs[] = [water, { ...water, airDensity: 0.65, solvent: { rho: 0.81, mu: 0.16, epsilonR: 1.4, liquidBandC: [-210, -147] }, tissueDensity: { C: 1.05, Si: 2.2 } }];
+
+    it('carbon plans are axial and silicon plans are radial, with the right structure', () => {
+      for (let n = 0; n < 300; n++) {
+        const inputs = worlds[n % 2]!;
+        const cond = { light: rng(), heatBand: rng() };
+        const c = develop(randomGenome(carbonComp()), cond, inputs);
+        expect(c.architecture).toBe('axial');
+        expect(c.symmetry).toBe(2);
+        expect(c.arms).toHaveLength(0);
+        expect(c.tiers).toBe(0);
+        expect(c.segmentCount).toBeGreaterThanOrEqual(3);
+        expect(c.eyeCount).toBeLessThanOrEqual(2);
+        const s = develop(randomGenome(siliconComp()), cond, inputs);
+        expect(s.architecture).toBe('radial');
+        expect([3, 4, 6]).toContain(s.symmetry);
+        expect(s.arms).toHaveLength(s.symmetry);
+        expect(s.tierRadii).toHaveLength(s.tiers);
+        expect(s.tiers).toBeGreaterThanOrEqual(1);
+        expect(s.tiers).toBeLessThanOrEqual(5);
+        expect(s.segmentCount).toBe(0);
+        expect(s.eyeCount % s.symmetry).toBe(0);
+        expect(s.hornCount).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it('keeps the ecology-facing quantities finite and sane on both architectures', () => {
+      for (let n = 0; n < 300; n++) {
+        const inputs = worlds[n % 2]!;
+        for (const comp of [carbonComp(), siliconComp()]) {
+          const p = develop(randomGenome(comp), { light: rng(), heatBand: rng() }, inputs);
+          for (const v of [p.scale, p.mass, p.bodyDensity, p.defence, p.glow, p.modeCosts.walk, p.modeCosts.swim, p.modeCosts.hover, p.modeCosts.sessile]) {
+            expect(Number.isFinite(v)).toBe(true);
+          }
+          expect(p.scale).toBeGreaterThan(0);
+          expect(p.mass).toBeGreaterThan(0);
+          expect(p.bodyDensity).toBeGreaterThan(0);
+          expect(p.defence).toBeGreaterThanOrEqual(0);
+          expect(p.legPairs).toBeGreaterThanOrEqual(0);
+          expect(p.legPairs).toBeLessThanOrEqual(4);
+        }
+      }
+    });
+
+    it('mass is never below the tissue mass, whatever the buoyancy (no massless gas bags)', () => {
+      for (let n = 0; n < 300; n++) {
+        const comp = n % 2 ? siliconComp() : carbonComp();
+        const g = randomGenome(comp);
+        const p = develop({ ...g, body: { ...g.body, buoy: 1 } }, { light: rng(), heatBand: rng() }, water);
+        // fill 0.1 × 1000 kg/m³-scale × scale³ × tissue density (≥ carbon's), plus any extras
+        expect(p.mass).toBeGreaterThanOrEqual(100 * p.scale ** 3 * water.tissueDensity.C * 0.999);
+      }
+    });
+  });
+
+  it('buoyancy adds gas-bag volume, not mass: whole-body density falls while mass stays', () => {
+    const at = (buoy: number) => develop({ ...carbon, body: { ...carbon.body, buoy } }, { light: 1, heatBand: 0.5 }, { ...water, airDensity: 0 });
+    const solid = at(0), bag = at(1);
+    expect(bag.bodyDensity).toBeLessThan(0.1 * solid.bodyDensity);
+    expect(bag.bodyDensity).toBeGreaterThan(0);
+    expect(bag.mass).toBeGreaterThanOrEqual(solid.mass * 0.999);
   });
 });

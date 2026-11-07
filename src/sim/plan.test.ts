@@ -55,6 +55,18 @@ describe('body plan wire format', () => {
     });
   }
 
+  it('carries the architecture: axial carbon has no arms or tiers, radial silicon has them all', () => {
+    const c = unpackBodyPlan(packBodyPlan(develop(carbon, cond, water)));
+    expect([c.architecture, c.symmetry, c.tiers, c.arms.length, c.tierRadii.length]).toEqual(['axial', 2, 0, 0, 0]);
+    const plan = develop(silicon, cond, water);
+    const s = unpackBodyPlan(packBodyPlan(plan));
+    expect(s.architecture).toBe('radial');
+    expect(s.symmetry).toBe(plan.symmetry);
+    expect(s.arms).toHaveLength(plan.symmetry);
+    expect(s.tierRadii).toHaveLength(plan.tiers);
+    expect(s.arms.map((a) => a.azimuthDeg)).toEqual(plan.arms.map((a) => a.azimuthDeg));
+  });
+
   it('keeps silicon joint angles on the 15° grid', () => {
     const back = unpackBodyPlan(packBodyPlan(develop(silicon, cond, water)));
     for (const a of back.limbJointAngles) expect(Math.abs(a % 15)).toBe(0);

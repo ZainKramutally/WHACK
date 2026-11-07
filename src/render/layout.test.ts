@@ -3,7 +3,7 @@ import { develop } from '../sim/develop';
 import { worlds } from '../worlds';
 import { developInputsFor } from './counterpart';
 import {
-  beadLayout, capsuleLayout, cellAt, cellCentre, floraShape, hash01, marchRay, nearestSphere, patchToWorld,
+  armRods, beadLayout, capsuleLayout, cellAt, cellCentre, floraShape, hash01, marchRay, nearestSphere, patchToWorld,
   worldToPatch, FLORA_GRID, displayLength, displayFactor, MAX_BEADS_PER_ORGANISM,
 } from './layout';
 import type { AnimalGenome } from '../sim/genome';
@@ -82,21 +82,54 @@ describe('beadLayout', () => {
   it('rests on the ground, stays under the per-organism cap and is deterministic', () => {
     for (const w of ['carbon', 'silicon'] as const) {
       const l = beadLayout(plan(w));
-      expect(l.beads.length).toBeGreaterThan(2);
+      const rods = l.radial?.rods ?? [];
+      expect(l.beads.length + rods.length).toBeGreaterThan(2);
       expect(l.beads.length).toBeLessThanOrEqual(MAX_BEADS_PER_ORGANISM);
       // Legless bodies rest exactly on the ground; legged ones within a snapped joint's error of it.
-      expect(Math.abs(Math.min(...l.beads.map((b) => b.y - b.r)))).toBeLessThan(0.08 * plan(w).scale);
+      const low = Math.min(...l.beads.map((b) => b.y - b.r), ...rods.flatMap((r) => [r.ay - r.r, r.by - r.r]));
+      expect(Math.abs(low)).toBeLessThan(0.08 * plan(w).scale);
       expect(JSON.stringify(beadLayout(plan(w)))).toBe(JSON.stringify(l));
     }
   });
-  it('carbon spine curls, silicon spine is straight', () => {
-    const spineZ = (w: 'carbon' | 'silicon') => {
-      const p = plan(w);
-      return beadLayout(p).beads.slice(0, p.segmentCount).map((b) => b.z);
-    };
-    const spread = (zs: number[]) => Math.max(...zs) - Math.min(...zs);
-    expect(spread(spineZ('silicon'))).toBeLessThan(1e-9);
-    expect(spread(spineZ('carbon'))).toBeGreaterThan(1e-4);
+  it('carbon is an axial bead chain that curls; silicon is a radial prism lattice with no spine', () => {
+    const c = beadLayout(plan('carbon')), s = beadLayout(plan('silicon'));
+    expect(c.radial).toBeUndefined();
+    expect(s.radial).toBeDefined();
+    const zs = c.beads.slice(0, plan('carbon').segmentCount).map((b) => b.z);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(1e-4);
+    // The chain tapers to a tail and swells to a head.
+    const r = c.beads.slice(0, plan('carbon').segmentCount).map((b) => b.r);
+    expect(r[0]).toBeLessThan(r[r.length - 1]);
+    expect(s.nBody).toBe(0);
+    expect(s.limbs).toHaveLength(0);
+  });
+  it('silicon: n-fold hub tiers, one arm per vertex at 15°-grid azimuths, eyes at the tips', () => {
+    const p = plan('silicon'), l = beadLayout(p), R = l.radial!;
+    expect(R.nTiers).toBe(p.tiers);
+    expect(R.hubSides).toBe(p.symmetry);
+    expect(R.arms).toHaveLength(p.symmetry);
+    expect(R.rods.length).toBeGreaterThanOrEqual(R.nHubRods + 2 * p.symmetry);
+    for (const a of R.arms) {
+      expect(a.snap).toBe(15);
+      expect(Math.abs(Math.round((Math.atan2(a.dirZ, a.dirX) * 180) / Math.PI) % 15)).toBe(0);
+    }
+    // Tiers are stacked, widest-in-the-middle prisms about the vertical axis.
+    for (let i = 0; i < R.nTiers; i++) { expect(R.rods[i].ax).toBe(0); expect(R.rods[i].az).toBe(0); expect(R.rods[i].by).toBeGreaterThan(R.rods[i].ay); }
+    expect(l.beads.length).toBe(p.eyeCount);
+    for (const b of l.beads) expect(b.tone).toBe(1);
+  });
+  it('silicon arms: IK keeps both bones joined and on the 15° grid', () => {
+    const l = beadLayout(plan('silicon')), R = l.radial!;
+    for (const rig of R.arms) {
+      for (const [fx, fy] of [[0.6, 0.02], [0.3, 0.5], [0.2, -0.4]]) {
+        const out: number[] = [];
+        armRods(rig, rig.hip.x + rig.dirX * fx * rig.restOut, fy, rig.hip.z + rig.dirZ * fx * rig.restOut, out);
+        expect(out).toHaveLength(14);
+        expect(out.slice(3, 6)).toEqual(out.slice(7, 10)); // knee shared
+        expect(Math.hypot(out[3] - out[0], out[4] - out[1], out[5] - out[2])).toBeCloseTo(rig.len1);
+        expect(Math.hypot(out[10] - out[7], out[11] - out[8], out[12] - out[9])).toBeCloseTo(rig.len2);
+      }
+    }
   });
   it('capsule fallback is a short worm', () => {
     expect(capsuleLayout(0.3).beads).toHaveLength(5);
@@ -115,12 +148,10 @@ describe('display scale', () => {
 });
 
 describe('limb rigs', () => {
-  it('gives each leg a rig whose beads sit at its rest pose; silicon snaps to 15°', () => {
-    for (const w of ['carbon', 'silicon'] as const) {
-      const p = plan(w), l = beadLayout(p);
-      expect(l.limbs.length).toBe(p.legPairs * 2);
-      expect(l.nBody + l.limbs.reduce((a, r) => a + 2 * r.perBone, 0)).toBe(l.beads.length);
-      for (const r of l.limbs) expect(r.snap).toBe(w === 'silicon' ? 15 : 0);
-    }
+  it('carbon: each leg gets a tapering tentacle rig whose beads sit at its rest pose', () => {
+    const p = plan('carbon'), l = beadLayout(p);
+    expect(l.limbs.length).toBe(p.legPairs * 2);
+    expect(l.nBody + l.limbs.reduce((a, r) => a + 2 * r.perBone, 0)).toBe(l.beads.length);
+    for (const r of l.limbs) { expect(r.snap).toBe(0); expect(r.taper).toBe(true); }
   });
 });

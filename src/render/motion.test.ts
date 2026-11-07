@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  EXTRAPOLATE_CAP, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, snapDeg, solveTwoBone,
+  EXTRAPOLATE_CAP, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
   STANCE, swayOffset, swimWave,
 } from './motion';
 
@@ -76,5 +76,25 @@ describe('body motion', () => {
     expect(bellPulse(0.2, 0)).toBeGreaterThan(0.85); expect(bellPulse(0.2, 0)).toBeLessThan(1.15);
     expect(Math.abs(swayOffset(1, 1.3, 0, 1))).toBeGreaterThan(Math.abs(swayOffset(0.3, 1.3, 0, 1)));
     expect(swayOffset(0, 1.3, 0, 1)).toBe(0);
+  });
+});
+
+describe('radial motion', () => {
+  it('tripod stepping alternates opposite arms; a 3-fold body steps its arms in turn', () => {
+    expect([0, 1, 2, 3, 4, 5].map((k) => armPhase(k, 6))).toEqual([0, 0.5, 0, 0.5, 0, 0.5]);
+    expect([0, 1, 2, 3].map((k) => armPhase(k, 4))).toEqual([0, 0.5, 0, 0.5]);
+    expect([0, 1, 2].map((k) => armPhase(k, 3))).toEqual([0, 1 / 3, 2 / 3]);
+  });
+  it('arm stances: spokes straight out, a bell hanging down and pulsing, crystal prongs raised and still', () => {
+    expect(armStance('spoke', 2, 0.3, 0)).toEqual({ out: 1.8, up: 0 });
+    const b = armStance('bell', 2, 0.3, 0);
+    expect(b.up).toBeLessThan(-1); expect(b.out).toBeGreaterThan(0);
+    expect(armStance('bell', 2, 0, 0).out).not.toBeCloseTo(armStance('bell', 2, 0.4, 0).out);
+    const c1 = armStance('crystal', 2, 0, 0), c2 = armStance('crystal', 2, 5, 3);
+    expect(c1).toEqual(c2); expect(c1.up).toBeGreaterThan(0);
+  });
+  it('rolling turns distance ÷ radius', () => {
+    expect(rollAngle(Math.PI, 1)).toBeCloseTo(Math.PI);
+    expect(rollAngle(2, 4)).toBeCloseTo(0.5);
   });
 });

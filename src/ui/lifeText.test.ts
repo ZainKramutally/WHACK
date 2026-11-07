@@ -7,8 +7,9 @@ import { biomassWords, dominantRows, geneRows, lengthWords, movesWords, organism
 
 function plan(over: Partial<BodyPlan> = {}): BodyPlan {
   return {
-    scale: 0.4, mass: 1, bodyDensity: 1, chemistry: 'carbon', segmentCount: 6, sides: 12, flatShaded: false, profile: 'smooth',
-    bodyJointMaxDeg: 40, jointSnapDeg: 0, curl: 0.3, radialOrder: 0, legPairs: 2, limbKind: 'rod', limbLength: 0.2, limbSegments: 2,
+    scale: 0.4, mass: 1, bodyDensity: 1, chemistry: 'carbon', architecture: 'axial', symmetry: 2, segmentCount: 6,
+    tiers: 0, hubRadius: 0, tierHeight: 0, tierRadii: [], arms: [], sides: 12, flatShaded: false, profile: 'smooth',
+    bodyJointMaxDeg: 40, jointSnapDeg: 0, curl: 0.3, legPairs: 2, limbKind: 'tentacle', limbLength: 0.2, limbSegments: 2,
     limbJointAngles: [0, 0], plateCover: 0.4, hornCount: 2, hornLength: 0.05, gapeSize: 0.1, dorsal: 'rods', eyeKind: 'rings',
     eyeCount: 2, eyeArea: 1, eyeUpkeep: 0.1, glow: 0, defence: 0.2, diet: 0.1, plantGain: 0.8, meatGain: 0.01,
     mode: LOCOMOTION.walk, modeCosts: { walk: 1, swim: 2, hover: 3, sessile: 4 }, ...over,
@@ -26,19 +27,23 @@ describe('planRows', () => {
   it('describes a carbon walker in plain words', () => {
     const r = planRows(plan());
     expect(get(r, 'Body')).toBe('6 segments, curling');
-    expect(get(r, 'Legs')).toBe('2 pairs of rod legs');
+    expect(get(r, 'Legs')).toBe('2 pairs of tentacles');
     expect(get(r, 'Plates')).toBe('Shell over 40% of the back');
     expect(get(r, 'Horns')).toBe('2 horns');
     expect(get(r, 'Eyes')).toBe('2 ring eyes');
     expect(get(r, 'Glow')).toBeUndefined();
   });
-  it('uses silicon words: facets, ceramic plates, dot eyes, speculative glow', () => {
-    const r = planRows(plan({ chemistry: 'silicon', flatShaded: true, curl: 0, eyeKind: 'dots', eyeCount: 6, glow: 0.7, limbKind: 'tentacle', legPairs: 1, hornCount: 1 }));
-    expect(get(r, 'Body')).toContain('faceted');
-    expect(get(r, 'Plates')).toMatch(/^Silicon-nitride ceramic/);
-    expect(get(r, 'Eyes')).toBe('6 dot eyes');
-    expect(get(r, 'Legs')).toBe('1 pair of tentacles');
-    expect(get(r, 'Horns')).toBe('1 horn');
+  it('uses silicon words: radial crystal, ceramic tiles, arm-tip dot eyes, speculative glow', () => {
+    const r = planRows(plan({
+      chemistry: 'silicon', architecture: 'radial', symmetry: 6, segmentCount: 0, tiers: 3, sides: 6, flatShaded: true, curl: 0,
+      eyeKind: 'dots', eyeCount: 12, glow: 0.7, limbKind: 'rod', legPairs: 3, hornCount: 1,
+    }));
+    expect(get(r, 'Body')).toBe('Radial crystal: 6-fold symmetry, 3 facet tiers, no head or tail');
+    expect(get(r, 'Plates')).toMatch(/^Silicon-nitride ceramic tiles/);
+    expect(get(r, 'Eyes')).toBe('2 dot eyes at each arm tip');
+    expect(get(r, 'Arms')).toBe('6 straight rod arms');
+    expect(get(r, 'Legs')).toBeUndefined();
+    expect(get(r, 'Horns')).toBe('1 crystal spire');
     expect(get(r, 'Glow')).toMatch(/^Bright.*speculative/);
   });
   it('says None for a bare worm', () => {

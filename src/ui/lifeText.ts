@@ -36,17 +36,22 @@ export function roleWords(role: Role): string {
 /** The body, one row per feature. `Role` and `Moves` are separate (see organismRows). */
 export function planRows(plan: BodyPlan): Rows {
   const si = plan.chemistry === 'silicon';
-  const shape = si ? (plan.flatShaded ? 'faceted' : 'rounded') : plan.curl > 0.05 ? 'curling' : 'rounded';
-  const sym = plan.radialOrder > 0 ? `, ${plan.radialOrder}-fold symmetry` : '';
+  const radial = plan.architecture === 'radial';
   const rows: Rows = [
-    ['Body', `${plural(plan.segmentCount, 'segment')}, ${shape}${sym}`],
+    radial
+      ? ['Body', `Radial crystal: ${plan.symmetry}-fold symmetry, ${plural(plan.tiers, 'facet tier')}, no head or tail`]
+      : ['Body', `${plural(plan.segmentCount, 'segment')}, ${plan.curl > 0.05 ? 'curling' : 'rounded'}`],
     ['Length', lengthWords(plan.scale)],
-    ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of ${plan.limbKind === 'tentacle' ? 'tentacles' : 'rod legs'}`],
-    ['Plates', plan.plateCover < 0.05 ? 'None' : `${si ? 'Silicon-nitride ceramic' : 'Shell'} over ${pct(plan.plateCover)} of the back`],
-    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, 'horn')],
+    radial
+      ? ['Arms', `${plan.symmetry} straight rod arms${plan.legPairs === 0 ? ' (short spikes)' : ''}`]
+      : ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of tentacles`],
+    ['Plates', plan.plateCover < 0.05 ? 'None' : `${si ? 'Silicon-nitride ceramic tiles' : 'Shell'} over ${pct(plan.plateCover)} of the ${radial ? 'facets' : 'back'}`],
+    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, radial ? 'crystal spire' : 'horn')],
     ['Eyes', plan.eyeKind === 'none' || plan.eyeCount === 0
       ? 'None'
-      : plural(plan.eyeCount, plan.eyeKind === 'rings' ? 'ring eye' : 'dot eye')],
+      : radial
+        ? `${plural(plan.eyeCount / plan.symmetry, 'dot eye')} at each arm tip`
+        : plural(plan.eyeCount, 'ring eye')],
   ];
   if (plan.glow > 0.1) rows.push(['Glow', `${plan.glow > 0.5 ? 'Bright' : 'Faint'}${si ? ' (non-oxygen chemiluminescence, speculative)' : ''}`]);
   return rows;

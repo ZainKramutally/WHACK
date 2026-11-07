@@ -159,8 +159,11 @@ export function functionalType(centroid: FormCentroid, hint: FormHint = {}): Fun
 
 // ---- Names ----
 
-const NOUN: Record<Locomotion, string> = {
-  floater: 'Drifter', strider: 'Strider', walker: 'Walker', crawler: 'Crawler', swimmer: 'Swimmer',
+// Nouns fit the architecture: carbon is bilateral and axial (worms, striders), silicon is a radial lattice
+// (arms stepping in tripods, rolling hubs, bells, rooted crystal colonies).
+const NOUN: Record<'si' | 'c', Record<Locomotion, string>> = {
+  c: { floater: 'Drifter', strider: 'Strider', walker: 'Walker', crawler: 'Crawler', swimmer: 'Swimmer' },
+  si: { floater: 'Bloom', strider: 'Spoke', walker: 'Tripod', crawler: 'Lattice', swimmer: 'Roller' },
 };
 
 // Distinguishing feature, strongest first. Chemistry picks the word set; the feature picks the word.
@@ -179,11 +182,11 @@ function featureOf(b: BodyGenes): Feature {
   return 'plain';
 }
 
-/** Deterministic two-word name from traits only, e.g. "Glass Strider". Silicon-leaning centroids (si ≥ c) use the silicon word set. */
+/** Deterministic two-word name from traits only, e.g. "Glass Spoke". Centroids that develop() builds radially (si > 0.5) use the silicon word sets. */
 export function nameForm(centroid: FormCentroid, hint: FormHint = {}): string {
-  const chem = centroid.si >= centroid.c ? 'si' : 'c';
+  const chem = centroid.si > 0.5 ? 'si' : 'c';
   const loco = hint.mode === undefined ? locomotionOf(centroid.body) : locomotionForMode(centroid.body, hint.mode);
-  return `${ADJ[chem][featureOf(centroid.body)]} ${NOUN[loco]}`;
+  return `${ADJ[chem][featureOf(centroid.body)]} ${NOUN[chem][loco]}`;
 }
 
 // ---- Tracker ----

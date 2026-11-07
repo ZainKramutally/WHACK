@@ -78,8 +78,20 @@ describe('names', () => {
 
   it('reads locomotion and features from traits', () => {
     const mk = (g: AnimalGenome) => clusterForms([{ id: 1, genome: g }])[0].centroid;
-    expect(nameForm(mk(genome({ limbPairs: 0.7, limbLen: 0.8, size: 0.5 }, 0.05, 0.9)))).toBe('Glass Strider');
+    expect(nameForm(mk(genome({ limbPairs: 0.7, limbLen: 0.8, size: 0.5 }, 0.05, 0.9)))).toBe('Glass Spoke');
     expect(nameForm(mk(genome({ buoy: 0.9, glow: 0.8 })))).toBe('Lantern Drifter');
+  });
+
+  it('silicon names use architecture nouns (Spoke, Tripod, Lattice, Roller, Bloom), never carbon\'s', () => {
+    const mk = (b: Partial<AnimalGenome['body']>) => clusterForms([{ id: 1, genome: genome(b, 0.05, 0.9) }])[0].centroid;
+    const nm = (b: Partial<AnimalGenome['body']>, mode: LocomotionMode) => nameForm(mk(b), { mode });
+    expect(nm({ limbPairs: 0.7, limbLen: 0.8 }, LOCOMOTION.walk)).toMatch(/Spoke$/);
+    expect(nm({ limbPairs: 0.7, limbLen: 0.2 }, LOCOMOTION.walk)).toMatch(/Tripod$/);
+    expect(nm({}, LOCOMOTION.sessile)).toMatch(/Lattice$/);
+    expect(nm({}, LOCOMOTION.swim)).toMatch(/Roller$/);
+    expect(nm({}, LOCOMOTION.hover)).toMatch(/Bloom$/);
+    const carbonNames = (['walk', 'swim', 'hover', 'sessile'] as const).map((m) => nameForm(clusterForms(group(1, 4, carbonWorm))[0].centroid, { mode: LOCOMOTION[m] }).split(' ')[1]);
+    for (const n of carbonNames) expect(['Spoke', 'Tripod', 'Lattice', 'Roller', 'Bloom']).not.toContain(n);
   });
 
   it('functional type combines role and locomotion', () => {

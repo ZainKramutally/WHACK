@@ -2,7 +2,7 @@
 // ray marching for picking, and the bead layout of a body plan. Tested in layout.test.ts.
 import type { BodyPlan } from '../sim/develop';
 import type { InspectTarget } from '../worlds/types';
-import { SNAP_DEG, solveTwoBone } from './motion';
+import { SNAP_DEG, armPhase, solveTwoBone } from './motion';
 
 export const FLORA_GRID = 64;
 const D2R = Math.PI / 180;
@@ -135,7 +135,47 @@ export interface LimbRig {
   restOut: number;
 }
 
+/** A hexagonal/n-gonal prism from a to b with radius r (silicon's straight, faceted parts), in body space, metres. */
+export interface Rod { ax: number; ay: number; az: number; bx: number; by: number; bz: number; r: number; tone: BeadTone }
+
+/** A radial body's arm: a 2-bone rod chain from a hub facet, stepped with IK; dot eyes sit at its tip. */
+export interface ArmRig {
+  index: number;
+  hip: { x: number; y: number; z: number };
+  /** Outward unit direction in the ground plane (azimuth around the hub). */
+  dirX: number; dirZ: number;
+  len1: number; len2: number;
+  r: number;
+  snap: number;
+  /** Horizontal hip→foot distance at rest, and the foot's rest height. */
+  restOut: number; restFootY: number;
+  /** Gait phase offset (tripod groups). */
+  phase: number;
+  /** Index of this arm's first rod in BeadLayout.rods (two rods per arm). */
+  firstRod: number;
+  /** Eye dots at the tip: first bead index, count, radius and offsets from the tip in the ground plane. */
+  eyeFirst: number; eyeN: number; eyeR: number; eyeDX: number[]; eyeDZ: number[];
+}
+
+/** The prism parts of a radial (silicon) body. For these, BeadLayout.beads holds only the arm-tip eye dots. */
+export interface RadialLayout {
+  /** Hub tiers first (nTiers of them), then tiles and spires (up to nHubRods), then two rods per arm. */
+  rods: Rod[];
+  nTiers: number;
+  /** Hub prism sides (3, 4 or 6) of the first nTiers rods. */
+  hubSides: number;
+  /** Count of rods before the arm rods (hub + tiles + spires). */
+  nHubRods: number;
+  arms: ArmRig[];
+  /** Height of the hub's centre of rotation (for rolling), above the ground. */
+  pivotY: number;
+  /** Largest arm reach from the hub axis, for the roll radius. */
+  rollRadius: number;
+}
+
 export interface BeadLayout {
+  /** Present for radial (silicon) bodies; axial (carbon) bodies are beads and limbs only. */
+  radial?: RadialLayout;
   /** Body beads first (nBody of them), then limb beads at their rest pose. */
   beads: Bead[];
   nBody: number;
@@ -158,17 +198,17 @@ export function capsuleLayout(length: number): BeadLayout {
   return { beads, nBody: beads.length, limbs: [], stride: 0, radius: length * 0.6, centreY: r };
 }
 
+
 /**
- * Turns a BodyPlan into spheres: a spine of `segmentCount` beads (curling for carbon, straight and stepped for
- * silicon), plates on top, horns and eyes on the head, and limbs as chains of beads (rods: three beads per segment
- * along straight 15°-snapped joints; tentacles: tapering beads). Pure and deterministic.
+ * Axial (carbon) bodies as spheres: a head-to-tail spine of `segmentCount` soft round beads curling by `curl` radians
+ * per joint with a tapering tail and a swollen head, plates on top, paired eyes and horns on the head, and paired
+ * tentacle limbs as chains of tapering beads. Pure and deterministic.
  */
-export function beadLayout(plan: BodyPlan): BeadLayout {
+function axialLayout(plan: BodyPlan): BeadLayout {
   const n = Math.max(3, Math.round(plan.segmentCount));
   const L = plan.scale;
   const s = L / n;
   const rMax = Math.min(0.22 * L, 1.1 * s);
-  const silicon = plan.chemistry === 'silicon';
 
   // Spine in the XZ plane: tail (i = 0) to head (i = n−1), curling by `curl` radians per joint.
   const spine: { x: number; z: number; r: number; heading: number }[] = [];
@@ -176,7 +216,10 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0 : i / (n - 1);
     let prof = 0.55 + 0.45 * Math.sin(Math.PI * (0.1 + 0.8 * t));
-    if (plan.profile === 'stepped') prof = Math.max(0.4, Math.round(prof * 3) / 3);
+    // Head end swells a little; the tail end tapers to a point.
+    if (i === n - 1) prof *= 1.12;
+    if (i === 0) prof *= 0.6;
+    else if (i === 1 && n > 4) prof *= 0.85;
     spine.push({ x: hx, z: hz, r: rMax * prof, heading: ang });
     hx += Math.cos(ang) * s;
     hz += Math.sin(ang) * s;
@@ -211,7 +254,7 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
       x: head.x + head.r * (0.55 - 0.35 * row),
       y: head.r * (0.35 + 0.3 * row),
       z: side * head.r * 0.65,
-      r: Math.max(head.r * (silicon ? 0.18 : 0.3), 0.01 * L),
+      r: Math.max(head.r * 0.3, 0.01 * L),
       tone: BEAD_EYE,
     });
   }
@@ -233,7 +276,7 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
   const bodyBeads = [...body, ...eyes, ...horns, ...plates].slice(0, MAX_BEADS_PER_ORGANISM - 2 * nLegs);
   if (nLegs > 0) {
     const budget = MAX_BEADS_PER_ORGANISM - bodyBeads.length;
-    const perBone = Math.max(1, Math.min(silicon ? 3 : 2, Math.floor(budget / (2 * nLegs))));
+    const perBone = Math.max(1, Math.min(2, Math.floor(budget / (2 * nLegs))));
     const rl = Math.max(0.03 * L, rMax * 0.45);
     const restOut = Math.sqrt(Math.max(1e-6, (0.9 * reach) ** 2 - lift * lift));
     let first = bodyBeads.length;
@@ -243,7 +286,7 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
       for (const side of [1, -1] as const) {
         rigs.push({
           hip: { x: p.x, y: lift, z: p.z + side * p.r * 0.7 }, side, pair,
-          len1: reach / 2, len2: reach / 2, r: rl, taper: !silicon, perBone, first, snap: silicon ? SNAP_DEG : 0, restOut,
+          len1: reach / 2, len2: reach / 2, r: rl, taper: true, perBone, first, snap: 0, restOut,
         });
         first += 2 * perBone;
       }
@@ -260,6 +303,121 @@ export function beadLayout(plan: BodyPlan): BeadLayout {
   let rad = 0;
   for (const b of all) rad = Math.max(rad, Math.hypot(b.x, b.y - maxY / 2, b.z) + b.r);
   return { beads: all, nBody: bodyBeads.length, limbs: rigs, stride: 0.3 * reach, radius: rad, centreY: maxY / 2 };
+}
+
+
+// --- radial layout (silicon) ---------------------------------------------------------------------------------------
+const MAX_TILES = 12;
+const D15 = Math.PI / 12;
+
+/**
+ * Radial (silicon) bodies as prisms: no head or tail. A hub of `tiers` stacked n-gon facet tiers (n = symmetry), straight
+ * rod arms (one per vertex, two bones with 15° joints) radiating from the lowest tier, ceramic tiles on facets (top
+ * tiers first), one or three crystal spires on the apex, and dot-eye clusters at the arm tips. The pose is a spoke
+ * pose (arms out); fauna re-poses the arms per locomotion mode. Pure and deterministic.
+ */
+function radialLayout(plan: BodyPlan): BeadLayout {
+  const N = plan.symmetry, tiers = Math.max(1, plan.tiers), L = plan.scale;
+  const tierH = plan.tierHeight;
+  const reach = plan.limbLength;
+  const legged = plan.legPairs > 0;
+  const lift = legged ? Math.max(tierH / 2, 0.75 * reach) : tierH / 2;
+  const radii = plan.tierRadii.length === tiers ? plan.tierRadii : Array.from({ length: tiers }, () => plan.hubRadius);
+  const rods: Rod[] = [], beads: Bead[] = [];
+
+  // Hub tiers, bottom to top.
+  for (let i = 0; i < tiers; i++) {
+    const yc = lift + i * tierH;
+    rods.push({ ax: 0, ay: yc - tierH / 2, az: 0, bx: 0, by: yc + tierH / 2, bz: 0, r: radii[i], tone: BEAD_BODY });
+  }
+  const topY = lift + (tiers - 1) * tierH + tierH / 2;
+
+  // Ceramic tiles flush on facets, top tier first.
+  const facets = tiers * N;
+  const nTiles = Math.min(MAX_TILES, Math.round(plan.plateCover * facets));
+  const tileT = 0.14 * tierH, tileR = 0.32 * tierH;
+  for (let k = 0; k < nTiles; k++) {
+    const tier = tiers - 1 - Math.floor(k / N), j = k % N;
+    const az = ((j + 0.5) * 2 * Math.PI) / N;
+    const ap = radii[tier] * Math.cos(Math.PI / N) - 0.3 * tileT, yc = lift + tier * tierH;
+    const cx = Math.cos(az), cz = Math.sin(az);
+    rods.push({ ax: cx * ap, ay: yc, az: cz * ap, bx: cx * (ap + tileT * 1.3), by: yc, bz: cz * (ap + tileT * 1.3), r: tileR, tone: BEAD_PLATE });
+  }
+
+  // Apex spires: one upright, or three tilted 15° outward. Two rods each (thick base, thin tip).
+  const spireR = Math.max(0.12 * radii[tiers - 1], 0.01 * L);
+  for (let k = 0; k < Math.min(3, plan.hornCount); k++) {
+    const az = plan.hornCount === 1 ? 0 : (k * 2 * Math.PI) / 3 + Math.PI / 6;
+    const tilt = plan.hornCount === 1 ? 0 : D15;
+    const dx = Math.sin(tilt) * Math.cos(az), dy = Math.cos(tilt), dz = Math.sin(tilt) * Math.sin(az);
+    const ox = plan.hornCount === 1 ? 0 : Math.cos(az) * 0.4 * radii[tiers - 1], oz = plan.hornCount === 1 ? 0 : Math.sin(az) * 0.4 * radii[tiers - 1];
+    const len = Math.max(plan.hornLength, 0.15 * L);
+    rods.push({ ax: ox, ay: topY - 0.05 * tierH, az: oz, bx: ox + dx * 0.6 * len, by: topY - 0.05 * tierH + dy * 0.6 * len, bz: oz + dz * 0.6 * len, r: spireR, tone: BEAD_HORN });
+    rods.push({ ax: ox + dx * 0.55 * len, ay: topY - 0.05 * tierH + dy * 0.55 * len, az: oz + dz * 0.55 * len, bx: ox + dx * len, by: topY - 0.05 * tierH + dy * len, bz: oz + dz * len, r: spireR * 0.5, tone: BEAD_HORN });
+  }
+  const nHubRods = rods.length;
+
+  // Arms from the lowest tier's vertices, plus eye dots at the tips.
+  const arms: ArmRig[] = [];
+  const armR = Math.max(0.04 * L, 0.16 * radii[0]);
+  const restOut = legged ? Math.sqrt(Math.max(1e-6, (0.9 * reach) ** 2 - lift * lift)) : 0.9 * reach;
+  const restFootY = legged ? armR : Math.max(armR, lift - 0.2 * reach);
+  const eyesPerArm = plan.eyeKind === 'none' || plan.eyeCount === 0 ? 0 : Math.max(1, Math.round(plan.eyeCount / N));
+  const eyeR = Math.max(1.1 * armR, 0.012 * L);
+  for (let k = 0; k < N; k++) {
+    const az = (plan.arms[k]?.azimuthDeg ?? (360 / N) * k) * (Math.PI / 180);
+    const dirX = Math.cos(az), dirZ = Math.sin(az);
+    const rig: ArmRig = {
+      index: k, hip: { x: dirX * radii[0], y: lift, z: dirZ * radii[0] }, dirX, dirZ,
+      len1: reach / 2, len2: reach / 2, r: armR, snap: SNAP_DEG, restOut, restFootY,
+      phase: armPhase(k, N), firstRod: rods.length, eyeFirst: 0, eyeN: eyesPerArm, eyeR, eyeDX: [], eyeDZ: [],
+    };
+    const out: number[] = [];
+    armRods(rig, rig.hip.x + dirX * restOut, restFootY, rig.hip.z + dirZ * restOut, out);
+    for (let i = 0; i < out.length; i += 7) rods.push({ ax: out[i], ay: out[i + 1], az: out[i + 2], bx: out[i + 3], by: out[i + 4], bz: out[i + 5], r: out[i + 6], tone: BEAD_LIMB });
+    rig.eyeFirst = beads.length;
+    for (let e = 0; e < eyesPerArm; e++) {
+      const a = (2 * Math.PI * e) / Math.max(1, eyesPerArm);
+      const ring = eyesPerArm === 1 ? 0 : 1.5 * eyeR;
+      rig.eyeDX.push(Math.cos(a) * ring); rig.eyeDZ.push(Math.sin(a) * ring);
+    }
+    const tip = rods[rods.length - 1];
+    for (let e = 0; e < eyesPerArm; e++) beads.push({ x: tip.bx + rig.eyeDX[e], y: tip.by + eyeR * 0.6, z: tip.bz + rig.eyeDZ[e], r: eyeR, tone: BEAD_EYE });
+    arms.push(rig);
+  }
+
+  let maxY = topY, rad = 0, maxOut = radii.reduce((m, r) => Math.max(m, r), 0);
+  for (const r of rods) { maxY = Math.max(maxY, r.ay + r.r, r.by + r.r); maxOut = Math.max(maxOut, Math.hypot(r.bx, r.bz), Math.hypot(r.ax, r.az)); }
+  const cy = maxY / 2;
+  for (const r of rods) rad = Math.max(rad, Math.hypot(r.ax, r.ay - cy, r.az) + r.r, Math.hypot(r.bx, r.by - cy, r.bz) + r.r);
+  for (const b of beads) rad = Math.max(rad, Math.hypot(b.x, b.y - cy, b.z) + b.r);
+  return {
+    beads, nBody: 0, limbs: [], stride: 0.3 * reach, radius: rad, centreY: cy,
+    radial: { rods, nTiers: tiers, hubSides: N, nHubRods, arms, pivotY: lift + ((tiers - 1) * tierH) / 2, rollRadius: Math.max(maxOut, radii[0]) },
+  };
+}
+
+/**
+ * Rods of an arm for a foot at (fx, fy, fz) in body space (fy is the foot-centre height): the 2-bone IK in the vertical
+ * plane through hip and foot, joints snapped to 15°. Appends ax, ay, az, bx, by, bz, r for the two bones to `out`.
+ */
+export function armRods(rig: ArmRig, fx: number, fy: number, fz: number, out: number[]): void {
+  const dx = fx - rig.hip.x, dz = fz - rig.hip.z;
+  const u = Math.hypot(dx, dz) || 1e-6;
+  const ex = dx / u, ez = dz / u;
+  const sol = solveTwoBone(u, fy - rig.hip.y, rig.len1, rig.len2, rig.snap);
+  const kx = rig.hip.x + ex * sol.kneeU, ky = rig.hip.y + sol.kneeV, kz = rig.hip.z + ez * sol.kneeU;
+  const px = rig.hip.x + ex * sol.footU, py = rig.hip.y + sol.footV, pz = rig.hip.z + ez * sol.footU;
+  out.push(rig.hip.x, rig.hip.y, rig.hip.z, kx, ky, kz, rig.r);
+  out.push(kx, ky, kz, px, py, pz, rig.r * 0.8);
+}
+
+/**
+ * Turns a BodyPlan into a creature layout: spheres for axial (carbon) bodies, prisms for radial (silicon) ones.
+ * The architecture comes from the plan; the two share nothing but the BeadLayout envelope.
+ */
+export function beadLayout(plan: BodyPlan): BeadLayout {
+  return plan.architecture === 'radial' ? radialLayout(plan) : axialLayout(plan);
 }
 
 /**

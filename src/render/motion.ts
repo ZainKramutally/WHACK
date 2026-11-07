@@ -100,3 +100,30 @@ export function bellPulse(t: number, phase: number, depth = 0.1, freq = 1.2): nu
 export function swayOffset(hn: number, t: number, phase: number, amp: number): number {
   return amp * hn * hn * Math.sin(0.7 * t + phase);
 }
+
+// --- radial bodies (silicon): arm stances, tripod phases and rolling ---------------------------------------------
+/** Tripod stepping: arms alternate in two groups (opposite arms together for 4- and 6-fold); a 3-fold body steps its arms in turn. */
+export function armPhase(index: number, symmetry: number): number {
+  return symmetry === 3 ? index / 3 : (index & 1) * 0.5;
+}
+
+export type ArmStance = 'spoke' | 'bell' | 'crystal';
+
+/**
+ * Foot target of a radial arm relative to its hip, as horizontal distance outward `out` and height `up`.
+ * spoke: straight out (the rolling pose); bell: arms hang down and in, pulsing with the bell; crystal: prongs raised
+ * and still (a rooted colony). Walking uses gaitFoot instead.
+ */
+export function armStance(stance: ArmStance, reach: number, t: number, phase: number): { out: number; up: number } {
+  if (stance === 'bell') {
+    const p = bellPulse(t, phase);
+    return { out: 0.55 * reach * p, up: -0.7 * reach * (2 - p) };
+  }
+  if (stance === 'crystal') return { out: 0.35 * reach, up: 0.85 * reach };
+  return { out: 0.9 * reach, up: 0 };
+}
+
+/** Roll angle (radians) after travelling `distance` metres: a rolling hub of the given radius turns distance/radius. */
+export function rollAngle(distance: number, radius: number): number {
+  return distance / Math.max(1e-6, radius);
+}

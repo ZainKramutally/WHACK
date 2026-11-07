@@ -1,10 +1,15 @@
-// Creatures from the organisms buffer, as bead bodies: one instanced sphere per bead, laid out from each organism's
-// BodyPlan (births give plans by id; cached by id). Silicon is faceted (icosahedra, flat shaded) with rod limbs and
-// 15° joints; carbon is round. Glowing creatures go in an unlit HDR mesh. Read-only: nothing here writes sim state.
+// Creatures from the organisms buffer, laid out from each organism's BodyPlan (births give plans by id; cached by id).
+// The two chemistries are different ARCHITECTURES, not skins. Carbon (axial) is bead bodies: one instanced round sphere
+// per bead, a curling head-to-tail chain with tentacle legs. Silicon (radial) is prisms: an n-gon faceted hub of stacked
+// tiers, straight two-bone rod arms with 15° joints, ceramic tiles, apex spires and dot eyes at the arm tips, drawn
+// with instanced prisms (one mesh per hub symmetry plus a hex-prism mesh). Glowing creatures put their eyes in an
+// unlit HDR mesh. Read-only: nothing here writes sim state.
 //
 // Motion (render-only): poses are interpolated between 20 Hz snapshots by id (with a short extrapolation cap), births
-// and deaths fade over 0.3 s, and nearby creatures animate by locomotion mode: swimmers get a travelling spine wave,
-// walkers an analytic 2-bone IK gait with planted feet, hover bodies a pulsing bell, sessile ones a gentle sway.
+// and deaths fade over 0.3 s, and nearby creatures animate by locomotion mode. Axial: swimmers get a travelling spine
+// wave, walkers an analytic 2-bone IK gait with planted feet, hover bodies a pulsing bell, sessile ones a gentle sway.
+// Radial: walkers tripod-step on their arms (planted feet), swimmers roll like a wheel, hover bodies pulse as a bell
+// with arms hanging down, and sessile ones stay rooted as a still crystal colony with prongs raised.
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
@@ -12,14 +17,16 @@ import { ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim
 import { unpackBodyPlan } from '../sim/plan';
 import { LOCOMOTION } from '../sim/develop';
 import {
-  beadLayout, capsuleLayout, displayFactor, displayLength, limbChain, nearestSphere, patchToWorld, type BeadLayout, type Vec3,
+  armRods, beadLayout, capsuleLayout, displayFactor, displayLength, limbChain, nearestSphere, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
-  bellPulse, fadeScale, gaitFoot, interpPose, limbPhaseOffset, swayOffset, swimWave,
+  armStance, bellPulse, fadeScale, gaitFoot, interpPose, limbPhaseOffset, rollAngle, swayOffset, swimWave,
 } from './motion';
 import { creatureColour, type Tone } from './palette';
 
 const CAP = 65536;                // beads per mesh
+const HUB_CAP = 8192;             // hub tiers per symmetry mesh
+const HEX_CAP = 40960;            // arm, tile and spire prisms
 const GLOW_MIN = 0.12;            // plan.glow above this goes to the glow mesh
 const FORGET_FRAMES = 300;        // drop cached plans for organisms never seen this long
 const FADE_SEC = 0.3;
@@ -34,6 +41,10 @@ interface Entry {
   flat: Float32Array;
   /** Linear RGB per tone (5 × 3), built once from chemistry and diet. */
   rgb: Float32Array;
+  /** Radial bodies: rest rods (ax, ay, az, bx, by, bz, r; stride 7) and their tones. */
+  rods: Float32Array; rodTone: Uint8Array;
+  /** Accumulated roll angle (radians) of a rolling radial body. */
+  roll: number;
   // body extents for the motion maths
   xmin: number; xspan: number; ymax: number;
   // snapshot interpolation: previous rendered pose → newest target, over dtSnap seconds from snapT
@@ -47,11 +58,18 @@ interface Entry {
   speed: number; gait: number;
   /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
   planned: boolean;
+  /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
+  legged: boolean;
   seen: boolean; stamp: number; born: number; dieT: number; mode: number; id: number; diet: number;
 }
 
 const tmpColour = new THREE.Color();
-function bake(layout: BeadLayout, silicon: boolean, diet: number): { flat: Float32Array; rgb: Float32Array; xmin: number; xspan: number; ymax: number } {
+function bake(layout: BeadLayout, silicon: boolean, diet: number): { flat: Float32Array; rgb: Float32Array; rods: Float32Array; rodTone: Uint8Array; xmin: number; xspan: number; ymax: number } {
+  const rl = layout.radial?.rods ?? [];
+  const rods = new Float32Array(rl.length * 7), rodTone = new Uint8Array(rl.length);
+  rl.forEach((r, i) => {
+    rods.set([r.ax, r.ay, r.az, r.bx, r.by, r.bz, r.r], i * 7); rodTone[i] = r.tone;
+  });
   const flat = new Float32Array(layout.beads.length * 5);
   let xmin = Infinity, xmax = -Infinity, ymax = 1e-6;
   layout.beads.forEach((b, i) => {
@@ -59,12 +77,13 @@ function bake(layout: BeadLayout, silicon: boolean, diet: number): { flat: Float
     if (i < layout.nBody) { xmin = Math.min(xmin, b.x); xmax = Math.max(xmax, b.x); }
     ymax = Math.max(ymax, b.y + b.r);
   });
+  for (const r of rl) ymax = Math.max(ymax, r.ay + r.r, r.by + r.r);
   const rgb = new Float32Array(15);
   for (let tone = 0; tone < 5; tone++) {
     tmpColour.setHex(creatureColour(silicon, diet, tone as Tone));
     rgb[tone * 3] = tmpColour.r; rgb[tone * 3 + 1] = tmpColour.g; rgb[tone * 3 + 2] = tmpColour.b;
   }
-  return { flat, rgb, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };
+  return { flat, rgb, rods, rodTone, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };
 }
 
 export interface FaunaPart {
@@ -94,6 +113,21 @@ function makeMesh(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.Instanc
   return m;
 }
 
+function makeRodMesh(sides: number, cap: number): THREE.InstancedMesh {
+  // Cylinder axis is Y; rotate the prism so a vertex points along local +X (arms radiate from the vertices).
+  const geo = new THREE.CylinderGeometry(1, 1, 1, sides, 1);
+  geo.rotateY(Math.PI / 2);
+  const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.15, flatShading: true }), cap);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+  m.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  m.frustumCulled = false;
+  m.count = 0;
+  const a = m.instanceMatrix.array as Float32Array;
+  for (let i = 0; i < cap; i++) a[i * 16 + 15] = 1;
+  return m;
+}
+
 export function createFauna(app: App): FaunaPart {
   const round = makeMesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshStandardNodeMaterial({ roughness: 0.6 }));
   const faceted = makeMesh(
@@ -101,16 +135,20 @@ export function createFauna(app: App): FaunaPart {
     new THREE.MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.1, flatShading: true }),
   );
   const glowMesh = makeMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicNodeMaterial({ fog: true }));
-  app.scene.add(round, faceted, glowMesh);
+  const hub3 = makeRodMesh(3, HUB_CAP), hub4 = makeRodMesh(4, HUB_CAP), hub6 = makeRodMesh(6, HUB_CAP), hex = makeRodMesh(6, HEX_CAP);
+  app.scene.add(round, faceted, glowMesh, hub3, hub4, hub6, hex);
 
   const entries = new Map<number, Entry>();
-  const MESHES = [round, faceted, glowMesh];
+  const MESHES = [round, faceted, glowMesh, hub3, hub4, hub6, hex];
+  const HEX = 6; // index of the hex-prism mesh in MESHES
   const dying: Entry[] = [];
   let lastBirths: unknown = null;
   let frame = 0;
   let lastBuf: Float32Array | null = null, snapId = 0, lastSnapT = -1;
-  const counts = [0, 0, 0]; // round, faceted, glow
+  const counts = [0, 0, 0, 0, 0, 0, 0]; // round, faceted, glow, hub3, hub4, hub6, hex
   const scratch = new Float32Array(64 * 5);  // animated bead pose, same layout as Entry.flat
+  const rodScratch = new Float32Array(48 * 7); // animated rods (radial bodies), stride 7
+  const armOut: number[] = [];
   const limbOut: number[] = [];
   const camPos = app.camera.position;
 
@@ -120,9 +158,9 @@ export function createFauna(app: App): FaunaPart {
 
   function makeEntry(layout: BeadLayout, silicon: boolean, diet: number, glow: number, scale: number, id: number, planned = false): Entry {
     return {
-      layout, lastSeen: frame, glow, silicon, scale, ...bake(layout, silicon, diet),
+      layout, lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, diet),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
-      speed: 0, gait: 0, planned, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet,
+      speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet,
     };
   }
 
@@ -177,6 +215,85 @@ export function createFauna(app: App): FaunaPart {
     return nb;
   }
 
+  /** Radial bodies: fill rodScratch (stride 7) and the arm-tip eye beads in `scratch` (stride 5) for this pose. */
+  function animateRadial(
+    e: Entry, t: number, s: number, mode: number, heightAt: (x: number, z: number) => number,
+    y0: number, cosH: number, sinH: number,
+  ): void {
+    const lay = e.layout, R = lay.radial!;
+    const src = e.rods, out = rodScratch, eyes = scratch;
+    const moving = Math.min(1, e.speed / (0.12 * displayLength(e.scale)));
+    const pulse = mode === LOCOMOTION.hover ? bellPulse(t, e.id) : 1;
+    for (let i = 0; i < R.nHubRods * 7; i++) out[i] = src[i];
+    if (pulse !== 1) for (let i = 0; i < R.nTiers; i++) out[i * 7 + 6] *= pulse;
+    const stance = mode === LOCOMOTION.hover ? 'bell' : mode === LOCOMOTION.sessile ? 'crystal' : 'spoke';
+    for (const rig of R.arms) {
+      let fx: number, fy: number, fz: number;
+      if (mode === LOCOMOTION.walk && e.legged) {
+        const g = gaitFoot(e.gait + rig.phase, lay.stride * moving, 0.35 * rig.len1 * moving);
+        fx = rig.hip.x + rig.dirX * rig.restOut + g.dx;
+        fz = rig.hip.z + rig.dirZ * rig.restOut;
+        const wx = e.x + (fx * cosH - fz * sinH) * s, wz = e.z + (fx * sinH + fz * cosH) * s;
+        fy = rig.r + g.dy + (heightAt(wx, wz) - y0) / s;
+      } else if (stance === 'spoke') {
+        fx = rig.hip.x + rig.dirX * rig.restOut; fz = rig.hip.z + rig.dirZ * rig.restOut; fy = rig.restFootY;
+      } else {
+        const st = armStance(stance, rig.len1 + rig.len2, t, e.id);
+        fx = rig.hip.x + rig.dirX * st.out; fz = rig.hip.z + rig.dirZ * st.out; fy = rig.hip.y + st.up;
+      }
+      armOut.length = 0;
+      armRods(rig, fx, fy, fz, armOut);
+      const o = rig.firstRod * 7;
+      for (let k = 0; k < 14; k++) out[o + k] = armOut[k];
+      const tx = armOut[10], ty = armOut[11], tz = armOut[12];
+      for (let k = 0; k < rig.eyeN; k++) {
+        const q = (rig.eyeFirst + k) * 5;
+        eyes[q] = tx + rig.eyeDX[k]; eyes[q + 1] = ty + rig.eyeR * 0.6; eyes[q + 2] = tz + rig.eyeDZ[k]; eyes[q + 3] = rig.eyeR; eyes[q + 4] = 1;
+      }
+    }
+    if (mode === LOCOMOTION.swim && e.roll !== 0) {
+      // A rolling hub turns like a wheel about its lateral axis, top moving forward.
+      const c = Math.cos(e.roll), sn = Math.sin(e.roll), py = R.pivotY;
+      const rot = (a: Float32Array, i: number) => {
+        const x = a[i], y = a[i + 1] - py;
+        a[i] = x * c + y * sn; a[i + 1] = py - x * sn + y * c;
+      };
+      for (let r = 0; r < R.rods.length; r++) { rot(out, r * 7); rot(out, r * 7 + 3); }
+      for (let k = 0; k < lay.beads.length; k++) rot(eyes, k * 5);
+    }
+  }
+
+  function emitRod(
+    mesh: THREE.InstancedMesh, idx: number, rs: Float32Array, i: number, s: number, ex: number, ey: number, ez: number,
+    cosH: number, sinH: number, rgb: Float32Array, tone: number, k: number,
+  ): void {
+    const o = i * 7;
+    const ax = rs[o] * s, ay = rs[o + 1] * s, az = rs[o + 2] * s, bx = rs[o + 3] * s, by = rs[o + 4] * s, bz = rs[o + 5] * s;
+    const r = rs[o + 6] * s;
+    // World positions: body x is forward; heading rotates it about the vertical axis.
+    const Ax = ex + ax * cosH - az * sinH, Ay = ey + ay, Az = ez + ax * sinH + az * cosH;
+    const Bx = ex + bx * cosH - bz * sinH, By = ey + by, Bz = ez + bx * sinH + bz * cosH;
+    let dx = Bx - Ax, dy = By - Ay, dz = Bz - Az;
+    let len = Math.hypot(dx, dy, dz);
+    if (len < 1e-5) { dx = 0; dy = 1; dz = 0; len = 1e-5; } else { dx /= len; dy /= len; dz /= len; }
+    const ext = tone === 3 ? 0.35 * r : 0; // arm bones overlap a little at the joints
+    // Perpendicular frame: the body's forward axis made orthogonal to the rod axis (so n-gon hubs turn with the heading).
+    let px = cosH - cosH * dx * dx - sinH * dz * dx, py = -(cosH * dx + sinH * dz) * dy, pz = sinH - cosH * dx * dz - sinH * dz * dz;
+    let pl = Math.hypot(px, py, pz);
+    if (pl < 1e-4) { px = 0; py = 0; pz = 1; pl = 1; }
+    px /= pl; py /= pl; pz /= pl;
+    const qx = py * dz - pz * dy, qy = pz * dx - px * dz, qz = px * dy - py * dx; // p × axis
+    const arr = mesh.instanceMatrix.array as Float32Array;
+    const m = idx * 16, L = len + 2 * ext;
+    arr[m] = px * r; arr[m + 1] = py * r; arr[m + 2] = pz * r;
+    arr[m + 4] = dx * L; arr[m + 5] = dy * L; arr[m + 6] = dz * L;
+    arr[m + 8] = qx * r; arr[m + 9] = qy * r; arr[m + 10] = qz * r;
+    arr[m + 12] = (Ax + Bx) / 2; arr[m + 13] = (Ay + By) / 2; arr[m + 14] = (Az + Bz) / 2;
+    const carr = (mesh.instanceColor as THREE.InstancedBufferAttribute).array as Float32Array;
+    const c3 = idx * 3, t3 = tone * 3;
+    carr[c3] = rgb[t3] * k; carr[c3 + 1] = rgb[t3 + 1] * k; carr[c3 + 2] = rgb[t3 + 2] * k;
+  }
+
   const part: FaunaPart = {
     scaleBoost: 1,
     count: 0,
@@ -189,7 +306,9 @@ export function createFauna(app: App): FaunaPart {
           if (entries.has(b.id)) continue;
           try {
             const plan = unpackBodyPlan(b.plan);
-            entries.set(b.id, makeEntry(beadLayout(plan), plan.chemistry === 'silicon', plan.diet, plan.glow, plan.scale, b.id, true));
+            const entry = makeEntry(beadLayout(plan), plan.chemistry === 'silicon', plan.diet, plan.glow, plan.scale, b.id, true);
+            entry.legged = plan.legPairs > 0;
+            entries.set(b.id, entry);
           } catch { /* malformed plan: fall back to a capsule when the organism shows up */ }
         }
       }
@@ -215,7 +334,7 @@ export function createFauna(app: App): FaunaPart {
       const sea = inputs.seaLevel;
       const seaThere = (inputs.stats.seaCover ?? 1) > 0.005;
       const heightAt = inputs.terrain.height;
-      counts[0] = counts[1] = counts[2] = 0;
+      counts.fill(0);
       let animated = 0;
 
       function draw(e: Entry, alpha: number, mode: number, live: boolean) {
@@ -227,20 +346,39 @@ export function createFauna(app: App): FaunaPart {
         else if (mode === LOCOMOTION.swim && seaThere && ground < sea) y0 = ground + (sea - ground) * 0.35;
 
         const useGlow = e.glow > GLOW_MIN;
-        const mi = useGlow ? 2 : e.silicon ? 1 : 0;
         const lay = e.layout;
+        const rad = lay.radial;
+        // Radial bodies' beads are only the arm-tip eye dots: faceted, or in the unlit mesh when glowing.
+        const mi = useGlow ? 2 : e.silicon || rad ? 1 : 0;
         if (counts[mi] + lay.beads.length > CAP) return;
+        let hubMesh = 0, nHex = 0;
+        if (rad) {
+          hubMesh = 3 + (rad.hubSides === 3 ? 0 : rad.hubSides === 4 ? 1 : 2);
+          nHex = rad.rods.length - rad.nTiers;
+          if (counts[hubMesh] + rad.nTiers > HUB_CAP || counts[HEX] + nHex > HEX_CAP) return;
+        }
         const mesh = MESHES[mi];
         const arr = mesh.instanceMatrix.array as Float32Array;
         const carr = (mesh.instanceColor as THREE.InstancedBufferAttribute).array as Float32Array;
         const glowK = useGlow ? 1 + 1.5 * e.glow : 1;
         const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
-        let flat = e.flat;
+        let flat = e.flat, rods = e.rods;
         const dx = camPos.x - e.x, dz = camPos.z - e.z;
         if (animated < ANIM_MAX && dx * dx + dz * dz < ANIM_RADIUS * ANIM_RADIUS) {
           animated++;
-          animate(e, t, boost * displayFactor(e.scale), mode, heightAt, y0, cosH, sinH);
+          if (rad) {
+            animateRadial(e, t, boost * displayFactor(e.scale), mode, heightAt, y0, cosH, sinH);
+            rods = rodScratch;
+          } else animate(e, t, boost * displayFactor(e.scale), mode, heightAt, y0, cosH, sinH);
           flat = scratch;
+        }
+        if (rad) {
+          const k = useGlow ? 1 + 0.6 * e.glow : 1;
+          for (let i = 0; i < rad.rods.length; i++) {
+            const mesh = i < rad.nTiers ? MESHES[hubMesh] : hex;
+            const idx = counts[i < rad.nTiers ? hubMesh : HEX]++;
+            emitRod(mesh, idx, rods, i, s, e.x, y0, e.z, cosH, sinH, e.rgb, e.rodTone[i], k);
+          }
         }
         const rgb = e.rgb, nb = lay.beads.length;
         for (let j = 0; j < nb; j++) {
@@ -295,6 +433,9 @@ export function createFauna(app: App): FaunaPart {
         // Gait advances with distance: cadence follows speed relative to body length.
         const rel = e.speed / displayLength(e.scale);
         e.gait += dt * Math.min(3, 1.2 + 6 * rel);
+        if (mode === LOCOMOTION.swim && e.layout.radial) {
+          e.roll = (e.roll + rollAngle(e.speed * dt / (boost * displayFactor(e.scale)), e.layout.radial.rollRadius)) % (2 * Math.PI);
+        }
         draw(e, fadeScale(t - e.born, FADE_SEC), mode, true);
       }
 
@@ -312,7 +453,7 @@ export function createFauna(app: App): FaunaPart {
         draw(e, a, e.mode, false);
       }
 
-      for (let m = 0; m < 3; m++) {
+      for (let m = 0; m < MESHES.length; m++) {
         MESHES[m].count = counts[m];
         MESHES[m].instanceMatrix.needsUpdate = true;
         (MESHES[m].instanceColor as THREE.InstancedBufferAttribute).needsUpdate = true;
@@ -331,8 +472,8 @@ export function createFauna(app: App): FaunaPart {
       return null;
     },
     dispose() {
-      app.scene.remove(round, faceted, glowMesh);
-      for (const m of [round, faceted, glowMesh]) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose(); }
+      app.scene.remove(...MESHES);
+      for (const m of MESHES) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); m.dispose(); }
       entries.clear();
     },
   };

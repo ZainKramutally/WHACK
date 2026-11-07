@@ -2,10 +2,14 @@
 // No randomness, no species names, no preset ids, no role input. Grid-dependent quantities are not here
 // (ecology.ts owns those). Glow comes from darkness on both worlds; oxygen does NOT feed glow.
 //
-// Chemistry is the grammar. The composition decides the shape family by a hard threshold on the silicon
-// fraction (F §3.3): si > 0.5 → silicon grammar (hex facets, rod limbs, 15° joints, dot eyes);
-// otherwise carbon grammar (round, curling, tentacle limbs, ring eyes). Continuous quantities (joint limit,
-// curl, hardness, tissue density) still vary smoothly with c and si, so a mixed body is a mixture, not a switch.
+// Chemistry is the grammar, and it picks the body ARCHITECTURE, not just the skin (owner ruling 2026-11-07).
+// The composition decides by a hard threshold on the silicon fraction: si > 0.5 → RADIAL (silicon): no head or
+// tail, a faceted hub with 3-, 4- or 6-fold symmetry whose facet tiers accrete with `segments`, straight rod arms
+// radiating from it (joints snapped to 15°), ceramic tiles on facets, apex spires, dot-eye clusters at the arm tips.
+// Otherwise AXIAL (carbon): a head-to-tail chain of soft round curling segments, paired tentacle limbs, a tail,
+// paired ring eyes at the head. The same 12 genes are read through each grammar (segments = spine length vs facet
+// tiers; limbPairs = leg pairs vs arm count by symmetry order). Continuous quantities (joint limit, hardness,
+// tissue density) still vary smoothly with c and si, so a mixed body is a mixture, not a switch.
 import { CONSTANTS } from './constants';
 import type { AnimalGenome } from './genome';
 
@@ -28,23 +32,32 @@ export interface DevelopInputs {
   tissueDensity: { C: number; Si: number }; // g/cm³
 }
 
+/** One arm of a radial body: its direction around the hub (a multiple of 15°) and its length. */
+export interface Arm { azimuthDeg: number; length: number }
+
 export interface BodyPlan {
   // size and mass
-  scale: number; // adult body length, metres
-  mass: number; // kg-ish; hub for upkeep (Kleiber), generation time, gape reach
-  bodyDensity: number; // g/cm³, after buoy and plates
+  scale: number; // adult body length (axial) or hub diameter (radial), metres
+  mass: number; // kg-ish; tissue mass (a gas bag adds volume, never removes mass); hub for upkeep (Kleiber), generation time, gape reach
+  bodyDensity: number; // g/cm³, whole body including any gas bag and plates
   // chemistry grammar
   chemistry: 'silicon' | 'carbon';
-  segmentCount: number; // 3..16
-  sides: 6 | 12; // cross-section: hexagonal prism or smooth loft
+  architecture: 'axial' | 'radial'; // carbon: bilateral head-to-tail chain; silicon: radial faceted hub with arms
+  symmetry: number; // 2 = bilateral (axial); 3, 4 or 6 = n-fold radial symmetry
+  segmentCount: number; // axial: 3..16 spine segments; radial: 0 (see `tiers`)
+  tiers: number; // radial: 1..5 facet tiers of the hub, accreting with the `segments` gene; axial: 0
+  hubRadius: number; // radial: widest tier radius, metres; axial: 0
+  tierHeight: number; // radial: height of one tier, metres; axial: 0
+  tierRadii: number[]; // radial: tier radius per tier, bottom to top (stepped); axial: []
+  arms: Arm[]; // radial: one per symmetry vertex; axial: []
+  sides: 3 | 4 | 6 | 12; // cross-section: n-gon prism hub (radial) or smooth 12-sided loft (axial)
   flatShaded: boolean; // true when si > 0.45: facets read as flat
   profile: 'stepped' | 'smooth'; // radius profile: stacked repeat units (silicon) or smooth (carbon)
-  bodyJointMaxDeg: number; // how far adjacent segments can bend; quantised to 15° for silicon
+  bodyJointMaxDeg: number; // how far adjacent segments (axial) or arm joints (radial) can bend; quantised to 15° for silicon
   jointSnapDeg: number; // 15 for silicon, 0 for carbon (continuous)
-  curl: number; // radians of curl per joint (carbon); 0 for silicon
-  radialOrder: number; // 0 = bilateral; 3 or 6 = radial symmetry (silicon with no legs)
+  curl: number; // radians of curl per joint (axial); 0 for radial
   // limbs
-  legPairs: number; // 0..4
+  legPairs: number; // 0..4: round(4·limbPairs) on both; radial arms are walking arms only when this is > 0
   limbKind: 'rod' | 'tentacle' | 'none';
   limbLength: number; // metres
   limbSegments: number; // rods: 2; tentacles: 2 + round(4·c·limbLen)
@@ -84,6 +97,7 @@ const G = {
   headMass: 0.1,
   sessileCost: 8, // normalisation: filter-feeding costs about a crawl (6), so legless worms still move
   crawlBase: 5, // legless crawl multiplier: 1 + 5·exp(−4·len) (F; no fitness valley, buds help smoothly)
+  gasFloor: 0.02, // a gas bag cannot be perfectly empty: whole-body density never falls below this share of tissue density
   hoverBase: 0.5,
   hoverSlope: 16,
   swimBase: 0.5,
@@ -106,45 +120,51 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const sea = inputs.solvent;
   const tissueRho = inputs.tissueDensity;
 
-  // --- chemistry grammar -------------------------------------------------
+  // --- chemistry grammar: the architecture -------------------------------------
   const silicon = comp.si > 0.5;
-  const sides = silicon ? 6 : 12;
+  const radial = silicon;
   const jointSnapDeg = silicon ? 15 : 0;
 
   // --- tissue density and size --------------------------------------------
   const siShare = comp.si / Math.max(1e-9, comp.c + comp.si); // o is not a structural tissue here
   const tissue = tissueRho.C + (tissueRho.Si - tissueRho.C) * siShare;
-  const bodyDensity = (1 - body.buoy) * tissue * (1 + K.PLATE_MASS.value * body.plates);
+  // Tissue density with plates. This sets MASS: buoyancy never removes tissue.
+  const tissueDense = tissue * (1 + K.PLATE_MASS.value * body.plates);
+  // A gas bag adds VOLUME around the same tissue, so whole-body density falls with `buoy` (floored) while mass stays.
+  const bodyDensity = tissueDense * (1 - (1 - G.gasFloor) * body.buoy);
 
   // Adult scale before the temperature–size rule, which depends on the locomotion mode chosen below.
   const baseScale =
     G.baseScale * 2 ** (G.sizeOctaves * body.size) * (1 + G.airLift * rhoAir * body.buoy) * (1 + comp.o);
 
-  // --- limbs --------------------------------------------------------------
+  // --- limbs / arms: limbPairs and limbLen are read by each grammar --------------------------------
   const legPairs = Math.round(4 * body.limbPairs);
-  const nLegs = 2 * legPairs;
   const limbLenRel = 0.3 + 1.7 * body.limbLen; // × scale
-  // Effective leg length: a bud (limbPairs below one pair) is a stubby leg; smooth, so there is no fitness valley.
-  const legLenEff = limbLenRel * Math.min(1, 4 * body.limbPairs);
-  const limbKind: BodyPlan['limbKind'] = legPairs === 0 ? 'none' : silicon ? 'rod' : 'tentacle';
-  const limbSegments = legPairs === 0 ? 0 : silicon ? 2 : 2 + Math.round(4 * comp.c * body.limbLen);
+  const budGrowth = Math.min(1, 4 * body.limbPairs); // a bud is a stubby limb; smooth, so there is no fitness valley
+  // Radial: one arm per symmetry vertex; 0–1 pairs → 3-fold, 2 → 4-fold, 3–4 → 6-fold. Arms walk only when legPairs > 0.
+  const symmetry = radial ? (legPairs <= 1 ? 3 : legPairs === 2 ? 4 : 6) : 2;
+  const nLegs = radial ? (legPairs === 0 ? 0 : symmetry) : 2 * legPairs;
+  // Effective limb length in body lengths. Radial arms are shorter than legs (the hub is wide: 0.6×) plus a spiky stub.
+  const legLenEff = (radial ? 0.6 : 1) * limbLenRel * budGrowth;
+  const limbKind: BodyPlan['limbKind'] = radial ? 'rod' : legPairs === 0 ? 'none' : 'tentacle';
+  const limbSegments = radial ? 2 : legPairs === 0 ? 0 : 2 + Math.round(4 * comp.c * body.limbLen);
   const limbJointAngles: number[] = [];
-  if (legPairs > 0) {
-    if (silicon) {
-      const hip = 20 + 50 * body.limbLen;
-      limbJointAngles.push(snap(hip, 15), snap(-1.5 * hip, 15)); // straight rods, one knee
-    } else {
-      const bend = 12 + 20 * body.limbLen;
-      for (let j = 0; j < limbSegments; j++) limbJointAngles.push(bend * (j % 2 === 0 ? 1 : -1));
-    }
+  if (radial) {
+    const hip = 20 + 50 * body.limbLen;
+    limbJointAngles.push(snap(hip, 15), snap(-1.5 * hip, 15)); // straight rods, one knee
+  } else if (legPairs > 0) {
+    const bend = 12 + 20 * body.limbLen;
+    for (let j = 0; j < limbSegments; j++) limbJointAngles.push(bend * (j % 2 === 0 ? 1 : -1));
   }
 
-  // --- segments -----------------------------------------------------------
-  const segmentCount = Math.min(16, 3 + Math.round(13 * body.segments));
+  // --- segments (axial: spine length) / tiers (radial: facet tiers accreting as it grows) ----------------
+  const segmentCount = radial ? 0 : Math.min(16, 3 + Math.round(13 * body.segments));
+  const tiers = radial ? 1 + Math.round(4 * body.segments) : 0;
 
   // --- locomotion (R10): cheapest of walk / swim / hover / sessile ----------------
   const rhoBodyScaled = bodyDensity / tissueRho.C; // unbuoyed carbon = 1, same scale as AIR_RHO
-  const elongation = segmentCount / 12;
+  // Swim cost's elongation term: axial spine length; radial (rolling) hubs get more elongated as tiers accrete.
+  const elongation = radial ? 0.25 + 0.2 * tiers : segmentCount / 12;
   const reRel = ((sea.rho / sea.mu) / (G.reRef.rho / G.reRef.mu)) * baseScale; // Re vs water, size-weighted
   const reWeight = clamp(1 + 0.25 * Math.log(reRel), 0, 2);
   const walk =
@@ -164,43 +184,63 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const tsr = mode === LOCOMOTION.walk ? K.TSR_LAND.value : K.TSR.value;
   const scale = baseScale * (1 + tsr * (1 - 2 * heat));
 
-  // --- mass ---------------------------------------------------------------
+  // --- mass (tissue only) ---------------------------------------------------------------------
   const limbFrac = nLegs * legLenEff ** 2 * G.limbMass * (1 - 0.5 * comp.si);
   const mass =
-    1000 * G.fill * scale ** 3 * (bodyDensity / 1) *
+    1000 * G.fill * scale ** 3 * tissueDense *
     (1 + limbFrac + K.PLATE_MASS.value * body.plates + G.hornMass * body.horns + G.headMass * body.gape);
 
   // --- eyes and glow (reaction norms of light) --------------------------------
   const eyeArea = body.eyes * (1.5 - light);
   const eyeUpkeep = K.EYE_FRAC.value * (eyeArea / 1.5) ** 2;
   const eyeless = body.eyes < 0.05;
-  const eyeCount = eyeless ? 0 : silicon ? (body.eyes < 0.4 ? 3 : body.eyes < 0.7 ? 4 : 6) : 2;
+  // Axial: a pair of ring eyes at the head. Radial: a dot-eye cluster (1–3 dots) at the tip of every arm.
+  const eyeCount = eyeless ? 0 : radial ? symmetry * (body.eyes < 0.4 ? 1 : body.eyes < 0.7 ? 2 : 3) : 2;
   const eyeKind: BodyPlan['eyeKind'] = eyeless ? 'none' : silicon ? 'dots' : 'rings';
   const glow = clamp(body.glow * (1 - light), 0, 1);
 
-  // --- horns, defence, diet -------------------------------------------------------
-  const hornCount = body.horns < 0.05 ? 0 : silicon ? (body.horns < 0.5 ? 1 : 3) : 2;
+  // --- horns (axial: head horns; radial: apex spires), defence, diet -----------------------------
+  const hornCount = body.horns < 0.05 ? 0 : radial ? (body.horns < 0.5 ? 1 : 3) : 2;
   const defence = Math.max(
     0,
     (body.plates + body.horns) * (1 + G.hardness * comp.si) - G.buoyDefence * body.buoy,
   );
+
+  // --- radial hub and arms (axial: none) -------------------------------------------------------------
+  const hubRadius = radial ? 0.32 * scale : 0;
+  const tierHeight = radial ? 0.6 * hubRadius : 0;
+  const tierRadii: number[] = [];
+  for (let i = 0; i < tiers; i++) {
+    // Widest in the middle, quantised to quarters so each tier reads as a distinct step (a lattice, not a loft).
+    const prof = tiers === 1 ? 1 : 0.4 + 0.6 * Math.sin(Math.PI * (0.1 + 0.8 * (i / (tiers - 1))));
+    tierRadii.push(hubRadius * Math.max(0.4, Math.round(prof * 4) / 4));
+  }
+  const armLength = radial ? scale * (0.25 + 0.6 * limbLenRel * budGrowth) : 0;
+  const arms: Arm[] = [];
+  if (radial) for (let k = 0; k < symmetry; k++) arms.push({ azimuthDeg: (360 / symmetry) * k, length: armLength });
 
   return {
     scale,
     mass,
     bodyDensity,
     chemistry: silicon ? 'silicon' : 'carbon',
+    architecture: radial ? 'radial' : 'axial',
+    symmetry,
     segmentCount,
-    sides,
+    tiers,
+    hubRadius,
+    tierHeight,
+    tierRadii,
+    arms,
+    sides: radial ? (symmetry as 3 | 4 | 6) : 12,
     flatShaded: comp.si > 0.45,
     profile: silicon ? 'stepped' : 'smooth',
     bodyJointMaxDeg: snap(55 + (14 - 55) * comp.si, jointSnapDeg),
     jointSnapDeg,
-    curl: silicon ? 0 : 0.3 * comp.c,
-    radialOrder: silicon && legPairs === 0 ? (body.segments < 0.5 ? 3 : 6) : 0,
+    curl: radial ? 0 : 0.3 * comp.c,
     legPairs,
     limbKind,
-    limbLength: legPairs === 0 ? 0 : scale * limbLenRel,
+    limbLength: radial ? armLength : legPairs === 0 ? 0 : scale * limbLenRel,
     limbSegments,
     limbJointAngles,
     plateCover: body.plates,
