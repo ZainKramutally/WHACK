@@ -111,6 +111,27 @@ export function pace(tempC: number, m: LifeRules['metabolism']): number {
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const clamp01 = (v: number) => clamp(v, 0, 1);
+
+/** The three climate genes. Shared by Population births and the animal genome (genome.ts). */
+export interface ClimateTraits { prefTemp: number; tolerance: number; chem: number }
+
+/**
+ * Climate-gene mutation: prefTemp + sd·N, tolerance + sd·N clamped to bounds, chem + sd·N clamped to [0, 1].
+ * Draws in that order (3 gaussians). Used by Population.birth() and genome.ts mutate().
+ */
+export function mutateClimate(
+  parent: ClimateTraits,
+  rules: Pick<LifeRules, 'mutation' | 'bounds'>,
+  rng: Rng,
+): ClimateTraits {
+  const m = rules.mutation;
+  const [tLo, tHi] = rules.bounds.tolerance;
+  return {
+    prefTemp: parent.prefTemp + m.prefTemp * gaussian(rng),
+    tolerance: clamp(parent.tolerance + m.tolerance * gaussian(rng), tLo, tHi),
+    chem: clamp01(parent.chem + m.chem * gaussian(rng)),
+  };
+}
 const wrap01 = (v: number) => v - Math.floor(v);
 
 export class Population {
@@ -367,9 +388,10 @@ export class Population {
     this.alive[i] = 1;
     this.role[i] = this.rnd() < m.roleFlip ? 1 - this.role[p] : this.role[p];
     this.size[i] = clamp(this.size[p] * Math.exp(m.size * this.g()), r.bounds.size[0], r.bounds.size[1]);
-    this.prefTemp[i] = this.prefTemp[p] + m.prefTemp * this.g();
-    this.tolerance[i] = clamp(this.tolerance[p] + m.tolerance * this.g(), r.bounds.tolerance[0], r.bounds.tolerance[1]);
-    this.chem[i] = clamp01(this.chem[p] + m.chem * this.g());
+    const cl = mutateClimate({ prefTemp: this.prefTemp[p], tolerance: this.tolerance[p], chem: this.chem[p] }, r, this.rnd);
+    this.prefTemp[i] = cl.prefTemp;
+    this.tolerance[i] = cl.tolerance;
+    this.chem[i] = cl.chem;
     this.energy[i] = energy;
     this.age[i] = 0;
     this.gen[i] = this.gen[p] + 1;

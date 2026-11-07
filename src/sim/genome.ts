@@ -2,7 +2,7 @@
 // 15 genes: 12 body genes + 3 climate genes (as built in population.ts). Change only by agreement:
 // develop.ts, guide.ts, ecology.ts and the organism buffer all read this shape.
 import { CONSTANTS } from './constants';
-import type { Genome as ClimateGenome } from './population';
+import { mutateClimate, type Genome as ClimateGenome, type LifeRules } from './population';
 import { gaussian, makeRng, type Rng } from './rng';
 
 export const BODY_GENES = [
@@ -31,41 +31,24 @@ export interface AnimalGenome {
 // Functions: mutation and founders (DECISIONS §3 rule 8; CLAUDE.md "Founders").
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/**
- * Climate-gene mutation, as built in population.ts (`birth()`): prefTemp + sd·N, tolerance + sd·N clamped
- * to bounds, chem + sd·N clamped to [0, 1]. population.ts keeps this inline and private, so the three
- * lines are mirrored here; the world's `life.rules.mutation` / `bounds.tolerance` should be passed in.
- */
-export interface ClimateMutation {
-  prefTemp: number; // sd, °C
-  tolerance: number; // sd, °C
-  chem: number; // sd
-  toleranceBounds: [number, number];
-}
-
-/** Matches the test rules in population.test.ts; callers should pass the world's own. */
-export const DEFAULT_CLIMATE_MUTATION: ClimateMutation = {
-  prefTemp: 0.6, tolerance: 0.3, chem: 0.05, toleranceBounds: [1, 30],
+/** Matches the test rules in population.test.ts; callers should pass the world's own `life.rules`. */
+export const DEFAULT_CLIMATE_RULES: Pick<LifeRules, 'mutation' | 'bounds'> = {
+  mutation: { size: 0.05, prefTemp: 0.6, tolerance: 0.3, chem: 0.05, roleFlip: 0 },
+  bounds: { size: [0.2, 5], tolerance: [1, 30] },
 };
 
 /** A child genome: every body gene steps by N(0, SIGMA) clamped to [0, 1]; composition and lineage are inherited. */
 export function mutate(
   parent: AnimalGenome,
   rng: Rng,
-  climate: ClimateMutation = DEFAULT_CLIMATE_MUTATION,
+  climate: Pick<LifeRules, 'mutation' | 'bounds'> = DEFAULT_CLIMATE_RULES,
 ): AnimalGenome {
   const sigma = CONSTANTS.SIGMA.value;
   const body = {} as BodyGenes;
   for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * gaussian(rng));
-  const [tLo, tHi] = climate.toleranceBounds;
-  const tol = parent.climate.tolerance + climate.tolerance * gaussian(rng);
   return {
     body,
-    climate: {
-      prefTemp: parent.climate.prefTemp + climate.prefTemp * gaussian(rng),
-      tolerance: tol < tLo ? tLo : tol > tHi ? tHi : tol,
-      chem: clamp01(parent.climate.chem + climate.chem * gaussian(rng)),
-    },
+    climate: mutateClimate(parent.climate, climate, rng),
     comp: { ...parent.comp },
     lineage: parent.lineage,
   };
