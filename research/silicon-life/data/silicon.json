@@ -1,0 +1,586 @@
+{
+ "bond_energies": [
+  {
+   "bond": "C–C",
+   "kJ_mol": 346,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    346,
+    377
+   ]
+  },
+  {
+   "bond": "Si–Si",
+   "kJ_mol": 222,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    222,
+    226
+   ]
+  },
+  {
+   "bond": "C–H",
+   "kJ_mol": 411,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    411,
+    414
+   ]
+  },
+  {
+   "bond": "Si–H",
+   "kJ_mol": 318,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    318,
+    323
+   ]
+  },
+  {
+   "bond": "C–O",
+   "kJ_mol": 358,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    358,
+    360
+   ]
+  },
+  {
+   "bond": "Si–O",
+   "kJ_mol": 452,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    452,
+    466
+   ]
+  },
+  {
+   "bond": "C–N",
+   "kJ_mol": 305,
+   "source": "petkowski2020"
+  },
+  {
+   "bond": "Si–N",
+   "kJ_mol": 355,
+   "source": "petkowski2020"
+  },
+  {
+   "bond": "C–S",
+   "kJ_mol": 272,
+   "source": "petkowski2020"
+  },
+  {
+   "bond": "Si–S",
+   "kJ_mol": 293,
+   "source": "petkowski2020"
+  },
+  {
+   "bond": "Si–C",
+   "kJ_mol": 318,
+   "source": "petkowski2020",
+   "kJ_mol_range": [
+    290,
+    318
+   ]
+  },
+  {
+   "bond": "C=C",
+   "kJ_mol": null,
+   "source": "textbook mean bond enthalpy; ethylene BDE ~710 (wiki_bde) [not re-verified]",
+   "kJ_mol_range": [
+    602,
+    614
+   ]
+  },
+  {
+   "bond": "C=C pi component",
+   "kJ_mol": null,
+   "source": "textbook [not re-verified]",
+   "kJ_mol_range": [
+    260,
+    270
+   ]
+  },
+  {
+   "bond": "Si=Si pi component",
+   "kJ_mol": null,
+   "source": "textbook [NOT re-verified - round 2]",
+   "kJ_mol_range": [
+    100,
+    125
+   ]
+  },
+  {
+   "bond": "C=O",
+   "kJ_mol": null,
+   "source": "wiki_bde (formaldehyde 748) + textbook mean",
+   "kJ_mol_range": [
+    745,
+    805
+   ]
+  },
+  {
+   "bond": "Si=O (diatomic SiO D0)",
+   "kJ_mol": null,
+   "source": "Luo handbook value [not re-verified]; no stable molecular Si=O",
+   "kJ_mol_range": [
+    790,
+    800
+   ]
+  },
+  {
+   "bond": "C–Cl",
+   "kJ_mol": null,
+   "source": "textbook [not re-verified]",
+   "kJ_mol_range": [
+    327,
+    339
+   ]
+  },
+  {
+   "bond": "Si–Cl",
+   "kJ_mol": null,
+   "source": "textbook [not re-verified]",
+   "kJ_mol_range": [
+    380,
+    400
+   ]
+  },
+  {
+   "bond": "C–F",
+   "kJ_mol": 485,
+   "source": "textbook [not re-verified]"
+  },
+  {
+   "bond": "Si–F",
+   "kJ_mol": null,
+   "source": "mean ~565-580 textbook; BDE H3Si–F 636, F3Si–F 695 (wiki_bde)",
+   "kJ_mol_range": [
+    565,
+    695
+   ]
+  }
+ ],
+ "abundance": [
+  {
+   "element": "H",
+   "cosmic": 27900000000.0,
+   "crust": 1400,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "He",
+   "cosmic": 2720000000.0,
+   "crust": 0.008,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "O",
+   "cosmic": 23800000.0,
+   "crust": 461000,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "C",
+   "cosmic": 10100000.0,
+   "crust": 200,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "N",
+   "cosmic": 3130000.0,
+   "crust": 19,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "Mg",
+   "cosmic": 1074000.0,
+   "crust": 23300,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "Si",
+   "cosmic": 1000000.0,
+   "crust": 282000,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "Fe",
+   "cosmic": 900000.0,
+   "crust": 56300,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "S",
+   "cosmic": 515000.0,
+   "crust": 350,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "Al",
+   "cosmic": 84900.0,
+   "crust": 82300,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "P",
+   "cosmic": 10400.0,
+   "crust": 1050,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  },
+  {
+   "element": "B",
+   "cosmic": 21.2,
+   "crust": 10,
+   "units": "cosmic: atoms per 1e6 Si (solar system); crust: ppm by mass",
+   "source": "cosmic: anders_grevesse1989; crust: CRC Handbook via wiki_abundance_data"
+  }
+ ],
+ "arguments": [
+  {
+   "side": "for",
+   "claim": "Si is tetravalent like C; forms chains, rings, chiral centres",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "for",
+   "claim": "Si is ~100-1400x more abundant than C in rocky-planet crust (source-dependent)",
+   "status": "consensus",
+   "source": "wiki_abundance_data; petkowski2020"
+  },
+  {
+   "side": "for",
+   "claim": "Hypervalent (5/6-coordinate) Si gives extra reaction pathways",
+   "status": "consensus (chemistry) / plausible (biology)",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "for",
+   "claim": "Long polysilanes (~500 Si-Si) and silicones exist",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "for",
+   "claim": "Directed evolution produced enzymes forming Si–C bonds; biology can learn Si chemistry",
+   "status": "consensus (result) / disputed (relevance)",
+   "source": "kan2016; petkowski2020"
+  },
+  {
+   "side": "for",
+   "claim": "Concentrated sulfuric acid supports more organosilicon diversity than water",
+   "status": "plausible/theorised",
+   "source": "petkowski2020; bains2021"
+  },
+  {
+   "side": "for",
+   "claim": "Cold aprotic solvents (liquid N2/CH4) keep most Si chemistry intact",
+   "status": "plausible/theorised",
+   "source": "petkowski2020; bains2004"
+  },
+  {
+   "side": "for",
+   "claim": "Silicate clay crystals may have been the first genetic material",
+   "status": "plausible/theorised (minority)",
+   "source": "cairnssmith1982; cairnssmith1985"
+  },
+  {
+   "side": "against",
+   "claim": "Si–Si (222) much weaker than C–C (346) while Si–O (452) is stronger; oxygen sinks Si",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "Nearly all Si–X bonds hydrolyse in water; Si only a rare heteroatom in aqueous life",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "SiO2 is an insoluble polymeric solid; no CO2-like gaseous waste or cycle",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "Few stable Si=Si/Si=O/Si=C pi bonds; much less structural diversity",
+   "status": "consensus",
+   "source": "petkowski2020; west1981"
+  },
+  {
+   "side": "against",
+   "claim": "Silanes are thermodynamically uphill from silica (SiH4 ΔG +434 vs CH4 −142 kJ/mol)",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "C ~10x more abundant than Si cosmically",
+   "status": "consensus",
+   "source": "anders_grevesse1989"
+  },
+  {
+   "side": "against",
+   "claim": "Cryosolvents dissolve almost nothing (>ppm for only ~a dozen small molecules)",
+   "status": "plausible (modelled)",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "Lava/silicate-melt worlds break Si–O bonds on ms timescales; no stable information",
+   "status": "plausible/theorised",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "No natural enzyme makes Si–C or breaks Si–O despite Si abundance on Earth",
+   "status": "consensus",
+   "source": "petkowski2020"
+  },
+  {
+   "side": "against",
+   "claim": "Overall: Si-based life implausible in all assessed solvents (Si as heteroatom possible)",
+   "status": "consensus (single major review)",
+   "source": "petkowski2020"
+  }
+ ],
+ "sources": [
+  {
+   "key": "petkowski2020",
+   "citation": "Petkowski JJ, Bains W, Seager S (2020) On the potential of silicon as a building block for life. Life 10(6):84",
+   "doi": "10.3390/life10060084",
+   "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7345352/",
+   "type": "REVIEW"
+  },
+  {
+   "key": "bains2004",
+   "citation": "Bains W (2004) Many chemistries could be used to build living systems. Astrobiology 4(2):137-167",
+   "doi": "10.1089/153110704323175124",
+   "url": "https://doi.org/10.1089/153110704323175124",
+   "type": "PEER"
+  },
+  {
+   "key": "bains2021",
+   "citation": "Bains W, Petkowski JJ, Zhan Z, Seager S (2021) Evaluating alternatives to water as solvents for life: the example of sulfuric acid. Life 11(5):400",
+   "doi": "10.3390/life11050400",
+   "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8145300/",
+   "type": "PEER"
+  },
+  {
+   "key": "nrc2007",
+   "citation": "National Research Council (2007) The Limits of Organic Life in Planetary Systems. National Academies Press",
+   "doi": "10.17226/11919",
+   "url": "https://doi.org/10.17226/11919",
+   "type": "BOOK"
+  },
+  {
+   "key": "pace2001",
+   "citation": "Pace NR (2001) The universal nature of biochemistry. PNAS 98(3):805-808",
+   "doi": "10.1073/pnas.98.3.805",
+   "url": "https://doi.org/10.1073/pnas.98.3.805",
+   "type": "PEER"
+  },
+  {
+   "key": "kan2016",
+   "citation": "Kan SBJ, Lewis RD, Chen K, Arnold FH (2016) Directed evolution of cytochrome c for carbon–silicon bond formation: bringing silicon to life. Science 354:1048",
+   "doi": "10.1126/science.aah6219",
+   "url": "https://doi.org/10.1126/science.aah6219",
+   "type": "PEER"
+  },
+  {
+   "key": "kan2017",
+   "citation": "Kan SBJ, Huang X, Gumulya Y, Chen K, Arnold FH (2017) Genetically programmed chiral organoborane synthesis. Nature 552:132",
+   "doi": "10.1038/nature24996",
+   "url": "https://doi.org/10.1038/nature24996",
+   "type": "PEER"
+  },
+  {
+   "key": "west1981",
+   "citation": "West R, Fink MJ, Michl J (1981) Tetramesityldisilene, a stable compound containing a silicon-silicon double bond. Science 214:1343",
+   "doi": "10.1126/science.214.4527.1343",
+   "url": "https://doi.org/10.1126/science.214.4527.1343",
+   "type": "PEER"
+  },
+  {
+   "key": "shimizu1998",
+   "citation": "Shimizu K, Cha J, Stucky GD, Morse DE (1998) Silicatein α: cathepsin L-like protein in sponge biosilica. PNAS 95:6234",
+   "doi": "10.1073/pnas.95.11.6234",
+   "url": "https://doi.org/10.1073/pnas.95.11.6234",
+   "type": "PEER"
+  },
+  {
+   "key": "cha1999",
+   "citation": "Cha JN, Shimizu K, Zhou Y, Christiansen SC et al. (1999) Silicatein filaments and subunits from a marine sponge direct the polymerization of silica. PNAS 96:361",
+   "doi": "10.1073/pnas.96.2.361",
+   "url": "https://doi.org/10.1073/pnas.96.2.361",
+   "type": "PEER"
+  },
+  {
+   "key": "kroger1999",
+   "citation": "Kröger N, Deutzmann R, Sumper M (1999) Polycationic peptides from diatom biosilica that direct silica nanosphere formation. Science 286:1129",
+   "doi": "10.1126/science.286.5442.1129",
+   "url": "https://doi.org/10.1126/science.286.5442.1129",
+   "type": "PEER"
+  },
+  {
+   "key": "treguer2013",
+   "citation": "Tréguer PJ, De La Rocha CL (2013) The world ocean silica cycle. Annu Rev Mar Sci 5:477",
+   "doi": "10.1146/annurev-marine-121211-172346",
+   "url": "https://doi.org/10.1146/annurev-marine-121211-172346",
+   "type": "REVIEW"
+  },
+  {
+   "key": "coskun2019",
+   "citation": "Coskun D, Deshmukh R, Sonah H et al. (2019) The controversies of silicon's role in plant biology. New Phytologist 221:67",
+   "doi": "10.1111/nph.15343",
+   "url": "https://doi.org/10.1111/nph.15343",
+   "type": "REVIEW"
+  },
+  {
+   "key": "schulzemakuch2006",
+   "citation": "Schulze-Makuch D, Irwin LN (2006) The prospect of alien life in exotic forms on other worlds. Naturwissenschaften 93:155",
+   "doi": "10.1007/s00114-005-0078-6",
+   "url": "https://doi.org/10.1007/s00114-005-0078-6",
+   "type": "PEER"
+  },
+  {
+   "key": "schulzemakuch2018",
+   "citation": "Schulze-Makuch D, Irwin LN (2018) Life in the Universe: Expectations and Constraints, 3rd ed. Springer",
+   "doi": "10.1007/978-3-319-97658-7",
+   "url": "https://doi.org/10.1007/978-3-319-97658-7",
+   "type": "BOOK"
+  },
+  {
+   "key": "irwin2020",
+   "citation": "Irwin LN, Schulze-Makuch D (2020) The astrobiology of alien worlds: known and unknown forms of life. Universe 6(9):130",
+   "doi": "10.3390/universe6090130",
+   "url": "https://doi.org/10.3390/universe6090130",
+   "type": "REVIEW"
+  },
+  {
+   "key": "benner2004",
+   "citation": "Benner SA, Ricardo A, Carrigan MA (2004) Is there a common chemical model for life in the universe? Curr Opin Chem Biol 8:672",
+   "doi": "10.1016/j.cbpa.2004.10.003",
+   "url": "https://doi.org/10.1016/j.cbpa.2004.10.003",
+   "type": "REVIEW"
+  },
+  {
+   "key": "cairnssmith1982",
+   "citation": "Cairns-Smith AG (1982) Genetic Takeover and the Mineral Origins of Life. Cambridge University Press",
+   "doi": null,
+   "url": null,
+   "type": "BOOK"
+  },
+  {
+   "key": "cairnssmith1985",
+   "citation": "Cairns-Smith AG (1985) Seven Clues to the Origin of Life. Cambridge University Press",
+   "doi": null,
+   "url": null,
+   "type": "BOOK"
+  },
+  {
+   "key": "kloprogge2022",
+   "citation": "Kloprogge JT, Hartman H (2022) Clays and the origin of life: the experiments. Life 12(2):259",
+   "doi": "10.3390/life12020259",
+   "url": "https://doi.org/10.3390/life12020259",
+   "type": "REVIEW"
+  },
+  {
+   "key": "mckay2016",
+   "citation": "McKay CP (2016) Titan as the abode of life. Life 6(1):8",
+   "doi": "10.3390/life6010008",
+   "url": "https://doi.org/10.3390/life6010008",
+   "type": "REVIEW"
+  },
+  {
+   "key": "stevenson2015",
+   "citation": "Stevenson J, Lunine J, Clancy P (2015) Membrane alternatives in worlds without oxygen: creation of an azotosome. Sci Adv 1:e1400067",
+   "doi": "10.1126/sciadv.1400067",
+   "url": "https://doi.org/10.1126/sciadv.1400067",
+   "type": "PEER"
+  },
+  {
+   "key": "sandstrom2020",
+   "citation": "Sandström H, Rahm M (2020) Can polarity-inverted membranes self-assemble on Titan? Sci Adv 6:eaax0272",
+   "doi": "10.1126/sciadv.aax0272",
+   "url": "https://doi.org/10.1126/sciadv.aax0272",
+   "type": "PEER"
+  },
+  {
+   "key": "madan2025",
+   "citation": "Madan et al. (2025) On the possibility of carbon-free heteropolymers on Venus: a computational astrobiology study. QRB Discovery",
+   "doi": "10.1017/qrd.2025.10012",
+   "url": "https://doi.org/10.1017/qrd.2025.10012",
+   "type": "PEER"
+  },
+  {
+   "key": "peng2014",
+   "citation": "Peng (2014) Silicon-based life in the solar system. Silicon (opinion, low weight)",
+   "doi": "10.1007/s12633-014-9254-7",
+   "url": "https://doi.org/10.1007/s12633-014-9254-7",
+   "type": "PEER"
+  },
+  {
+   "key": "jacob2015",
+   "citation": "Jacob (2015) There is no silicon-based life in the solar system. Silicon (opinion, low weight)",
+   "doi": "10.1007/s12633-014-9270-7",
+   "url": "https://doi.org/10.1007/s12633-014-9270-7",
+   "type": "PEER"
+  },
+  {
+   "key": "anders_grevesse1989",
+   "citation": "Anders E, Grevesse N (1989) Abundances of the elements: meteoritic and solar. Geochim Cosmochim Acta 53:197",
+   "doi": "10.1016/0016-7037(89)90286-X",
+   "url": "https://doi.org/10.1016/0016-7037(89)90286-X",
+   "type": "PEER"
+  },
+  {
+   "key": "lodders2003",
+   "citation": "Lodders K (2003) Solar system abundances and condensation temperatures of the elements. ApJ 591:1220 (verified, values not yet extracted)",
+   "doi": "10.1086/375492",
+   "url": "https://doi.org/10.1086/375492",
+   "type": "PEER"
+  },
+  {
+   "key": "asplund2009",
+   "citation": "Asplund M, Grevesse N, Sauval AJ, Scott P (2009) The chemical composition of the Sun. ARA&A 47:481 (verified, values not yet extracted)",
+   "doi": "10.1146/annurev.astro.46.060407.145222",
+   "url": "https://doi.org/10.1146/annurev.astro.46.060407.145222",
+   "type": "REVIEW"
+  },
+  {
+   "key": "rudnick_gao2003",
+   "citation": "Rudnick RL, Gao S (2003) Composition of the continental crust. Treatise on Geochemistry 3:1 (verified, values not yet extracted)",
+   "doi": "10.1016/B0-08-043751-6/03016-4",
+   "url": "https://doi.org/10.1016/B0-08-043751-6/03016-4",
+   "type": "BOOK"
+  },
+  {
+   "key": "wiki_abundance_data",
+   "citation": "Wikipedia: Abundances of the elements (data page) — aggregates CRC Handbook, Kaye & Laby, Greenwood, Ahrens",
+   "doi": null,
+   "url": "https://en.wikipedia.org/wiki/Abundances_of_the_elements_(data_page)",
+   "type": "POP"
+  },
+  {
+   "key": "wiki_bde",
+   "citation": "Wikipedia: Bond-dissociation energy (cites Blanksby & Ellison 2003; Streitwieser & Bergman)",
+   "doi": null,
+   "url": "https://en.wikipedia.org/wiki/Bond-dissociation_energy",
+   "type": "POP"
+  }
+ ]
+}

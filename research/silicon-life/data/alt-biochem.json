@@ -1,0 +1,703 @@
+{
+  "solvents": [
+    {
+      "name": "Water",
+      "formula": "H2O",
+      "mp_K": 273.15,
+      "bp_K": 373.12,
+      "dielectric": 80.1,
+      "dielectric_T_K": 293,
+      "where": "Earth; Europa/Enceladus subsurface oceans",
+      "status": "consensus",
+      "source": "crc;etoolbox"
+    },
+    {
+      "name": "Ammonia",
+      "formula": "NH3",
+      "mp_K": 195.4,
+      "bp_K": 239.8,
+      "dielectric": 16.6,
+      "dielectric_T_K": 293,
+      "dielectric_note": "pressurised liquid; ~22 near bp (unverified)",
+      "where": "Ammonia-water oceans in icy moons; giant-planet clouds",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox;nrc2007"
+    },
+    {
+      "name": "Methane",
+      "formula": "CH4",
+      "mp_K": 90.7,
+      "bp_K": 111.7,
+      "dielectric": 1.68,
+      "dielectric_T_K": 91,
+      "where": "Titan lakes and rain",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox;mckay2005"
+    },
+    {
+      "name": "Ethane",
+      "formula": "C2H6",
+      "mp_K": 90.4,
+      "bp_K": 184.6,
+      "dielectric": 1.94,
+      "dielectric_T_K": 95,
+      "where": "Titan seas",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox"
+    },
+    {
+      "name": "Hydrogen fluoride",
+      "formula": "HF",
+      "mp_K": 189.8,
+      "bp_K": 292.7,
+      "dielectric": 83.6,
+      "dielectric_T_K": 273,
+      "where": "No known natural reservoir",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox;bains2004"
+    },
+    {
+      "name": "Sulfuric acid (conc.)",
+      "formula": "H2SO4",
+      "mp_K": 283.5,
+      "bp_K": 610,
+      "bp_note": "decomposes above ~573 K",
+      "dielectric": 100,
+      "dielectric_T_K": 298,
+      "dielectric_note": "unverified (from memory, Gillespie/CRC)",
+      "where": "Venus cloud droplets, 48-60 km",
+      "status": "plausible/theorised",
+      "source": "crc;seager2023;bains2021"
+    },
+    {
+      "name": "Formamide",
+      "formula": "HCONH2",
+      "mp_K": 275.7,
+      "bp_K": 483,
+      "bp_note": "decomposes",
+      "dielectric": 111,
+      "dielectric_T_K": 293,
+      "where": "ISM, comets; prebiotic scenarios",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox;saladino2012"
+    },
+    {
+      "name": "Hydrogen cyanide",
+      "formula": "HCN",
+      "mp_K": 259.9,
+      "bp_K": 298.8,
+      "dielectric": 114.9,
+      "dielectric_T_K": 293,
+      "where": "Titan atmosphere, comets",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox"
+    },
+    {
+      "name": "Hydrogen sulfide",
+      "formula": "H2S",
+      "mp_K": 187.7,
+      "bp_K": 213.6,
+      "dielectric": 5.93,
+      "dielectric_T_K": 283,
+      "where": "Volcanic gases",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox"
+    },
+    {
+      "name": "Nitrogen (liquid)",
+      "formula": "N2",
+      "mp_K": 63.15,
+      "bp_K": 77.36,
+      "dielectric": 1.47,
+      "dielectric_T_K": 63,
+      "where": "Triton, possibly Pluto",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox"
+    },
+    {
+      "name": "Supercritical carbon dioxide",
+      "formula": "CO2",
+      "mp_K": null,
+      "bp_K": null,
+      "phase_note": "sublimes 194.7 K at 1 atm; triple point 216.6 K/5.18 bar; critical point 304.1 K/7.38 MPa",
+      "dielectric": 1.45,
+      "dielectric_T_K": 295,
+      "dielectric_note": "liquid value; scCO2 ~1.1-1.6, density-dependent",
+      "where": "Venus lower atmosphere (~740 K, 92 bar); some exoplanets",
+      "status": "plausible/theorised",
+      "source": "crc;etoolbox;budisa2014"
+    }
+  ],
+  "biochemistries": [
+    {
+      "name": "Terran (reference)",
+      "backbone": "C; P-O-sugar genetics",
+      "solvent": "H2O",
+      "temp_range_K": [
+        250,
+        395
+      ],
+      "environment": "Earth",
+      "status": "consensus",
+      "key_source": "nrc2007"
+    },
+    {
+      "name": "Ammonia world",
+      "backbone": "C (N-rich)",
+      "solvent": "NH3 / NH3-H2O",
+      "temp_range_K": [
+        195,
+        240
+      ],
+      "environment": "Icy-moon oceans, cold super-Earths",
+      "status": "plausible/theorised",
+      "key_source": "bains2004"
+    },
+    {
+      "name": "Titan hydrocarbon life",
+      "backbone": "C with N-head groups (azotosome-like)",
+      "solvent": "CH4 / C2H6",
+      "temp_range_K": [
+        90,
+        185
+      ],
+      "environment": "Titan",
+      "status": "plausible/theorised (membranes disputed)",
+      "key_source": "mckay2005;stevenson2015;sandstrom2020"
+    },
+    {
+      "name": "Venus acid-cloud life",
+      "backbone": "C (acid-stable subset)",
+      "solvent": "conc. H2SO4",
+      "temp_range_K": [
+        260,
+        340
+      ],
+      "environment": "Venus clouds 48-60 km",
+      "status": "plausible/theorised",
+      "key_source": "seager2023;bains2021"
+    },
+    {
+      "name": "Supercritical CO2 life",
+      "backbone": "C",
+      "solvent": "scCO2",
+      "temp_range_K": [
+        304,
+        800
+      ],
+      "environment": "Venus-like deep atmospheres",
+      "status": "plausible/theorised",
+      "key_source": "budisa2014"
+    },
+    {
+      "name": "Fluoride world",
+      "backbone": "C/Si with F",
+      "solvent": "HF",
+      "temp_range_K": [
+        190,
+        293
+      ],
+      "environment": "Hypothetical",
+      "status": "plausible/theorised (weak)",
+      "key_source": "bains2004"
+    },
+    {
+      "name": "Formamide world",
+      "backbone": "C",
+      "solvent": "HCONH2",
+      "temp_range_K": [
+        276,
+        483
+      ],
+      "environment": "Prebiotic scenarios",
+      "status": "plausible/theorised",
+      "key_source": "saladino2012"
+    },
+    {
+      "name": "Boron / B-N",
+      "backbone": "B-N, boranes",
+      "solvent": "NH3 / non-oxidising",
+      "temp_range_K": null,
+      "environment": "Cold reducing worlds (hypothetical)",
+      "status": "plausible/theorised (weak)",
+      "key_source": "bains2004"
+    },
+    {
+      "name": "Sulfur chains",
+      "backbone": "S-S",
+      "solvent": "H2S / H2SO4",
+      "temp_range_K": null,
+      "environment": "Hypothetical",
+      "status": "plausible/theorised (weak)",
+      "key_source": "bains2004"
+    },
+    {
+      "name": "Arsenic DNA",
+      "backbone": "As-O replacing P-O",
+      "solvent": "H2O",
+      "temp_range_K": [
+        273,
+        373
+      ],
+      "environment": "Mono Lake claim",
+      "status": "refuted",
+      "key_source": "wolfesimon2011;erb2012;reaves2012;retraction2025"
+    },
+    {
+      "name": "Inorganic polyoxometalate cells",
+      "backbone": "Metal-oxide clusters",
+      "solvent": "H2O",
+      "temp_range_K": null,
+      "environment": "Lab",
+      "status": "plausible/theorised (compartments only)",
+      "key_source": "cooper2011"
+    },
+    {
+      "name": "Plasma-dust helices",
+      "backbone": "Charged dust strings",
+      "solvent": "Plasma",
+      "temp_range_K": null,
+      "environment": "Nebulae, planetary rings",
+      "status": "plausible/theorised (speculative)",
+      "key_source": "tsytovich2007"
+    },
+    {
+      "name": "Neutron-star nuclear life",
+      "backbone": "Nuclear matter",
+      "solvent": null,
+      "temp_range_K": [
+        1000000.0,
+        1000000.0
+      ],
+      "environment": "Neutron-star crust",
+      "status": "speculation",
+      "key_source": "feinberg1980"
+    },
+    {
+      "name": "XNA / hachimoji genetics",
+      "backbone": "Synthetic sugars / 8-letter bases",
+      "solvent": "H2O",
+      "temp_range_K": [
+        273,
+        373
+      ],
+      "environment": "Lab",
+      "status": "consensus (in vitro heredity); not standalone life",
+      "key_source": "pinheiro2012;hoshika2019"
+    },
+    {
+      "name": "Mirror life",
+      "backbone": "Mirror-image C biochemistry",
+      "solvent": "H2O",
+      "temp_range_K": [
+        273,
+        373
+      ],
+      "environment": "Potentially lab-made",
+      "status": "plausible (feasible); recommended against",
+      "key_source": "adamala2024"
+    }
+  ],
+  "controversies": [
+    {
+      "name": "Arsenic life (GFAJ-1)",
+      "year_claimed": 2010,
+      "year_resolved": 2025,
+      "outcome": "refuted: phosphate-dependent and arsenate-resistant (2012); Science retracted 2025-07-24",
+      "sources": [
+        "wolfesimon2011",
+        "reaves2012",
+        "erb2012",
+        "retraction2025",
+        "westheimer1987"
+      ]
+    },
+    {
+      "name": "Phosphine in Venus clouds",
+      "year_claimed": 2020,
+      "year_resolved": null,
+      "outcome": "disputed: re-analyses and SOFIA upper limit vs. original-team rebuttals; unresolved",
+      "sources": [
+        "greaves2020",
+        "snellen2020",
+        "akins2021",
+        "villanueva2021",
+        "cordiner2022",
+        "greaves2023"
+      ]
+    },
+    {
+      "name": "Azotosome membranes on Titan",
+      "year_claimed": 2015,
+      "year_resolved": 2020,
+      "outcome": "disputed, leaning refuted: QM thermodynamics says no self-assembly",
+      "sources": [
+        "stevenson2015",
+        "sandstrom2020",
+        "palmer2017"
+      ]
+    },
+    {
+      "name": "Assembly theory as life detector",
+      "year_claimed": 2021,
+      "year_resolved": null,
+      "outcome": "disputed: critiques say it reduces to compression measures",
+      "sources": [
+        "marshall2021",
+        "sharma2023",
+        "uthamacumaran2024",
+        "jaeger2024",
+        "ozelim2026"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "key": "bains2004",
+      "citation": "Bains W. 2004. Many chemistries could be used to build living systems. Astrobiology.",
+      "doi": "10.1089/153110704323175124",
+      "url": "https://doi.org/10.1089/153110704323175124",
+      "type": "review"
+    },
+    {
+      "key": "nrc2007",
+      "citation": "National Research Council. 2007. The Limits of Organic Life in Planetary Systems. National Academies Press.",
+      "doi": "10.17226/11919",
+      "url": "https://doi.org/10.17226/11919",
+      "type": "book"
+    },
+    {
+      "key": "benner2004",
+      "citation": "Benner SA, Ricardo A, Carrigan MA. 2004. Is there a common chemical model for life in the universe? Curr Opin Chem Biol.",
+      "doi": "10.1016/j.cbpa.2004.10.003",
+      "url": "https://doi.org/10.1016/j.cbpa.2004.10.003",
+      "type": "review"
+    },
+    {
+      "key": "westheimer1987",
+      "citation": "Westheimer FH. 1987. Why nature chose phosphates. Science.",
+      "doi": "10.1126/science.2434996",
+      "url": "https://doi.org/10.1126/science.2434996",
+      "type": "peer"
+    },
+    {
+      "key": "wolfesimon2011",
+      "citation": "Wolfe-Simon F et al. 2011 (online 2010). A bacterium that can grow by using arsenic instead of phosphorus. Science. RETRACTED.",
+      "doi": "10.1126/science.1197258",
+      "url": "https://doi.org/10.1126/science.1197258",
+      "type": "peer"
+    },
+    {
+      "key": "reaves2012",
+      "citation": "Reaves ML et al. 2012. Absence of detectable arsenate in DNA from arsenate-grown GFAJ-1 cells. Science.",
+      "doi": "10.1126/science.1219861",
+      "url": "https://doi.org/10.1126/science.1219861",
+      "type": "peer"
+    },
+    {
+      "key": "erb2012",
+      "citation": "Erb TJ et al. 2012. GFAJ-1 is an arsenate-resistant, phosphate-dependent organism. Science.",
+      "doi": "10.1126/science.1218455",
+      "url": "https://doi.org/10.1126/science.1218455",
+      "type": "peer"
+    },
+    {
+      "key": "retraction2025",
+      "citation": "Thorp HH. 2025. Retraction (of Wolfe-Simon et al.). Science.",
+      "doi": "10.1126/science.adu5488",
+      "url": "https://doi.org/10.1126/science.adu5488",
+      "type": "peer"
+    },
+    {
+      "key": "cooper2011",
+      "citation": "Cooper GJT et al. 2011. Modular redox-active inorganic chemical cells: iCHELLs. Angew Chem Int Ed.",
+      "doi": "10.1002/anie.201105068",
+      "url": "https://doi.org/10.1002/anie.201105068",
+      "type": "peer"
+    },
+    {
+      "key": "tsytovich2007",
+      "citation": "Tsytovich VN et al. 2007. From plasma crystals and helical structures towards inorganic living matter. New J Phys.",
+      "doi": "10.1088/1367-2630/9/8/263",
+      "url": "https://doi.org/10.1088/1367-2630/9/8/263",
+      "type": "peer"
+    },
+    {
+      "key": "feinberg1980",
+      "citation": "Feinberg G, Shapiro R. 1980. Life Beyond Earth. William Morrow.",
+      "doi": null,
+      "url": null,
+      "type": "book"
+    },
+    {
+      "key": "hoyle1957",
+      "citation": "Hoyle F. 1957. The Black Cloud. Heinemann. (fiction)",
+      "doi": null,
+      "url": null,
+      "type": "pop"
+    },
+    {
+      "key": "budisa2014",
+      "citation": "Budisa N, Schulze-Makuch D. 2014. Supercritical carbon dioxide and its potential as a life-sustaining solvent in a planetary environment. Life.",
+      "doi": "10.3390/life4030331",
+      "url": "https://doi.org/10.3390/life4030331",
+      "type": "peer"
+    },
+    {
+      "key": "saladino2012",
+      "citation": "Saladino R et al. 2012. Formamide and the origin of life. Phys Life Rev.",
+      "doi": "10.1016/j.plrev.2011.12.002",
+      "url": "https://doi.org/10.1016/j.plrev.2011.12.002",
+      "type": "review"
+    },
+    {
+      "key": "stevenson2015",
+      "citation": "Stevenson J, Lunine J, Clancy P. 2015. Membrane alternatives in worlds without oxygen: creation of an azotosome. Sci Adv.",
+      "doi": "10.1126/sciadv.1400067",
+      "url": "https://doi.org/10.1126/sciadv.1400067",
+      "type": "peer"
+    },
+    {
+      "key": "sandstrom2020",
+      "citation": "Sandström H, Rahm M. 2020. Can polarity-inverted membranes self-assemble on Titan? Sci Adv.",
+      "doi": "10.1126/sciadv.aax0272",
+      "url": "https://doi.org/10.1126/sciadv.aax0272",
+      "type": "peer"
+    },
+    {
+      "key": "palmer2017",
+      "citation": "Palmer MY et al. 2017. ALMA detection and astrobiological potential of vinyl cyanide on Titan. Sci Adv.",
+      "doi": "10.1126/sciadv.1700022",
+      "url": "https://doi.org/10.1126/sciadv.1700022",
+      "type": "peer"
+    },
+    {
+      "key": "seager2023",
+      "citation": "Seager S et al. 2023. Stability of nucleic acid bases in concentrated sulfuric acid: implications for the habitability of Venus' clouds. PNAS.",
+      "doi": "10.1073/pnas.2220007120",
+      "url": "https://doi.org/10.1073/pnas.2220007120",
+      "type": "peer"
+    },
+    {
+      "key": "seager2024",
+      "citation": "Seager S et al. 2024. Stability of 20 biogenic amino acids in concentrated sulfuric acid. Astrobiology.",
+      "doi": "10.1089/ast.2023.0082",
+      "url": "https://doi.org/10.1089/ast.2023.0082",
+      "type": "peer"
+    },
+    {
+      "key": "bains2021",
+      "citation": "Bains W et al. 2021. Production of ammonia makes Venusian clouds habitable and explains observed cloud-level chemical anomalies. PNAS.",
+      "doi": "10.1073/pnas.2110889118",
+      "url": "https://doi.org/10.1073/pnas.2110889118",
+      "type": "peer"
+    },
+    {
+      "key": "greaves2020",
+      "citation": "Greaves JS et al. 2020. Phosphine gas in the cloud decks of Venus. Nat Astron.",
+      "doi": "10.1038/s41550-020-1174-4",
+      "url": "https://doi.org/10.1038/s41550-020-1174-4",
+      "type": "peer"
+    },
+    {
+      "key": "snellen2020",
+      "citation": "Snellen IAG et al. 2020. Re-analysis of the 267 GHz ALMA observations of Venus. A&A.",
+      "doi": "10.1051/0004-6361/202039717",
+      "url": "https://doi.org/10.1051/0004-6361/202039717",
+      "type": "peer"
+    },
+    {
+      "key": "akins2021",
+      "citation": "Akins AB et al. 2021. Complications in the ALMA detection of phosphine at Venus. ApJL.",
+      "doi": "10.3847/2041-8213/abd56a",
+      "url": "https://doi.org/10.3847/2041-8213/abd56a",
+      "type": "peer"
+    },
+    {
+      "key": "villanueva2021",
+      "citation": "Villanueva GL et al. 2021. No evidence of phosphine in the atmosphere of Venus from independent analyses. Nat Astron.",
+      "doi": "10.1038/s41550-021-01422-z",
+      "url": "https://doi.org/10.1038/s41550-021-01422-z",
+      "type": "peer"
+    },
+    {
+      "key": "cordiner2022",
+      "citation": "Cordiner MA et al. 2022. Phosphine in the Venusian atmosphere: a strict upper limit from SOFIA GREAT observations. GRL.",
+      "doi": "10.1029/2022GL101055",
+      "url": "https://doi.org/10.1029/2022GL101055",
+      "type": "peer"
+    },
+    {
+      "key": "greaves2023",
+      "citation": "Greaves JS et al. 2023. Comment on 'Phosphine in the Venusian atmosphere: a strict upper limit from SOFIA GREAT observations'. GRL.",
+      "doi": "10.1029/2023GL103539",
+      "url": "https://doi.org/10.1029/2023GL103539",
+      "type": "peer"
+    },
+    {
+      "key": "pinheiro2012",
+      "citation": "Pinheiro VB et al. 2012. Synthetic genetic polymers capable of heredity and evolution. Science.",
+      "doi": "10.1126/science.1217622",
+      "url": "https://doi.org/10.1126/science.1217622",
+      "type": "peer"
+    },
+    {
+      "key": "hoshika2019",
+      "citation": "Hoshika S et al. 2019. Hachimoji DNA and RNA: a genetic system with eight building blocks. Science.",
+      "doi": "10.1126/science.aat0971",
+      "url": "https://doi.org/10.1126/science.aat0971",
+      "type": "peer"
+    },
+    {
+      "key": "nielsen1991",
+      "citation": "Nielsen PE et al. 1991. Sequence-selective recognition of DNA by strand displacement with a thymine-substituted polyamide. Science.",
+      "doi": "10.1126/science.1962210",
+      "url": "https://doi.org/10.1126/science.1962210",
+      "type": "peer"
+    },
+    {
+      "key": "schoning2000",
+      "citation": "Schöning K-U et al. 2000. Chemical etiology of nucleic acid structure: the alpha-threofuranosyl-(3'->2') oligonucleotide system. Science.",
+      "doi": "10.1126/science.290.5495.1347",
+      "url": "https://doi.org/10.1126/science.290.5495.1347",
+      "type": "peer"
+    },
+    {
+      "key": "malyshev2014",
+      "citation": "Malyshev DA et al. 2014. A semi-synthetic organism with an expanded genetic alphabet. Nature.",
+      "doi": "10.1038/nature13314",
+      "url": "https://doi.org/10.1038/nature13314",
+      "type": "peer"
+    },
+    {
+      "key": "adamala2024",
+      "citation": "Adamala KP et al. 2024. Confronting risks of mirror life. Science.",
+      "doi": "10.1126/science.ads9158",
+      "url": "https://doi.org/10.1126/science.ads9158",
+      "type": "peer"
+    },
+    {
+      "key": "lin2006",
+      "citation": "Lin L-H et al. 2006. Long-term sustainability of a high-energy, low-diversity crustal biome. Science.",
+      "doi": "10.1126/science.1127376",
+      "url": "https://doi.org/10.1126/science.1127376",
+      "type": "peer"
+    },
+    {
+      "key": "chivian2008",
+      "citation": "Chivian D et al. 2008. Environmental genomics reveals a single-species ecosystem deep within Earth. Science.",
+      "doi": "10.1126/science.1155495",
+      "url": "https://doi.org/10.1126/science.1155495",
+      "type": "peer"
+    },
+    {
+      "key": "atri2016",
+      "citation": "Atri D. 2016. On the possibility of galactic cosmic ray-induced radiolysis-powered life in subsurface environments in the Universe. J R Soc Interface.",
+      "doi": "10.1098/rsif.2016.0459",
+      "url": "https://doi.org/10.1098/rsif.2016.0459",
+      "type": "peer"
+    },
+    {
+      "key": "mckay2005",
+      "citation": "McKay CP, Smith HD. 2005. Possibilities for methanogenic life in liquid methane on the surface of Titan. Icarus.",
+      "doi": "10.1016/j.icarus.2005.05.018",
+      "url": "https://doi.org/10.1016/j.icarus.2005.05.018",
+      "type": "peer"
+    },
+    {
+      "key": "strobel2010",
+      "citation": "Strobel DF. 2010. Molecular hydrogen in Titan's atmosphere: implications of the measured tropospheric and thermospheric mole fractions. Icarus.",
+      "doi": "10.1016/j.icarus.2010.03.003",
+      "url": "https://doi.org/10.1016/j.icarus.2010.03.003",
+      "type": "peer"
+    },
+    {
+      "key": "joyce1994",
+      "citation": "Joyce GF. 1994. Foreword. In Deamer DW, Fleischaker GR (eds), Origins of Life: The Central Concepts. Jones & Bartlett.",
+      "doi": null,
+      "url": null,
+      "type": "book"
+    },
+    {
+      "key": "sharma2023",
+      "citation": "Sharma A et al. 2023. Assembly theory explains and quantifies selection and evolution. Nature.",
+      "doi": "10.1038/s41586-023-06600-9",
+      "url": "https://doi.org/10.1038/s41586-023-06600-9",
+      "type": "peer"
+    },
+    {
+      "key": "marshall2021",
+      "citation": "Marshall SM et al. 2021. Identifying molecules as biosignatures with assembly theory and mass spectrometry. Nat Commun.",
+      "doi": "10.1038/s41467-021-23258-x",
+      "url": "https://doi.org/10.1038/s41467-021-23258-x",
+      "type": "peer"
+    },
+    {
+      "key": "uthamacumaran2024",
+      "citation": "Uthamacumaran A et al. 2024. On the salient limitations of the methods of assembly theory and their classification of molecular biosignatures. npj Syst Biol Appl.",
+      "doi": "10.1038/s41540-024-00403-y",
+      "url": "https://doi.org/10.1038/s41540-024-00403-y",
+      "type": "peer"
+    },
+    {
+      "key": "jaeger2024",
+      "citation": "Jaeger J. 2024. Assembly theory: what it does and what it does not do. J Mol Evol.",
+      "doi": "10.1007/s00239-024-10163-2",
+      "url": "https://doi.org/10.1007/s00239-024-10163-2",
+      "type": "peer"
+    },
+    {
+      "key": "ozelim2026",
+      "citation": "Ozelim L et al. 2026. Assembly theory collapses to dictionary compression and is rendered redundant by common statistical algorithms. npj Complexity.",
+      "doi": "10.1038/s44260-026-00088-w",
+      "url": "https://doi.org/10.1038/s44260-026-00088-w",
+      "type": "peer"
+    },
+    {
+      "key": "johnson2018",
+      "citation": "Johnson SS et al. 2018. Fingerprinting non-terran biosignatures. Astrobiology.",
+      "doi": "10.1089/ast.2017.1712",
+      "url": "https://doi.org/10.1089/ast.2017.1712",
+      "type": "peer"
+    },
+    {
+      "key": "cleaves2023",
+      "citation": "Cleaves HJ et al. 2023. A robust, agnostic molecular biosignature based on machine learning. PNAS.",
+      "doi": "10.1073/pnas.2307149120",
+      "url": "https://doi.org/10.1073/pnas.2307149120",
+      "type": "peer"
+    },
+    {
+      "key": "seager2016",
+      "citation": "Seager S, Bains W, Petkowski JJ. 2016. Toward a list of molecules as potential biosignature gases for the search for life on exoplanets and applications to terrestrial biochemistry. Astrobiology.",
+      "doi": "10.1089/ast.2015.1404",
+      "url": "https://doi.org/10.1089/ast.2015.1404",
+      "type": "peer"
+    },
+    {
+      "key": "petkowski2020",
+      "citation": "Petkowski JJ, Bains W, Seager S. 2020. On the potential of silicon as a building block for life. Life.",
+      "doi": "10.3390/life10060084",
+      "url": "https://doi.org/10.3390/life10060084",
+      "type": "peer"
+    },
+    {
+      "key": "crc",
+      "citation": "Rumble J (ed). CRC Handbook of Chemistry and Physics (mp/bp values).",
+      "doi": null,
+      "url": null,
+      "type": "book"
+    },
+    {
+      "key": "etoolbox",
+      "citation": "Engineering ToolBox. Liquids - dielectric constants.",
+      "doi": null,
+      "url": "https://www.engineeringtoolbox.com/liquid-dielectric-constants-d_1263.html",
+      "type": "pop"
+    }
+  ],
+  "meta": {
+    "round": 1,
+    "verified": "DOIs resolved via Crossref 2026-11-07"
+  }
+}
