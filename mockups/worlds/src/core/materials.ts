@@ -33,19 +33,24 @@ export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
       if (opts.flatShading) mat.normalNode = flatNormal;
       mat.receivedShadowNode = shadowTint;
 
+      // WorldMaterialOptions.color: a number/node is the base albedo; with `stone` a TSL node is a multiplier
+      // tint on the stained stone albedo (landforms uses it to darken pores).
       let base: any = typeof opts.color === 'number' ? color(opts.color) : (opts.color ?? u.ground);
 
       if (opts.stone) {
         const p = positionWorld;
         // vertical streaks: noise stretched along y
         const streak = mx_fractal_noise_float(vec3(p.x.mul(0.1), p.y.mul(0.02), p.z.mul(0.1)), 2, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
-        // low = older = more stained; tips stay paler (bone)
-        const low = float(1).sub(smoothstep(4, 220, p.y).mul(0.5));
-        const t = saturate(low.mul(1.1).add(streak.sub(0.5).mul(0.6)));
-        base = mix(color(0xece4d6), u.stoneColor, t);
+        // low = older = more stained, fading to bone by ~55 m. Fully-stained worlds (iron, slate) keep it to the tips.
+        const lowProfile = float(1).sub(smoothstep(3, 55, p.y));
+        const tipStain = smoothstep(0.6, 0.85, u.stainAmount);
+        const prof = mix(lowProfile, float(1), tipStain);
+        const t = saturate(prof.mul(1.05).add(streak.sub(0.5).mul(0.55)));
+        const stone = mix(color(0xece4d6), u.stoneColor, t);
+        base = opts.color !== undefined && typeof opts.color !== 'number' ? stone.mul(opts.color) : stone;
       }
       if (opts.snowCover) {
-        const up = smoothstep(0.45, 0.85, normalWorld.y);
+        const up = smoothstep(0.6, 0.85, normalWorld.y); // up-facing only; walls stay stone
         const n = mx_fractal_noise_float(positionWorld.mul(0.8), 2, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
         const frost = up.mul(u.snow).mul(float(0.7).add(n.mul(0.5))).mul(1.4);
         base = mix(base, mix(u.haze, white, 0.55), saturate(frost));

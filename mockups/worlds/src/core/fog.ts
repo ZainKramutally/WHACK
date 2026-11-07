@@ -11,7 +11,7 @@ export function createFogNode(u: WorldUniforms, density: any) {
   });
   const factor = Fn(() => {
     const ground = exp(max(positionWorld.y, 0).mul(-0.02)); // 1 at ground → 0 high up
-    const d = dist();
+    const d = max(dist().sub(35), 0); // first ~35 m stay crisp
     const dd = density.mul(float(0.4).add(ground.mul(0.9))); // thicker near the ground
     return saturate(float(1).sub(exp(d.mul(dd).negate())));
   });

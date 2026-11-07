@@ -19,8 +19,8 @@ export const PRESETS: Preset[] = [
     composition: {
       aspect: 0.716,
       // Low on a flat plain, slight up-tilt: horizon sits at ~58% from the top of the frame.
-      camera: { position: [0, 2.2, 0], target: [4, 29, -200], fov: 52 },
-      sunDir: [0.1, 0.32, -0.95],          // eclipse at ~(0.6, 0.33) of the frame
+      camera: { position: [0, 2.2, 0], target: [4, 22, -200], fov: 52 },
+      sunDir: [0.1, 0.28, -0.95],          // eclipse at ~(0.6, 0.33) of the frame
       skyEvent: 'eclipse',
       valley: [[0, 0], [0, -400]],
       valleyWidth: 400,                 // open plain
@@ -49,7 +49,7 @@ export const PRESETS: Preset[] = [
       aspect: 0.561,
       // Eye level on the snowy valley floor, wide lens, vanishing point centre (~55% down).
       camera: { position: [0, 1.6, 0], target: [0, 10, -100], fov: 64 },
-      sunDir: [-0.2, 0.8, -0.6],        // high, diffuse, behind the arches
+      sunDir: [-0.35, 0.7, 0.45],       // high, soft, front-left so arch and wall faces toward us are lit
       skyEvent: 'none',
       valley: [[0, 0], [-2, -60], [4, -140], [0, -260]],
       valleyWidth: 34,
@@ -108,7 +108,7 @@ export const PRESETS: Preset[] = [
       aspect: 0.578,
       // Low on the sand path, tilted up; giant porous spires run out of frame top-left and top-right.
       camera: { position: [0, 1.7, 0], target: [0, 26, -80], fov: 60 },
-      sunDir: [0.3, 0.7, -0.5],         // soft, hazy, from behind-right
+      sunDir: [-0.45, 0.6, 0.5],        // soft, hazy, front-left: lit faces toward us, shadow in the pores
       skyEvent: 'none',
       valley: [[0, 0], [1, -60], [-3, -160], [0, -300]],
       valleyWidth: 18,

@@ -22,7 +22,7 @@ export function createSkyNode(u: WorldUniforms, comp: Composition) {
     const d = normalize(positionWorldDirection);
     const e = d.y;
     // base gradient
-    const t = saturate(e.mul(1.15)).pow(0.65);
+    const t = saturate(e.mul(1.7)).pow(0.7);
     let col: any = mix(u.skyHorizon, u.skyTop, t);
     // haze band hugging the horizon (and everything below it) so the sky meets the far fog exactly
     const band = exp(max(e, 0).mul(-7.0));
@@ -47,14 +47,14 @@ export function createSkyNode(u: WorldUniforms, comp: Composition) {
         const w = float(wBase).mul(k.add(0.04)); // taper: rays get sharper towards the tip
         return saturate(float(1).sub(f.div(w.max(0.001)))).mul(k.pow(0.8));
       };
-      const rayA = rays(11, 3.0, 0.28, 0.6, 0.34);
-      const rayB = rays(7, 19.0, 0.18, 0.3, 0.28);
+      const rayA = rays(8, 3.0, 0.55, 0.7, 0.2);
+      const rayB = rays(16, 19.0, 0.15, 0.25, 0.22);
       const glow = exp(r.mul(-9.0)).mul(0.25);
-      const corona = saturate(max(rayA, rayB.mul(0.8)).add(glow)).mul(smoothstep(-0.01, 0.0, ang.sub(R)));
-      const ring = smoothstep(0.045, 0.0, abs(ang.sub(R.mul(1.035))).div(R)).mul(0.95);
+      const corona = saturate(max(rayA, rayB.mul(0.75)).add(glow)).mul(smoothstep(-0.01, 0.0, ang.sub(R)));
+      const ring = smoothstep(0.028, 0.0, abs(ang.sub(R.mul(1.03))).div(R)).mul(0.95);
       const white = vec3(1.0, 0.99, 0.96);
       col = mix(col, white, saturate(corona.add(ring)));
-      col = mix(col, vec3(0.045, 0.038, 0.034), smoothstep(R.add(0.002), R.sub(0.002), ang));
+      col = mix(col, vec3(0.0070, 0.0048, 0.0037), smoothstep(R.add(0.002), R.sub(0.002), ang));
     } else {
       // sun disc (HDR a touch above 1 so only it blooms)
       const sunCol = mix(u.haze, vec3(1, 0.97, 0.9), 0.7);

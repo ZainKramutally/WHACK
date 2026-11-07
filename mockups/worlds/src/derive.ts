@@ -50,7 +50,7 @@ export function normalizeSea(w: SeaWeights): SeaWeights {
 
 export const BONE = 0xece4d6;
 export const STAIN: Record<keyof SeaWeights, number> = {
-  water: 0xf94b1e, acid: 0xa47c68, methane: 0xc3c4d4, ammonia: 0x5a3b52,
+  water: 0xf94b1e, acid: 0xa47c68, methane: 0x577c99, ammonia: 0x5a3b52, // methane = cold blue-slate (eco-04 rock)
 };
 const FAMILY = { c: 0xffa41b, si: 0x27aaa6, o: 0xda1b58 }; // glow hue: C amber, Si cyan, O magenta
 const PORE_GLOW = 0xff7a1a;
@@ -131,7 +131,8 @@ export function derive(dialsIn: Dials, presets: Preset[]): Derived {
 
   const palette = paletteField(sea, heat, light, presets);
 
-  const stainAmount = sat(age * (0.3 + heat) * 1.4);
+  // cold methane stone takes stain readily (blue-slate); acid stain is capped so its bone stays pale
+  const stainAmount = Math.min(sat(age * (0.3 + heat) * 1.4 * (1 + 0.8 * sea.methane)), 1 - 0.5 * sea.acid);
   const stain = blendHex(SEA_KEYS.map((k) => STAIN[k]), SEA_KEYS.map((k) => sea[k] + 1e-6));
   const stoneColor = mixHex(BONE, stain, stainAmount);
 
