@@ -117,13 +117,13 @@ const WORLD: WorldSpec[] = [
   // mid-scale life everywhere (30-300 m from any spot): small pod clusters and fans, also in the clearings
   { species: 'lanternPods', rect: DISC, minDist: 60, h: [5, 16], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.3 + 0.45 * clump(x, z, 120, 42, 0.15, 0.4) },
   { species: 'ribFan', rect: DISC, minDist: 70, h: [10, 30], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.25 + 0.45 * clump(x, z, 150, 43) },
-  { species: 'weeper', rect: DISC, minDist: 95, h: [20, 50], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.25 + 0.5 * clump(x, z, 200, 44) },
-  { species: 'coilSpire', rect: { x0: -3000, x1: 3000, z0: -3200, z1: 2800 }, minDist: 80, h: [40, 115], variants: 4,
+  { species: 'weeper', rect: DISC, minDist: 75, h: [20, 50], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.25 + 0.5 * clump(x, z, 200, 44) },
+  { species: 'coilSpire', rect: { x0: -3000, x1: 3000, z0: -3200, z1: 2800 }, minDist: 62, h: [40, 115], variants: 4,
     mask: (x, z, d) => (d > 60 ? 0.35 + 0.5 * clump(x, z, 260, 45, 0.15, 0.32) : 0) },
   // titan forest (east) and scattered titans everywhere else, a clearing kept around the hero camera
   { species: 'parasolTitan', rect: around(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius), minDist: 62, h: [90, 175], variants: 4,
     mask: radial(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius * 0.55, TITAN_FOREST.radius) },
-  { species: 'parasolTitan', rect: { x0: -3300, x1: 3300, z0: -3600, z1: 3300 }, minDist: 125, h: [50, 140], variants: 4,
+  { species: 'parasolTitan', rect: { x0: -3300, x1: 3300, z0: -3600, z1: 3300 }, minDist: 100, h: [50, 140], variants: 4,
     mask: (x, z, d) => (d > 260 && Math.hypot(x - TITAN_FOREST.x, z - TITAN_FOREST.z) > TITAN_FOREST.radius ? 0.3 + 0.7 * clump(x, z, 380, 46, 0.05, 0.25) : 0) },
 ];
 
@@ -151,8 +151,9 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   // a small glowing pair beside the explorer: the accent sits on the story beat
   { species: 'lanternPods', variant: 0, x: -26, z: -76, h: 6.5, yaw: 1.3 },
   { species: 'lanternPods', variant: 2, x: -3.5, z: -88, h: 5, yaw: 0.4 },
+  { species: 'lanternPods', variant: 0, x: -12.0, z: -72.2, h: 3.4, yaw: 2.4 }, // right beside him
   // one clean foreground silhouette on the right: a big rib fan cropped by the frame edge
-  { species: 'ribFan', variant: 1, x: 7.5, z: -11.5, h: 3.9, yaw: -0.3 },
+  { species: 'ribFan', variant: 1, x: 8.3, z: -11.2, h: 3.9, yaw: -0.3 },
   { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
 ];
 

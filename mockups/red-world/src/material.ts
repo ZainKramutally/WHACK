@@ -140,9 +140,15 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
 
     if (o.fog !== false) {
       // the midground (< ~400 m) stays clear and saturated; air builds only past it (value planes, brief §3)
-      const range = float(1).sub(exp(max(dist.sub(U.fogStart), 0).div(U.fogDist).negate()));
-      const haze = float(1).sub(exp(max(dist.sub(U.fogStart.mul(0.6)), 0).div(U.hazeDist).negate()))
-        .mul(exp(max(positionWorld.y.sub(U.hazeBase), 0).div(U.hazeHeight).negate())).mul(U.hazeAmount);
+      // height-aware air: from the ground (eye < ~10 m) this is exactly the hero-frame fog; flying, the clear zone and the
+      // fog length grow with altitude so groves keep contrast from 200-420 m, while the ranges (3-9 km) still fade to white
+      const alt = max(cameraPosition.y.sub(10), 0);
+      const fogStart = U.fogStart.add(alt.mul(2.4));
+      const fogDist = U.fogDist.mul(alt.div(450).add(1));
+      const range = float(1).sub(exp(max(dist.sub(fogStart), 0).div(fogDist).negate()));
+      const haze = float(1).sub(exp(max(dist.sub(fogStart.mul(0.6)), 0).div(U.hazeDist.mul(alt.div(300).add(1))).negate()))
+        .mul(exp(max(positionWorld.y.sub(U.hazeBase), 0).div(U.hazeHeight).negate())).mul(U.hazeAmount)
+        .mul(float(1).sub(smoothstep(20, 320, alt).mul(0.55)));
       const f = clamp(max(range, haze), 0, 1).toVar();
       if (PIXEL) f.assign(floor(f.mul(16).add(0.5)).div(16));
       out.assign(mix(out, vec3(U.fogColor), f));
