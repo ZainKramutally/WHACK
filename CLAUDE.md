@@ -14,12 +14,11 @@ The MVP has two worlds. Carbon gives a living world we recognise. Silicon gives 
 
 The Marshall Wace brief asks for a project that "opens a door to the unexplored", judged on creativity, technical complexity and good presentation (our scoring rubric is in `docs/TRACK.md`). Judging is a strict three-minute slot with the sponsor, presented on our own laptop. Devpost submissions close at 11:00 on Sunday 8 November 2026, and judging starts at 12:30. Unsubmitted projects are ineligible, so submit something by 10:30 even if it is unfinished.
 
-Owners (to confirm):
-- **Engineering lead:** generation, simulation, character and integration.
-- **Caden:** the creatures (design F) and the world look (`mockups/worlds`).
-- **Design partner:** the UI (selection screen, panels, cards) and the overall look.
+Owners:
+- **Engineering lead:** generation (including terrain logic in `src/gen/`), simulation, character and integration.
+- **Caden** (creatures and design partner): the creatures (design F logic), the UI (selection screen, panels, cards), and the **art layer**, which sits on top of this logic and only reads it (see "Logic → art interface").
 
-If Caden is the design partner, merge the last two roles. Claude Code assists everyone. Changes that affect the data contract in this file must be agreed with Caden and the design partner first.
+This file covers the logic only. Look decisions (palettes, render style, materials, post-processing) belong to the art layer's own docs. Claude Code assists everyone. Changes that affect the data contract in this file must be agreed with Caden and the design partner first.
 
 ## Non-negotiable rules
 
@@ -121,26 +120,40 @@ Population traits respond continuously to every change. The phase timings and ye
 
 ## Life: creatures and plants
 
-Our controls and our two worlds stay as described above. **Creatures come from Caden's design F**:
-- the design itself: `docs/emergence/F-body-plan-first.md`, chosen in `docs/emergence/README.md`
-- the evolution recipe Caden measured: `research/body-plans/`, notes 01 and 04
+Our controls and our two worlds stay as described above. **Creatures come from Caden's design F, as cut down by the simplicity guardrails**:
+- **The rules that govern the sim:** `docs/emergence/DECISIONS.md` (rev 2). §G holds the guardrails, the 12 genes and the constants. §3 holds the 12 rules, §A the variety metrics, and §B the science → body table. Those sections are the reference. This file links to them rather than copying them.
+- **Design F** (`docs/emergence/F-body-plan-first.md`, chosen in `docs/emergence/README.md`) is the reference for the `develop()` chemistry grammar and for rendering bodies. Where F and DECISIONS disagree, DECISIONS wins (for example, F's midwife cheats and 32-gene genome are cut).
+- **The evolution recipe Caden measured:** `research/body-plans/`, notes 01 and 04.
 
-F was written for the old controls (Recipe, Sea, Heat, Light, Hunger, Time), so this section wires it to ours. On creature mechanics, F is the reference. On inputs, this file wins.
+F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hunger, Time), so this section wires them to ours. On creature mechanics, DECISIONS is the reference. On inputs, this file wins.
+
+**Simplicity guardrails (non-negotiable, DECISIONS §G):**
+- ≤ 12 sim rules, one in and one out.
+- One of every system: one utility loop, one `develop()`, one ledger, and no per-species code.
+- 15 genes: the 12 body genes (DECISIONS G.1) plus the 3 climate genes already built in `population.ts`. A new gene costs a removal.
+- ≤ 25 sim constants, all in `src/sim/constants.ts`.
+- One 64² world grid, ticking at a fixed 20 Hz.
+- No cheats and no preset code.
+- Rendering is read-only.
+- A new rule or feature ships only if a headless A/B raises a §A variety or readability metric.
+- Parked ideas go to `docs/NOT_NOW.md`.
 
 **What life is**
-- **Animals:** up to 1,024 agents, never fewer than 1,000 in the demo, because smaller populations went extinct in Caden's tests. The low quality tier uses 512.
-  - Each animal carries F's 32-gene genome: axis, Hox-like limb domains, plates, dorsal rods or frills, eyes, horns, diet, buoyancy, sociality and more.
-  - It also carries our three climate genes: preferred temperature, tolerance, and oxygen need (carbon) or cold stability (silicon).
-- **Plants:** up to 1,536 agents with F's 12-gene flora genome, grown by an L-system. These are the producers.
-- **Development:** a pure `develop()` turns a genome plus body composition into a body plan. Chemistry is the grammar:
-  - Silicon bodies grow hexagonal faceted segments, straight rod limbs with joints snapped to 15°, and clusters of dot eyes. Silicon flora branches at 60° into crystal trees.
-  - Carbon bodies grow round, curling, many-jointed shapes with ring eyes. Carbon flora curls.
-- **Ecology:** F's trait ledger, where every gene pays somewhere and earns somewhere. Agents live on a spatial grid and share one state machine (wander, forage, flee, chase, rest, bud, drift). Transitions between states are scored from the genes, and boids steering runs inside each state.
+- **Animals:** up to 1,024 agents, never fewer than 1,000 in the demo, because smaller populations went extinct in Caden's tests. There is no lower quality tier for the population. Protect 60 fps by cutting render detail instead.
+  - Each animal carries the 12 genes of DECISIONS G.1: size, segments, limbPairs, limbLen, plates, horns, gape, diet, eyes, buoy, glow and sociality. It also inherits its body composition {c, si, o}, which is not a gene.
+  - It also carries our three climate genes from `population.ts`, used as built: preferred temperature, tolerance, and oxygen need (carbon) or cold stability (silicon). The genome is 15 genes in total.
+- **Plants:** **per-cell flora biomass** on the 64² grid (mat and canopy), not individual agents. These are the producers. Plant shapes (L-system twigs and caps, and forms such as lantern cups or jellyshroom domes) are drawn by the art layer as a pure function of each cell's biomass, composition and conditions.
+- **Development:** a pure `develop()` turns the genes plus body composition plus conditions into a body plan. It is the only place genes become traits. Chemistry is the grammar:
+  - Silicon bodies grow hexagonal faceted segments, straight rod limbs with joints snapped to 15°, and clusters of dot eyes.
+  - Carbon bodies grow round, curling, many-jointed shapes with ring eyes.
+  - The traits derived from these (radius profile, symmetry, eye and horn count, and so on) are listed in DECISIONS G.1.
+- **Ecology:** DECISIONS §3, the 12 rules. One utility loop (forage, hunt, flee, home, rest, bud) runs over relationships derived from bodies (eats, afraid, rival, kin). There's one trait ledger, where every gene pays somewhere and earns somewhere.
+- **Glow comes from darkness, on both worlds.** The `glow` gene pays for itself as a lure only when light is scarce, so the dim silicon world evolves glow without any oxygen. On silicon the chemistry behind it is non-oxygen chemiluminescence, marked `assumption: true`. This replaces F's and DECISIONS' "glow ∝ oxygen".
 - **Evolution recipe** (from Caden's measurements; without it, legs, plates, horns and hunters don't appear inside a demo):
-  - **Always-on raised mutation** (σ ×2.5), declared as "a stressed young world".
-  - **A light developmental pull** (about 0.25) towards the 2–3 body templates with the highest affinity for each world. It acts on look and proportion only (κ ≤ 0.5), never on fitness.
+  - **Always-on mutation** at `SIGMA` 0.075 (about ×1.5), declared as "a stressed young world".
+  - **No developmental pull in the sim.** Body templates become anonymous look attractors in the art layer, applied read-only (DECISIONS §G.3, G.9).
   - **The plate-ledger fix**, so plates are cheap enough to spread.
-- **Founders:** at the first-life phase, a seeded group of at least 24 tiny capsule worms appears in the shallows, drawn from the world's seed. Complexity has to be earned.
+- **Founders:** at the first-life phase, a seeded group of at least 24 tiny capsule worms appears in the shallows, drawn from the world's seed. They carry standing variation: σ 0.12 on the listed genes, and about 15% start with tiny limb buds (`research/body-plans/notes/01-evolution-speed.md` §5). Complexity has to be earned.
   - F's atom prelude and copier are not used. The particle box plays that role before Generate, and seeding founders from the box would break the deterministic demo.
 
 **How F's inputs come from our worlds** (every scaling lives in config):
@@ -149,7 +162,7 @@ F was written for the old controls (Recipe, Sea, Heat, Light, Hunger, Time), so 
 |---|---|---|
 | Recipe (body composition c, si, o) | Fixed per world: carbon is carbon-rich with some oxygen; silicon is silicon-rich with no oxygen | Not a player control. Composition is still inherited and rebuilt at each birth, as in F. |
 | Sea | The world's solvent: water or liquid nitrogen | F's "water dissolves bare silicon" lever doesn't arise in either world, so plates pay only as defence against hunters. |
-| Heat | Temperature, normalised within the world's living band (0 = lower edge, 1 = upper edge) | Drives F's temperature–size rule (cold makes giants) and heat stress. |
+| Heat | `heatBand`: temperature normalised within the world's living band (0 = lower edge, 1 = upper edge) | Drives F's temperature–size rule (cold makes giants) and heat stress. |
 | rate(heat) | Our pace rule ("Metabolism" below) | One pace rule for everything alive. |
 | Air density | Real gas density, P·M/(R·T), scaled into F's range | Earth's air is about 1.2 kg/m³. The silicon world's 3.6 bar at −183 °C is about 13 kg/m³, so F's floaters (bells, sky whales) have a physical reason to appear there. Titan's air is about 4× denser than Earth's. On carbon, the Nitrogen slider changes it. |
 | Light | Starlight at the surface (star brightness and orbital distance) | The silicon world gets about 1% of Earth's sunlight, so F's rules give it big eyes and glow. |
@@ -159,7 +172,8 @@ F was written for the old controls (Recipe, Sea, Heat, Light, Hunger, Time), so 
 
 **Silicon-world specifics** (speculative, labelled as such):
 - **Plates are silicon-nitride ceramic**, not silica stone, because there's no oxygen. Silicon nitride is a real, very hard ceramic. `assumption: true`.
-- **No builders.** F's builders need silicon plus oxygen to lay stone, and this world has no oxygen, so there are no spires or glowing pores here.
+- **No builders.** F's builders need silicon plus oxygen to lay stone, and this world has no oxygen. The builder pathway is hard-off on silicon (it's gated on `o`, not on preset code), so life raises no spires and no glowing pores here.
+- **Relic ice landmarks.** The silicon world's arches and spires are **water-ice bedrock** left over from formation. Water exists on this world only as frozen bedrock (reasoning step 3). They are part of the seeded starting terrain, not grown by any process, and are marked `assumption: true` (see "Terrain and landforms").
 - **Leaving the sea.** Life starts in the shallows. As the seas shrink in the complex-life phase, some lineages go deeper, some take to the thick air, and some colonise the shore. Ceramic skins hold their internal nitrogen in, as waxy skins hold water. `assumption: true`.
 
 **What is already built.** `src/sim/population.ts` is the climate core that F's ecology grows from: extend it, don't start a second model. It already has:
@@ -175,7 +189,8 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
 **Presentation, under the clean-screen rule.**
 - **No camera pull-out:** the camera follows the player.
 - **New forms:** when a body plan first fills a field-guide bin, its generated name shows as a one-line caption ("New form: Glass Strider"). Clicking the creature opens its inspect card, which serves as the specimen plate.
-- **Field guide tab:** next to Conditions, closed by default. It lists the forms found so far (F's MAP-Elites bins).
+- **Field guide tab:** next to Conditions, closed by default. It lists the forms found so far.
+- **What counts as a form:** the DECISIONS §A definition. A form is a cluster on the 12 genes plus composition (c, si), at radius 0.25, with at least 4 live animals, labelled by functional type (look attractor × trophic role × locomotion mode). `guide:newForm` fires when a cluster first reaches 4 live animals. Names come from a trait-based name generator.
 
 **Metabolism (pace of life).** Each world's `life.rules.metabolism` holds an activation energy, a reference temperature and a compression exponent. With a typical activation energy (about 50 kJ/mol), the real Arrhenius factor at −183 °C is around 10⁻²⁰ of Earth's, which would mean no generations at all in a demo. The sim raises that factor to the compression exponent, roughly 0.03, to land near a quarter of carbon's pace. The same exponent applies to both worlds, so their paces compare fairly. It also stops carbon running away when the Temperature slider is pushed hot. The silicon activation energy may be set lower than carbon's to reflect step 6 of the reasoning chain. Both the exponent and any lowered activation energy are `assumption: true`, and the pace stat shows the uncompressed estimate with the label "compressed in the time-lapse". Silicon's slower generations come out of these rules, never from a hardcoded speed.
 
@@ -275,7 +290,7 @@ Everything else waits until the player asks for it.
 
 **Click to inspect.** These can be clicked:
 - creatures
-- producers (plants on carbon, crystalline crusts on silicon)
+- producers: a patch of flora biomass (plants on carbon, crystalline crusts on silicon), inspected by grid cell
 - the sea
 - the ground
 - the sky and star
@@ -318,21 +333,23 @@ src/
   worlds/controls.ts   the three slider definitions, shared by every world so ranges match
   sim/                 worker, timeline/phase engine, population model, atmosphere and sea models, seeded RNG
   sim/population.ts    the climate core of the ecology (built, tested); LifeRules is its slice of the world config
-  sim/genome.ts        F's 32-gene animal and 12-gene plant genomes, mutation, founders
+  sim/genome.ts        the 12 animal genes (DECISIONS G.1), mutation at SIGMA, founders with standing variation
   sim/develop.ts       pure develop(): genome + composition → body plan (chemistry is the grammar)
-  sim/ecology.ts       F's spatial ecology (agents, grid, state machine, ledger), grown from population.ts
+  sim/ecology.ts       the 12 rules (DECISIONS §3): agents, 64² grid with per-cell flora biomass, utility loop, ledger; grown from population.ts
   sim/guide.ts         field-guide bins (MAP-Elites) and generated names
   sim/organismLayout.ts  the SimSnapshot.organisms buffer layout (built)
   sim/rng.ts           seeded random streams, same algorithm as mockups/worlds (built)
   sim/models.ts        equation forms (radiative balance, vapour-pressure lookup, sea volume); coefficients come from config
   sim/limits.ts        pure functions: living bands, element viability and starting conditions; used by the worker and the selection screen
-  gen/                 terrain heightmap, seas, plants, creature mesh builders
+  sim/constants.ts     every sim tunable, ≤ 25 (DECISIONS G.2)
+  gen/terrain.ts       L0 analytic height: TSL node + CPU sampler (same maths), rise, seaLevel from seaCover, spawn shore, landform machines
+  gen/                 creature mesh builders
   render/              scene, lighting from star type, sky, materials, generation animations
   render/particleBox.ts  the selection-screen particle box and boxState()
   render/generate.ts   the zoom-and-duplicate transition from the box into the terrain
   render/pose.ts       GPU spine, IK legs and bell pulses (F §3.5)
   render/fauna.ts      lofted bodies, limbs, plates and eyes (F §3.6)
-  render/flora.ts      L-system plants
+  render/flora.ts      plant shapes drawn from the per-cell flora grid (art layer)
   render/pick.ts       raycast picking for click-to-inspect (organisms by id, sea, ground, sky)
   render/counterpart.ts  the inspect card's live render of the other world's counterpart
   player/              third-person character controller and camera, keyboard/mouse and gamepad input
@@ -340,7 +357,7 @@ src/
   bus.ts               typed event bus between sim, render and UI
 ```
 
-Port the reusable parts of `mockups/worlds/src` into `src/` rather than importing across projects: the palette field, fog, sky, materials and camera from `core/`, and the terrain from `landforms/`.
+`render/` is the art layer. It reads only `VisualInputs` (see "Logic → art interface") and follows the active art-direction doc. Mockups are references: port from them, but never import across projects.
 
 ### Data contract (agree changes with Caden and the design partner)
 
@@ -376,6 +393,7 @@ interface FeatureDef extends Sourced {   // what an inspect card says about a ki
 
 type InspectTarget =
   | { kind: 'organism'; organismId: number }   // OrganismField.id
+  | { kind: 'producer'; cell: number }         // index into the 64² world grid
   | { kind: 'sea' | 'ground' | 'sky' };
 
 interface Phase {
@@ -463,7 +481,7 @@ interface WorldConfig {
   solvent: Solvent;
   stats: StatDef[];
   facts: FactDef[];
-  features: Record<'organism' | 'sea' | 'ground' | 'sky', FeatureDef>;   // inspect-card content
+  features: Record<'organism' | 'producer' | 'sea' | 'ground' | 'sky', FeatureDef>;   // inspect-card content
   phases: Phase[];
   processes: SlowProcess[];
   feedbacks: Feedback[];
@@ -473,13 +491,13 @@ interface WorldConfig {
     rules: LifeRules;      // climate and metabolism rules (type in src/sim/population.ts)
     composition: { c: number; si: number; o: number };   // the world's fixed body recipe, F's Recipe
     ledger: unknown;       // F's trait-ledger coefficients for this world (typed when sim/ecology.ts lands)
-    templates: unknown;    // body templates and their affinities for this world, for the developmental pull
     inputs: unknown;       // scalings from our stats into F's heat, light, air density and hunger ranges
   };
-  visuals: { starType: string; palette: unknown };  // art-directed, constrained by the stats
+  terrain: TerrainConfig;  // see "Terrain and landforms"
+  starType: string;        // a world fact (e.g. 'G-type'); every look decision lives in the art layer, not here
 }
 
-interface SimSnapshot {          // emitted on the bus about 10 times per second
+interface SimSnapshot {          // emitted on the bus at 20 Hz
   worldId: string;
   phaseId: string;
   timeSec: number;
@@ -488,8 +506,9 @@ interface SimSnapshot {          // emitted on the bus about 10 times per second
   population: { producers: number; consumers: number };
   generation: number;
   traitAverages: Record<string, number>;   // prefTemp, tolerance, size, chem, consumerSize, consumerChem
-  organisms: Float32Array;       // one record per living animal or plant (position, heading, locomotion mode, role, climate genes,
-                                 // stable id, generation); layout in sim/organismLayout.ts, extended for F's pose inputs
+  organisms: Float32Array;       // one record per living animal (position, heading, locomotion mode, role, climate genes, the 12 genes,
+                                 // stable id, generation); layout in sim/organismLayout.ts, which must be extended to match (it has none of heading, mode or genes yet)
+  flora: Float32Array;           // per-cell flora biomass (mat, canopy) on the 64² grid; plants are not agents
   births: { id: number; plan: Float32Array }[];   // develop() output for organisms born since the last snapshot
   controls: Record<ControlDef['id'], number>;      // live value under each slider thumb
   bands: Record<ControlDef['id'], LivingBand>;     // live living band for each slider
@@ -527,6 +546,12 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on eve
 - Typed `life.rules` as `LifeRules` (from `src/sim/population.ts`), and named the `traitAverages` keys.
 - Added click-to-inspect: `FeatureDef`, `InspectTarget`, `WorldConfig.features`, the stable `id` and `generation` fields in the organism buffer, and the `inspect:open`, `inspect:window` and `inspect:close` bus events.
 - Added Caden's creatures (design F): `life.composition`, `life.ledger`, `life.templates` and `life.inputs` on `WorldConfig`, `births` on `SimSnapshot`, and the `guide:newForm` bus event.
+- 2026-11-07 logic pass (agreed with Caden):
+  - Removed `life.templates`: the developmental pull leaves the sim.
+  - Replaced `visuals` with `starType` plus the new `terrain: TerrainConfig`.
+  - Added `SimSnapshot.flora` (per-cell biomass) and the `producer` inspect target.
+  - The organism buffer now carries the 12 genes, heading and locomotion mode.
+  - The snapshot rate is 20 Hz.
 
 ## Third-person player
 
@@ -534,45 +559,82 @@ Third person is part of the MVP. A stylised explorer character with a smooth fol
 - **Keyboard and mouse:** WASD moves. Dragging the mouse orbits the camera. A click without dragging inspects what is under the cursor. Tab toggles the Conditions panel, and Esc closes a card or the panel.
 - **Gamepad:** the left stick moves and the right stick orbits. While the gamepad is in use, a small reticle sits at screen centre. A inspects what is under the reticle, B closes, and Y toggles the Conditions panel.
 
-Both work at the same time so control can pass between people without switching modes. Handle gamepads connecting or disconnecting mid-run, apply a dead zone to the sticks, and show a small controls hint for whichever input was used last, which fades after a few seconds. Ground height is sampled from the terrain each frame so the character and camera stay on and above the surface. The character cannot walk below sea level: liquid seas block movement at the shoreline, and frozen seas can be walked on. If a sea rises over the character, or a frozen sea under them melts, they glide to the nearest shore over about a second. On the gamepad, the D-pad also works the condition sliders: up and down pick a slider, and left and right move it. Using it opens the Conditions panel if it is closed. A judge holding the controller can then use them without the mouse. A terrain patch of a few hundred metres with distance fog at the edges is the recommended setup because it keeps the controller and camera simple, but the engineering lead can choose another layout if it stays within the performance budget. The character spawns when the particles from the box have become solid ground (about 6 s in), and movement keeps working through every phase.
+Both work at the same time so control can pass between people without switching modes. Handle gamepads connecting or disconnecting mid-run, apply a dead zone to the sticks, and show a small controls hint for whichever input was used last, which fades after a few seconds. Ground height is sampled from the terrain each frame so the character and camera stay on and above the surface. **The character can dive.** Below sea level the controller switches to swimming: full 3D movement, with the left stick or WASD moving relative to the camera and a rise/sink input (Space and Shift; gamepad bumpers). The camera follows underwater. Frozen seas are solid and can be walked on. If a frozen sea melts under the character, they start swimming. The character's suit is a declared illustration: no stat models the player. On the gamepad, the D-pad also works the condition sliders: up and down pick a slider, and left and right move it. Using it opens the Conditions panel if it is closed. A judge holding the controller can then use them without the mouse. A terrain patch of a few hundred metres with distance fog at the edges is the recommended setup because it keeps the controller and camera simple, but the engineering lead can choose another layout if it stays within the performance budget. The character spawns when the particles from the box have become solid ground (about 6 s in), and movement keeps working through every phase.
 
 ## Generation sequence (what the judges watch)
 
-The particles from the box settle into the ground (see "The particle box and the Generate transition"), and the terrain then rises to its full heights by the end of formation. The terrain generator must put a shoreline near the spawn point in both worlds, or silicon life is never seen. Seas rise during the seas phase, liquid or frozen according to the current temperature and the solvent's freezing point, and then follow the sea stats for the rest of the run. The terrain patch stands in for the whole planet: `seaLevel` is the height at which the fraction of the patch lying below it equals `seaCover`. Plants are F's L-system flora, drawn as instanced twigs and caps, and they reach land only when the simulation says life has. Creatures are F's lofted bodies, built from each genome's `develop()` plan and animated on the GPU (spines, IK legs, pulsing bells), so the population visibly changes as it evolves. Sky and light follow the star and atmosphere, art-directed to look vibrant. Each phase change triggers the caption in the UI. Generation is part of the show, so it should be smooth and legible, not hidden behind a loader.
+The particles from the box settle into the ground (see "The particle box and the Generate transition"), and the terrain then rises to its full heights by the end of formation. The terrain generator must put a shoreline near the spawn point in both worlds, or silicon life is never seen. Seas rise during the seas phase, liquid or frozen according to the current temperature and the solvent's freezing point, and then follow the sea stats for the rest of the run. The terrain patch stands in for the whole planet: `seaLevel` is the height at which the fraction of the patch lying below it equals `seaCover`. Plants are drawn by the art layer from the per-cell flora biomass, and they reach land only when the simulation says life has (the grid cell's biomass is zero until then). Creatures are F's lofted bodies, built from each genome's `develop()` plan and animated on the GPU (spines, IK legs, pulsing bells), so the population visibly changes as it evolves. Sky and light follow the star and atmosphere, art-directed to look vibrant. Each phase change triggers the caption in the UI. Generation is part of the show, so it should be smooth and legible, not hidden behind a loader.
 
-Silicon life starts in the shallows, so at first it must read from the shore. Liquid nitrogen is clear and colourless, so organisms are visible through it. Crystalline flora grows along the sea margins, and as the seas shrink it leaves bands of dead crust behind, showing the feedback loop on screen. Later, floaters drift in the thick air, and some lineages walk the shore (speculative, see "Life: creatures and plants").
+Silicon life starts in the shallows, so at first it must read from the shore, or close up when the player dives. Liquid nitrogen is clear and colourless, so organisms are visible through it. Crystalline flora grows along the sea margins, and as the seas shrink it leaves bands of dead crust behind, showing the feedback loop on screen. Later, floaters drift in the thick air, and some lineages walk the shore (speculative, see "Life: creatures and plants").
 
-**The world's look comes from Caden's world generator** (`mockups/worlds`, `docs/features/world-generator.md`): the palette field, fog, sky, stone stain, terrain and backdrop. It is fed by our state instead of its old dials:
+## Terrain and landforms
 
-| Generator dial | Fed by |
-|---|---|
-| recipe | the world's fixed composition (`life.composition`) |
-| sea | water on carbon. Liquid nitrogen on silicon, starting from ART_DIRECTION's frost (methane) palette, relabelled. |
-| heat | temperature, normalised within the world's living band |
-| light | starlight at the surface |
-| age | progress through the world's history |
+The terrain is logic: the player, the sea level and the flora grid all read it. It lives in `src/gen/terrain.ts`, owned by the engineering lead. Every coefficient is in the world's `terrain` config (`TerrainConfig`), with `why` and `sources` or `assumption: true`.
 
-Its niche flora is backdrop dressing only, and it follows the same rule as everything else: no forests before life reaches land. Caden's `research/world-forms/` landform rules apply where they fit our worlds. For example, frost-wedging needs water near freezing, so it belongs to a cold carbon world, not to silicon.
+- **One height function, two backends.** `height(x, z, progress)` is a closed-form analytic function: base fBm, domain warp, and closed-form landform progress fields. It's written once as a TSL node for the GPU mesh and once as a pure TypeScript sampler that the player, flora and tests use. Tests check the two agree. This is the L0 layer of `docs/features/terrain-plan.md`. Its L1 simulated layer (erosion, talus, rimstone) stays in `docs/NOT_NOW.md`.
+- **Formation rise.** A `rise` input goes from 0 to 1 across the formation phase (0–10 s) and scales relief up from flat. The particles from the box land on `height(·, rise)` as it stands at that moment.
+- **Sea level from sea cover.** The patch stands in for the planet. `seaLevel` is the height at which the fraction of the patch below it equals `seaCover`. The worker finds it numerically from the CPU sampler each snapshot.
+- **A shore near spawn.** The spawn point is on land, within `spawn.shoreDistance` metres of the shoreline at the seas-phase sea level. The height function carves a gentle shore ramp there, so it holds for every slider setting inside the living bands. This is tested for both worlds.
+- **The terrain clock.** Each landform machine turns `historyYears` into its own progress, using a rate per billion years from config. The phase `startYears` anchors set the order, so landforms appear in their real relative order. Only the overall speed is compressed.
+- **Landform heat.** Landform gates read `heatSolvent`, which is temperature normalised so that 0.5 sits at the solvent's freezing point (span in config). F's `Heat` input keeps the living-band normalisation ("How F's inputs come from our worlds").
+
+**Landforms per world** (machines and gates from `research/world-forms/`, rules 1–6):
+
+| World | Landform | Machine | Gate (all from state, no preset code) | Tag |
+|---|---|---|---|---|
+| Both | Strata and banded walls | M5 stack-and-strip | age | [sci] |
+| Both | Canyons | M4 abrade | depth ∝ age × past liquid. Steepness rises with dry heat (fixes the inverted heat→wall rule) | [sci] mechanism, [game] rule |
+| Carbon | Hoodoos, frost fins, and the arches they become | M3 crack-and-pry | Water only, with `heatSolvent` near 0.5 (freeze–thaw). Water is the only solvent that expands on freezing | [sci] |
+| Carbon | Shell stone: reefs, stromatolites, limestone pillars | M6 life-built | water + producer biomass in the shallows + age. The R2 exception: "carbon rusts to air, unless life in water makes shell". Say "shell" on slides: real carbonate needs calcium, which isn't modelled | [sci] analogue |
+| Silicon | Relic water-ice bedrock arches and spires | none: seeded | part of the seeded starting terrain, rising with `rise`. No process grows them | `assumption: true` |
+| Silicon | Silicon-nitride crystal crusts and dead crust bands | M2 precipitate | producer biomass at the sea margin. Crusts left above a falling sea level become dead bands | speculative |
+| Silicon | none of: frost wedging, dissolving, builder spires | n/a | N₂ contracts on freezing, liquid N₂ dissolves almost nothing, and builders need oxygen | [sci] |
+
+```ts
+interface TerrainConfig extends Sourced {
+  patchSize: number;                 // metres; a few hundred, with fog at the edges
+  base: Record<string, number>;      // fBm amplitude, octaves, warp and so on
+  spawn: { shoreDistance: number };  // metres from spawn to the seas-phase shoreline
+  heatSolventSpan: number;           // °C span mapped onto heatSolvent 0..1
+  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];   // rate per billion simulated years
+  relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
+}
+```
+
+## Logic → art interface
+
+The art layer sits on top of this logic and only reads it. It never writes sim state, and nothing visual is read back (DECISIONS §G.9). This file doesn't choose a look or name a mockup. The active art-direction doc is set by Caden.
+
+**What the art layer reads (`VisualInputs`, assembled each frame from the latest `SimSnapshot` and the `WorldConfig`):**
+- **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`.
+- **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
+- **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `age` (`historyYears` ÷ the present phase's `startYears`).
+- **Terrain:** the TSL height node and the CPU sampler, the `rise` value, and the per-machine progress values.
+- **Life:** the `organisms` buffer, the `births` plans (`develop()` output), the per-cell `flora` grid, a `lifeOnLand` flag (true once any land cell has flora biomass), and `phaseId`.
+
+**Rules for the art layer:**
+- Everything that carries meaning must follow these inputs (see "Visuals are stylised but never contradict the stats").
+- Decoration is allowed, but only as a pure function of these inputs. For example, plant shapes come from flora biomass, composition and conditions, and body templates are look attractors applied to `develop()` output.
+- The only messages from art back to logic are the `inspect:*` bus events.
 
 ## Honesty box (say it if asked)
 
 - **Emergent:** which body plans appear and which traits spread, population sizes, and how the air and seas change as life feeds back on them.
-- **Seeded:** the founders (at least 24 capsule worms at first life), the RNG seed, and the starting terrain.
+- **Seeded:** the founders (at least 24 capsule worms at first life, with standing variation), the RNG seed, and the starting terrain, including silicon's relic ice arches and spires.
 - **Designed, not emergent:**
-  - `develop()` and its chemistry rules, the 32-gene layout, the trait-ledger coefficients and the locomotion costs
-  - the shared state machine's structure
-  - the developmental pull towards body templates (look only, κ ≤ 0.5)
-  - field-guide bins and names
+  - `develop()` and its chemistry rules, the 12-gene layout, the trait-ledger coefficients and the locomotion costs
+  - the 12 rules and the shared utility loop's structure
+  - the form definition (DECISIONS §A) and the name generator
   - every process and feedback rate
 - **Tuning cheats:**
-  - always-on raised mutation (σ ×2.5)
+  - always-on raised mutation (`SIGMA` 0.075, about ×1.5)
   - the compressed pace rule
   - the ×4 ecology clock
   - Hunger as plant scarcity
   - grazing that takes only a share
   - consumer interference
-- **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, life leaving the sea, and the nitrogen feedback loop.
-- **Illustrations (render-only):** the particle box, the counterpart render in inspect cards, sky and fog, and IK feet (in the sim, agents are points).
+- **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
+- **Illustrations (render-only):** the particle box, the counterpart render in inspect cards, sky and fog, plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), and the player's diving suit.
 
 ## Demo script (three minutes, strict)
 
@@ -612,20 +674,20 @@ Do not start P1 work until every P0 item works on the demo laptop.
 - **Simulation (engineering lead):**
   - **Done:** the climate core, `src/sim/population.ts`.
   - Next:
-    1. Scaffold Vite and three.js, and port the reusable `mockups/worlds` modules.
+    1. Scaffold Vite and three.js, with a plain placeholder render that reads `VisualInputs` (the art layer replaces it).
     2. `worlds/types.ts`, `worlds/controls.ts`, and the carbon config (unpinned values marked `assumption: true`).
     3. `sim/models.ts` and `sim/limits.ts`, with tests.
     4. The worker: timeline, processes and feedbacks.
     5. A headless test that the carbon demo seed lands inside its targets.
 - **Creatures (Caden):**
-  1. `sim/genome.ts` and `sim/develop.ts`, with a test per genome.
-  2. `sim/ecology.ts`, grown from `population.ts`, with headless tests for each world.
+  1. `sim/genome.ts` (the 12 genes) and `sim/develop.ts`, with a test per genome.
+  2. `sim/ecology.ts`, grown from `population.ts`: the 12 rules, the 64² grid and per-cell flora biomass, with headless tests for each world.
   3. Bodies rendered as beads first (one instanced sphere per joint).
   4. Then the GPU pose passes, lofted bodies and IK legs.
-  5. Then L-system flora.
+  5. Then plant shapes from the flora grid (art layer).
 - **World and UI (design partner and engineering lead):**
-  1. Terrain rising, seas (level and frozen state), and sky and light from the star.
-  2. The character and camera: keyboard first, then gamepad.
+  1. `gen/terrain.ts` (heights, rise, seaLevel, spawn shore) with tests, then seas (level and frozen state), and sky and light from the star.
+  2. The character and camera, including swimming: keyboard first, then gamepad.
   3. The particle box and `boxState()` (this needs only `sim/limits.ts`).
   4. The selection screen, the Conditions panel, the field guide tab, captions and the summary card.
 
@@ -648,7 +710,7 @@ Never cut the sliders, the particle box, the Generate transition, the Conditions
 
 ## Commands
 
-TypeScript and Vitest are set up at the repo root for `src/`, and Vitest only looks in `src/`, so it ignores `mockups/worlds`. Vite and three.js arrive with build step 1; add the `dev` and `build` scripts then, and update this section.
+TypeScript and Vitest are set up at the repo root for `src/`, and Vitest only looks in `src/`, so it ignores `mockups/`. Vite and three.js arrive with build step 1; add the `dev` and `build` scripts then, and update this section.
 
 - `npm run dev`: start the dev server (from build step 1)
 - `npm run build`: production build (slow; Tier 2 only; from build step 1)
@@ -683,7 +745,9 @@ Speed is the point. Run the cheapest tier that answers the question.
 - **Test the creatures (F):**
   - `develop()` is pure and gives the expected plan for each test genome. Silicon gives facets and 15° joints; carbon gives curves.
   - The headless ecology runs each world's default seed and reaches its tuning targets (for example legs on carbon by about 1:00).
-  - **Neutral control:** with the ledger flattened, template occupancy follows template volume. This proves the developmental pull isn't steering fitness.
+  - The DECISIONS §A variety metrics on headless runs. A new rule ships only if its A/B raises one.
+  - Guardrails as tests: `sim/constants.ts` has ≤ 25 entries, and the builder output is zero on silicon.
+- **Test the terrain:** the CPU sampler matches the height formula; `seaLevel` gives the requested `seaCover`; spawn is within `shoreDistance` of the shore in both worlds at the default seeds; `rise` 0 is flat.
 - **Config checks as tests:** every stat, process, feedback, limit and reasoning step has `sources` or `assumption: true`; every id referenced by a phase exists; speculative worlds have a `caveat`.
 - **Don't test** rendering, UI, the character controller or styling. Check them by hand.
 - A test slower than 2s gets fixed or moved out of the default run. Fix the code, not the tests.
@@ -703,12 +767,14 @@ Speed is the point. Run the cheapest tier that answers the question.
 |---|---|
 | `docs/TRACK.md` | Still applies: the challenge text and our scoring rubric (`/judge`). The fps bar here (60) overrides its 50. |
 | `research/silicon-life/` | The evidence base for the silicon world. `REPORT.md` §3 and §10 have verified DOIs for Petkowski 2020, Bains 2004, NRC 2007 and Kan 2016. Its "off-limits" claims list applies to captions and the pitch. |
-| `docs/ART_DIRECTION.md` | From the previous concept. The design partner decides what to reuse (for example "colour is alive", where only life is saturated). |
+| Art-direction docs and mockups | **The art layer**, separate from this file. It reads the logic through "Logic → art interface" and never adds logic. Caden sets which art doc is active. |
 | `docs/DESIGN.md`, `docs/WORLD_ATLAS.md` | The previous concept. Its controls and four-sea worlds are replaced by this file. Its creature rules (R1 stiff silicon bones, R9 life is the colour, R10 hunger makes hunters, R11 thick air is a sea) live on through F's development rules. |
-| `docs/emergence/F-body-plan-first.md`, `docs/emergence/README.md`, `research/body-plans/` | **The creatures** (Caden). The reference for genome, `develop()`, ledger, state machine and rendering. "Life: creatures and plants" wires it to our controls. |
+| `docs/emergence/DECISIONS.md` | **The creature rules** (rev 2): guardrails §G, the 12 genes, constants, 12 rules §3, metrics §A, science → body §B. Where it says glow ∝ oxygen, this file overrides it (glow from darkness). |
+| `docs/emergence/F-body-plan-first.md`, `docs/emergence/README.md`, `research/body-plans/` | **The creatures** (Caden). The reference for `develop()`'s chemistry grammar and body rendering. DECISIONS wins where they differ. "Life: creatures and plants" wires them to our controls. |
+| `docs/features/terrain-plan.md` | L0 (analytic heights and progress fields) is adopted in "Terrain and landforms". L1 and L2 stay parked. |
 | `.claude/skills/world-style` | Rendering and TSL guidance still applies, with the exceptions listed under Stack. |
 | `HACKATHON.md` | Generic playbook; its timeline assumes four people. Use the dates in this file. |
-| `mockups/worlds/`, `docs/features/world-generator.md`, `research/world-forms/` | **The world look** (Caden): palette field, fog, sky, materials, camera, terrain. Fed by our state (table in "Generation sequence"). `src/sim/rng.ts` already uses the same RNG. |
+| `research/world-forms/` | The landform machines and gates used in "Terrain and landforms". |
 
 Agents in `.claude/agents/` (feature-agent, debugger, scout, bar-raiser, explorer, test-runner, team-lead) and the skills `/verify`, `/fix`, `/ship`, `/judge` and `/demo` are available.
 
@@ -735,7 +801,8 @@ Agents in `.claude/agents/` (feature-agent, debugger, scout, bar-raiser, explore
   - silicon founders that start further along (seeded, declared)
 
   Don't give silicon its own hidden time scale.
-- Who builds what: confirm the owners at the top of this file.
+- **Terrain numbers:** every `TerrainConfig` value (patch size, base relief, shore distance, `heatSolventSpan`, machine rates, relic counts) is unpinned and `assumption: true` until tuned.
+- **Diving:** the swim controller's speed, the underwater camera, and whether deep water in the silicon world needs any declared limit.
 - The scalings from our stats into F's heat, light, air density and hunger ranges (`life.inputs`, `assumption: true`).
 - Fast slider moves can wipe out life inside the living band. The red zones mark where the solvent fails, but a slow-breeding population, especially silicon's, can't adapt to a big, fast change. In tests, warming silicon by 18 °C in 60 s killed half the seeds. Options: ease slider changes, cap how fast a thumb moves during a run, or keep a few survivors as "spores" (`assumption: true`).
 - Particle box (design partner): where the box sits on the selection screen, its size and framing, and the particle colours for each family.
