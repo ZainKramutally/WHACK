@@ -36,14 +36,16 @@ Read this, then `docs/ART_DIRECTION.md`, `docs/features/red-world.md` and the ta
   - Lab only: creatures are NOT in the world scene yet.
 
 ## Open decisions (ask Caden)
-1. Dark walkers (maroon or ink bodies) read as flat silhouettes. Give them a lighter crimson body or a rim light?
-2. The explorer's cyan lamp pool reads as a puddle. Soften it into stepped bands?
-3. Any more Bellwhale feedback?
-4. Merge `session/red-world` into main?
+1. Dark walkers (maroon or ink bodies) read as flat silhouettes. Give them a lighter crimson body or a rim light? Yes
+2. The explorer's cyan lamp pool reads as a puddle. Soften it into stepped bands? No
+3. Any more Bellwhale feedback? No
+4. Merge `session/red-world` into main? Yes
 5. Next big step: wire the Red World art layer into the root app's render layer, driven by the sim (issue #23, now unblocked).
    - `SimSnapshot.flora` is interleaved [mat, canopy] per cell on a 64² grid; cell = row·64 + col, with col along world x and the patch centred on the origin.
    - Organisms use layout v2 (`src/sim/organismLayout.ts`, stride 28).
    - Plant forms live in `src/render/floraForm.ts`.
+
+   yes ^^
 
 ## Coordination
 - **Other sessions:**
