@@ -5,6 +5,8 @@ description: Comprehensive guide for developing WebGPU-enabled Three.js applicat
 
 # WebGPU Three.js with TSL
 
+> **Project note:** follow `.claude/skills/world-style/SKILL.md` first. It locks the stack (WebGPURenderer + TSL, Rapier, vanilla three.js r187) and the visual style, and it wins over any example here.
+
 TSL (Three.js Shading Language) is a node-based shader abstraction that lets you write GPU shaders in JavaScript instead of GLSL/WGSL strings.
 
 ## Quick Start

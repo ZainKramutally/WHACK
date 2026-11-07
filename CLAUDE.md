@@ -3,8 +3,8 @@
 > [One sentence: what it does and who it's for]
 
 ## Stack
-<!-- Fill in at kickoff -->
-- Framework:
+<!-- 3D stack is locked in .claude/skills/world-style/SKILL.md; fill in the rest at kickoff -->
+- 3D: vanilla three.js r187, `WebGPURenderer` (`three/webgpu`), TSL shaders (no GLSL), Rapier physics, Vite. See `world-style`.
 - UI:
 - Database:
 - External APIs: [sponsor API + anything else]
@@ -81,7 +81,9 @@ The `team-lead` agent (`.claude/agents/team-lead.md`) coordinates. It spawns the
 | `explorer` | Haiku | "Where is X / what touches Y" in seconds |
 | `test-runner` | Haiku | Runs a tier and reports only failures |
 
-Skills: `/spec` (kickoff), `/fix` (error → fix), `/verify` (Tier 1/2 + diff scan), `/ship` (solo commit + push), `/secure` (pre-deploy scan), `/demo` (pitch script), `/unstick` (agent is looping).
+3D skills: `world-style` (read first: stack, style, and which skill owns what), `webgpu-threejs-tsl`, `threejs-fundamentals`, `-loaders`, `-lighting`, `-animation`, `-interaction`, `-performance`, `-gameplay-systems`. Research: `web-clone` (reverse-engineer inspiration sites into `research/sites/`).
+
+Skills: `/spec` (kickoff), `/judge` (score against `docs/TRACK.md`), `/fix` (error → fix), `/verify` (Tier 1/2 + diff scan), `/ship` (solo commit + push), `/secure` (pre-deploy scan), `/demo` (pitch script), `/unstick` (agent is looping).
 
 ## Context management
 - When context feels long (50+ tool calls), write the plan to `PLAN.md`, then `/compact`.

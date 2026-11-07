@@ -5,6 +5,8 @@ description: "Three.js scene setup: scenes and fog, cameras, the renderer and to
 
 # Three.js Fundamentals
 
+> **Project note:** follow `.claude/skills/world-style/SKILL.md` first. It locks the stack (WebGPURenderer + TSL, Rapier, vanilla three.js r187) and the visual style, and it wins over any example here.
+
 Targets three.js r186. Examples use WebGLRenderer; the WebGPU and TSL section uses WebGPURenderer.
 
 ## Quick Start
