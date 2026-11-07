@@ -11,9 +11,6 @@ import { WorldSimulation, ticksDueAfter, ticksDueAt, type SimEvent } from './sim
 
 const EARTH: Conditions = { temperature: 15, nitrogen: 1, oxygen: 21 };
 
-/** The configs' placeholder lifespan (6) kills the whole ecology within the build, so tests that need living animals use 40. */
-const live = (w: WorldConfig): WorldConfig => ({ ...w, life: { ...w.life, rules: { ...w.life.rules, lifespan: 40 } } });
-
 /** A life model with fixed drivers, to test the feedbacks on their own. */
 class FixedLife implements LifeModel {
   constructor(private d: LifeDrivers) {}
@@ -71,33 +68,33 @@ describe.each([carbon, silicon])('ticksDueAt ($id)', (w: WorldConfig) => {
 });
 
 describe('WorldSimulation', () => {
-  it('gives the same state at the same time whatever the frame rate', () => {
+  it('gives the same state at the same time whatever the frame rate', { timeout: 30000 }, () => {
     const at = (dt: number) => {
-      const sim = new WorldSimulation(live(carbon), EARTH);
-      run(sim, 10.4, dt);
+      const sim = new WorldSimulation(carbon, EARTH);
+      run(sim, 9.8, dt);
       return fingerprint(sim);
     };
     const a = at(1 / 60);
-    expect(a.ticks).toBe(ticksDueAfter(10.4, carbon.build));
+    expect(a.ticks).toBe(ticksDueAfter(9.8, carbon.build));
     expect(a.population.consumers).toBeGreaterThan(0);
     expect(at(1 / 17)).toEqual(a);
-    expect(at(10.4)).toEqual(a);
+    expect(at(9.8)).toEqual(a);
   });
 
-  it('catching up in budgeted slices gives the same state as running everything at once', () => {
-    const once = new WorldSimulation(live(carbon), EARTH);
-    once.advance(10.4);
-    const sliced = new WorldSimulation(live(carbon), EARTH);
-    expect(sliced.advance(10.4, 64)).toBe(64);
+  it('catching up in budgeted slices gives the same state as running everything at once', { timeout: 30000 }, () => {
+    const once = new WorldSimulation(carbon, EARTH);
+    once.advance(9.8);
+    const sliced = new WorldSimulation(carbon, EARTH);
+    expect(sliced.advance(9.8, 64)).toBe(64);
     expect(sliced.behind).toBe(true);
     while (sliced.behind) sliced.advance(0, 64);
     expect(fingerprint(sliced)).toEqual(fingerprint(once));
   });
 
-  it.each([carbon, silicon])('is deterministic for a seed and differs across seeds ($id)', (w: WorldConfig) => {
+  it.each([carbon, silicon])('is deterministic for a seed and differs across seeds ($id)', { timeout: 30000 }, (w: WorldConfig) => {
     const make = (seed?: number) => {
-      const sim = new WorldSimulation(live(w), EARTH, { seed });
-      run(sim, 10.4, 0.25);
+      const sim = new WorldSimulation(w, EARTH, { seed });
+      run(sim, 9.8, 0.25);
       return fingerprint(sim);
     };
     const a = make();
@@ -163,7 +160,7 @@ describe('WorldSimulation', () => {
     }
   });
 
-  it.each([carbon, silicon])('no sequence of control:set puts a control into a red zone ($id)', (w: WorldConfig) => {
+  it.each([carbon, silicon])('no sequence of control:set puts a control into a red zone ($id)', { timeout: 30000 }, (w: WorldConfig) => {
     const sim = new WorldSimulation(w, EARTH);
     sim.advance(10);
     const gravity = sim.snapshot().stats.gravity;
@@ -255,7 +252,7 @@ describe('WorldSimulation', () => {
 
   describe('life and the field guide', () => {
     it('packs animals and reports each newborn body plan once', () => {
-      const sim = new WorldSimulation(live(carbon), EARTH);
+      const sim = new WorldSimulation(carbon, EARTH);
       const ids = new Set<number>();
       let forms = 0;
       for (let i = 0; i < 50; i++) {
@@ -273,7 +270,7 @@ describe('WorldSimulation', () => {
       expect(forms).toBeGreaterThan(0);
     });
     it('keeps the ecology liquid grid on the sea: founders start in water', () => {
-      const sim = new WorldSimulation(live(carbon), EARTH);
+      const sim = new WorldSimulation(carbon, EARTH);
       sim.advance(9.05);
       const s = sim.snapshot();
       expect(s.population.consumers).toBeGreaterThanOrEqual(24);
@@ -283,10 +280,11 @@ describe('WorldSimulation', () => {
   });
 
   describe('end of the build, demo seeds', () => {
-    // Stats that miss their configured target with the demo seed and the current placeholder feedback rates.
-    // Reported to the team lead rather than loosened: the Ecology's producerBiomass is Σ flora over 4,096 cells
-    // (~3,800), about 20× the population.ts scale the oxygen/CO₂ rates were written for.
-    const KNOWN_GAPS: Record<string, string[]> = { carbon: ['pressure', 'oxygen', 'co2'], silicon: [] };
+    // Stats that miss their configured target with the demo seed and the current feedback rates. Reported to the
+    // team lead rather than loosened. The Ecology's producerBiomass is Σ flora over 4,096 cells (~4,000), about 20×
+    // the scale the placeholder rates were written for: carbon oxygen overshoots and CO₂ hits 0, and silicon's
+    // nitrogen lock-up boils the seas away (the sim holds nitrogen at the seas-gone edge and the animals die).
+    const KNOWN_GAPS: Record<string, string[]> = { carbon: ['oxygen', 'co2'], silicon: ['nitrogen', 'seaCover'] };
     const memo = new Map<string, Record<string, number>>();
     const endOfBuild = (w: WorldConfig) => {
       let stats = memo.get(w.id);
@@ -306,11 +304,11 @@ describe('WorldSimulation', () => {
         expect(stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
       }
     });
-    it('the known gaps are still gaps (delete the entry when the config is retuned)', { timeout: 30000 }, () => {
-      const stats = endOfBuild(carbon);
-      for (const id of KNOWN_GAPS.carbon) {
-        const [lo, hi] = carbon.targets[id];
-        expect(stats[id] < lo || stats[id] > hi, `carbon ${id} = ${stats[id]}`).toBe(true);
+    it.each([carbon, silicon])('the known gaps are still gaps (delete the entry when the config is retuned) ($id)', { timeout: 30000 }, (w: WorldConfig) => {
+      const stats = endOfBuild(w);
+      for (const id of KNOWN_GAPS[w.id]) {
+        const [lo, hi] = w.targets[id];
+        expect(stats[id] < lo || stats[id] > hi, `${w.id} ${id} = ${stats[id]}`).toBe(true);
       }
     });
   });

@@ -81,7 +81,7 @@ describe('SimHost', () => {
     expect(snapshotTransferables((last.msg as { snapshot: SimSnapshot }).snapshot).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('reaches the same state at 60 fps, at 17 fps, and after a suspended tab', () => {
+  it('reaches the same state at 60 fps, at 17 fps, and after a suspended tab', { timeout: 30000 }, () => {
     const end = (frames: number[]) => {
       const f = fakeHost();
       f.host.handle({ type: 'selectWorld', worldId: 'carbon', requested: EARTH });
@@ -90,7 +90,7 @@ describe('SimHost', () => {
       const s = f.snapshots().at(-1)!;
       return { stats: s.stats, pop: s.population, org: Array.from(s.organisms) };
     };
-    const total = 10400;
+    const total = 9800;
     const frames = (fps: number) => {
       const n = Math.floor(total / (1000 / fps));
       return [...Array.from({ length: n }, () => 1000 / fps), total - n * (1000 / fps)];

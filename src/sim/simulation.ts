@@ -30,6 +30,8 @@ const EDGE_ZONE = 0.1;        // share of a living band, next to a lethal limit,
 const BLOCKED_REPEAT = 20;    // ticks before the same control may report "blocked" again while pinned at an edge
 const EPS = 1e-6;             // slack so float sums of frame times never lose a tick
 const EDGE_INSET = 1e-6;      // a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
+const LIQUID_MOVE_M = 0.25;   // sea level change (m) that rebuilds the ecology's liquid grid
+const LIQUID_PROGRESS = 0.05; // or this much more terrain rise
 const LIQUID_EVERY = 100;     // ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
 const MOLAR_MASS_AIR = 0.028; // kg/mol, N₂ is the main gas on both worlds
 
@@ -104,7 +106,7 @@ export class WorldSimulation {
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
-  private liquidKey = '';
+  private liquidAt: { level: number; progress: number } | undefined;
 
   constructor(world: WorldConfig, requested: Conditions, opts: SimOptions = {}) {
     this.world = world;
@@ -279,7 +281,10 @@ export class WorldSimulation {
 
   /** Drift: ease any setting that life's feedbacks pushed into a red zone back to the edge of its band. */
   private enforceBands(): void {
-    for (const id of CONTROL_ORDER) {
+    // Fix what life moved first (the stats feedbacks write), so a nitrogen lock-up pins nitrogen instead of dragging temperature down.
+    const moved = new Set(this.world.feedbacks.map((f) => f.statId));
+    const order = [...CONTROL_ORDER.filter((id) => moved.has(id)), ...CONTROL_ORDER.filter((id) => !moved.has(id))];
+    for (const id of order) {
       if (canLive(this.world, this.conditions(), this.limitsEnv).ok) return;
       const band = this.bandOf(id);
       if (band.empty) continue;
@@ -312,19 +317,14 @@ export class WorldSimulation {
 
   // ---- derived conditions -------------------------------------------------------------------------------
 
-  /** Radiative parameters now: the CO₂ greenhouse (from config) and the star's slow brightening over the build. */
+  /** Radiative parameters now. The CO₂ greenhouse (issue #34) is optional: with no referenceCo2/co2PerDoublingK in the config it adds 0. */
   private radNow(): RadiativeParams {
     const p = this.radBase;
     const ref = p.referenceCo2;
     const perDoubling = p.co2PerDoublingK;
     const co2 = this.stats.co2;
     const co2K = ref && perDoubling && co2 !== undefined ? perDoubling * Math.log2(Math.max(co2, 1e-6) / ref) : 0;
-    const progress = this.buildTicks > 0 ? Math.min(1, this.ticks / this.buildTicks) : 1;
-    return {
-      ...p,
-      greenhouseK: p.greenhouseK + co2K,
-      luminosity: p.luminosity * (1 + (p.luminosityRiseTotal ?? 0) * progress),
-    };
+    return { ...p, greenhouseK: p.greenhouseK + co2K };
   }
 
   /** Set one slider's physical quantity (orbit for temperature) and recompute everything derived from it. */
@@ -403,12 +403,13 @@ export class WorldSimulation {
     return liquidFromHeights((x, y) => this.terrain!.height((x - 0.5) * S, (y - 0.5) * S, state), level);
   }
 
+  /** Rebuild the ecology's liquid grid when the sea moved by more than 0.25 m or the terrain rose another 5%. Tick-clock only. */
   private refreshLiquid(): void {
     if (!this.lifeStarted || !this.life.setLiquid) return;
     const { progress, cover } = this.tickTerrain();
-    const key = `${Math.round(progress * 100)}:${Math.round(cover * 200)}:${Math.round(this.stats.temperature)}`;
-    if (key === this.liquidKey) return;
-    this.liquidKey = key;
+    const level = this.seaLevel(progress, cover);
+    if (this.liquidAt && Math.abs(level - this.liquidAt.level) <= LIQUID_MOVE_M && Math.abs(progress - this.liquidAt.progress) < LIQUID_PROGRESS) return;
+    this.liquidAt = { level, progress };
     this.life.setLiquid(this.liquidNow());
   }
 
