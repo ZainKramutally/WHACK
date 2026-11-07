@@ -89,6 +89,8 @@ export function lanternCups(env: Env): SpeciesBuild {
       size: (r) => size(r, 1), clearHalf: 1.3, clearP: 0.85, yOff: () => -0.04,
     }),
   ];
+  const cam = ctx.camera.position; // keep cups out of the lens: radius ≈ 0.35·scale must stay well inside the distance
+  for (let i = insts.length - 1; i >= 0; i--) { const d = Math.hypot(insts[i].x - cam.x, insts[i].z - cam.z); if (insts[i].scale * 0.5 > d * 0.7 || d < 1.6) insts.splice(i, 1); }
   const time = u.time;
   const p = positionGeometry.mul(26);
   const w = mx_worley_noise_vec2(p, 1.0);

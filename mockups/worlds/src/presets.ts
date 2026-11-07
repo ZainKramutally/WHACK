@@ -66,7 +66,8 @@ export const PRESETS: Preset[] = [
         { kind: 'cluster', species: 'lanternCups', pos: [4, -14], radius: 6, count: 60 },
         { kind: 'cluster', species: 'lanternCups', pos: [-9, -35], radius: 8, count: 80 },
         { kind: 'cluster', species: 'lanternCups', pos: [-2.6, -7], radius: 2.2, count: 22, scale: 1.25 },   // pin: left foreground colony
-        { kind: 'cluster', species: 'lanternCups', pos: [2.8, -8], radius: 2.4, count: 26, scale: 1.25 },    // pin: right foreground colony
+        { kind: 'cluster', species: 'lanternCups', pos: [2.8, -8], radius: 2.4, count: 26, scale: 1.25 },
+        { kind: 'cluster', species: 'lanternCups', pos: [1.9, -5.2], radius: 1.6, count: 16, scale: 1.1 },    // pin: right foreground colony
       ],
       figure: { pos: [1, -62], height: 1.75 },
     },
