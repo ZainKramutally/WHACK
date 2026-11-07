@@ -16,7 +16,7 @@ export interface LabCamOpts {
 }
 
 export function createLabCam(o: LabCamOpts) {
-  const c = new OrbitControls(o.camera, o.dom);
+  const c: any = new OrbitControls(o.camera, o.dom); // any: same loose typing with or without a parent @types/three
   c.enableDamping = true;
   c.dampingFactor = 0.08;
   c.screenSpacePanning = true;
