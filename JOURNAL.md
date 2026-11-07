@@ -6,3 +6,4 @@
 - ~14:40: core art fixes merged (6181496, eee2367). Colour probe ±3/255 on all pin hexes, no tone mapping. Core standing by for integration tuning.
 - ~14:40: flora merged (3d5626c), 28 tests, 60fps all presets. Landforms pending. Iteration snapshots in design/iteration/.
 - ~14:50: landforms merged (391921d). First full integration: 46 tests, 60fps all presets. Snapshot design/iteration/2026-11-07-1450-integrated.
+- ~15:10: flora r2 merged (b8482d3). Landforms r2 reverted then re-applied (1f98330): the fps drop was GPU contention from parallel captures, best-of-3 = 60 on all. Asked core for robust fps (best/median).
