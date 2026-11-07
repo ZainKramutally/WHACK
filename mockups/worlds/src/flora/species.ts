@@ -73,6 +73,10 @@ function clusters(env: Env, id: SpeciesId, size: (rng: Rng, mul: number) => numb
 
 const lmOf = <K extends Landmark['kind']>(env: Env, k: K) => env.lm.filter((l) => l.kind === k) as Extract<Landmark, { kind: K }>[];
 
+function wallAnchors(env: Env): Vec2[] {
+  return lmOf(env, 'wall').flatMap((w) => [[w.pos[0] + (w.pos[0] < 0 ? 1 : -1) * w.width * 0.55, w.pos[1] + w.depth * 0.3] as Vec2, [w.pos[0] + (w.pos[0] < 0 ? 1 : -1) * w.width * 0.55, w.pos[1] - w.depth * 0.3] as Vec2]);
+}
+
 // ================================================================== species
 
 export interface SpeciesBuild { id: SpeciesId; geo: MeshData; mat: any; insts: Inst[]; shadow?: boolean; side?: any; extra?: (env: Env, parts: SpeciesBuild, built: FloraMesh) => FloraMesh[] }
@@ -84,7 +88,7 @@ export function lanternCups(env: Env): SpeciesBuild {
   let insts = [
     ...clusters(env, 'lanternCups', size, 100, 1.1),
     ...scatter(env, {
-      n: 600, parents: 36, sMin: 0, sMax: 90, sPow: 1.4, latMin: 2.2, latSpread: Math.max(4, env.vw * 0.18), sigma: 1.0, wMax: 40,
+      n: 1500, parents: 70, sMin: 0, sMax: 90, sPow: 1.4, latMin: 2.2, latSpread: Math.max(4, env.vw * 0.18), sigma: 0.9, wMax: 40, anchors: wallAnchors(env), anchorJitter: 2.5,
       size: (r) => size(r, 1), clearHalf: 2.0, clearP: 0.95, yOff: () => -0.04,
     }),
   ];
@@ -94,15 +98,15 @@ export function lanternCups(env: Env): SpeciesBuild {
   const tgt = ctx.preset.composition.camera.target;
   let fx = tgt[0] - cam.x, fz = tgt[2] - cam.z; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
   const at = (f: number, r: number, scale: number, rand: number): Inst => ({ x: cam.x + fx * f - fz * r, z: cam.z + fz * f + fx * r, scale, yaw: env.rng() * TAU, rand, yOff: -0.04, group: 90 });
-  const domes: Inst[] = [at(3.3, 1.05, 1.5, 0.1), at(5.6, -2.0, 1.1, 0.14), at(7.5, 2.8, 0.9, 0.2)];
-  const cups: Inst[] = [];
-  for (const i of insts) (i.scale > 0.6 && env.rng() < 0.16 ? domes : cups).push(i);
+  const domes: Inst[] = [at(3.6, 0.95, 1.05, 0.1), at(5.6, -2.0, 0.85, 0.14), at(7.5, 2.8, 0.7, 0.2)];
+  const cups: Inst[] = [], small: Inst[] = [];
+  for (const i of insts) (i.scale < 0.6 ? small : i.scale > 0.6 && env.rng() < 0.16 ? domes : cups).push(i);
   // coral-red spiky tufts among the cups (the pin's fine red undergrowth)
   const tufts: Inst[] = [];
-  for (const i of [...cups, ...domes]) {
-    const k = i.scale > 0.5 ? 3 : 1;
+  for (const i of [...cups, ...domes, ...small]) {
+    const k = i.scale > 0.5 ? 4 : 1;
     for (let j = 0; j < k; j++) {
-      if (env.rng() < 0.5) continue;
+      if (env.rng() < (i.scale > 0.5 ? 0.4 : 0.15)) continue;
       const a = env.rng() * TAU, d = (0.25 + env.rng() * 0.9) * Math.max(0.5, i.scale);
       const tx = i.x + Math.cos(a) * d, tz = i.z + Math.sin(a) * d;
       if (Math.hypot(tx - cam.x, tz - cam.z) < 4 || distToValley(env.valley, tx, tz) < 1.4) continue;
@@ -141,6 +145,7 @@ export function lanternCups(env: Env): SpeciesBuild {
     tm.side = THREE.DoubleSide;
     return [
       buildInstanced(e2.ctx, 'lanternCups', S.lanternDome(), mat2, domes),
+      buildInstanced(e2.ctx, 'lanternCups', S.lanternCupLow(), mat, small),
       buildInstanced(e2.ctx, 'lanternCups', S.glassWhiskers(7, 9, 3), tm, tufts),
     ];
   };
@@ -173,7 +178,7 @@ export function glowStalks(env: Env): SpeciesBuild {
   const insts = [
     ...clusters(env, 'glowStalks', size, 200, 1.5),
     ...scatter(env, {
-      n: 260, parents: 11, sMin: 6, sMax: 100, sPow: 1.3, latMin: 2, latSpread: Math.max(7, env.vw * 0.35), sigma: 2.4, group0: 300,
+      n: 90, parents: 6, sMin: 30, sMax: 75, sPow: 1, latMin: 3, latSpread: 8, sigma: 2.0, group0: 300,
       size: (r) => size(r, 1), clearHalf: 2.5, clearP: 0.7, yOff: () => -0.05,
     }),
   ];
@@ -208,8 +213,8 @@ export function glowStalks(env: Env): SpeciesBuild {
       const cx = list.reduce((a, i) => a + i.x, 0) / list.length, cz = list.reduce((a, i) => a + i.z, 0) / list.length;
       const rms = Math.sqrt(list.reduce((a, i) => a + (i.x - cx) ** 2 + (i.z - cz) ** 2, 0) / list.length);
       const big = Math.max(...list.map((i) => i.scale));
-      const R = Math.max(5, rms * 3.0 + big * 0.2), cam = e2.ctx.camera.position, dx = cam.x - cx, dz = cam.z - cz, dl = Math.hypot(dx, dz) || 1;
-      pools.push({ x: cx + (dx / dl) * R * 0.45, z: cz + (dz / dl) * R * 0.45, scale: R, yaw: 0, rand: Math.min(...list.map((i) => i.rand)), yOff: 0.06 });
+      const R = Math.max(10, rms * 3.5 + big * 0.3), cam = e2.ctx.camera.position, dx = cam.x - cx, dz = cam.z - cz, dl = Math.hypot(dx, dz) || 1;
+      pools.push({ x: cx + (dx / dl) * R * 0.85, z: cz + (dz / dl) * R * 0.85, scale: R, yaw: 0, rand: Math.min(...list.map((i) => i.rand)), yOff: 0.35 });
     });
     const rr = pow(float(1).sub(aAux().w), 1.8);
     const poolHue = mix(vec3(1.0, 0.62, 0.1), vec3(0.85, 0.9, 0.3), pow(rr, 0.5));
@@ -243,16 +248,19 @@ export function mossDomes(env: Env): SpeciesBuild {
   }
   // filler domes flank the valley, big and far
   const filler = scatter(env, {
-    n: 22, parents: 9, sMin: 18, sMax: 150, sPow: 1.1, latMin: env.vw * 0.5 + 8, latSpread: 30, sigma: 7,
+    n: 22, parents: 9, sMin: 40, sMax: 170, sPow: 1.1, latMin: env.vw * 0.5 + 24, latSpread: 30, sigma: 7,
     size: (r) => powerLaw(r, 6, 26, 1.6), yOff: () => -3, group0: 500,
   });
-  for (const f of filler) { f.yOff = -f.scale * 0.2; insts.push(f); }
+  for (const f of filler) {
+    if (distToValley(env.valley, f.x, f.z) < env.vw * 0.5 + 14 + f.scale * 0.6 || Math.hypot(f.x - ctx.camera.position.x, f.z - ctx.camera.position.z) < 45 + f.scale) continue;
+    f.yOff = -f.scale * 0.2; insts.push(f);
+  }
   const nrm = normalWorld.y.mul(0.5).add(0.5);
   const streak = mx_fractal_noise_float(positionGeometry.mul(vec3(2.4, 8.0, 2.4)).add(aRand().mul(30)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   const base = mix(color(0x0a4a45), color(0x27aaa6), smoothstep(0.25, 0.95, nrm));
   const olive = smoothstep(0.58, 0.8, streak).mul(float(1).sub(nrm)).mul(smoothstep(0.55, 0.2, positionGeometry.y.mul(0.5).add(0.5)));
   const soft = smoothstep(0.3, 0.7, streak);
-  const col = mix(mix(base, base.mul(1.18).add(0.03), soft.mul(0.5)), color(0x7fa84a), olive.mul(0.35));
+  const col = mix(mix(base, base.mul(1.1).add(0.015), soft.mul(0.25)), color(0x7fa84a), olive.mul(0.12));
   const emissive = col.mul(0.22).mul(mix(0.6, 1.0, saturate(u.glow)));
   const mat = ctx.materials.create({ color: col, emissive, positionNode: floraPosition(ctx, 'mossDomes', { breathe: 0.01 }) });
   return { id: 'mossDomes', geo: S.mossDome(2), mat, insts };
@@ -305,7 +313,7 @@ export function blackMonoliths(env: Env): SpeciesBuild {
   const { ctx } = env, u = ctx.uniforms, rng = env.rng;
   const insts: Inst[] = lmOf(env, 'monolith').map((m) => ({ x: m.pos[0], z: m.pos[1], scale: m.height, yaw: (rng() - 0.5) * 0.5, rand: rng() * 0.35, yOff: 0 }));
   // distant filler by niche
-  for (let i = 0; i < n0(9, env); i++) {
+  for (let i = 0; i < Math.min(2, n0(2, env)); i++) {
     const s = 40 + rng() * Math.min(260, env.valley.length - 40), lat = (rng() < 0.5 ? -1 : 1) * (8 + rng() * env.vw * 0.35);
     const p = valleyPoint(env.valley, s, lat);
     insts.push({ x: p[0], z: p[1], scale: 6 + rng() * 9, yaw: (rng() - 0.5) * 0.6, rand: 0.3 + rng() * 0.7, yOff: 0 });
@@ -313,9 +321,9 @@ export function blackMonoliths(env: Env): SpeciesBuild {
   const eye = smoothstep(0.8, 1.0, aAux().w);
   const fres = float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(2.5);
   const rimHue = mix(u.ground, u.haze, 0.35);
-  const emissive = rimHue.mul(fres.mul(0.2)).add(vec3(0.95, 0.95, 0.9).mul(eye));
+  const emissive = rimHue.mul(fres.mul(0.2)).add(vec3(0.85, 0.85, 0.8).mul(eye));
   const mat = ctx.materials.create({
-    color: mix(color(0x0a0706), color(0xf4f1e4), eye), emissive,
+    color: mix(color(0x0a0706), color(0x6a6860), eye), emissive,
     positionNode: floraPosition(ctx, 'blackMonoliths', {}),
   });
   return { id: 'blackMonoliths', geo: S.blackMonolith(3), mat, insts, shadow: true };

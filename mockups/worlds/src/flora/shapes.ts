@@ -18,6 +18,14 @@ export function lanternCup(segs = 20): MeshData {
   return mb.data();
 }
 
+/** Cheap goblet for the many tiny cups (carpet). Same silhouette family, ~1/5 the triangles. */
+export function lanternCupLow(): MeshData {
+  const mb = new MB();
+  const prof: ProfilePt[] = [[0, 0, 0], [0.08, 0, 0], [0.06, 0.2, 0], [0.09, 0.38, 0], [0.22, 0.58, 0], [0.31, 0.8, 0], [0.335, 0.97, 0.5], [0.29, 0.95, 1], [0.15, 0.74, 1], [0, 0.66, 1]];
+  lathe(mb, prof, 8, { radial: (th, i) => 1 + (i > 3 ? 0.1 * Math.sin(4 * th) : 0) });
+  return mb.data();
+}
+
 /** eco-04 hero: squat mushroom-dome variant, big cracked glowing top (mask 1 = glowing top). */
 export function lanternDome(segs = 20): MeshData {
   const mb = new MB();
@@ -67,7 +75,7 @@ export function glowStalk(seed = 1): MeshData {
   for (let i = 0; i <= N; i++) {
     const t = i / N, u = 1 - t;
     path.push([2 * u * t * bx + t * t * tx, t * 0.985, 2 * u * t * bz + t * t * tz]);
-    radii.push(0.0085 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
+    radii.push(0.0105 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
   }
   tube(mb, path, radii, 5, () => 0);
   const R = 0.04;
@@ -154,13 +162,13 @@ export function blackMonolith(seed = 1): MeshData {
   lathe(mb, body, 20, { yOf: (th, i, y) => (i <= 1 ? y - saw(th) : y) });
   for (let i = 0; i < mb.verts; i++) mb.position[i * 3 + 2] += hunch(mb.position[i * 3 + 1]); // head tilts forward (+z, towards the camera)
   // drip skirt: strands hanging from the hem
-  const strands = 13;
+  const strands = 24;
   for (let k = 0; k < strands; k++) {
-    const th = (k / strands) * TAU + rng() * 0.3, r = 0.075 + rng() * 0.02;
-    const y0 = 0.12 - saw(th) * 0.5, drop = 0.11 + rng() * 0.1;
+    const th = (k / strands) * TAU + rng() * 0.2, r = 0.07 + rng() * 0.03;
+    const y0 = 0.12 - saw(th) * 0.5, drop = rng() < 0.3 ? 0.15 + rng() * 0.07 : 0.05 + rng() * 0.08;
     const o: V3 = [Math.cos(th) * r, y0, Math.sin(th) * r];
     const out: V3 = [Math.cos(th) * 0.012, 0, Math.sin(th) * 0.012];
-    tube(mb, [o, [o[0] + out[0], y0 - drop * 0.5, o[2] + out[2]], [o[0] + out[0] * 2, Math.max(0, y0 - drop), o[2] + out[2] * 2]], [0.016, 0.011, 0], 4);
+    tube(mb, [o, [o[0] + out[0], y0 - drop * 0.5, o[2] + out[2]], [o[0] + out[0] * 2, Math.max(0, y0 - drop), o[2] + out[2] * 2]], [0.0075, 0.005, 0], 4);
   }
   // antlers
   for (const s of [-1, 1]) {
@@ -170,11 +178,11 @@ export function blackMonolith(seed = 1): MeshData {
     tube(mb, [[0.11 * s, 0.94, hz], [0.145 * s, 0.975, hz], [0.185 * s, 0.985, hz]], [0.01, 0.0075, 0], 3, () => 0.5);
   }
   // three white eye dots on the hood, facing +z (the camera)
-  for (const [ex, ey] of [[-0.028, 0.9], [0.028, 0.9], [0, 0.935]] as const) {
+  for (const [ex, ey] of [[-0.034, 0.895], [0.034, 0.895], [0, 0.94]] as const) {
     const e = new MB();
     const c: V3 = [ex, ey, 0.062 + hunch(ey)];
     const ids = [e.v(c, [0, 0, 1], 1)];
-    for (let j = 0; j < 6; j++) { const a = (j / 6) * TAU; ids.push(e.v([c[0] + Math.cos(a) * 0.0105, c[1] + Math.sin(a) * 0.0105, c[2]], [0, 0, 1], 1)); }
+    for (let j = 0; j < 6; j++) { const a = (j / 6) * TAU; ids.push(e.v([c[0] + Math.cos(a) * 0.0075, c[1] + Math.sin(a) * 0.0075, c[2]], [0, 0, 1], 1)); }
     for (let j = 1; j <= 6; j++) e.tri(ids[0], ids[j], ids[(j % 6) + 1], true);
     const o = mb.verts;
     for (const x of e.position) mb.position.push(x);
