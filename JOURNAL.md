@@ -29,3 +29,4 @@
 - 17:31: rw-move r2 merged (568c2cd): camera boom pull-in, fg push 35% in player mode, turn lag/roll, speed FOV, landing dip. 84 tests, 60fps. Waiting on rw-scene moons+no-particles.
 - 17:34: moons + no particles merged (cherry-pick of 6669a9e). 84 tests, 60fps. rw-scene on r4 (hero rim, far-forest thin, gc#3 fg-only, empty dunes, WORLD_DISC).
 - 17:40: scene r3 merged (7fbcb11): hero dark lowest rim, far forest -30%, spike crowns sparse/fg, heavy pod off scatter, basin dressing, WORLD_DISC r1900. 84 tests. rw-scene on r4 (clearings/groves, mid-ground life, fg-right silhouette).
+- 17:45: scene r4 merged (4631745): hero caps translucency capped, no 2nd titan in wedge, grove/clearing field, behind-start dressing, brighter explorer pods. 84 tests, 60fps. r5: height-aware fog, fg-right silhouette, mid-ground life, aerial density.
