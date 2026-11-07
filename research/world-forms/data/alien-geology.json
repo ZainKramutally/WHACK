@@ -1,0 +1,1056 @@
+{
+ "meta": {
+  "axis": "geology of other solvents/temperatures + silica- and life-built rock",
+  "date": "2026-11-07",
+  "tags": "see research/silicon-life/README.md",
+  "note": "T_K values are representative surface/means: Titan 94, Venus 737 surface, Enceladus ~75 surface, Europa ~102, Triton 38, Mars ~210 mean, 55 Cnc e ~2700 dayside max."
+ },
+ "worlds": [
+  {
+   "name": "Titan",
+   "solvent": "liquid methane-ethane (+ dissolved N2)",
+   "T_K": 94,
+   "landforms": [
+    "methane-ethane seas and lakes (north polar)",
+    "dendritic river channels and rounded water-ice cobbles (Huygens site)",
+    "linear (longitudinal) organic dunes ~100 m high, equatorial",
+    "labyrinth terrain: dissected organic plateaus with deep valleys",
+    "karst-like sharp-edged lake depressions (dissolution)",
+    "candidate cryovolcanic mountains/flows (disputed)"
+   ],
+   "drivers": [
+    "UV/charged-particle photolysis of CH4+N2 makes tholin haze that settles as organic sediment",
+    "methane rain and runoff erode water-ice bedrock",
+    "winds pile organic sand into longitudinal dunes",
+    "dissolution of organics in liquid hydrocarbons (karst analogue), slow (geological time)",
+    "seasonal methane cycle (Titan year ~29.5 Earth yr)"
+   ],
+   "colours": [
+    "orange-brown tholin haze sky",
+    "dim orange-brown ground (Huygens)",
+    "dark radar-black dunes and seas",
+    "liquid methane itself is colourless/transparent"
+   ],
+   "our_sea_preset": "Methane",
+   "control_map": {
+    "Sea": "Methane",
+    "Heat": "Cold (~94 K)",
+    "Light": "Bright => tholin orange stain; Dim => little tholin, pale frost field (eco-04 vs eco-05)",
+    "Time": "karst depth, dune field extent, labyrinth dissection",
+    "Recipe": "bedrock is water ice + organics, not silicate; Si-heavy recipe = our game invention"
+   },
+   "sources": [
+    {
+     "key": "malaska2020",
+     "cite": "Malaska et al. 2020, Labyrinth terrain on Titan, Icarus 344:113764",
+     "doi": "10.1016/j.icarus.2020.113764",
+     "tag": "PEER"
+    },
+    {
+     "key": "stofan2007",
+     "cite": "Stofan et al. 2007, The lakes of Titan, Nature",
+     "doi": "10.1038/nature05438",
+     "tag": "PEER"
+    },
+    {
+     "key": "lorenz2006",
+     "cite": "Lorenz et al. 2006, The sand seas of Titan, Science",
+     "doi": "10.1126/science.1123257",
+     "tag": "PEER"
+    },
+    {
+     "key": "tomasko2005",
+     "cite": "Tomasko et al. 2005, Rain, winds and haze during the Huygens probe's descent, Nature",
+     "doi": "10.1038/nature04126",
+     "tag": "PEER"
+    },
+    {
+     "key": "lopes2013",
+     "cite": "Lopes et al. 2013, Cryovolcanism on Titan: new results from Cassini RADAR and VIMS, JGR Planets",
+     "doi": "10.1002/jgre.20062",
+     "tag": "PEER"
+    },
+    {
+     "key": "hayes2016",
+     "cite": "Hayes 2016, The lakes and seas of Titan, Annu. Rev. Earth Planet. Sci.",
+     "doi": "10.1146/annurev-earth-060115-012247",
+     "tag": "REVIEW"
+    },
+    {
+     "key": "cornet2015",
+     "cite": "Cornet et al. 2015, Dissolution on Titan and on Earth: toward the age of Titan's karstic landscapes, JGR Planets",
+     "doi": "10.1002/2014JE004738",
+     "tag": "PEER"
+    },
+    {
+     "key": "horst2017",
+     "cite": "Hörst 2017, Titan's atmosphere and climate, JGR Planets",
+     "doi": "10.1002/2016JE005240",
+     "tag": "REVIEW"
+    },
+    {
+     "key": "nasa_titan",
+     "cite": "NASA Science, Titan overview (94 K, 1.5 bar, methane rain)",
+     "url": "https://science.nasa.gov/saturn/moons/titan/",
+     "tag": "POP"
+    }
+   ]
+  },
+  {
+   "name": "Venus",
+   "solvent": "concentrated sulfuric acid in cloud deck ~48-70 km; surface is dry supercritical CO2",
+   "T_K": 737,
+   "landforms": [
+    "tesserae: highly folded/faulted highland plateaus (possibly felsic, silica-richer)",
+    "pancake (steep-sided) domes, mean ~24 km wide, ~700 m high",
+    "coronae: ring-shaped volcano-tectonic uplifts",
+    "vast lava plains and lava channels",
+    "radar-bright 'snow' (metal frost) on highlands above ~2.5-4.5 km"
+   ],
+   "drivers": [
+    "mantle plumes and viscous lava (domes, coronae)",
+    "crustal deformation (tesserae)",
+    "gas-solid chemical weathering by CO2/SO2 at 737 K",
+    "volatile metal compounds condense in cooler highlands (Pb/Bi sulfides proposed)"
+   ],
+   "colours": [
+    "pale yellow-white sulfuric-acid cloud tops (unknown UV absorber)",
+    "orange-tinted surface light (Venera images)",
+    "dark grey basalt"
+   ],
+   "our_sea_preset": "Acid",
+   "control_map": {
+    "Sea": "Acid (the cloud layer, not the surface)",
+    "Heat": "Warm in cloud deck (~300-350 K at 50-55 km); surface is Hot extreme",
+    "Light": "bright diffuse, no shadows under clouds",
+    "Time": "weathering crust, frost caps",
+    "Recipe": "Si+O-heavy = felsic tesserae candidate"
+   },
+   "caveat": "No liquid acid sea exists on Venus' surface; our Acid sea is a game abstraction of the cloud deck [INFERRED].",
+   "sources": [
+    {
+     "key": "ivanov2011",
+     "cite": "Ivanov & Head 2011, Global geological map of Venus, Planet. Space Sci.",
+     "doi": "10.1016/j.pss.2011.07.008",
+     "tag": "PEER"
+    },
+    {
+     "key": "pavri1992",
+     "cite": "Pavri et al. 1992, Steep-sided domes on Venus, JGR",
+     "doi": "10.1029/92JE01162",
+     "tag": "PEER"
+    },
+    {
+     "key": "stofan1992",
+     "cite": "Stofan et al. 1992, Global distribution and characteristics of coronae on Venus, JGR",
+     "doi": "10.1029/92JE01314",
+     "tag": "PEER"
+    },
+    {
+     "key": "gilmore2017",
+     "cite": "Gilmore et al. 2017, Venus surface composition constrained by observation and experiment, Space Sci. Rev.",
+     "doi": "10.1007/s11214-017-0370-8",
+     "tag": "REVIEW"
+    },
+    {
+     "key": "gilmore2015",
+     "cite": "Gilmore et al. 2015, VIRTIS emissivity of Alpha Regio, Venus, with implications for tessera composition, Icarus",
+     "doi": "10.1016/j.icarus.2015.04.008",
+     "tag": "PEER"
+    },
+    {
+     "key": "schaefer2004",
+     "cite": "Schaefer & Fegley 2004, Heavy metal frost on Venus, Icarus",
+     "doi": "10.1016/j.icarus.2003.11.023",
+     "tag": "PEER"
+    },
+    {
+     "key": "nasa_venus",
+     "cite": "NASA NSSDCA Venus Fact Sheet (mean surface T ~737 K, 92 bar)",
+     "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/venusfact.html",
+     "tag": "POP"
+    }
+   ]
+  },
+  {
+   "name": "Enceladus",
+   "solvent": "liquid water ocean (salty, alkaline) under ice",
+   "T_K": 75,
+   "landforms": [
+    "'tiger stripe' fractures at south pole",
+    "water-vapour/ice-grain plumes and jets",
+    "resurfaced, crater-poor south polar terrain"
+   ],
+   "drivers": [
+    "tidal heating",
+    "hydrothermal water-rock reaction >90 °C at seafloor (silica nanoparticles in E-ring grains)",
+    "H2 in plume consistent with serpentinization"
+   ],
+   "colours": [
+    "brilliant white ice (highest albedo in solar system)",
+    "blue-green tint along stripes in enhanced colour"
+   ],
+   "our_sea_preset": "Water (cold) or Ammonia",
+   "control_map": {
+    "Sea": "Water",
+    "Heat": "Cold surface, hot seafloor",
+    "Light": "Dim",
+    "Time": "plume deposits",
+    "Recipe": "Si+O: silica nanoparticles are direct evidence of silica-saturated hot water"
+   },
+   "sources": [
+    {
+     "key": "porco2006",
+     "cite": "Porco et al. 2006, Cassini observes the active south pole of Enceladus, Science",
+     "doi": "10.1126/science.1123013",
+     "tag": "PEER"
+    },
+    {
+     "key": "hsu2015",
+     "cite": "Hsu et al. 2015, Ongoing hydrothermal activities within Enceladus, Nature",
+     "doi": "10.1038/nature14262",
+     "tag": "PEER"
+    },
+    {
+     "key": "waite2017",
+     "cite": "Waite et al. 2017, Cassini finds molecular hydrogen in the Enceladus plume, Science",
+     "doi": "10.1126/science.aai8703",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Europa",
+   "solvent": "liquid water ocean under ice shell",
+   "T_K": 102,
+   "landforms": [
+    "chaos terrain: rafts of broken ice in a jumbled matrix",
+    "double ridges and lineae"
+   ],
+   "drivers": [
+    "melt lenses of liquid water in the shallow shell collapse the surface",
+    "tidal flexing"
+   ],
+   "colours": [
+    "white-cream ice",
+    "reddish-brown lineae (salts / radiolysed sulfur)"
+   ],
+   "our_sea_preset": "Water (cold)",
+   "control_map": {
+    "Sea": "Water",
+    "Heat": "Cold",
+    "Light": "Dim",
+    "Time": "chaos rafts refreeze",
+    "Recipe": "n/a"
+   },
+   "sources": [
+    {
+     "key": "schmidt2011",
+     "cite": "Schmidt et al. 2011, Active formation of chaos terrain over shallow subsurface water on Europa, Nature",
+     "doi": "10.1038/nature10608",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Icy moons: ammonia-water cryovolcanism (general; Triton)",
+   "solvent": "ammonia-water melt (eutectic ~176 K); Triton geysers of N2 gas",
+   "T_K": 38,
+   "landforms": [
+    "viscous ammonia-water cryolava flows/domes (theorised)",
+    "Triton geyser plumes ~8 km tall with dark wind streaks"
+   ],
+   "drivers": [
+    "ammonia lowers water's melting point by ~100 K",
+    "solar-heated subsurface N2 ice venting (Triton)"
+   ],
+   "colours": [
+    "pinkish nitrogen-methane ice (Triton)",
+    "dark plume streaks"
+   ],
+   "our_sea_preset": "Ammonia",
+   "control_map": {
+    "Sea": "Ammonia",
+    "Heat": "Cool",
+    "Light": "Dim",
+    "Time": "flow fields",
+    "Recipe": "n/a"
+   },
+   "caveat": "Violet/plum ammonia palette is [game], not observed.",
+   "sources": [
+    {
+     "key": "kargel1992",
+     "cite": "Kargel 1992, Ammonia-water volcanism on icy satellites: phase relations at 1 atmosphere, Icarus",
+     "doi": "10.1016/0019-1035(92)90118-Q",
+     "tag": "PEER"
+    },
+    {
+     "key": "soderblom1990",
+     "cite": "Soderblom et al. 1990, Triton's geyser-like plumes, Science",
+     "doi": "10.1126/science.250.4979.410",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Mars",
+   "solvent": "none today (ancient liquid water); thin CO2 air",
+   "T_K": 210,
+   "landforms": [
+    "iron-oxide dust and dune fields",
+    "layered sedimentary deposits (Valles Marineris, crater fills)",
+    "opaline-silica nodules and digitate 'cauliflower' structures (Home Plate, Gusev)",
+    "recurring slope lineae (seasonal dark streaks)"
+   ],
+   "drivers": [
+    "ancient water-deposited sediments",
+    "oxidation of iron (hematite, nanophase Fe oxides)",
+    "volcanic hydrothermal silica (hot spring or fumarole)",
+    "RSL now mostly explained as dry granular flows (disputed water role)"
+   ],
+   "colours": [
+    "rust red-orange ground",
+    "butterscotch sky, blue sunsets",
+    "white opaline silica"
+   ],
+   "our_sea_preset": "Water (old, iron-rich, dried)",
+   "control_map": {
+    "Sea": "Water",
+    "Heat": "Hot dial gives our red-canyon look, real Mars is cold",
+    "Light": "Bright",
+    "Time": "Very old: red stain + layered canyon walls (eco-01, eco-10)",
+    "Recipe": "Si+O: silica deposits"
+   },
+   "sources": [
+    {
+     "key": "malin2000",
+     "cite": "Malin & Edgett 2000, Sedimentary rocks of early Mars, Science",
+     "doi": "10.1126/science.290.5498.1927",
+     "tag": "PEER"
+    },
+    {
+     "key": "squyres2008",
+     "cite": "Squyres et al. 2008, Detection of silica-rich deposits on Mars, Science",
+     "doi": "10.1126/science.1155429",
+     "tag": "PEER"
+    },
+    {
+     "key": "ruff2016",
+     "cite": "Ruff & Farmer 2016, Silica deposits on Mars with features resembling hot spring biosignatures at El Tatio, Nat. Commun.",
+     "doi": "10.1038/ncomms13554",
+     "tag": "PEER"
+    },
+    {
+     "key": "mcewen2011",
+     "cite": "McEwen et al. 2011, Seasonal flows on warm Martian slopes, Science",
+     "doi": "10.1126/science.1204816",
+     "tag": "PEER"
+    },
+    {
+     "key": "dundas2017",
+     "cite": "Dundas et al. 2017, Granular flows at recurring slope lineae on Mars indicate a limited role for liquid water, Nat. Geosci.",
+     "doi": "10.1038/s41561-017-0012-5",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Lava worlds (55 Cancri e, CoRoT-7b)",
+   "solvent": "molten silicate (magma ocean candidate)",
+   "T_K": 2700,
+   "landforms": [
+    "dayside magma lakes/ocean (inferred)",
+    "volcanic outgassing atmosphere (CO/CO2 on 55 Cnc e)",
+    "by Earth analogy: lava tubes, skylights, obsidian glass, vesicular pumice"
+   ],
+   "drivers": [
+    "tidal locking, extreme stellar irradiation",
+    "dayside ~2700 K vs nightside ~1400 K (55 Cnc e)",
+    "rapid quenching makes glass"
+   ],
+   "colours": [
+    "incandescent orange-yellow dayside",
+    "black obsidian glass",
+    "grey-black basalt"
+   ],
+   "our_sea_preset": "none (Heat max; Sea becomes melt)",
+   "control_map": {
+    "Sea": "n/a",
+    "Heat": "Hot extreme",
+    "Light": "Very bright",
+    "Time": "crust/glass",
+    "Recipe": "Si+O = silicate melt; most literal 'silicon world'"
+   },
+   "sources": [
+    {
+     "key": "demory2016",
+     "cite": "Demory et al. 2016, A map of the large day-night temperature gradient of a super-Earth exoplanet, Nature",
+     "doi": "10.1038/nature17169",
+     "tag": "PEER"
+    },
+    {
+     "key": "hu2024",
+     "cite": "Hu et al. 2024, A secondary atmosphere on the rocky exoplanet 55 Cancri e, Nature",
+     "doi": "10.1038/s41586-024-07432-x",
+     "tag": "PEER"
+    },
+    {
+     "key": "leger2009",
+     "cite": "Léger et al. 2009, Transiting exoplanets from the CoRoT space mission VIII: CoRoT-7b, A&A",
+     "doi": "10.1051/0004-6361/200911933",
+     "tag": "PEER"
+    }
+   ]
+  }
+ ],
+ "silica_biogenic": [
+  {
+   "name": "Hot-spring siliceous sinter & geyserite terraces",
+   "mechanism": "Silica-saturated geothermal water cools and evaporates, precipitating opal-A; microbial mats template and trap it",
+   "growth_rate": "up to ~2.5 kg/m²/yr at El Tatio (in situ); mm-scale per year typical",
+   "shapes": [
+    "terraces and terracettes",
+    "aprons and mounds",
+    "spicules, knobs and 'cauliflower' geyserite",
+    "digitate fingers"
+   ],
+   "colours": [
+    "white to grey opal",
+    "orange, yellow, green microbial mats banded by temperature"
+   ],
+   "examples": [
+    "Yellowstone",
+    "El Tatio (Chile)",
+    "Wairakei/Rotorua (NZ)",
+    "Home Plate, Mars (analogue)"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "campbell2015",
+     "cite": "Campbell et al. 2015, Geyserite in hot-spring siliceous sinter, Earth-Sci. Rev.",
+     "doi": "10.1016/j.earscirev.2015.05.009",
+     "tag": "REVIEW"
+    },
+    {
+     "key": "nicolau2014",
+     "cite": "Nicolau et al. 2014, Physico-chemical and environmental controls on siliceous sinter formation at El Tatio, J. Volcanol. Geotherm. Res.",
+     "doi": "10.1016/j.jvolgeores.2014.06.012",
+     "tag": "PEER"
+    },
+    {
+     "key": "ruff2016",
+     "cite": "Ruff & Farmer 2016, Silica deposits on Mars with features resembling hot spring biosignatures at El Tatio, Nat. Commun.",
+     "doi": "10.1038/ncomms13554",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Opal (precious)",
+   "mechanism": "Ordered packing of uniform silica spheres (~150-350 nm) settled from silica gel; diffraction gives play of colour",
+   "growth_rate": "slow; formation timescale debated (thousands to millions of years)",
+   "shapes": [
+    "vein fill",
+    "nodules",
+    "pseudomorph replacing shell and bone"
+   ],
+   "colours": [
+    "milky white, iridescent spectral flashes",
+    "black opal"
+   ],
+   "examples": [
+    "Coober Pedy, Lightning Ridge (Australia)"
+   ],
+   "status": "consensus (structure); disputed (timescale)",
+   "sources": [
+    {
+     "key": "sanders1964",
+     "cite": "Sanders 1964, Colour of precious opal, Nature",
+     "doi": "10.1038/2041151a0",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Chert and jasper",
+   "mechanism": "Diagenetic recrystallisation of biogenic or chemical silica into microcrystalline quartz",
+   "growth_rate": "Myr (diagenesis)",
+   "shapes": [
+    "nodules",
+    "ribbon beds",
+    "layered cliffs"
+   ],
+   "colours": [
+    "grey, black",
+    "red jasper when hematite-stained"
+   ],
+   "examples": [
+    "Franciscan ribbon chert (California)",
+    "Strelley Pool chert (Pilbara)"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "konhauser2017",
+     "cite": "Konhauser et al. 2017, Iron formations: a global record of Neoarchaean to Palaeoproterozoic environmental history, Earth-Sci. Rev.",
+     "doi": "10.1016/j.earscirev.2017.06.012",
+     "tag": "REVIEW"
+    },
+    {
+     "key": "allwood2006",
+     "cite": "Allwood et al. 2006, Stromatolite reef from the Early Archaean era of Australia, Nature",
+     "doi": "10.1038/nature04764",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Banded iron formations (BIF)",
+   "mechanism": "Alternating layers of iron oxides and chert precipitated from Fe-rich, silica-saturated Archaean-Paleoproterozoic seawater as O2 rose; microbial role debated",
+   "growth_rate": "debated; deposited mainly 2.8-1.85 Ga",
+   "shapes": [
+    "mm-to-m banding",
+    "stripy cliffs and gorges"
+   ],
+   "colours": [
+    "red jasper",
+    "silver-black hematite/magnetite",
+    "ochre"
+   ],
+   "examples": [
+    "Hamersley Range / Karijini gorges (W. Australia)"
+   ],
+   "status": "consensus (existence); disputed (exact mechanism)",
+   "sources": [
+    {
+     "key": "konhauser2017",
+     "cite": "Konhauser et al. 2017, Iron formations: a global record of Neoarchaean to Palaeoproterozoic environmental history, Earth-Sci. Rev.",
+     "doi": "10.1016/j.earscirev.2017.06.012",
+     "tag": "REVIEW"
+    }
+   ]
+  },
+  {
+   "name": "Diatomite / radiolarian ooze -> radiolarite",
+   "mechanism": "Plankton build opal shells (frustules, lattice skeletons); shells rain to seafloor as ooze, later lithify to diatomite or radiolarite/chert",
+   "growth_rate": "ooze accumulates ~mm to cm per kyr; gross biogenic silica production ~240 Tmol Si/yr",
+   "shapes": [
+    "perforated honeycomb discs",
+    "lattice spheres and spiked 'cages'",
+    "chalky white layered beds"
+   ],
+   "colours": [
+    "white to cream diatomite",
+    "red/brown radiolarite"
+   ],
+   "examples": [
+    "Lompoc diatomite (California)",
+    "Southern Ocean opal belt"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "treguer2013",
+     "cite": "Tréguer & De La Rocha 2013, The world ocean silica cycle, Annu. Rev. Mar. Sci.",
+     "doi": "10.1146/annurev-marine-121211-172346",
+     "tag": "REVIEW"
+    }
+   ]
+  },
+  {
+   "name": "Glass-sponge (hexactinellid) reefs",
+   "mechanism": "Sponges build fused opal-silica skeletal lattices; new sponges settle on dead skeletons, which trap sediment",
+   "growth_rate": "individual sponges ~cm/yr [POP, not verified]; reefs ~9,000 yr old, up to ~20 m high [POP]",
+   "shapes": [
+    "vase and finger lattices",
+    "mounds and bioherms",
+    "open glassy meshwork"
+   ],
+   "colours": [
+    "translucent white, cream, pale yellow"
+   ],
+   "examples": [
+    "Hecate Strait and Strait of Georgia (British Columbia)"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "krautter2001",
+     "cite": "Krautter et al. 2001, Discovery of a 'living dinosaur': modern hexactinellid sponge reefs off British Columbia, Facies",
+     "doi": "10.1007/BF02668178",
+     "tag": "PEER"
+    },
+    {
+     "key": "maldonado1999",
+     "cite": "Maldonado et al. 1999, Decline in Mesozoic reef-building sponges explained by silicon limitation, Nature",
+     "doi": "10.1038/44560",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Stromatolites & microbialites",
+   "mechanism": "Microbial mats trap/bind sediment and precipitate carbonate (micrite) layer by layer",
+   "growth_rate": "~0.3-0.5 mm/yr at Shark Bay [POP, not verified here]",
+   "shapes": [
+    "domes",
+    "columns and clubs",
+    "laminated pillars"
+   ],
+   "colours": [
+    "grey-brown",
+    "dark green-black mat surface"
+   ],
+   "examples": [
+    "Hamelin Pool, Shark Bay",
+    "Exuma (Bahamas)",
+    "3.43 Ga Strelley Pool"
+   ],
+   "status": "consensus (carbonate; silicified examples common in Archaean chert)",
+   "sources": [
+    {
+     "key": "suosaari2016",
+     "cite": "Suosaari et al. 2016, New multi-scale perspectives on the stromatolites of Shark Bay, Sci. Rep.",
+     "doi": "10.1038/srep20557",
+     "tag": "PEER"
+    },
+    {
+     "key": "reid2000",
+     "cite": "Reid et al. 2000, The role of microbes in accretion, lamination and early lithification of modern marine stromatolites, Nature",
+     "doi": "10.1038/35023158",
+     "tag": "PEER"
+    },
+    {
+     "key": "allwood2006",
+     "cite": "Allwood et al. 2006, Stromatolite reef from the Early Archaean era of Australia, Nature",
+     "doi": "10.1038/nature04764",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Chemical (silicate) gardens",
+   "mechanism": "Metal-salt seed dissolves in alkali silicate; a semipermeable silicate membrane forms, osmotic pressure ruptures it and a jet precipitates new hollow tube",
+   "growth_rate": "seconds to minutes; mm/s to cm/min",
+   "shapes": [
+    "hollow tubes",
+    "branching spires",
+    "bulbs and fingers"
+   ],
+   "colours": [
+    "take the metal's colour: blue (Cu), orange-brown (Fe), green (Ni), white (Ca, Zn)"
+   ],
+   "examples": [
+    "lab 'water-glass' gardens",
+    "brinicles",
+    "hydrothermal chimneys (natural analogue)"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "barge2015",
+     "cite": "Barge et al. 2015, From chemical gardens to chemobrionics, Chem. Rev.",
+     "doi": "10.1021/acs.chemrev.5b00014",
+     "tag": "REVIEW"
+    }
+   ]
+  },
+  {
+   "name": "Silica-carbonate biomorphs",
+   "mechanism": "Barium/strontium carbonate co-precipitates with silica in alkaline solution, self-assembling into curved forms",
+   "growth_rate": "hours",
+   "shapes": [
+    "helices",
+    "twisted ribbons",
+    "worm-like filaments",
+    "coral-like sheets"
+   ],
+   "colours": [
+    "white, translucent"
+   ],
+   "examples": [
+    "lab syntheses; cautionary tale for microfossil claims"
+   ],
+   "status": "consensus (lab); cautions biosignatures",
+   "sources": [
+    {
+     "key": "garciaruiz2003",
+     "cite": "García-Ruiz et al. 2003, Self-assembled silica-carbonate structures and detection of ancient microfossils, Science",
+     "doi": "10.1126/science.1090163",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Hydrothermal chimneys (Lost City carbonate; black smokers)",
+   "mechanism": "Hot vent fluid mixes with cold seawater and precipitates minerals: carbonate/brucite at Lost City (40-90 °C, pH 9-11), metal sulfides at black smokers (~350 °C+)",
+   "growth_rate": "black smokers can grow tens of cm/day [POP]; Lost City towers built over ~tens of kyr",
+   "shapes": [
+    "towers 30-60 m (Lost City)",
+    "porous flanges and spires",
+    "hollow chimneys"
+   ],
+   "colours": [
+    "white-cream carbonate (Lost City)",
+    "black and rust sulfides"
+   ],
+   "examples": [
+    "Lost City (Mid-Atlantic)",
+    "East Pacific Rise 21°N"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "kelley2001",
+     "cite": "Kelley et al. 2001, An off-axis hydrothermal vent field near the Mid-Atlantic Ridge at 30°N, Nature",
+     "doi": "10.1038/35084000",
+     "tag": "PEER"
+    },
+    {
+     "key": "kelley2005",
+     "cite": "Kelley et al. 2005, A serpentinite-hosted ecosystem: the Lost City hydrothermal field, Science",
+     "doi": "10.1126/science.1102556",
+     "tag": "PEER"
+    },
+    {
+     "key": "spiess1980",
+     "cite": "Spiess et al. 1980, East Pacific Rise: hot springs and geophysical experiments, Science",
+     "doi": "10.1126/science.207.4438.1421",
+     "tag": "PEER"
+    },
+    {
+     "key": "barge2015",
+     "cite": "Barge et al. 2015, From chemical gardens to chemobrionics, Chem. Rev.",
+     "doi": "10.1021/acs.chemrev.5b00014",
+     "tag": "REVIEW"
+    }
+   ]
+  },
+  {
+   "name": "Coral/carbonate reefs vs silica reefs",
+   "mechanism": "Corals build CaCO3; siliceous sponge reefs dominated the Jurassic but declined as diatoms depleted seawater silica",
+   "growth_rate": "coral reef accretion ~mm to ~1 cm/yr [POP]",
+   "shapes": [
+    "branching, massive, plate reefs",
+    "sponge bioherms"
+   ],
+   "colours": [
+    "coral colours from living tissue; dead reef white"
+   ],
+   "examples": [
+    "Great Barrier Reef; Jurassic sponge reefs of Europe"
+   ],
+   "status": "consensus (decline mechanism: plausible, well-cited)",
+   "sources": [
+    {
+     "key": "maldonado1999",
+     "cite": "Maldonado et al. 1999, Decline in Mesozoic reef-building sponges explained by silicon limitation, Nature",
+     "doi": "10.1038/44560",
+     "tag": "PEER"
+    }
+   ]
+  },
+  {
+   "name": "Phytolith-rich soils",
+   "mechanism": "Plants take up dissolved silica and deposit opal bodies in cells; they persist in soil after the plant rots",
+   "growth_rate": "plant-lifecycle; soil stock builds over centuries",
+   "shapes": [
+    "microscopic cell-shaped glass bodies"
+   ],
+   "colours": [
+    "colourless, white"
+   ],
+   "examples": [
+    "grassland and rainforest soils (Congo)"
+   ],
+   "status": "consensus",
+   "sources": [
+    {
+     "key": "alexandre1997",
+     "cite": "Alexandre et al. 1997, Plant impact on the biogeochemical cycle of silicon and related weathering processes, Geochim. Cosmochim. Acta",
+     "doi": "10.1016/S0016-7037(97)00001-X",
+     "tag": "PEER"
+    }
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "key": "malaska2020",
+   "cite": "Malaska et al. 2020, Labyrinth terrain on Titan, Icarus 344:113764",
+   "doi": "10.1016/j.icarus.2020.113764",
+   "tag": "PEER"
+  },
+  {
+   "key": "stofan2007",
+   "cite": "Stofan et al. 2007, The lakes of Titan, Nature",
+   "doi": "10.1038/nature05438",
+   "tag": "PEER"
+  },
+  {
+   "key": "lorenz2006",
+   "cite": "Lorenz et al. 2006, The sand seas of Titan, Science",
+   "doi": "10.1126/science.1123257",
+   "tag": "PEER"
+  },
+  {
+   "key": "tomasko2005",
+   "cite": "Tomasko et al. 2005, Rain, winds and haze during the Huygens probe's descent, Nature",
+   "doi": "10.1038/nature04126",
+   "tag": "PEER"
+  },
+  {
+   "key": "lopes2013",
+   "cite": "Lopes et al. 2013, Cryovolcanism on Titan: new results from Cassini RADAR and VIMS, JGR Planets",
+   "doi": "10.1002/jgre.20062",
+   "tag": "PEER"
+  },
+  {
+   "key": "hayes2016",
+   "cite": "Hayes 2016, The lakes and seas of Titan, Annu. Rev. Earth Planet. Sci.",
+   "doi": "10.1146/annurev-earth-060115-012247",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "cornet2015",
+   "cite": "Cornet et al. 2015, Dissolution on Titan and on Earth: toward the age of Titan's karstic landscapes, JGR Planets",
+   "doi": "10.1002/2014JE004738",
+   "tag": "PEER"
+  },
+  {
+   "key": "horst2017",
+   "cite": "Hörst 2017, Titan's atmosphere and climate, JGR Planets",
+   "doi": "10.1002/2016JE005240",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "ivanov2011",
+   "cite": "Ivanov & Head 2011, Global geological map of Venus, Planet. Space Sci.",
+   "doi": "10.1016/j.pss.2011.07.008",
+   "tag": "PEER"
+  },
+  {
+   "key": "schaefer2004",
+   "cite": "Schaefer & Fegley 2004, Heavy metal frost on Venus, Icarus",
+   "doi": "10.1016/j.icarus.2003.11.023",
+   "tag": "PEER"
+  },
+  {
+   "key": "pavri1992",
+   "cite": "Pavri et al. 1992, Steep-sided domes on Venus, JGR",
+   "doi": "10.1029/92JE01162",
+   "tag": "PEER"
+  },
+  {
+   "key": "stofan1992",
+   "cite": "Stofan et al. 1992, Global distribution and characteristics of coronae on Venus, JGR",
+   "doi": "10.1029/92JE01314",
+   "tag": "PEER"
+  },
+  {
+   "key": "gilmore2017",
+   "cite": "Gilmore et al. 2017, Venus surface composition constrained by observation and experiment, Space Sci. Rev.",
+   "doi": "10.1007/s11214-017-0370-8",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "gilmore2015",
+   "cite": "Gilmore et al. 2015, VIRTIS emissivity of Alpha Regio, Venus, with implications for tessera composition, Icarus",
+   "doi": "10.1016/j.icarus.2015.04.008",
+   "tag": "PEER"
+  },
+  {
+   "key": "porco2006",
+   "cite": "Porco et al. 2006, Cassini observes the active south pole of Enceladus, Science",
+   "doi": "10.1126/science.1123013",
+   "tag": "PEER"
+  },
+  {
+   "key": "hsu2015",
+   "cite": "Hsu et al. 2015, Ongoing hydrothermal activities within Enceladus, Nature",
+   "doi": "10.1038/nature14262",
+   "tag": "PEER"
+  },
+  {
+   "key": "waite2017",
+   "cite": "Waite et al. 2017, Cassini finds molecular hydrogen in the Enceladus plume, Science",
+   "doi": "10.1126/science.aai8703",
+   "tag": "PEER"
+  },
+  {
+   "key": "schmidt2011",
+   "cite": "Schmidt et al. 2011, Active formation of chaos terrain over shallow subsurface water on Europa, Nature",
+   "doi": "10.1038/nature10608",
+   "tag": "PEER"
+  },
+  {
+   "key": "soderblom1990",
+   "cite": "Soderblom et al. 1990, Triton's geyser-like plumes, Science",
+   "doi": "10.1126/science.250.4979.410",
+   "tag": "PEER"
+  },
+  {
+   "key": "kargel1992",
+   "cite": "Kargel 1992, Ammonia-water volcanism on icy satellites: phase relations at 1 atmosphere, Icarus",
+   "doi": "10.1016/0019-1035(92)90118-Q",
+   "tag": "PEER"
+  },
+  {
+   "key": "squyres2008",
+   "cite": "Squyres et al. 2008, Detection of silica-rich deposits on Mars, Science",
+   "doi": "10.1126/science.1155429",
+   "tag": "PEER"
+  },
+  {
+   "key": "ruff2016",
+   "cite": "Ruff & Farmer 2016, Silica deposits on Mars with features resembling hot spring biosignatures at El Tatio, Nat. Commun.",
+   "doi": "10.1038/ncomms13554",
+   "tag": "PEER"
+  },
+  {
+   "key": "malin2000",
+   "cite": "Malin & Edgett 2000, Sedimentary rocks of early Mars, Science",
+   "doi": "10.1126/science.290.5498.1927",
+   "tag": "PEER"
+  },
+  {
+   "key": "mcewen2011",
+   "cite": "McEwen et al. 2011, Seasonal flows on warm Martian slopes, Science",
+   "doi": "10.1126/science.1204816",
+   "tag": "PEER"
+  },
+  {
+   "key": "dundas2017",
+   "cite": "Dundas et al. 2017, Granular flows at recurring slope lineae on Mars indicate a limited role for liquid water, Nat. Geosci.",
+   "doi": "10.1038/s41561-017-0012-5",
+   "tag": "PEER"
+  },
+  {
+   "key": "demory2016",
+   "cite": "Demory et al. 2016, A map of the large day-night temperature gradient of a super-Earth exoplanet, Nature",
+   "doi": "10.1038/nature17169",
+   "tag": "PEER"
+  },
+  {
+   "key": "hu2024",
+   "cite": "Hu et al. 2024, A secondary atmosphere on the rocky exoplanet 55 Cancri e, Nature",
+   "doi": "10.1038/s41586-024-07432-x",
+   "tag": "PEER"
+  },
+  {
+   "key": "leger2009",
+   "cite": "Léger et al. 2009, Transiting exoplanets from the CoRoT space mission VIII: CoRoT-7b, A&A",
+   "doi": "10.1051/0004-6361/200911933",
+   "tag": "PEER"
+  },
+  {
+   "key": "campbell2015",
+   "cite": "Campbell et al. 2015, Geyserite in hot-spring siliceous sinter, Earth-Sci. Rev.",
+   "doi": "10.1016/j.earscirev.2015.05.009",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "nicolau2014",
+   "cite": "Nicolau et al. 2014, Physico-chemical and environmental controls on siliceous sinter formation at El Tatio, J. Volcanol. Geotherm. Res.",
+   "doi": "10.1016/j.jvolgeores.2014.06.012",
+   "tag": "PEER"
+  },
+  {
+   "key": "sanders1964",
+   "cite": "Sanders 1964, Colour of precious opal, Nature",
+   "doi": "10.1038/2041151a0",
+   "tag": "PEER"
+  },
+  {
+   "key": "konhauser2017",
+   "cite": "Konhauser et al. 2017, Iron formations: a global record of Neoarchaean to Palaeoproterozoic environmental history, Earth-Sci. Rev.",
+   "doi": "10.1016/j.earscirev.2017.06.012",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "treguer2013",
+   "cite": "Tréguer & De La Rocha 2013, The world ocean silica cycle, Annu. Rev. Mar. Sci.",
+   "doi": "10.1146/annurev-marine-121211-172346",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "krautter2001",
+   "cite": "Krautter et al. 2001, Discovery of a 'living dinosaur': modern hexactinellid sponge reefs off British Columbia, Facies",
+   "doi": "10.1007/BF02668178",
+   "tag": "PEER"
+  },
+  {
+   "key": "maldonado1999",
+   "cite": "Maldonado et al. 1999, Decline in Mesozoic reef-building sponges explained by silicon limitation, Nature",
+   "doi": "10.1038/44560",
+   "tag": "PEER"
+  },
+  {
+   "key": "suosaari2016",
+   "cite": "Suosaari et al. 2016, New multi-scale perspectives on the stromatolites of Shark Bay, Sci. Rep.",
+   "doi": "10.1038/srep20557",
+   "tag": "PEER"
+  },
+  {
+   "key": "reid2000",
+   "cite": "Reid et al. 2000, The role of microbes in accretion, lamination and early lithification of modern marine stromatolites, Nature",
+   "doi": "10.1038/35023158",
+   "tag": "PEER"
+  },
+  {
+   "key": "allwood2006",
+   "cite": "Allwood et al. 2006, Stromatolite reef from the Early Archaean era of Australia, Nature",
+   "doi": "10.1038/nature04764",
+   "tag": "PEER"
+  },
+  {
+   "key": "barge2015",
+   "cite": "Barge et al. 2015, From chemical gardens to chemobrionics, Chem. Rev.",
+   "doi": "10.1021/acs.chemrev.5b00014",
+   "tag": "REVIEW"
+  },
+  {
+   "key": "garciaruiz2003",
+   "cite": "García-Ruiz et al. 2003, Self-assembled silica-carbonate structures and detection of ancient microfossils, Science",
+   "doi": "10.1126/science.1090163",
+   "tag": "PEER"
+  },
+  {
+   "key": "kelley2001",
+   "cite": "Kelley et al. 2001, An off-axis hydrothermal vent field near the Mid-Atlantic Ridge at 30°N, Nature",
+   "doi": "10.1038/35084000",
+   "tag": "PEER"
+  },
+  {
+   "key": "kelley2005",
+   "cite": "Kelley et al. 2005, A serpentinite-hosted ecosystem: the Lost City hydrothermal field, Science",
+   "doi": "10.1126/science.1102556",
+   "tag": "PEER"
+  },
+  {
+   "key": "spiess1980",
+   "cite": "Spiess et al. 1980, East Pacific Rise: hot springs and geophysical experiments, Science",
+   "doi": "10.1126/science.207.4438.1421",
+   "tag": "PEER"
+  },
+  {
+   "key": "alexandre1997",
+   "cite": "Alexandre et al. 1997, Plant impact on the biogeochemical cycle of silicon and related weathering processes, Geochim. Cosmochim. Acta",
+   "doi": "10.1016/S0016-7037(97)00001-X",
+   "tag": "PEER"
+  },
+  {
+   "key": "nasa_venus",
+   "cite": "NASA NSSDCA Venus Fact Sheet (mean surface T ~737 K, 92 bar)",
+   "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/venusfact.html",
+   "tag": "POP"
+  },
+  {
+   "key": "nasa_titan",
+   "cite": "NASA Science, Titan overview (94 K, 1.5 bar, methane rain)",
+   "url": "https://science.nasa.gov/saturn/moons/titan/",
+   "tag": "POP"
+  }
+ ]
+}
