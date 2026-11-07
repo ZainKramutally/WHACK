@@ -1,0 +1,494 @@
+[
+ {
+  "dt": 0.05,
+  "seed": 0,
+  "mode": "open",
+  "first": {
+   "legs2": 76.0,
+   "horns": 57.0,
+   "plates3": 53.0,
+   "eyes": 5.0,
+   "buoyant": 76.0,
+   "buoyant_giant": null,
+   "long8": 5.0,
+   "hunter": 112.0
+  },
+  "p20": {
+   "legs2": 329.0,
+   "horns": 514.0,
+   "plates3": null,
+   "eyes": 131.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 224.0,
+  "final_gen": 46.5,
+  "stable": false,
+  "wall_ms_per_sim_s": 29.06,
+  "ms_per_tick": 1.452
+ },
+ {
+  "dt": 0.05,
+  "seed": 0,
+  "mode": "guided",
+  "first": {
+   "legs2": 41.0,
+   "horns": null,
+   "plates3": 55.0,
+   "eyes": 22.0,
+   "buoyant": 4.0,
+   "buoyant_giant": null,
+   "long8": 4.0,
+   "hunter": 39.0
+  },
+  "p20": {
+   "legs2": 83.0,
+   "horns": null,
+   "plates3": 215.0,
+   "eyes": 185.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": 69.0,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 143.0,
+   "spinner": 184.0,
+   "plated_hopper": 200.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 57.0,
+  "final_gen": 41.3,
+  "stable": true,
+  "wall_ms_per_sim_s": 37.32,
+  "ms_per_tick": 1.866
+ },
+ {
+  "dt": 0.05,
+  "seed": 1,
+  "mode": "open",
+  "first": {
+   "legs2": 75.0,
+   "horns": 78.0,
+   "plates3": 75.0,
+   "eyes": 4.0,
+   "buoyant": 149.0,
+   "buoyant_giant": null,
+   "long8": 38.0,
+   "hunter": 18.0
+  },
+  "p20": {
+   "legs2": 334.0,
+   "horns": 341.0,
+   "plates3": null,
+   "eyes": 203.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 45.0,
+  "stable": true,
+  "wall_ms_per_sim_s": 30.67,
+  "ms_per_tick": 1.533
+ },
+ {
+  "dt": 0.05,
+  "seed": 1,
+  "mode": "guided",
+  "first": {
+   "legs2": 28.0,
+   "horns": 556.0,
+   "plates3": 73.0,
+   "eyes": 4.0,
+   "buoyant": 4.0,
+   "buoyant_giant": null,
+   "long8": 15.0,
+   "hunter": 26.0
+  },
+  "p20": {
+   "legs2": 63.0,
+   "horns": null,
+   "plates3": null,
+   "eyes": 234.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 206.0,
+   "spinner": 170.0,
+   "plated_hopper": 229.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 40.8,
+  "stable": true,
+  "wall_ms_per_sim_s": 41.73,
+  "ms_per_tick": 2.087
+ },
+ {
+  "dt": 0.05,
+  "seed": 2,
+  "mode": "open",
+  "first": {
+   "legs2": 68.0,
+   "horns": 83.0,
+   "plates3": 63.0,
+   "eyes": 4.0,
+   "buoyant": 178.0,
+   "buoyant_giant": null,
+   "long8": 5.0,
+   "hunter": 58.0
+  },
+  "p20": {
+   "legs2": 563.0,
+   "horns": 355.0,
+   "plates3": null,
+   "eyes": 85.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 141.0,
+  "final_gen": 44.7,
+  "stable": true,
+  "wall_ms_per_sim_s": 31.43,
+  "ms_per_tick": 1.572
+ },
+ {
+  "dt": 0.05,
+  "seed": 2,
+  "mode": "guided",
+  "first": {
+   "legs2": 23.0,
+   "horns": 531.0,
+   "plates3": 54.0,
+   "eyes": 14.0,
+   "buoyant": 0.05,
+   "buoyant_giant": null,
+   "long8": 4.0,
+   "hunter": 29.0
+  },
+  "p20": {
+   "legs2": 63.0,
+   "horns": null,
+   "plates3": 227.0,
+   "eyes": 170.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 147.0,
+   "spinner": 155.0,
+   "plated_hopper": 223.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 41.1,
+  "stable": true,
+  "wall_ms_per_sim_s": 41.63,
+  "ms_per_tick": 2.082
+ },
+ {
+  "dt": 0.25,
+  "seed": 0,
+  "mode": "open",
+  "first": {
+   "legs2": 81.0,
+   "horns": 44.0,
+   "plates3": 82.0,
+   "eyes": 12.0,
+   "buoyant": 42.0,
+   "buoyant_giant": null,
+   "long8": 10.0,
+   "hunter": 12.0
+  },
+  "p20": {
+   "legs2": 400.0,
+   "horns": 559.0,
+   "plates3": null,
+   "eyes": 120.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 210.0,
+  "final_gen": 46.5,
+  "stable": true,
+  "wall_ms_per_sim_s": 10.26,
+  "ms_per_tick": 2.567
+ },
+ {
+  "dt": 0.25,
+  "seed": 0,
+  "mode": "guided",
+  "first": {
+   "legs2": 29.0,
+   "horns": 514.0,
+   "plates3": 61.0,
+   "eyes": 17.0,
+   "buoyant": 4.0,
+   "buoyant_giant": null,
+   "long8": 4.0,
+   "hunter": 26.0
+  },
+  "p20": {
+   "legs2": 74.0,
+   "horns": null,
+   "plates3": 168.0,
+   "eyes": 180.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 134.0,
+   "spinner": 171.0,
+   "plated_hopper": 222.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 41.1,
+  "stable": true,
+  "wall_ms_per_sim_s": 12.77,
+  "ms_per_tick": 3.192
+ },
+ {
+  "dt": 0.25,
+  "seed": 1,
+  "mode": "open",
+  "first": {
+   "legs2": 47.0,
+   "horns": 60.0,
+   "plates3": 54.0,
+   "eyes": 17.0,
+   "buoyant": 64.0,
+   "buoyant_giant": null,
+   "long8": 5.0,
+   "hunter": 53.0
+  },
+  "p20": {
+   "legs2": 208.0,
+   "horns": 544.0,
+   "plates3": null,
+   "eyes": 366.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 121.0,
+  "final_gen": 49.4,
+  "stable": true,
+  "wall_ms_per_sim_s": 10.42,
+  "ms_per_tick": 2.604
+ },
+ {
+  "dt": 0.25,
+  "seed": 1,
+  "mode": "guided",
+  "first": {
+   "legs2": 29.0,
+   "horns": 369.0,
+   "plates3": 67.0,
+   "eyes": 6.0,
+   "buoyant": 4.0,
+   "buoyant_giant": null,
+   "long8": 21.0,
+   "hunter": 26.0
+  },
+  "p20": {
+   "legs2": 59.0,
+   "horns": null,
+   "plates3": 186.0,
+   "eyes": 212.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 171.0,
+   "spinner": 172.0,
+   "plated_hopper": 218.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 40.0,
+  "stable": true,
+  "wall_ms_per_sim_s": 11.75,
+  "ms_per_tick": 2.938
+ },
+ {
+  "dt": 0.25,
+  "seed": 2,
+  "mode": "open",
+  "first": {
+   "legs2": 63.0,
+   "horns": 48.0,
+   "plates3": 23.0,
+   "eyes": 4.0,
+   "buoyant": 146.0,
+   "buoyant_giant": null,
+   "long8": 5.0,
+   "hunter": 55.0
+  },
+  "p20": {
+   "legs2": 211.0,
+   "horns": null,
+   "plates3": null,
+   "eyes": 408.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": null,
+   "spinner": null,
+   "plated_hopper": null,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": 98.0,
+  "final_gen": 46.1,
+  "stable": true,
+  "wall_ms_per_sim_s": 9.71,
+  "ms_per_tick": 2.425
+ },
+ {
+  "dt": 0.25,
+  "seed": 2,
+  "mode": "guided",
+  "first": {
+   "legs2": 24.0,
+   "horns": 544.0,
+   "plates3": 61.0,
+   "eyes": 23.0,
+   "buoyant": 0.25,
+   "buoyant_giant": null,
+   "long8": 4.0,
+   "hunter": 42.0
+  },
+  "p20": {
+   "legs2": 62.0,
+   "horns": null,
+   "plates3": 208.0,
+   "eyes": 196.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "tpl_p20": {
+   "drifter_jelly": null,
+   "swimmer_eel": 138.0,
+   "spinner": 166.0,
+   "plated_hopper": 235.0,
+   "frilled_serpent": null,
+   "builder": null,
+   "strider": null,
+   "rhino_lizard": null,
+   "sky_whale": null
+  },
+  "hunter_tier": null,
+  "final_gen": 39.6,
+  "stable": true,
+  "wall_ms_per_sim_s": 9.84,
+  "ms_per_tick": 2.458
+ }
+]

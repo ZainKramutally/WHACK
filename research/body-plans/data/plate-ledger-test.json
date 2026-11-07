@@ -1,0 +1,230 @@
+[
+ {
+  "plate_build": 0.25,
+  "plate_mass": 0.4,
+  "k_dis": 0.05,
+  "seed": 0,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 181.0,
+   "horns": 474.0,
+   "plates3": null,
+   "eyes": 71.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": 42.0
+  },
+  "hunter_tier": 37.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.25,
+  "plate_mass": 0.4,
+  "k_dis": 0.05,
+  "seed": 0,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 157.0,
+   "horns": 353.0,
+   "plates3": null,
+   "eyes": 83.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 26.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.25,
+  "plate_mass": 0.4,
+  "k_dis": 0.05,
+  "seed": 1,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 143.0,
+   "horns": 451.0,
+   "plates3": null,
+   "eyes": 87.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": 133.0
+  },
+  "hunter_tier": 34.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.25,
+  "plate_mass": 0.4,
+  "k_dis": 0.05,
+  "seed": 1,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 116.0,
+   "horns": 239.0,
+   "plates3": null,
+   "eyes": 35.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 59.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.05,
+  "seed": 0,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 350.0,
+   "horns": 293.0,
+   "plates3": 909.0,
+   "eyes": 52.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 35.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.05,
+  "seed": 0,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 187.0,
+   "horns": 323.0,
+   "plates3": null,
+   "eyes": 41.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 32.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.05,
+  "seed": 1,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 152.0,
+   "horns": 237.0,
+   "plates3": 257.0,
+   "eyes": 132.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 42.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.05,
+  "seed": 1,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 97.0,
+   "horns": 415.0,
+   "plates3": null,
+   "eyes": 66.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 71.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.15,
+  "seed": 0,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 220.0,
+   "horns": 342.0,
+   "plates3": 209.0,
+   "eyes": 113.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 82.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.15,
+  "seed": 0,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 147.0,
+   "horns": 232.0,
+   "plates3": 622.0,
+   "eyes": 61.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 68.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.15,
+  "seed": 1,
+  "preset": "rhino",
+  "p20": {
+   "legs2": 186.0,
+   "horns": 308.0,
+   "plates3": 316.0,
+   "eyes": 84.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 70.0,
+  "stable": true
+ },
+ {
+  "plate_build": 0.05,
+  "plate_mass": 0.15,
+  "k_dis": 0.15,
+  "seed": 1,
+  "preset": "silicon",
+  "p20": {
+   "legs2": 86.0,
+   "horns": 364.0,
+   "plates3": null,
+   "eyes": 46.0,
+   "buoyant": null,
+   "buoyant_giant": null,
+   "long8": null,
+   "hunter": null
+  },
+  "hunter_tier": 62.0,
+  "stable": true
+ }
+]
