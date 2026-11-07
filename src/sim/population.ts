@@ -156,7 +156,6 @@ export class Population {
   private readonly births: number[] = [];
   private readonly birthEnergy: number[] = [];
   private living = 0;
-  private deadSize = 0; // Σ size of organisms that died since the last takeDeadBiomass()
 
   constructor(rules: LifeRules, rng: Rng) {
     this.rules = rules;
@@ -372,15 +371,7 @@ export class Population {
     return gaussian(this.rnd);
   }
 
-  /** Biomass (Σ size) of organisms that died since the last call; the driver for decay-type feedbacks. */
-  takeDeadBiomass(): number {
-    const d = this.deadSize;
-    this.deadSize = 0;
-    return d;
-  }
-
   private kill(i: number): void {
-    this.deadSize += this.size[i];
     this.alive[i] = 0;
     this.living--;
     this.free.push(i);

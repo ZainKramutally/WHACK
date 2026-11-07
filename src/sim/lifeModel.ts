@@ -1,18 +1,18 @@
 // The seam between WorldSimulation (conditions, feedbacks, build clock, snapshots) and the ecology.
-// WorldSimulation talks only to LifeModel. PopulationLife below adapts the built climate core (population.ts);
-// the ecology agent's Ecology class gets a second adapter later (it needs seedFounders, step, drivers, summary,
-// floraBuffer and animals, nothing else).
+// WorldSimulation talks only to LifeModel; EcologyLife adapts the spatial ecology (ecology.ts).
 import type { WorldConfig } from '../worlds/types';
-import { makeFounders, type AnimalGenome } from './genome';
-import { LOCOMOTION, type LocomotionMode } from './develop';
-import { OrganismField, ORGANISM_STRIDE } from './organismLayout';
-import { CONSUMER, PRODUCER, Population, type Environment } from './population';
-import { makeRng } from './rng';
+import type { BodyPlan } from './develop';
+import { CAP, Ecology, type EcologyLedger } from './ecology';
+import type { AnimalGenome } from './genome';
+import { CELLS, FLORA_STRIDE, createGrid } from './grid';
+import type { GuideAnimal } from './guide';
+import type { Environment } from './population';
+import { packBodyPlan } from './plan';
 
 /** What the ecology feels each tick: population.ts's Environment plus the extra inputs the full ecology reads. */
 export interface LifeEnv extends Environment {
-  starlight: number;   // × Earth, absolute (Environment.light is relative to the world's reference)
   heatBand: number;    // 0..1 temperature within the living band
+  starlight: number;   // × Earth, absolute (Environment.light is starlight ÷ the world's lightFull, clamped 0..1)
   nitrogen: number;    // × Earth
   pressure: number;    // bar
   airDensity: number;  // kg/m³, real P·M/(R·T)
@@ -22,24 +22,10 @@ export interface LifeEnv extends Environment {
 export interface LifeDrivers { producerBiomass: number; consumerBiomass: number; deadBiomass: number }
 
 export interface LifeSummary {
-  producers: number;
-  consumers: number;
+  producers: number;   // cells carrying flora
+  consumers: number;   // living animals
   generation: number;
   traitAverages: Record<string, number>;
-}
-
-/** One living animal. Positions are 0..1 across the terrain patch. */
-export interface LifeAnimal {
-  id: number;
-  genome: AnimalGenome;
-  x: number;
-  y: number;
-  heading: number;
-  mode: LocomotionMode;
-  role: number;
-  size: number;
-  energy: number;   // relative to the reproduction threshold (1 = ready to copy)
-  generation: number;
 }
 
 export interface LifeModel {
@@ -50,129 +36,122 @@ export interface LifeModel {
   /** Valid after step(). */
   drivers(): LifeDrivers;
   summary(): LifeSummary;
-  /** Per-cell flora biomass on the 64² grid, interleaved [mat, canopy] per cell. A fresh copy each call. */
+  /** Per-cell flora biomass on the 64² grid, interleaved [mat, canopy] per cell (FLORA_STRIDE). A fresh copy each call. */
   floraBuffer(): Float32Array;
-  /** Living animals in ascending id order. */
-  animals(): LifeAnimal[];
+  /** Living animals as the SimSnapshot.organisms buffer (layout in organismLayout.ts). A fresh buffer each call. */
+  packOrganisms(): Float32Array;
+  /** Living animals for the field guide. */
+  guideAnimals(): GuideAnimal[];
+  /** Packed develop() plans (plan.ts) of animals born since the last call. */
+  drainBirths(): { id: number; plan: Float32Array }[];
+  /** New static liquid depth per cell (the sea moved or the terrain rose). Optional. */
+  setLiquid?(liquid: ArrayLike<number>): void;
 }
 
-export const FLORA_GRID = 64;
-export const FLORA_FIELDS = 2; // mat, canopy
-
-// Stand-in founder numbers for the population.ts adapter; the Ecology adapter brings its own.
-const PRODUCER_FOUNDER_SHARE = 0.4;   // of the habitat's producer capacity, so founders never start above it
-const MIN_PRODUCER_FOUNDERS = 24;
-const CONSUMER_FOUNDERS = 24;
-const CONSUMER_DELAY_SEC = 10;   // producers settle first, then the animals arrive (as in population.test.ts)
+// Founder climate genes until the config carries them (issue #7): tolerance and oxygen need / cold stability.
 const FOUNDER_TOLERANCE = 8;
-const FOUNDER_CHEM = 0.3;
-const FOUNDER_SPREAD = { size: 0.1, prefTemp: 3, tolerance: 1, chem: 0.1 };
+const FOUNDER_CHEM = 0.5;
+// Fallback nutrient supply per cell until the world configs carry it (read from life.ledger supplyC/supplySi/supplyO).
+const FALLBACK_SUPPLY = { c: 40, si: 0.4, o: 10 };
 
-/**
- * Climate-core stand-in: producers are agents binned onto the flora grid; consumers are the animals, with the body
- * genes of a founder worm whose `size` gene follows the climate-core size. No heading or locomotion (all swim).
- */
-export class PopulationLife implements LifeModel {
-  private readonly pop: Population;
-  private readonly template: AnimalGenome;
-  private ecoSec = 0;
-  private consumersSeeded = false;
-  private dead = 0;
-  private lastDt = 1;
+export interface EcologyLifeContext {
+  /** Static liquid depth per cell at the moment life appears. */
+  liquid(): ArrayLike<number>;
+  founderTemperature: number;
+}
+
+const EMPTY: LifeDrivers = { producerBiomass: 0, consumerBiomass: 0, deadBiomass: 0 };
+
+/** Adapter over Ecology. Everything before seedFounders() reads as an empty world. */
+export class EcologyLife implements LifeModel {
+  private eco: Ecology | undefined;
+  private drv: LifeDrivers = EMPTY;
+  // slot snapshots to find animals that died during a step
+  private readonly prevAlive = new Uint8Array(CAP);
+  private readonly prevId = new Float64Array(CAP);
+  private readonly prevMass = new Float64Array(CAP);
 
   constructor(
     private readonly world: WorldConfig,
-    seed: number,
-    private readonly founderTemperature: number,
-  ) {
-    this.pop = new Population(world.life.rules, makeRng(seed)('population'));
-    this.template = makeFounders(seed, 1, world.life.composition, {
-      prefTemp: founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: FOUNDER_CHEM,
-    })[0];
-  }
+    private readonly seed: number,
+    private readonly ctx: EcologyLifeContext,
+  ) {}
 
   seedFounders(env: LifeEnv): void {
-    const capacity = this.world.life.rules.producerCapacity * Math.min(1, Math.max(0, env.habitat));
-    this.pop.seed(
-      Math.max(MIN_PRODUCER_FOUNDERS, Math.round(PRODUCER_FOUNDER_SHARE * capacity)),
-      { role: PRODUCER, size: 1, prefTemp: this.founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: 0 },
-      FOUNDER_SPREAD,
-    );
+    const w = this.world;
+    const led = w.life.ledger;
+    const supply = {
+      c: led.supplyC ?? FALLBACK_SUPPLY.c,
+      si: led.supplySi ?? FALLBACK_SUPPLY.si,
+      o: led.supplyO ?? FALLBACK_SUPPLY.o,
+    };
+    const fixed = w.life.inputs;
+    this.eco = new Ecology({
+      seed: this.seed,
+      grid: createGrid({ liquid: this.ctx.liquid(), supply }),
+      rules: w.life.rules,
+      inputs: {
+        solvent: fixed.solvent,
+        airDensity: env.airDensity * fixed.airDensity.scale,
+        tissueDensity: fixed.tissueDensity,
+      },
+      composition: w.life.composition,
+      founderClimate: { prefTemp: this.ctx.founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: FOUNDER_CHEM },
+      ledger: led as Partial<EcologyLedger>,
+    });
+    this.eco.seedLife(env);
+    this.remember();
   }
 
   step(env: LifeEnv, dt: number): void {
-    this.ecoSec += dt;
-    if (!this.consumersSeeded && this.ecoSec >= CONSUMER_DELAY_SEC) {
-      this.consumersSeeded = true;
-      this.pop.seed(
-        CONSUMER_FOUNDERS,
-        { role: CONSUMER, size: 0.5, prefTemp: this.founderTemperature, tolerance: FOUNDER_TOLERANCE, chem: FOUNDER_CHEM },
-        FOUNDER_SPREAD,
-      );
+    const eco = this.eco;
+    if (!eco) return;
+    eco.step(env, dt);
+    let dead = 0;
+    for (let i = 0; i < CAP; i++) {
+      if (this.prevAlive[i] && (!eco.alive[i] || eco.id[i] !== this.prevId[i])) dead += this.prevMass[i];
     }
-    this.pop.step(env, dt);
-    this.dead = this.pop.takeDeadBiomass();
-    this.lastDt = dt;
+    this.remember();
+    const b = eco.biomass();
+    this.drv = { producerBiomass: b.producerBiomass, consumerBiomass: b.consumerBiomass, deadBiomass: dead / dt };
   }
 
-  drivers(): LifeDrivers {
-    const s = this.pop.stats();
-    return { producerBiomass: s.producerBiomass, consumerBiomass: s.consumerBiomass, deadBiomass: this.dead / this.lastDt };
-  }
+  drivers(): LifeDrivers { return this.drv; }
 
   summary(): LifeSummary {
-    const s = this.pop.stats();
-    return { producers: s.producers, consumers: s.consumers, generation: s.generation, traitAverages: s.traitAverages };
+    const eco = this.eco;
+    if (!eco) return { producers: 0, consumers: 0, generation: 0, traitAverages: {} };
+    const s = eco.stats();
+    let cells = 0;
+    for (let i = 0; i < CELLS; i++) if (eco.grid.mat[i] + eco.grid.canopy[i] > 0.01) cells++;
+    return { producers: cells, consumers: s.animals, generation: s.generation, traitAverages: s.traitAverages };
   }
 
-  floraBuffer(): Float32Array {
-    const out = new Float32Array(FLORA_GRID * FLORA_GRID * FLORA_FIELDS);
-    const { data, count } = this.pop.pack();
-    for (let i = 0; i < count; i++) {
-      const o = i * ORGANISM_STRIDE;
-      if (data[o + OrganismField.role] !== PRODUCER) continue;
-      const cx = Math.min(FLORA_GRID - 1, Math.floor(data[o + OrganismField.x] * FLORA_GRID));
-      const cy = Math.min(FLORA_GRID - 1, Math.floor(data[o + OrganismField.y] * FLORA_GRID));
-      const size = data[o + OrganismField.size];
-      const c = (cy * FLORA_GRID + cx) * FLORA_FIELDS;
-      out[c] += size;                      // mat: all producers
-      out[c + 1] += Math.max(0, size - 1); // canopy: only the big ones
-    }
+  floraBuffer(): Float32Array { return this.eco ? this.eco.floraSnapshot() : new Float32Array(FLORA_STRIDE * CELLS); }
+
+  packOrganisms(): Float32Array { return this.eco ? this.eco.packOrganisms().data : new Float32Array(0); }
+
+  guideAnimals(): GuideAnimal[] {
+    const eco = this.eco;
+    if (!eco) return [];
+    const out: GuideAnimal[] = [];
+    for (let i = 0; i < CAP; i++) if (eco.alive[i]) out.push({ id: eco.id[i], genome: eco.genome[i] as AnimalGenome });
     return out;
   }
 
-  animals(): LifeAnimal[] {
-    const { data, count } = this.pop.pack();
-    const out: LifeAnimal[] = [];
-    const [sLo, sHi] = this.world.life.rules.bounds.size;
-    for (let i = 0; i < count; i++) {
-      const o = i * ORGANISM_STRIDE;
-      if (data[o + OrganismField.role] !== CONSUMER) continue;
-      const id = data[o + OrganismField.id];
-      const size = data[o + OrganismField.size];
-      out.push({
-        id,
-        genome: {
-          body: { ...this.template.body, size: Math.min(1, Math.max(0, (size - sLo) / (sHi - sLo))) },
-          climate: {
-            prefTemp: data[o + OrganismField.prefTemp],
-            tolerance: data[o + OrganismField.tolerance],
-            chem: data[o + OrganismField.chem],
-          },
-          comp: { ...this.world.life.composition },
-          lineage: id,
-        },
-        x: data[o + OrganismField.x],
-        y: data[o + OrganismField.y],
-        heading: 0,
-        mode: LOCOMOTION.swim,
-        role: CONSUMER,
-        size,
-        energy: data[o + OrganismField.energy],
-        generation: data[o + OrganismField.generation],
-      });
-    }
-    out.sort((a, b) => a.id - b.id);
-    return out;
+  drainBirths(): { id: number; plan: Float32Array }[] {
+    return this.eco ? this.eco.drainBirths().map((b: { id: number; plan: BodyPlan }) => ({ id: b.id, plan: packBodyPlan(b.plan) })) : [];
+  }
+
+  setLiquid(liquid: ArrayLike<number>): void {
+    if (!this.eco) return;
+    const g = this.eco.grid.liquid;
+    for (let i = 0; i < CELLS; i++) g[i] = Math.max(0, liquid[i]);
+  }
+
+  private remember(): void {
+    const eco = this.eco!;
+    this.prevAlive.set(eco.alive);
+    for (let i = 0; i < CAP; i++) { this.prevId[i] = eco.id[i]; this.prevMass[i] = eco.struct[i]; }
   }
 }

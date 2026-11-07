@@ -86,13 +86,17 @@ describe('SimHost', () => {
       const f = fakeHost();
       f.host.handle({ type: 'selectWorld', worldId: 'carbon', requested: EARTH });
       for (const ms of frames) f.step(ms);
-      f.step(0); // force a final snapshot
+      f.step(60); // past one snapshot period, so the last snapshot is current
       const s = f.snapshots().at(-1)!;
       return { stats: s.stats, pop: s.population, org: Array.from(s.organisms) };
     };
-    const total = 12000;
-    const fps60 = Array.from({ length: Math.round(total / (1000 / 60)) }, () => 1000 / 60);
-    const fps17 = Array.from({ length: Math.round(total / (1000 / 17)) }, () => 1000 / 17);
+    const total = 10400;
+    const frames = (fps: number) => {
+      const n = Math.floor(total / (1000 / fps));
+      return [...Array.from({ length: n }, () => 1000 / fps), total - n * (1000 / fps)];
+    };
+    const fps60 = frames(60);
+    const fps17 = frames(17);
     const a = end(fps60);
     expect(end(fps17)).toEqual(a);
     expect(end([total])).toEqual(a); // one callback after a 22 s stall

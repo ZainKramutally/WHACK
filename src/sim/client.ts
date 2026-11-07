@@ -1,13 +1,13 @@
 // Main-thread wrapper: bridges the sim worker to the bus.
 //   bus 'world:selected' → worker selectWorld      bus 'control:set' → worker controlSet
 //   worker snapshot → bus 'sim:snapshot'           worker events → bus 'build:life' / 'build:complete' / 'control:blocked' / 'guide:newForm'
-// Drop-in for the stub: `startSimClient(bus, { seaLevel })` returns a stop function.
+// Drop-in for the stub: `startSim(bus)` returns a stop function.
 import type { Bus } from '../bus';
 import type { SimSnapshot } from '../worlds/types';
 import type { FromWorker, ToWorker } from './workerProtocol';
 
 export interface SimClientOptions {
-  /** Sea level in metres for the snapshot's build progress and stats (the terrain's seaLevelForCover). Default: the worker's 0. */
+  /** Optional override of the snapshot's sea level; the worker already computes it from the terrain (gen/terrain.ts). */
   seaLevel?(buildProgress: number, stats: Record<string, number>): number;
   /** Test seam; defaults to the real sim worker. */
   createWorker?(): Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror'>;
@@ -58,3 +58,6 @@ export function startSimClient(bus: Bus, opts: SimClientOptions = {}): () => voi
     worker.terminate();
   };
 }
+
+/** Same name and shape as stubSim's startStubSim, so main.ts swaps with one line. */
+export const startSim = startSimClient;

@@ -6,20 +6,18 @@ import type {
   BuildConfig, Conditions, ControlId, LivingBand, SimSnapshot, WorldConfig,
 } from '../worlds/types';
 import { controlList, controls } from '../worlds/controls';
-import { develop, type DevelopConditions, type DevelopInputs } from './develop';
+import { createTerrain, seaLevelForCover, type Terrain, type TerrainState } from '../gen/terrain';
+import { CELLS, GRID, liquidFromHeights } from './grid';
 import { FormTracker, type NewForm } from './guide';
 import {
   CONTROL_ORDER, applyControl, canLive, equilibriumSeaCover, livingBands, startingConditions,
   type LimitsEnv,
 } from './limits';
-import type { LifeEnv, LifeModel } from './lifeModel';
-import { PopulationLife } from './lifeModel';
+import { EcologyLife, type LifeEnv, type LifeModel } from './lifeModel';
 import {
   gasDensity, orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
   type PartialPressureParams, type RadiativeParams,
 } from './models';
-import { packOrganism, ORGANISM_STRIDE } from './organismLayout';
-import { packBodyPlan } from './plan';
 import { arrheniusFactor } from './population';
 import { makeRng } from './rng';
 
@@ -32,6 +30,7 @@ const EDGE_ZONE = 0.1;        // share of a living band, next to a lethal limit,
 const BLOCKED_REPEAT = 20;    // ticks before the same control may report "blocked" again while pinned at an edge
 const EPS = 1e-6;             // slack so float sums of frame times never lose a tick
 const EDGE_INSET = 1e-6;      // a setting held at a band edge sits this far (relative) inside it, so rounding never tips it over
+const LIQUID_EVERY = 100;     // ticks between refreshes of the ecology's liquid-depth grid (5 ecology s)
 const MOLAR_MASS_AIR = 0.028; // kg/mol, N₂ is the main gas on both worlds
 
 /**
@@ -53,6 +52,13 @@ export function ticksDueAfter(elapsedSec: number, cfg: Pick<BuildConfig, 'durati
   return build + Math.floor((elapsedSec - cfg.durationSec) * TICK_HZ + EPS);
 }
 
+/** Build seconds the world has reached after `tick` ticks (inverse of ticksDueAt): the tick-time clock the ecology sees. */
+export function buildSecOfTick(tick: number, cfg: Pick<BuildConfig, 'durationSec' | 'lifeSec' | 'ecologySec'>): number {
+  const total = ticksDueAt(cfg.durationSec, cfg);
+  if (total <= 0 || tick >= total) return cfg.durationSec;
+  return cfg.lifeSec + (tick / total) * (cfg.durationSec - cfg.lifeSec);
+}
+
 export type SimEvent =
   | { type: 'build:life' }
   | { type: 'build:complete' }
@@ -62,10 +68,10 @@ export type SimEvent =
 export interface SimOptions {
   /** Defaults to world.demoSeed. */
   seed?: number;
-  /** Defaults to the population.ts adapter. */
+  /** Defaults to the Ecology adapter. */
   life?: LifeModel;
-  /** Sea level in metres for a sea cover (0..1); the terrain agent's seaLevelForCover. Defaults to 0 until wired in. */
-  seaLevelFn?: (cover: number) => number;
+  /** Overrides the terrain-derived sea level in metres, given (buildProgress, seaCover 0..1). Mostly a test seam. */
+  seaLevelFn?: (buildProgress: number, cover: number) => number;
 }
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -88,7 +94,6 @@ export class WorldSimulation {
   private stats: Record<string, number> = {};
   private orbitAU = 1;
   private readonly gravity: number;
-  private readonly lightRef: number;
   private readonly limitsEnv: LimitsEnv;
   private readonly radBase: RadiativeParams & Record<string, number>;
   private readonly buildTicks: number;
@@ -96,13 +101,20 @@ export class WorldSimulation {
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
   private readonly tracker = new FormTracker();
-  private seenAnimals = new Set<number>();
-  private seaLevelFn: (cover: number) => number;
+  private readonly terrain: Terrain | undefined;
+  private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
+  private readonly seaCache = new Map<string, number>();
+  private liquidKey = '';
 
   constructor(world: WorldConfig, requested: Conditions, opts: SimOptions = {}) {
     this.world = world;
     this.seed = opts.seed ?? world.demoSeed;
-    this.seaLevelFn = opts.seaLevelFn ?? (() => 0);
+    this.seaLevelFn = opts.seaLevelFn;
+    try {
+      this.terrain = createTerrain(world.terrain, this.seed);
+    } catch (e) {
+      console.warn('sim: terrain config rejected, using flat sea level 0:', e);
+    }
 
     const radDef = world.derived.find((d) => d.model === 'radiativeBalance' && d.statId === 'temperature');
     if (!radDef) throw new Error(`simulation: ${world.id} has no radiativeBalance temperature model`);
@@ -132,12 +144,8 @@ export class WorldSimulation {
     this.orbitAU = orbitForTemperature(this.radNow(), start.temperature, start.nitrogen);
     this.refreshDerived();
 
-    // The world's own reference starlight (its startDefaults orbit), so the climate core's light is relative to it.
-    const d = world.startDefaults;
-    this.lightRef = starlight(this.radBase, orbitForTemperature(this.radBase, d.temperature, d.nitrogen));
-
     this.tickBands = livingBands(world, this.conditions(), this.limitsEnv);
-    this.life = opts.life ?? new PopulationLife(world, this.seed, start.temperature);
+    this.life = opts.life ?? new EcologyLife(world, this.seed, { liquid: () => this.liquidNow(), founderTemperature: start.temperature });
   }
 
   // ---- public API ---------------------------------------------------------------------------------------
@@ -146,7 +154,7 @@ export class WorldSimulation {
   get tickCount(): number { return this.ticks; }
   get buildComplete(): boolean { return this.complete; }
 
-  setSeaLevelFn(fn: (cover: number) => number): void { this.seaLevelFn = fn; }
+  setSeaLevelFn(fn: (buildProgress: number, cover: number) => number): void { this.seaLevelFn = fn; }
 
   /** The live value under each slider thumb. */
   conditions(): Conditions {
@@ -193,44 +201,17 @@ export class WorldSimulation {
     const w = this.world;
     const conds = this.conditions();
     const bands = livingBands(w, conds, this.limitsEnv);
-    const animals = this.life.animals();
     const summary = this.life.summary();
     const b = w.build;
 
-    const light = clamp01(this.stats.light / (w.life.inputs.scalings.lightFull || 1));
-    const dev: DevelopConditions = { light, heatBand: this.heatBand(bands.temperature) };
-    const inputs: DevelopInputs = {
-      solvent: w.life.inputs.solvent,
-      airDensity: this.airDensity() * w.life.inputs.airDensity.scale,
-      tissueDensity: w.life.inputs.tissueDensity,
-    };
-
-    const organisms = new Float32Array(animals.length * ORGANISM_STRIDE);
-    const births: SimSnapshot['births'] = [];
-    const seen = new Set<number>();
-    animals.forEach((a, i) => {
-      seen.add(a.id);
-      if (!this.seenAnimals.has(a.id)) births.push({ id: a.id, plan: packBodyPlan(develop(a.genome, dev, inputs)) });
-      packOrganism(organisms, i, {
-        x: a.x, y: a.y, role: a.role, size: a.size,
-        prefTemp: a.genome.climate.prefTemp, tolerance: a.genome.climate.tolerance, chem: a.genome.climate.chem,
-        energy: a.energy, id: a.id, generation: a.generation, heading: a.heading, mode: a.mode,
-        body: a.genome.body, comp: a.genome.comp, lineage: a.genome.lineage,
-      });
-    });
-    this.seenAnimals = seen;
-
-    for (const f of this.tracker.update(animals.map((a) => ({ id: a.id, genome: a.genome })))) {
-      this.events.push({ type: 'guide:newForm', ...f });
-    }
+    for (const f of this.tracker.update(this.life.guideAnimals())) this.events.push({ type: 'guide:newForm', ...f });
 
     // Seas fill in over the seas window: the reported cover and the sea level rise together, so a stat never
     // disagrees with the picture. The equilibrium cover that life and the limits read is unaffected.
     const fill = smoothstep(b.seasSec[0], b.seasSec[1], this.elapsed);
     const cover = this.stats.seaCover * fill;
-    const stats = { ...this.stats, seaCover: cover, seaLevel: this.seaLevelFn(cover / 100) };
-
     const progress = this.complete ? 1 : Math.min(this.elapsed / b.durationSec, 1 - EPS);
+    const stats = { ...this.stats, seaCover: cover, seaLevel: this.seaLevel(progress, cover / 100) };
     return {
       worldId: w.id,
       timeSec: this.elapsed,
@@ -240,9 +221,9 @@ export class WorldSimulation {
       population: { producers: summary.producers, consumers: summary.consumers },
       generation: summary.generation,
       traitAverages: summary.traitAverages,
-      organisms,
+      organisms: this.life.packOrganisms(),
       flora: this.life.floraBuffer(),
-      births,
+      births: this.life.drainBirths(),
       controls: conds,
       bands,
     };
@@ -282,6 +263,7 @@ export class WorldSimulation {
     }
     this.clampStats();
     this.refreshDerived();
+    if (this.ticks % LIQUID_EVERY === 0) this.refreshLiquid();
 
     // The world never enters a red zone: the same limits the sliders show are the kill conditions.
     if (!canLive(this.world, this.conditions(), this.limitsEnv).ok) this.enforceBands();
@@ -376,6 +358,60 @@ export class WorldSimulation {
     }
   }
 
+  // ---- terrain: sea level and the ecology's liquid grid ----------------------------------------------------------
+
+  private terrainState(progress: number, tempC: number): TerrainState {
+    const t = this.world.terrain;
+    const rec: Record<string, number> = {};
+    for (const m of t.machines) rec[m.id] = progress;
+    const heat = clamp01(0.5 + (tempC - this.world.solvent.freezeC) / t.heatSolventSpan);
+    return { rise: progress, progress: rec, heatSolvent: heat };
+  }
+
+  /** Sea level in metres. A pure function of (progress to 1%, cover to 0.5%, temperature to 1 °C), so it never depends on call timing. */
+  private seaLevel(progress: number, cover01: number): number {
+    if (this.seaLevelFn) return this.seaLevelFn(progress, cover01);
+    if (!this.terrain) return 0;
+    const pq = Math.round(progress * 100) / 100;
+    const cq = Math.round(cover01 * 200) / 200;
+    const tq = Math.round(this.stats.temperature);
+    const key = `${pq}:${cq}:${tq}`;
+    let level = this.seaCache.get(key);
+    if (level === undefined) {
+      level = seaLevelForCover(this.terrain, this.terrainState(pq, tq), cq);
+      if (this.seaCache.size > 400) this.seaCache.clear();
+      this.seaCache.set(key, level);
+    }
+    return level;
+  }
+
+  /** What the ecology's world looks like at the tick clock: progress and equilibrium cover after `ticks` ticks. */
+  private tickTerrain(): { progress: number; cover: number } {
+    const b = this.world.build;
+    const sec = buildSecOfTick(this.ticks, b);
+    return { progress: sec / b.durationSec, cover: (this.stats.seaCover / 100) * smoothstep(b.seasSec[0], b.seasSec[1], sec) };
+  }
+
+  /** Static liquid depth per cell (sea level − ground at each cell centre), on the tick clock so it never depends on frame rate. */
+  private liquidNow(): ArrayLike<number> {
+    const { progress, cover } = this.tickTerrain();
+    if (!this.terrain) return Float32Array.from({ length: CELLS }, (_, i) => Math.max(0, 3 - (i % GRID) * 0.15)); // a rough shore
+    const level = this.seaLevel(progress, cover);
+    const S = this.terrain.patchSize;
+    const pq = Math.round(progress * 100) / 100;
+    const state = this.terrainState(pq, Math.round(this.stats.temperature));
+    return liquidFromHeights((x, y) => this.terrain!.height((x - 0.5) * S, (y - 0.5) * S, state), level);
+  }
+
+  private refreshLiquid(): void {
+    if (!this.lifeStarted || !this.life.setLiquid) return;
+    const { progress, cover } = this.tickTerrain();
+    const key = `${Math.round(progress * 100)}:${Math.round(cover * 200)}:${Math.round(this.stats.temperature)}`;
+    if (key === this.liquidKey) return;
+    this.liquidKey = key;
+    this.life.setLiquid(this.liquidNow());
+  }
+
   private airDensity(): number {
     return gasDensity(this.stats.pressure, this.stats.temperature, MOLAR_MASS_AIR);
   }
@@ -390,7 +426,7 @@ export class WorldSimulation {
     return {
       temperature: s.temperature,
       oxygen: s.oxygen,
-      light: s.light / this.lightRef,
+      light: clamp01(s.light / (this.world.life.inputs.scalings.lightFull || 1)),
       habitat: this.seaLimited ? clamp01(s.seaCover / 100) : 1,
       edgeStress: this.edgeStress(),
       starlight: s.light,
