@@ -80,7 +80,12 @@ async function smoke(world) {
   }, id);
   const c = await findCreature();
   console.log('nearest land creature', JSON.stringify(c && { ...c, d: Math.round(Math.sqrt(c.d)) }));
-  await p.evaluate((c) => window.player.respawn(c.x + 5, c.z), c);
+  // Stand 6 m in front of the creature's far side along the camera's current heading, so it ends up in view.
+  await p.evaluate((c) => {
+    const cam = window.app.camera, d = cam.getWorldDirection(new cam.position.constructor());
+    const len = Math.hypot(d.x, d.z) || 1;
+    window.player.respawn(c.x - (d.x / len) * 6, c.z - (d.z / len) * 6);
+  }, c);
   await p.waitForTimeout(2500);
   let hit = null;
   for (let k = 0; k < 6 && !hit; k++) {

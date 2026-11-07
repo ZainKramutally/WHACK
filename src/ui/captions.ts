@@ -8,9 +8,6 @@ import type { ControlDef, SimSnapshot, WorldConfig } from '../worlds/types';
 const SHOW_MS = 4000;      // a lone caption stays this long, then fades
 const MIN_MS = 2500;       // when others are waiting, each caption shows at least this long
 const MAX_QUEUE = 4;
-// A control:blocked this soon after world:selected is a start move (startingConditions slid a slider), not a drag.
-// Cleaner: have the sim mark start moves in the event payload.
-const START_MOVE_MS = 600;
 
 export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig, controls: ControlDef[] = controlList) {
   const box = el('div', 'wu-caption');
@@ -21,7 +18,6 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig,
   let fadeTimer: ReturnType<typeof setTimeout> | undefined;
   let pumpTimer: ReturnType<typeof setTimeout> | undefined;
   let startShown = false;
-  let selectedAt = -Infinity;
   const queue: string[] = [];
   let current = '';
   let busy = false;
@@ -59,16 +55,16 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig,
   };
 
   const offs = [
-    listen(bus, 'world:selected', () => { selectedAt = performance.now(); showStart(); }),
+    listen(bus, 'world:selected', showStart),
     // Mounted after Generate? The first build snapshot is the fallback trigger.
     listen(bus, 'sim:snapshot', (s: SimSnapshot) => { if (s.buildProgress < 1) showStart(); }),
     listen(bus, 'build:life', () => show(world.build.captions.life)),
-    listen(bus, 'control:blocked', ({ controlId, limitId }) => {
+    listen(bus, 'control:blocked', ({ controlId, limitId, start: isStart }) => {
       const r = limitReason(limitId);
       if (!r) return;
       const def = controls.find((c) => c.id === controlId);
       const start = world.startDefaults[controlId];
-      if (performance.now() - selectedAt < START_MOVE_MS && def && start !== undefined) {
+      if (isStart && def && start !== undefined) {
         show(`${r}, so ${def.label.toLowerCase()} starts at ${formatValue(start, def.unit)}`);
       } else show(r);
     }),
