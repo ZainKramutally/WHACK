@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "axis": "time-to-complexity (F risk #1)",
+    "date": "2026-11-07",
+    "notes": "research/body-plans/notes/01-evolution-speed.md",
+    "caveat": "Fields marked '(recalled)' come from paper bodies as remembered, not verified against PDFs. Game rows are [POP]/[INFERRED]; Steam/dev pages returned no usable text in the time box."
+  },
+  "studies": [
+    {"ref": "Sims 1994, Evolving virtual creatures (SIGGRAPH)", "what_evolved": "3D morphology + neural control for swim/walk/jump/follow", "pop_size": 300, "generations": "50-100 (recalled)", "wallclock": "~3 h per run on 32-proc CM-5 (recalled)", "trick": "directed-graph genome with recursion (repeated segments/limbs), fitness functions", "doi": "10.1145/192161.192167", "tag": "[PEER]"},
+    {"ref": "Sims 1994, Evolving 3D morphology and behavior by competition (Artificial Life 1(4))", "what_evolved": "competing creatures (cube possession)", "pop_size": "300 (recalled)", "generations": "~100 (recalled)", "wallclock": "hours", "trick": "coevolution: strategies and counter-strategies", "doi": "10.1162/artl.1994.1.4.353", "tag": "[PEER]"},
+    {"ref": "Lipson & Pollack 2000, Nature", "what_evolved": "bar/actuator robots, physically fabricated", "pop_size": null, "generations": "hundreds (recalled, unverified)", "wallclock": "days CPU (2000)", "trick": "fixed simple part vocabulary", "doi": "10.1038/35023115", "tag": "[PEER]"},
+    {"ref": "Stanley 2007, CPPNs (GPEM)", "what_evolved": "indirect developmental encoding (symmetry, repetition with variation)", "pop_size": null, "generations": null, "wallclock": null, "trick": "regularities cheap: one gene shifts a repeated pattern", "doi": "10.1007/s10710-007-9028-8", "tag": "[PEER]"},
+    {"ref": "Stanley, D'Ambrosio & Gauci 2009, HyperNEAT (Artificial Life)", "what_evolved": "large-scale neural nets via geometric encoding", "pop_size": null, "generations": null, "wallclock": null, "trick": "indirect encoding exploits geometry", "doi": "10.1162/artl.2009.15.2.15202", "tag": "[PEER]"},
+    {"ref": "Cheney, MacCurdy, Clune & Lipson 2013, Unshackling evolution (GECCO)", "what_evolved": "multi-material voxel soft robots (locomotion)", "pop_size": "30 (recalled)", "generations": "1000 (recalled)", "wallclock": "hours", "trick": "CPPN-NEAT beats direct encoding in speed and natural look", "doi": "10.1145/2463372.2463404", "tag": "[PEER]"},
+    {"ref": "Cheney et al. 2018, J R Soc Interface", "what_evolved": "morphology + control co-optimisation", "pop_size": null, "generations": null, "wallclock": null, "trick": "morphological innovation protection (reduced selection on newly reshaped bodies)", "doi": "10.1098/rsif.2017.0937", "tag": "[PEER]"},
+    {"ref": "Lehman & Stanley 2011, Abandoning objectives (Evol Comput)", "what_evolved": "novelty search (mazes, biped)", "pop_size": null, "generations": null, "wallclock": null, "trick": "reward divergence instead of objective", "doi": "10.1162/EVCO_a_00025", "tag": "[PEER]"},
+    {"ref": "Lehman & Stanley 2011, NS + local competition (GECCO)", "what_evolved": "diverse locomoting virtual creatures in one run", "pop_size": "unverified", "generations": "unverified", "wallclock": null, "trick": "novelty + compete only against morphological neighbours", "doi": "10.1145/2001576.2001606", "tag": "[PEER]"},
+    {"ref": "Mouret & Clune 2015, MAP-Elites (arXiv:1504.04909)", "what_evolved": "quality-diversity archives", "pop_size": "archive", "generations": "thousands", "wallclock": "hours", "trick": "one elite per niche cell keeps stepping stones", "doi": null, "arxiv": "1504.04909", "tag": "[PREPRINT]"},
+    {"ref": "Cully, Clune, Tarapore & Mouret 2015, Nature", "what_evolved": "MAP-Elites behaviour repertoire for damaged robots", "pop_size": "archive", "generations": "~millions of evals offline", "wallclock": "offline hours-days; adaptation in minutes", "trick": "pre-computed archive used at runtime (cf. pre-evolved menagerie)", "doi": "10.1038/nature14422", "tag": "[PEER]"},
+    {"ref": "Brant & Stanley 2017, Minimal criterion coevolution (GECCO)", "what_evolved": "open-ended maze/agent coevolution", "pop_size": null, "generations": null, "wallclock": null, "trick": "reproduction gated by minimal criterion (cf. F's E > 1.5M)", "doi": "10.1145/3071178.3071186", "tag": "[PEER]"},
+    {"ref": "Lenski, Ofria, Pennock & Adami 2003, Nature (Avida)", "what_evolved": "complex logic function EQU", "pop_size": "3600 x 50 populations (recalled)", "generations": "16000 updates (recalled)", "wallclock": "hours", "trick": "rewarding simpler stepping-stone functions; without them EQU never evolved (recalled)", "doi": "10.1038/nature01568", "tag": "[PEER]"},
+    {"ref": "Zaman et al. 2014, PLoS Biol (Avida)", "what_evolved": "complex traits under host-parasite coevolution", "pop_size": null, "generations": null, "wallclock": null, "trick": "coevolution greatly increases complexity", "doi": "10.1371/journal.pbio.1002023", "tag": "[PEER]"},
+    {"ref": "Auerbach & Bongard 2014, PLoS Comput Biol", "what_evolved": "morphological complexity vs environment", "pop_size": null, "generations": null, "wallclock": null, "trick": "complex environments required for complex bodies", "doi": "10.1371/journal.pcbi.1003399", "tag": "[PEER]"},
+    {"ref": "Bongard 2011, PNAS", "what_evolved": "robots with ontogenetic morphology change", "pop_size": null, "generations": null, "wallclock": null, "trick": "body change during life accelerates robust gait evolution", "doi": "10.1073/pnas.1015390108", "tag": "[PEER]"},
+    {"ref": "Gupta, Savarese, Ganguli & Fei-Fei 2021, Nat Commun (DERL)", "what_evolved": "morphologies + RL-learned controllers", "pop_size": "~4000 morphologies trained", "generations": "tournament", "wallclock": "very large compute", "trick": "learning within lifetime; shows the cost F avoids", "doi": "10.1038/s41467-021-25874-z", "tag": "[PEER]"},
+    {"ref": "Blount, Borland & Lenski 2008, PNAS (LTEE Cit+)", "what_evolved": "aerobic citrate use (key innovation)", "pop_size": "~10^8 per flask", "generations": "~31,500", "wallclock": "~15 years", "trick": "historical contingency: potentiating mutations first", "doi": "10.1073/pnas.0803151105", "tag": "[PEER]"},
+    {"ref": "Sniegowski, Gerrish & Lenski 1997, Nature", "what_evolved": "mutator alleles", "pop_size": "LTEE", "generations": "<10,000 (3 of 12 pops, recalled)", "wallclock": "years", "trick": "mutation rate evolves by hitchhiking", "doi": "10.1038/42701", "tag": "[PEER]"},
+    {"ref": "Gerrish & Lenski 1998, Genetica", "what_evolved": "theory: competing beneficial mutations (clonal interference)", "pop_size": null, "generations": null, "wallclock": null, "trick": "asexual adaptation rate saturates with N", "doi": "10.1023/A:1017067816551", "tag": "[PEER]"},
+    {"ref": "Nilsson & Pelger 1994, Proc R Soc B", "what_evolved": "camera eye from light-sensitive patch (model)", "pop_size": null, "generations": "~364,000 (pessimistic, recalled)", "wallclock": "<0.5 Myr", "trick": "continuous small favoured steps, no valleys", "doi": "10.1098/rspb.1994.0048", "tag": "[PEER]"},
+    {"ref": "Bell, Aguirre & Buck 2004, Evolution (Loberg Lake stickleback)", "what_evolved": "armour plate loss", "pop_size": "wild lake population", "generations": "~11 (annual)", "wallclock": "1990-2001: complete morph -> 11%, low morph 0 -> 75%", "trick": "standing variation (Eda) + strong selection", "doi": "10.1554/03-373", "tag": "[PEER]"},
+    {"ref": "Colosimo et al. 2005, Science", "what_evolved": "parallel plate loss via Eda allele", "pop_size": null, "generations": null, "wallclock": null, "trick": "repeated fixation of an old standing allele", "doi": "10.1126/science.1107239", "tag": "[PEER]"},
+    {"ref": "Barrett & Schluter 2008, TREE", "what_evolved": "review: adaptation from standing variation", "pop_size": null, "generations": null, "wallclock": null, "trick": "standing variation faster than new mutation", "doi": "10.1016/j.tree.2007.09.008", "tag": "[REVIEW]"},
+    {"ref": "Losos, Warheit & Schoener 1997, Nature (Anolis)", "what_evolved": "hindlimb length on new islands", "pop_size": "small island founders", "generations": "~10-14 years", "wallclock": "decade", "trick": "strong habitat selection", "doi": "10.1038/387070a0", "tag": "[PEER]"},
+    {"ref": "Gomez et al. 2008, Nature", "what_evolved": "snake segment number", "pop_size": null, "generations": null, "wallclock": null, "trick": "segmentation clock speed: one parameter -> many segments", "doi": "10.1038/nature07020", "tag": "[PEER]"},
+    {"ref": "Lewis 1978, Nature", "what_evolved": "Hox (bithorax) segment identity", "pop_size": null, "generations": null, "wallclock": null, "trick": "duplicated, colinear identity genes", "doi": "10.1038/276565a0", "tag": "[PEER]"},
+    {"ref": "Kirschner & Gerhart 1998, PNAS", "what_evolved": "evolvability concept", "pop_size": null, "generations": null, "wallclock": null, "trick": "modularity, weak linkage, exploratory processes", "doi": "10.1073/pnas.95.15.8420", "tag": "[PEER]"},
+    {"ref": "Wagner & Altenberg 1996, Evolution", "what_evolved": "complex adaptations and evolvability", "pop_size": null, "generations": null, "wallclock": null, "trick": "genotype-phenotype map modularity", "doi": "10.1111/j.1558-5646.1996.tb02339.x", "tag": "[PEER]"},
+    {"ref": "Dawkins & Krebs 1979, Proc R Soc B", "what_evolved": "arms races between and within species", "pop_size": null, "generations": null, "wallclock": null, "trick": "escalation sustains directional selection", "doi": "10.1098/rspb.1979.0081", "tag": "[PEER]"},
+    {"ref": "Yao, Liu & Lin 1999, IEEE TEC (fast EP)", "what_evolved": "benchmark optimisation", "pop_size": null, "generations": null, "wallclock": null, "trick": "Cauchy (heavy-tailed) mutation escapes plateaus faster", "doi": "10.1109/4235.771163", "tag": "[PEER]"}
+  ],
+  "games": [
+    {"name": "Species: Artificial Life, Real Evolution (Quasar)", "evolves": "3D body params on fixed procedural skeleton (limbs, torso, neck, head, colour) + behaviour weights", "time_to_novelty": "tens of minutes to hours of accelerated time for visible speciation (recalled, unverified)", "pop": "hundreds to ~1-2k", "tricks": ["fixed body-part vocabulary", "time acceleration", "player intervention tools", "genetic-distance speciation tracking"], "url": "https://store.steampowered.com/app/774541/", "tag": "[POP]"},
+    {"name": "Thrive (Revolutionary Games)", "evolves": "player species designed in editor; AI species via statistical auto-evo", "time_to_novelty": "per editor session (minutes), player-authored", "pop": "small", "tricks": ["player design", "auto-evo statistical model, not agent sim"], "url": "https://revolutionarygamesstudio.com/", "tag": "[POP]"},
+    {"name": "The Bibites (Leo Caussan)", "evolves": "NN brain + scalar genes (size, colour, diet, vision, metabolism); fixed circular body", "time_to_novelty": "~10-60 min accelerated for diet/behaviour niches (community reports, unverified)", "pop": "~100-500", "tricks": ["time acceleration", "fixed body template", "herbivore/carnivore gene in energy economy"], "url": "https://store.steampowered.com/app/1365580/", "tag": "[POP]"},
+    {"name": "Gene Pool / Swimbots (Jeffrey Ventrella)", "evolves": "2D articulated swimmer bodies + motor phase genes", "time_to_novelty": "coherent swimming in minutes to tens of minutes at fast speed (recalled)", "pop": "~hundreds", "tricks": ["sexual selection via mate choice", "physics is fitness", "fast-forward"], "url": "https://www.swimbots.com/", "tag": "[POP]"},
+    {"name": "Polyworld (Larry Yaeger 1994)", "evolves": "NN brains + few body genes (size, strength, colour); fixed polygon body", "time_to_novelty": "thousands of timesteps, hours", "pop": "dozens to ~300", "tricks": ["steady-state GA seeding until ecology self-sustains (midwife precedent)"], "url": "https://en.wikipedia.org/wiki/Polyworld", "tag": "[BOOK]"},
+    {"name": "Framsticks (Komosinski & Ulatowski)", "evolves": "3D stick bodies + neurons, multiple encodings", "time_to_novelty": "hours to days for complex forms", "pop": "user-set", "tricks": ["user-set fitness and mutation rates (artificial selection)", "developmental encodings"], "url": "https://www.framsticks.com/", "tag": "[BOOK]", "doi": "10.1007/978-1-84882-285-6_5"},
+    {"name": "Evolution (Keiwan Donyagard)", "evolves": "NN controller only; body designed by player", "time_to_novelty": "competent walking in ~20-100 gens at 10-30 s/gen", "pop": "10-100", "tricks": ["player-fixed body", "batch simulation", "speed-up"], "url": "https://keiwan.itch.io/evolution", "tag": "[POP]"},
+    {"name": "Evolve 4.0 (Ken Stauffer)", "evolves": "2D grid organisms with Forth-like code genomes", "time_to_novelty": "hours", "pop": "thousands of cells", "tricks": ["long runs", "code evolution"], "url": "http://www.stauffercom.com/evolve4/", "tag": "[POP]"},
+    {"name": "Biogenesis (Joan Queralt)", "evolves": "2D segment organisms; segment colour = function", "time_to_novelty": "minutes to tens of minutes for new shapes and predators", "pop": "~hundreds", "tricks": ["fixed segment vocabulary", "energy economy", "fast-forward"], "url": "https://biogenesis.sourceforge.net/", "tag": "[POP]"},
+    {"name": "Darwin's Demons (Soule et al., U. Idaho)", "evolves": "enemy sprites + behaviour vs the player", "time_to_novelty": "every wave (seconds to a minute)", "pop": "~tens per wave", "tricks": ["player is selection pressure", "1 generation = 1 wave"], "url": "https://store.steampowered.com/search/?term=Darwin%27s+Demons", "tag": "[POP]"},
+    {"name": "Galactic Arms Race (Hastings, Guha & Stanley)", "evolves": "weapon particle systems (cgNEAT/CPPN)", "time_to_novelty": "new weapons each session, minutes", "pop": "collective player usage", "tricks": ["player use = fitness", "CPPN encoding"], "url": "https://doi.org/10.1109/TCIAIG.2009.2038365", "tag": "[PEER]"},
+    {"name": "Picbreeder (Secretan et al.)", "evolves": "CPPN images", "time_to_novelty": "~10-100 interactive generations", "pop": "15 per screen", "tricks": ["interactive selection", "branching from archived results"], "url": "https://doi.org/10.1162/EVCO_a_00030", "tag": "[PEER]"}
+  ],
+  "recipe": {
+    "pop": {"animals": 800, "cap": 1024, "note": "rate scales with ln N; spend CPU on ticks not agents"},
+    "generation_time": {"founder_sim_s": 4, "juvenile_s": 1.5, "reproduce_threshold": "E > 1.2*M for small S", "lifespan": "12 s * S^0.25"},
+    "mutation": {"per_gene_p": 0.3, "sigma_gaussian": 0.06, "heavy_tail_fraction": 0.1, "heavy_tail": "Cauchy(0, 0.12), clamped [0,1]", "stress": "per-parent: if parent E < 0.3*M at budding, child sigma x2.5 (global 12 s x2.5 kept as fallback)"},
+    "duplication": {"segment_dup_p": 0.03, "hox_domain_shift_p": 0.05, "limb_pair_dup_p": 0.02, "founder_standing_variation": "sigma 0.12 on g1, g9-g12, g14, g21, g24; ~15% founders with g10 > g9 (tiny buds)"},
+    "selection": {"target_s_in_niche": ">= 0.3 (measured headless as reproductive-rate ratio)", "gradients": "limb buds reduce crawl cost smoothly: crawl x(1 + 5*exp(-4*len/S)); horns of any length give counter-damage", "early_arms_race": "opportunistic predation from ~0:50 when gape > prey size and t > 0.4, low gain", "spatial": "offspring within 2 m of parent; grid-cell food competition", "innovation_protection": "1 s no-predation for newborns with structural mutation"},
+    "ticks_per_sec": {"fixed_step_hz": 20, "baseline_multiplier": 3, "baseline_ticks_per_real_s": 60, "deep_time_multiplier": 40, "deep_time_ticks_per_real_s": 800, "deep_time_window_s": 20, "cpu_estimate": "0.3 ms/tick (F, unmeasured): x3 ~18 ms/s main thread; x40 ~240 ms/s in Worker"},
+    "expected_timeline": [
+      {"demo_t": "0:35-0:38", "gens": "0-2", "visible": "newborn size/facet change on dial moves", "driver": "plasticity"},
+      {"demo_t": "0:45", "gens": "~8", "visible": "segment-count spread (serpents vs stubby worms)", "driver": "duplication + standing variation"},
+      {"demo_t": "0:55", "gens": "~15", "visible": "first limb-bud patch near origin", "driver": "founders across limb threshold + smooth crawl gradient"},
+      {"demo_t": "1:05-1:10", "gens": "~22-26", "visible": "plated Si lineages >= 25% in Water; legged grazers spreading", "driver": "dissolution, s >= 0.3"},
+      {"demo_t": "1:20", "gens": "~34", "visible": "first hunters (fallback 'tasted meat' worst case ~1:50)", "driver": "diet sweep after Hunger raised at 1:10"},
+      {"demo_t": "1:30-1:40", "gens": "~41-49", "visible": "horned/clawed hunter patch; prey plates and shoals respond", "driver": "arms race + per-parent stress sigma"},
+      {"demo_t": "2:00-2:20", "gens": "+100-200 (deep time)", "visible": "size divergence; buoyant giants in cold thick air; >= 4 guide bins", "driver": "x40 real ticks"},
+      {"demo_t": "Living Arch", "gens": ">> 200", "visible": "only via pre-evolved menagerie (declared)", "driver": "indeterminate growth too slow"}
+    ],
+    "tuner_pass_criteria": [
+      ">= 1 limbed lineage at >= 5% by gen 20 in >= 8/10 seeds",
+      "plates >= 25% in Water by gen 30",
+      "hornLen > 0.35 in >= 10 hunters within 20 gens of Hunger > 0.6",
+      "buoyant lineage by gen 150 in cold-methane preset"
+    ]
+  },
+  "cheat_analogues": [
+    {"cheat": "stress mutagenesis", "analogue": "SOS/RpoS stress-induced mutagenesis; error-prone Pol IV/V", "refs": ["10.1038/35080556", "10.1080/10409230701648502", "10.1126/science.1082240"], "status": "consensus (mechanism) / disputed (adaptive)"},
+    {"cheat": "Hox midwife", "analogue": "Hsp90 capacitor releases cryptic morphological variation under stress; mutator rise", "refs": ["10.1038/24550", "10.1038/42701"], "status": "consensus (buffering exists) / disputed (importance in nature)"},
+    {"cheat": "grazer tasted meat", "analogue": "plasticity-first evolution; Polyworld GA seeding; EC random immigrants", "refs": ["10.1016/j.tree.2016.03.012"], "status": "plausible; single hand-set individual is closer to immigration than plasticity"}
+  ],
+  "sources": [
+    "10.1145/192161.192167", "10.1162/artl.1994.1.4.353", "10.1038/35023115", "10.1007/s10710-007-9028-8",
+    "10.1162/artl.2009.15.2.15202", "10.1145/2463372.2463404", "10.1098/rsif.2017.0937", "10.1162/EVCO_a_00025",
+    "10.1145/2001576.2001606", "arXiv:1504.04909", "10.1038/nature14422", "10.1145/3071178.3071186",
+    "10.1038/nature01568", "10.1371/journal.pbio.1002023", "10.1371/journal.pcbi.1003399", "10.1073/pnas.1015390108",
+    "10.1038/s41467-021-25874-z", "10.1073/pnas.0803151105", "10.1038/42701", "10.1023/A:1017067816551",
+    "10.1098/rspb.1994.0048", "10.1554/03-373", "10.1126/science.1107239", "10.1016/j.tree.2007.09.008",
+    "10.1038/387070a0", "10.1038/nature07020", "10.1038/276565a0", "10.1073/pnas.95.15.8420",
+    "10.1111/j.1558-5646.1996.tb02339.x", "10.1098/rspb.1979.0081", "10.1109/4235.771163", "10.1038/35080556",
+    "10.1080/10409230701648502", "10.1126/science.1082240", "10.1038/24550", "10.1016/j.tree.2016.03.012",
+    "10.1109/TCIAIG.2009.2038365", "10.1162/EVCO_a_00030", "10.1007/978-1-84882-285-6_5",
+    "Van Valen 1973, Evolutionary Theory 1:1-30 (no DOI)", "Yaeger 1994, ALife III proceedings (book)", "West-Eberhard 2003, Developmental Plasticity and Evolution (book)"
+  ]
+}

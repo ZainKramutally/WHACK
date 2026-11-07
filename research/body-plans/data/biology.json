@@ -1,0 +1,842 @@
+{
+ "meta": {
+  "round": 1,
+  "date": "2026-11-07",
+  "note": "DOIs resolved on Crossref; numbers from OpenAlex abstracts. Tag 'sci' = rule direction matches a real phenomenon; all coefficients remain game.",
+  "off_limits": [
+   "white iron-free scaly-foot population (unverified; candidate nakamura2012)",
+   "limpet teeth 'strongest biological material' superlative",
+   "glass sponge reef heights/Jurassic age",
+   "giant squid eye diameter",
+   "hawk-sized dragonflies"
+  ]
+ },
+ "rules": [
+  {
+   "f_rule": "Adult scale x TSR(heat): cold newborns bigger (plastic)",
+   "phenomenon": "Temperature-size rule: ectotherms reared colder mature larger; -5.0%/degC mass aquatic vs -0.5%/degC terrestrial (~100 mg dry mass)",
+   "status": "consensus (pattern); mechanism disputed",
+   "tag": "sci",
+   "slide_line": "Raise most cold-blooded animals in the cold and they grow up bigger. Ours do too.",
+   "sources": [
+    "atkinson1994",
+    "forster2012"
+   ]
+  },
+  {
+   "f_rule": "R6 explanation: cold slows reactions -> giant",
+   "phenomenon": "Oxygen supply vs demand is the leading explanation of TSR and polar gigantism; contested",
+   "status": "disputed",
+   "tag": "game",
+   "slide_line": "Polar seas grow giants. Why is still argued.",
+   "sources": [
+    "forster2012",
+    "chapelle1999",
+    "verberk2013",
+    "moran2012"
+   ]
+  },
+  {
+   "f_rule": "Cold -> giant (endotherm analogy)",
+   "phenomenon": "Bergmann's rule: 78/110 mammal species larger at higher latitude; heat-conservation mechanism, different from TSR",
+   "status": "consensus (debated per clade)",
+   "tag": "sci",
+   "slide_line": "",
+   "sources": [
+    "ashton2000"
+   ]
+  },
+  {
+   "f_rule": "Size boost from buoyancy (1+0.6*rho_air*buoy)",
+   "phenomenon": "Buoyant support relaxes skeletal size limits [INFERRED]; island rule is food/predator driven and not modelled",
+   "status": "plausible/theorised",
+   "tag": "game",
+   "slide_line": "",
+   "sources": [
+    "lomolino2005"
+   ]
+  },
+  {
+   "f_rule": "(missing) oxygen -> size",
+   "phenomenon": "Palaeozoic giant insects under hyperoxia; some insects develop/evolve larger in hyperoxia",
+   "status": "plausible/theorised",
+   "tag": "sci",
+   "slide_line": "Giant insects lived when the air was oxygen-rich.",
+   "sources": [
+    "harrison2010"
+   ]
+  },
+  {
+   "f_rule": "Si+O plates cheap, C plates expensive: cost ~ 1/(0.2+si)",
+   "phenomenon": "Biomineral is cheap: diatom silicification ~2% of energy budget; shell cost lies in organic matrix",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Building a glass shell costs a diatom about 2% of its energy.",
+   "sources": [
+    "raven1983",
+    "palmer1992"
+   ]
+  },
+  {
+   "f_rule": "Recipe -> plate composition (armour from available minerals)",
+   "phenomenon": "Scaly-foot snail iron sulfide (pyrite+greigite) sclerites; goethite limpet teeth; silica sponges/diatoms/grasses",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "At a deep-sea vent, a snail builds its armour out of iron.",
+   "sources": [
+    "waren2003",
+    "chen2015",
+    "yao2010",
+    "barber2015"
+   ]
+  },
+  {
+   "f_rule": "Hunger -> plates via selection (R10)",
+   "phenomenon": "Escalation / Mesozoic marine revolution: armour and predators ratchet together",
+   "status": "consensus (pattern)",
+   "tag": "sci",
+   "slide_line": "When shell-crushers evolved, snails got thicker shells.",
+   "sources": [
+    "vermeij1977",
+    "vermeij1987"
+   ]
+  },
+  {
+   "f_rule": "Hunger x Development cell is empty (section 7 matrix)",
+   "phenomenon": "Inducible defences: Daphnia helmets/neckteeth on predator cues, transgenerational; grass silica induced by grazing",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Water fleas that smell a predator grow a helmet, and so do their babies.",
+   "sources": [
+    "agrawal1999",
+    "tollrian1995",
+    "tollrian_harvell1999",
+    "mcnaughton1983"
+   ]
+  },
+  {
+   "f_rule": "Gape limit (S > gape*0.8 uneatable); rods/spikes defence",
+   "phenomenon": "Gape-limited predation; stickleback spines vs perch/pike",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "A stickleback's spines make it too big to swallow.",
+   "sources": [
+    "hoogland1956"
+   ]
+  },
+  {
+   "f_rule": "Horns pay as attack under Hunger (R10)",
+   "phenomenon": "Horns/antlers are mostly sexually selected weapons, not predation tools",
+   "status": "refuted (as hunger -> horns)",
+   "tag": "game",
+   "slide_line": "",
+   "sources": [
+    "emlen2008"
+   ]
+  },
+  {
+   "f_rule": "Si plates block water dissolution of Si tissue (R5)",
+   "phenomenon": "Ocean dissolves biogenic silica: ~3% preserved; organic coat protects diatom glass (reverse of F)",
+   "status": "consensus (dissolution)",
+   "tag": "sci",
+   "slide_line": "Only about 3% of the glass ocean life makes reaches the seafloor.",
+   "sources": [
+    "treguer1995",
+    "bidle1999"
+   ]
+  },
+  {
+   "f_rule": "Si+O builders -> spires/reefs (R12)",
+   "phenomenon": "Modern hexactinellid glass sponge reefs off British Columbia; diatom ooze",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Glass sponges still build reefs off Canada.",
+   "sources": [
+    "krautter2001"
+   ]
+  },
+  {
+   "f_rule": "Si -> hexagonal facets, stepped profile, 15-degree joints (R1 at body scale)",
+   "phenomenon": "Biosilica is amorphous; silica builders make lattices (Euplectella cage) but not crystal facets; fibres flex via organics",
+   "status": "consensus (glass lattices); facets invented",
+   "tag": "game",
+   "slide_line": "Venus's flower basket builds a glass lattice tower.",
+   "sources": [
+    "aizenberg2005",
+    "sundar2003"
+   ]
+  },
+  {
+   "f_rule": "Si biases radial symmetry order 3/6",
+   "phenomenon": "Radial silica protists exist, but radial symmetry is common in carbon life too; no causal link",
+   "status": "plausible (analogy only)",
+   "tag": "game",
+   "slide_line": "",
+   "sources": []
+  },
+  {
+   "f_rule": "Eye area A = g19*(1.5 - light): darker -> bigger eyes",
+   "phenomenon": "Dim light -> bigger eyes (deep sea), but total darkness -> eye loss (cavefish; vision 15% of resting metabolism at 1 g)",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "In a cave, eyes cost a young fish 15% of its energy, so evolution switched them off.",
+   "sources": [
+    "warrant2004",
+    "nilsson2012",
+    "jeffery2009",
+    "moran2015"
+   ]
+  },
+  {
+   "f_rule": "Eye cost 0.2*A^2",
+   "phenomenon": "Sensory/neural tissue is energetically expensive",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "",
+   "sources": [
+    "niven2008",
+    "moran2015"
+   ]
+  },
+  {
+   "f_rule": "Glow needs O (glow eyes o>0.3; patches ~ o)",
+   "phenomenon": "Bioluminescence is luciferin oxidation; coelenterazine possibly began as antioxidant",
+   "status": "consensus (oxidation); plausible (origin)",
+   "tag": "sci",
+   "slide_line": "Living light burns oxygen.",
+   "sources": [
+    "rees1998",
+    "haddock2010"
+   ]
+  },
+  {
+   "f_rule": "Dark -> glow wins (R8)",
+   "phenomenon": "76% of observed water-column individuals 0-3900 m off California are bioluminescent",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Three in four animals in the deep sea make their own light.",
+   "sources": [
+    "martini2017"
+   ]
+  },
+  {
+   "f_rule": "Glowing flora -> grazers carry spores",
+   "phenomenon": "Glowing fungi attract insects; glow under circadian control",
+   "status": "plausible/theorised",
+   "tag": "sci",
+   "slide_line": "",
+   "sources": [
+    "oliveira2015"
+   ]
+  },
+  {
+   "f_rule": "Thick air -> float mode, hover cost ~ max(0, rho_body - rho_air) (R11)",
+   "phenomenon": "Titan 1467 hPa / 93.7 K -> ~5.3 kg/m3 [INFERRED], ~4x Earth but ~200x thinner than flesh; floating needs gas bags (siphonophores, Sagan-Salpeter floaters)",
+   "status": "consensus (Titan); theorised (floaters)",
+   "tag": "sci",
+   "slide_line": "On Titan the air is four times thicker and gravity a seventh of ours.",
+   "sources": [
+    "fulchignoni2005",
+    "sagan1976"
+   ]
+  },
+  {
+   "f_rule": "Walk cost per metre ~ M/(sqrt(nLimbs)*len)",
+   "phenomenon": "Cost of transport inversely proportional to effective limb length (98% of variance, no independent mass effect)",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Long legs make walking cheap.",
+   "sources": [
+    "pontzer2007",
+    "taylor1982"
+   ]
+  },
+  {
+   "f_rule": "segN gene + segment duplication mutation -> serpents",
+   "phenomenon": "Segmentation clock sets segment number; fast clock gives snakes hundreds of vertebrae",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "A snake's segment clock just ticks faster.",
+   "sources": [
+    "gomez2008"
+   ]
+  },
+  {
+   "f_rule": "Hox-like domains; limbStart/limbEnd open/close legs",
+   "phenomenon": "Hox genes set segment identity; Ubx change suppresses abdominal legs in insects",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Insects have six legs because one gene says no legs on the abdomen.",
+   "sources": [
+    "lewis1978",
+    "ronshaugen2002",
+    "carroll2005"
+   ]
+  },
+  {
+   "f_rule": "Worm founders -> complexity fast",
+   "phenomenon": "Cambrian appearance of body plans; earlier divergence, later ecological success",
+   "status": "consensus (rapid appearance); timing debated",
+   "tag": "sci",
+   "slide_line": "Most animal body plans appear within a geological blink.",
+   "sources": [
+    "erwin2011"
+   ]
+  },
+  {
+   "f_rule": "Basal cost b0*M^0.75*rate(heat)",
+   "phenomenon": "Kleiber scaling + Boltzmann temperature term (MTE); exponent varies 2/3-1",
+   "status": "consensus (scaling); disputed (universal 3/4)",
+   "tag": "sci",
+   "slide_line": "Bigger animals burn less energy per gram.",
+   "sources": [
+    "kleiber1932",
+    "gillooly2001",
+    "brown2004",
+    "glazier2005"
+   ]
+  },
+  {
+   "f_rule": "Lifespan ~ S^0.25/rate(heat)",
+   "phenomenon": "Ectotherms live longer in colder places within species, as MTE predicts",
+   "status": "consensus-ish",
+   "tag": "sci",
+   "slide_line": "Cold-water animals of the same species live longer.",
+   "sources": [
+    "munch2009"
+   ]
+  },
+  {
+   "f_rule": "Sociality dilution /(1+0.15n)",
+   "phenomenon": "Selfish herd",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "",
+   "sources": [
+    "hamilton1971"
+   ]
+  },
+  {
+   "f_rule": "Colour = composition (R9, skin hash)",
+   "phenomenon": "Diet/mineral pigments (carotenoids, iron sulfide), structural colour; element->hue palette invented",
+   "status": "consensus (principle); palette game",
+   "tag": "sci",
+   "slide_line": "Flamingos are pink because of what they eat.",
+   "sources": [
+    "amat2010",
+    "vukusic2003",
+    "waren2003"
+   ]
+  },
+  {
+   "f_rule": "Plates stain with age towards sea colour (R3)",
+   "phenomenon": "No source for a per-sea palette",
+   "status": "n/a",
+   "tag": "game",
+   "slide_line": "",
+   "sources": []
+  },
+  {
+   "f_rule": "Si flora spineRods cut grazing 60%",
+   "phenomenon": "Silica phytoliths wear herbivore mandibles; grazing induces silica",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Grass fights back with glass.",
+   "sources": [
+    "massey2009",
+    "mcnaughton1983"
+   ]
+  },
+  {
+   "f_rule": "Dim -> flora reach tall, no caps (R7)",
+   "phenomenon": "Shade avoidance: stems elongate in shade",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "",
+   "sources": [
+    "franklin2008"
+   ]
+  },
+  {
+   "f_rule": "Stress mutagenesis x2.5 after dial moves",
+   "phenomenon": "Shown in bacteria (Galhardo et al. 2007); not established in animals",
+   "status": "plausible (microbes only)",
+   "tag": "game",
+   "slide_line": "",
+   "sources": []
+  },
+  {
+   "f_rule": "C flexible vs Si rigid at organism scale (R1 -> bodies)",
+   "phenomenon": "Rigidity from mineralised composites, flexibility from organic polymers; Euplectella laminated glass overcomes brittleness",
+   "status": "consensus",
+   "tag": "sci",
+   "slide_line": "Every silicon body on Earth is glass, and glass doesn't bend.",
+   "sources": [
+    "aizenberg2005"
+   ]
+  }
+ ],
+ "change_suggestions": [
+  {
+   "change": "Make eye size hump-shaped: plastic growth with dimness only above light~0.15; below, let eye cost select eyes away unless local glow is common",
+   "why": "Cavefish lose eyes in total dark; deep-sea eyes persist because of bioluminescence",
+   "sources": [
+    "moran2015",
+    "jeffery2009",
+    "warrant2004",
+    "martini2017"
+   ]
+  },
+  {
+   "change": "Add inducible armour: newborn plateCover += k*Hunger*threat; Si flora spineRods up under grazing",
+   "why": "Daphnia helmets (transgenerational), grass silica induction; fills the empty Hunger x Development cell",
+   "sources": [
+    "agrawal1999",
+    "tollrian1995",
+    "mcnaughton1983"
+   ]
+  },
+  {
+   "change": "Retire 'Hunger makes horns' as science: hunter weapon = claws/gape; horns/spines = prey defence via gape limitation; otherwise tag horns [game]",
+   "why": "Horns are mostly sexually selected weapons",
+   "sources": [
+    "emlen2008",
+    "hoogland1956"
+   ]
+  },
+  {
+   "change": "Couple size cap to oxygen (S_max x (1+k*o)) and scale TSR amplitude by medium (swimmers full, walkers ~1/10)",
+   "why": "Hyperoxia giants; aquatic TSR ~10x terrestrial. F's 15x mass span is plausible only for aquatic",
+   "sources": [
+    "harrison2010",
+    "forster2012"
+   ]
+  },
+  {
+   "change": "Rewrite R6's explanation: oxygen supply vs demand (debated), not 'reactions slow'",
+   "why": "Direction is right, mechanism claim is not the accepted one",
+   "sources": [
+    "forster2012",
+    "verberk2013"
+   ]
+  },
+  {
+   "change": "Make flora glow scale with o too",
+   "why": "Keeps 'living light burns oxygen' true sim-wide",
+   "sources": [
+    "rees1998",
+    "haddock2010"
+   ]
+  },
+  {
+   "change": "Gate float mode on high buoy (gas-bag volume); don't claim dense air alone floats animals",
+   "why": "Titan air ~5 kg/m3 is ~200x thinner than flesh",
+   "sources": [
+    "fulchignoni2005",
+    "sagan1976"
+   ]
+  },
+  {
+   "change": "Keep stress mutagenesis off slides",
+   "why": "Microbial phenomenon only",
+   "sources": []
+  }
+ ],
+ "slide_facts": [
+  {
+   "fact": "At deep-sea vents in the Indian Ocean, a snail armours its foot with iron sulfide scales, the only living animal known to put iron sulfide in its skeleton.",
+   "sources": [
+    "waren2003",
+    "chen2015"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Building a glass shell costs a diatom only about 2% of its energy budget.",
+   "sources": [
+    "raven1983"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Serengeti grasses that are grazed hard grow more glass in their leaves, and clipping them in the lab triggers it.",
+   "sources": [
+    "mcnaughton1983"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "For a young Mexican cavefish, eyes and the visual brain cost 15% of resting energy, and the cave form lost them.",
+   "sources": [
+    "moran2015"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Three in four animals seen in the deep water off California can make their own light (76%, 0-3,900 m).",
+   "sources": [
+    "martini2017"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Warmth shrinks water animals about 5% in mass per degree, ten times more than land animals (~100 mg dry mass).",
+   "sources": [
+    "forster2012"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Giant insects lived when the air was oxygen-rich, and some insects raised in extra oxygen today grow bigger.",
+   "sources": [
+    "harrison2010"
+   ],
+   "verified": "abstract"
+  },
+  {
+   "fact": "Only about 3% of the glass that ocean life makes survives into the seafloor; the sea dissolves the rest.",
+   "sources": [
+    "treguer1995"
+   ],
+   "verified": "abstract"
+  }
+ ],
+ "sources": [
+  {
+   "id": "atkinson1994",
+   "cite": "Atkinson 1994, Adv. Ecol. Res. 25",
+   "doi": "10.1016/S0065-2504(08)60212-3",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "forster2012",
+   "cite": "Forster, Hirst & Atkinson 2012, PNAS",
+   "doi": "10.1073/pnas.1210460109",
+   "tag": "PEER"
+  },
+  {
+   "id": "chapelle1999",
+   "cite": "Chapelle & Peck 1999, Nature",
+   "doi": "10.1038/20099",
+   "tag": "PEER"
+  },
+  {
+   "id": "verberk2013",
+   "cite": "Verberk & Atkinson 2013, Funct. Ecol.",
+   "doi": "10.1111/1365-2435.12152",
+   "tag": "PEER"
+  },
+  {
+   "id": "moran2012",
+   "cite": "Moran & Woods 2012, J. Exp. Biol.",
+   "doi": "10.1242/jeb.067066",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "ashton2000",
+   "cite": "Ashton, Tracy & de Queiroz 2000, Am. Nat.",
+   "doi": "10.1086/303400",
+   "tag": "PEER"
+  },
+  {
+   "id": "lomolino2005",
+   "cite": "Lomolino 2005, J. Biogeogr.",
+   "doi": "10.1111/j.1365-2699.2005.01314.x",
+   "tag": "PEER"
+  },
+  {
+   "id": "harrison2010",
+   "cite": "Harrison, Kaiser & VandenBrooks 2010, Proc. R. Soc. B",
+   "doi": "10.1098/rspb.2010.0001",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "raven1983",
+   "cite": "Raven 1983, Biol. Rev.",
+   "doi": "10.1111/j.1469-185X.1983.tb00385.x",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "palmer1992",
+   "cite": "Palmer 1992, PNAS",
+   "doi": "10.1073/pnas.89.4.1379",
+   "tag": "PEER"
+  },
+  {
+   "id": "waren2003",
+   "cite": "Warén et al. 2003, Science",
+   "doi": "10.1126/science.1087696",
+   "tag": "PEER"
+  },
+  {
+   "id": "chen2015",
+   "cite": "Chen et al. 2015, J. Molluscan Stud.",
+   "doi": "10.1093/mollus/eyv013",
+   "tag": "PEER"
+  },
+  {
+   "id": "yao2010",
+   "cite": "Yao et al. 2010, PNAS",
+   "doi": "10.1073/pnas.0912988107",
+   "tag": "PEER"
+  },
+  {
+   "id": "barber2015",
+   "cite": "Barber, Lu & Pugno 2015, J. R. Soc. Interface",
+   "doi": "10.1098/rsif.2014.1326",
+   "tag": "PEER"
+  },
+  {
+   "id": "vermeij1977",
+   "cite": "Vermeij 1977, Paleobiology",
+   "doi": "10.1017/S0094837300005352",
+   "tag": "PEER"
+  },
+  {
+   "id": "vermeij1987",
+   "cite": "Vermeij 1987, Evolution and Escalation (Princeton UP)",
+   "doi": null,
+   "tag": "BOOK"
+  },
+  {
+   "id": "agrawal1999",
+   "cite": "Agrawal, Laforsch & Tollrian 1999, Nature",
+   "doi": "10.1038/43425",
+   "tag": "PEER"
+  },
+  {
+   "id": "tollrian1995",
+   "cite": "Tollrian 1995, Ecology",
+   "doi": "10.2307/1940703",
+   "tag": "PEER"
+  },
+  {
+   "id": "tollrian_harvell1999",
+   "cite": "Tollrian & Harvell 1999, The Ecology and Evolution of Inducible Defenses (Princeton UP)",
+   "doi": null,
+   "tag": "BOOK"
+  },
+  {
+   "id": "mcnaughton1983",
+   "cite": "McNaughton & Tarrants 1983, PNAS",
+   "doi": "10.1073/pnas.80.3.790",
+   "tag": "PEER"
+  },
+  {
+   "id": "hoogland1956",
+   "cite": "Hoogland, Morris & Tinbergen 1956, Behaviour",
+   "doi": "10.1163/156853956x00156",
+   "tag": "PEER"
+  },
+  {
+   "id": "emlen2008",
+   "cite": "Emlen 2008, Annu. Rev. Ecol. Evol. Syst.",
+   "doi": "10.1146/annurev.ecolsys.39.110707.173502",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "treguer1995",
+   "cite": "Tréguer et al. 1995, Science",
+   "doi": "10.1126/science.268.5209.375",
+   "tag": "PEER"
+  },
+  {
+   "id": "bidle1999",
+   "cite": "Bidle & Azam 1999, Nature",
+   "doi": "10.1038/17351",
+   "tag": "PEER"
+  },
+  {
+   "id": "krautter2001",
+   "cite": "Krautter et al. 2001, Facies",
+   "doi": "10.1007/BF02668178",
+   "tag": "PEER"
+  },
+  {
+   "id": "aizenberg2005",
+   "cite": "Aizenberg et al. 2005, Science",
+   "doi": "10.1126/science.1112255",
+   "tag": "PEER"
+  },
+  {
+   "id": "sundar2003",
+   "cite": "Sundar et al. 2003, Nature",
+   "doi": "10.1038/424899a",
+   "tag": "PEER"
+  },
+  {
+   "id": "warrant2004",
+   "cite": "Warrant & Locket 2004, Biol. Rev.",
+   "doi": "10.1017/S1464793103006420",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "nilsson2012",
+   "cite": "Nilsson et al. 2012, Curr. Biol.",
+   "doi": "10.1016/j.cub.2012.02.031",
+   "tag": "PEER"
+  },
+  {
+   "id": "jeffery2009",
+   "cite": "Jeffery 2009, Annu. Rev. Genet.",
+   "doi": "10.1146/annurev-genet-102108-134216",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "moran2015",
+   "cite": "Moran, Softley & Warrant 2015, Sci. Adv.",
+   "doi": "10.1126/sciadv.1500363",
+   "tag": "PEER"
+  },
+  {
+   "id": "niven2008",
+   "cite": "Niven & Laughlin 2008, J. Exp. Biol.",
+   "doi": "10.1242/jeb.017574",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "rees1998",
+   "cite": "Rees et al. 1998, J. Exp. Biol.",
+   "doi": "10.1242/jeb.201.8.1211",
+   "tag": "PEER"
+  },
+  {
+   "id": "haddock2010",
+   "cite": "Haddock, Moline & Case 2010, Annu. Rev. Mar. Sci.",
+   "doi": "10.1146/annurev-marine-120308-081028",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "martini2017",
+   "cite": "Martini & Haddock 2017, Sci. Rep.",
+   "doi": "10.1038/srep45750",
+   "tag": "PEER"
+  },
+  {
+   "id": "oliveira2015",
+   "cite": "Oliveira et al. 2015, Curr. Biol.",
+   "doi": "10.1016/j.cub.2015.02.021",
+   "tag": "PEER"
+  },
+  {
+   "id": "fulchignoni2005",
+   "cite": "Fulchignoni et al. 2005, Nature",
+   "doi": "10.1038/nature04314",
+   "tag": "PEER"
+  },
+  {
+   "id": "sagan1976",
+   "cite": "Sagan & Salpeter 1976, ApJS",
+   "doi": "10.1086/190414",
+   "tag": "PEER"
+  },
+  {
+   "id": "pontzer2007",
+   "cite": "Pontzer 2007, J. Exp. Biol.",
+   "doi": "10.1242/jeb.002246",
+   "tag": "PEER"
+  },
+  {
+   "id": "taylor1982",
+   "cite": "Taylor, Heglund & Maloiy 1982, J. Exp. Biol.",
+   "doi": "10.1242/jeb.97.1.1",
+   "tag": "PEER"
+  },
+  {
+   "id": "gomez2008",
+   "cite": "Gomez et al. 2008, Nature",
+   "doi": "10.1038/nature07020",
+   "tag": "PEER"
+  },
+  {
+   "id": "lewis1978",
+   "cite": "Lewis 1978, Nature",
+   "doi": "10.1038/276565a0",
+   "tag": "PEER"
+  },
+  {
+   "id": "ronshaugen2002",
+   "cite": "Ronshaugen, McGinnis & McGinnis 2002, Nature",
+   "doi": "10.1038/nature716",
+   "tag": "PEER"
+  },
+  {
+   "id": "carroll2005",
+   "cite": "Carroll 2005, Endless Forms Most Beautiful",
+   "doi": null,
+   "tag": "BOOK"
+  },
+  {
+   "id": "erwin2011",
+   "cite": "Erwin et al. 2011, Science",
+   "doi": "10.1126/science.1206375",
+   "tag": "PEER"
+  },
+  {
+   "id": "kleiber1932",
+   "cite": "Kleiber 1932, Hilgardia",
+   "doi": "10.3733/hilg.v06n11p315",
+   "tag": "PEER"
+  },
+  {
+   "id": "gillooly2001",
+   "cite": "Gillooly et al. 2001, Science",
+   "doi": "10.1126/science.1061967",
+   "tag": "PEER"
+  },
+  {
+   "id": "brown2004",
+   "cite": "Brown et al. 2004, Ecology",
+   "doi": "10.1890/03-9000",
+   "tag": "PEER"
+  },
+  {
+   "id": "glazier2005",
+   "cite": "Glazier 2005, Biol. Rev.",
+   "doi": "10.1017/S1464793105006834",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "munch2009",
+   "cite": "Munch & Salinas 2009, PNAS",
+   "doi": "10.1073/pnas.0900300106",
+   "tag": "PEER"
+  },
+  {
+   "id": "hamilton1971",
+   "cite": "Hamilton 1971, J. Theor. Biol.",
+   "doi": "10.1016/0022-5193(71)90189-5",
+   "tag": "PEER"
+  },
+  {
+   "id": "amat2010",
+   "cite": "Amat et al. 2010, Behav. Ecol. Sociobiol.",
+   "doi": "10.1007/s00265-010-1068-z",
+   "tag": "PEER"
+  },
+  {
+   "id": "vukusic2003",
+   "cite": "Vukusic & Sambles 2003, Nature",
+   "doi": "10.1038/nature01941",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "massey2009",
+   "cite": "Massey & Hartley 2009, J. Anim. Ecol.",
+   "doi": "10.1111/j.1365-2656.2008.01472.x",
+   "tag": "PEER"
+  },
+  {
+   "id": "franklin2008",
+   "cite": "Franklin 2008, New Phytol.",
+   "doi": "10.1111/j.1469-8137.2008.02507.x",
+   "tag": "REVIEW"
+  },
+  {
+   "id": "nakamura2012",
+   "cite": "Nakamura et al. 2012, PLoS ONE (candidate source, unchecked claim)",
+   "doi": "10.1371/journal.pone.0032965",
+   "tag": "PEER"
+  }
+ ]
+}
