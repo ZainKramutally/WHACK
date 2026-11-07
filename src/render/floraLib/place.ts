@@ -23,8 +23,10 @@ const THIN_START = 55, THIN_END = 190;
 const SUPER = 5;
 /** Canopy biomass needed for a giant / a mid plant in a cell. */
 const GIANT_CANOPY = 0.2, MID_CANOPY = 0.04;
+/** Mid plants thin from MID_THIN_START to 30% at MID_THIN_END metres from the camera. */
+const MID_THIN_START = 70, MID_THIN_END = 200;
 /** Near-LOD radius per role (m). */
-export const LOD_NEAR: Record<FloraRole, number> = { ground: 1e9, mid: 55, giant: 90 };
+export const LOD_NEAR: Record<FloraRole, number> = { ground: 1e9, mid: 40, giant: 90 };
 
 export interface PlantList {
   n: number;
@@ -149,13 +151,15 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin({ ...bin, mix: bin.mix === 0 ? 1 : bin.mix });
-        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.25 + 1.6 * groveAt(col, row));
+        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row));
         const n = Math.min(GROUND_SLOT - MID_SLOT, Math.floor(want + hash01(c, 1, 20)));
         for (let k = 0; k < n; k++) {
           const x = cc.x + (hash01(c, k, 21) - 0.5) * cell, z = cc.z + (hash01(c, k, 22) - 0.5) * cell;
+          const d = Math.hypot(x - cam.x, z - cam.z);
+          // far groves thin to 30% (stable per plant): they read as masses in the haze, and it caps the budget
+          if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
           const y = yAt(c * SLOTS + MID_SLOT + k, x, z);
           if (y < sea) continue;
-          const d = Math.hypot(x - cam.x, z - cam.z);
           push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y);
         }
       } else {

@@ -162,6 +162,21 @@ describe('placePlants', () => {
     expect(can.giant).toBeLessThanOrEqual(13 * 13); // at most one per 5×5-cell superblock
   });
 
+  it('holds its budget when canopy covers the whole patch (worst case)', () => {
+    const l = placePlants(inputs(() => [0.6, 1]), PATCH, { x: 0, z: 0 }, makePlantList());
+    const n = roles(l);
+    let tris = 0;
+    const by: Record<string, number> = {};
+    for (let i = 0; i < l.n; i++) {
+      const a = lib.archetypes[l.arch[i]], t = a.lod[l.lod[i]].triangles;
+      tris += t; by[a.role] = (by[a.role] ?? 0) + t;
+    }
+    console.log('worst case', JSON.stringify(n), 'tris', tris, JSON.stringify(by));
+    expect(n.giant).toBeLessThanOrEqual(13 * 13);
+    expect(n.mid).toBeLessThan(1600);
+    expect(tris).toBeLessThan(4.5e6); // before frustum culling (~half is behind the camera)
+  });
+
   it('keeps land plants off until lifeOnLand, and only ground cover under the sea', () => {
     const dry = roles(placePlants(inputs(() => [1, 0.9], { lifeOnLand: false }), PATCH, { x: 0, z: 0 }, makePlantList()));
     expect(dry).toEqual({ ground: 0, mid: 0, giant: 0 });

@@ -26,6 +26,8 @@ export interface FloraPart {
   triangles: number;
   /** ms spent in the last rebuild. */
   rebuildMs: number;
+  /** Plants placed but not drawn at the last rebuild because their bucket was full. */
+  dropped: number;
   dispose(): void;
 }
 
@@ -40,6 +42,7 @@ interface Look {
 
 interface Bucket {
   mesh: THREE.InstancedMesh;
+  /** Fixed instance capacity (allocated once). */
   cap: number;
 }
 
@@ -69,25 +72,32 @@ export function createFlora(app: App): FloraPart {
     return L;
   };
 
+  // Every bucket (archetype × LOD × value × chunk) is created here, once, with a fixed capacity by role, so a rebuild
+  // only writes instance buffers: it never creates a mesh or triggers a compile. Overflow is dropped (and counted).
+  // Ground cover is always near-LOD; only ground cover has the dark foreground step.
   const buckets = new Map<number, Bucket>();
-  function bucket(look: Look, lookId: number, chunk: number, need: number): Bucket {
-    const id = lookId * CHUNKS * CHUNKS + chunk;
-    let b = buckets.get(id);
-    if (b && b.cap >= need) return b;
-    const cap = Math.max(16, 1 << Math.ceil(Math.log2(need)));
-    // per-mesh geometry that shares every vertex attribute (and the index) with the look
-    const g = new THREE.BufferGeometry();
-    for (const [name, attr] of Object.entries(look.geometry.attributes)) g.setAttribute(name, attr);
-    g.setIndex(look.geometry.index);
-    const mesh = new THREE.InstancedMesh(g, material, cap);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.count = 0;
-    mesh.name = `${look.arch.key}/L${look.lod}${look.dark ? 'd' : ''}@${chunk}`;
-    if (b) group.remove(b.mesh); // its geometry shares the look's buffers: never dispose it here
-    group.add(mesh);
-    b = { mesh, cap };
-    buckets.set(id, b);
-    return b;
+  const CAP: Record<string, number> = { ground: 768, groundDark: 384, mid: 160, giant: 16 };
+  for (let ai = 0; ai < nA; ai++) {
+    const role = lib.archetypes[ai].role;
+    for (let lod = 0; lod < 2; lod++) for (let dark = 0; dark < 2; dark++) {
+      if (role === 'ground' ? lod === 1 : dark === 1) continue;
+      const lookId = (ai * 2 + lod) * 2 + dark;
+      const L = lookOf(ai, lod, dark);
+      const cap = role === 'ground' ? (dark ? CAP.groundDark : CAP.ground) : CAP[role];
+      for (let chunk = 0; chunk < CHUNKS * CHUNKS; chunk++) {
+        // per-mesh geometry that shares every vertex attribute (and the index) with the look
+        const g = new THREE.BufferGeometry();
+        for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
+        g.setIndex(L.geometry.index);
+        const mesh = new THREE.InstancedMesh(g, material, cap);
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        mesh.count = 0;
+        mesh.visible = false;
+        mesh.name = `${L.arch.key}/L${lod}${dark ? 'd' : ''}@${chunk}`;
+        group.add(mesh);
+        buckets.set(lookId * CHUNKS * CHUNKS + chunk, { mesh, cap });
+      }
+    }
   }
 
   // Warm-up: one carbon and one silicon mesh, a single invisible-sized instance far below ground, so world.ts's
@@ -124,6 +134,7 @@ export function createFlora(app: App): FloraPart {
     plants: 0,
     triangles: 0,
     rebuildMs: 0,
+    dropped: 0,
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
       const moved = Math.hypot(cam.x - lastCam.x, cam.z - lastCam.z) > CAMERA_MOVE;
@@ -154,7 +165,7 @@ export function createFlora(app: App): FloraPart {
       }
       // hide every mesh; the ones in use are shown below
       for (const b of buckets.values()) { b.mesh.count = 0; b.mesh.visible = false; }
-      let tris = 0;
+      let tris = 0, dropped = 0;
       for (let id = 0; id < counts.length; id++) {
         fill[id] = 0;
         if (!counts[id]) continue;
@@ -164,7 +175,9 @@ export function createFlora(app: App): FloraPart {
           paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[look], L.dark);
           L.painted = { pal, glow: lookGlow[look] };
         }
-        const b = bucket(L, look, chunk, counts[id]);
+        const b = buckets.get(id);
+        if (!b) continue; // a look with no bucket (never placed by place.ts: ground is near-LOD, only ground is dark)
+        if (counts[id] > b.cap) { dropped += counts[id] - b.cap; counts[id] = b.cap; }
         b.mesh.visible = true;
         b.mesh.frustumCulled = true;
         // chunk bounds: the 100 m square plus the tallest plant (and a sway margin)
@@ -176,7 +189,8 @@ export function createFlora(app: App): FloraPart {
       const arr = new Map<number, Float32Array>();
       for (let i = 0; i < list.n; i++) {
         const id = lookIds[i] * CHUNKS * CHUNKS + chunkOf[i];
-        const b = buckets.get(id)!;
+        const b = buckets.get(id);
+        if (!b || fill[id] >= b.cap) continue;
         const k = fill[id]++;
         const a = lib.archetypes[list.arch[i]];
         const s = list.h[i] / a.size;
@@ -192,10 +206,13 @@ export function createFlora(app: App): FloraPart {
         const n = fill[id] ?? 0;
         if (!n) continue;
         b.mesh.count = n;
+        b.mesh.instanceMatrix.clearUpdateRanges();
+        b.mesh.instanceMatrix.addUpdateRange(0, n * 16); // upload only the used part of the fixed-size buffer
         b.mesh.instanceMatrix.needsUpdate = true;
       }
       if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
-      part.plants = list.n;
+      part.plants = list.n - dropped;
+      part.dropped = dropped;
       part.triangles = tris;
       part.rebuildMs = performance.now() - t0;
     },

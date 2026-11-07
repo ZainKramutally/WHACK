@@ -92,7 +92,7 @@ export interface FloraLibrary {
 }
 
 /** Ring-segment scale of the far LOD. */
-export const FAR_DETAIL = 0.5;
+export const FAR_DETAIL = 0.35;
 
 /** Build every archetype (both LODs). Deterministic for a seed. ~100–300 ms; call once at startup. */
 export function buildFloraLibrary(seed: number): FloraLibrary {
@@ -123,14 +123,18 @@ const C_GROUND = k('groundCover', 0, 0, 1, 2, 2);
 const MAP: Record<string, Partial<Record<FloraRole, string[]>>> = {
   'carbon:tuft': { ground: k('groundCover', 0, 0, 1, 2, 2, 0, 3) },
   'carbon:dome': { ground: [...k('jellyDome', 0, 1), ...k('groundCover', 1)] },
-  'carbon:capped': { ground: C_GROUND, mid: [...k('weeper', 0, 1, 3), ...k('ribFan', 0, 1, 2)], giant: [...k('parasolTitan', 0, 1, 2, 3), ...k('coilSpire', 0, 2)] },
+  'carbon:capped': { ground: C_GROUND, mid: [...k('weeper', 0, 0, 1, 3), ...k('ribFan', 0, 1, 1, 2)], giant: [...k('parasolTitan', 0, 1, 2, 3), ...k('coilSpire', 0, 2)] },
   'carbon:cup': { ground: [...k('groundCover', 0, 1), ...k('jellyDome', 0, 1)], mid: [...k('lanternPods', 0), ...k('ribFan', 3), ...k('weeper', 3)], giant: [...k('lanternGiant', 3, 1), ...k('coilSpire', 0, 3)] },
   'silicon:crust': { ground: k('crystalGround', 0, 1, 2, 3) },
   'silicon:spire:bright': { ground: k('crystalGround', 0, 1, 2, 3), mid: k('shardTree', 0, 3, 0, 2, 3), giant: k('prismTitan', 0, 3) },
   'silicon:spire:dim': { ground: k('crystalGround', 0, 1, 2, 3), mid: k('shardTree', 1, 3, 1, 2, 3), giant: k('prismTitan', 1, 2) },
 };
 
-/** Archetype keys a form may draw in a role (empty: the role is absent for this form). `bright` = light bin 2. */
+/**
+ * Archetype keys a form may draw in a role (empty: the role is absent for this form). `bright` = light bin 2.
+ * Extending: a new FloraForm species is a new MAP row. For a new per-cell axis (e.g. submerged, magnitude, shade), add
+ * a suffix to the row id here and fall back to the plain row when no suffixed row exists.
+ */
 export function archetypesFor(form: FloraForm, role: FloraRole, bright: boolean): readonly string[] {
   const id = form.chemistry === 'silicon' && form.species === 'spire' ? `silicon:spire:${bright ? 'bright' : 'dim'}` : `${form.chemistry}:${form.species}`;
   return MAP[id]?.[role] ?? [];
