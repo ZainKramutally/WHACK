@@ -1,7 +1,8 @@
 // The inspect card's 3D window: while the UI holds an `inspect:window` rect, draw a small scissored viewport of the
 // inspected thing, turning slowly. Organisms: the creature itself, built from its own cached BodyPlan as beads (never
 // another chemistry's rebuild). Sea/ground/sky/producer: this world's swatch, or the other world's via the toggle.
-// Runs only while the window is set. Draws after the main scene render (it wraps renderer.render).
+// Runs only while the window is set. Drawn as an app overlay: after the post pipeline has written the frame, straight to the
+// canvas at full resolution, so the card's view stays crisp (never pixelated or outlined).
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { Bus } from '../bus';
@@ -334,11 +335,9 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   bus.on('inspect:open', onOpen);
   bus.on('inspect:close', onClose);
 
-  // Draw after the main scene: a second pass on the same canvas, scissored to the card's window.
-  const origRender = r.render.bind(r);
-  r.render = (s: THREE.Object3D, c: THREE.Camera) => {
-    origRender(s, c);
-    if (s !== app.scene || !rect || !target || rect.width < 4 || rect.height < 4) return;
+  // Draw after the main frame: a second pass on the same canvas, scissored to the card's window.
+  const unregisterOverlay = app.registerOverlay(() => {
+    if (!rect || !target || rect.width < 4 || rect.height < 4) return;
     const prevAuto = r.autoClear;
     r.autoClear = false;
     r.setScissorTest(true);
@@ -346,12 +345,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     r.setScissor(rect.x, rect.y, rect.width, rect.height);
     cam.aspect = rect.width / rect.height;
     cam.updateProjectionMatrix();
-    r.clearDepth(); // the canvas keeps the main pass's depth; the swatch must not be tested against it
-    origRender(scene, cam);
+    r.clearDepth(); // the swatch must not be tested against whatever depth the canvas holds
+    r.render(scene, cam);
     r.setScissorTest(false);
     r.setViewport(0, 0, window.innerWidth, window.innerHeight);
     r.autoClear = prevAuto;
-  };
+  });
 
   return {
     ready,
@@ -365,7 +364,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       bus.off('inspect:window', onWindow);
       bus.off('inspect:open', onOpen);
       bus.off('inspect:close', onClose);
-      r.render = origRender;
+      unregisterOverlay();
       clearContent();
       for (const m of matCache.values()) m.dispose();
       for (const b of backdrops.values()) { b.geometry.dispose(); (b.material as THREE.Material).dispose(); }
