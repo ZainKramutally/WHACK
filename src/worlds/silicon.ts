@@ -131,7 +131,7 @@ export const silicon: WorldConfig = {
       description: 'A faint, distant star shines through thick nitrogen air at several bar.',
       statIds: ['pressure', 'light'],
       factIds: ['star', 'mainGas'],
-      why: "The seas hold the air at nitrogen's vapour pressure, so cold means thick air, as on Titan.",
+      why: "The air is thick compared with Earth's because the nitrogen seas hold it at their vapour pressure; it thins as the world cools. Titan's nitrogen air is thick too.",
       sources: ['nistN2', 'fulchignoni2005'],
       assumption: true,   // the star-distance part of this card is still ours
     },
