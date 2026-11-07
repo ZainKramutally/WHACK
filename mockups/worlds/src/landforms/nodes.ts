@@ -1,110 +1,78 @@
 // TSL node builders: Worley pores (fake depth + vertex push-in + breathing glow), arch dissolve, terrain colour.
 import {
-  Fn, If, float, vec3, vec4, uniform, color, saturate, attribute, mix, smoothstep, step, sin, fract, floor, dot, sqrt, max, clamp,
+  atan, float, vec2, vec3, uniform, color, saturate, attribute, mix, smoothstep, step, sin, fract, max, clamp, texture,
   positionGeometry, normalGeometry, positionWorld, normalWorld, normalView, positionViewDirection,
   mx_fractal_noise_float,
 } from 'three/tsl';
 import type { TSLNode, WorldUniforms } from '../contracts';
 
-const hash13 = (c: TSLNode) => fract(sin(dot(c, vec3(127.1, 311.7, 74.7))).mul(43758.5453));
-const hash33 = (c: TSLNode) =>
-  fract(sin(vec3(dot(c, vec3(127.1, 311.7, 74.7)), dot(c, vec3(269.5, 183.3, 246.1)), dot(c, vec3(113.5, 271.9, 124.6)))).mul(43758.5453));
-
-/** 3D Worley with cell id: returns vec4(F1, cell.xyz). */
-const worley = Fn(([p]: TSLNode[]) => {
-  const ip = floor(p), fp = fract(p);
-  const f1 = float(9).toVar();
-  const cid = vec3(0).toVar();
-  for (let z = -1; z <= 1; z++) for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) {
-    const o = vec3(x, y, z);
-    const c = ip.add(o);
-    const d = o.add(hash33(c).mul(0.85).add(0.075)).sub(fp);
-    const dd = dot(d, d);
-    If(dd.lessThan(f1), () => { f1.assign(dd); cid.assign(c); });
-  }
-  return vec4(sqrt(f1), cid);
-});
-
-interface Layer { inside: TSLNode; depth: TSLNode; rim: TSLNode; halo: TSLNode; cid: TSLNode; metres: TSLNode }
-
-function poreLayer(q: TSLNode, size: TSLNode, dens: TSLNode, rLo: number, rHi: number, off: number): Layer {
-  const w = worley(q.div(size).add(off));
-  const cid = w.yzw;
-  const exists = step(hash13(cid), dens);
-  const rad = mix(float(rLo), float(rHi), hash13(cid.add(vec3(17.3, 3.1, 9.7))));
-  const dn = w.x.div(rad);
-  return {
-    inside: float(1).sub(smoothstep(0.8, 1.0, dn)).mul(exists),
-    depth: float(1).sub(dn.mul(dn)).max(0).pow(0.8).mul(exists),
-    rim: smoothstep(0.85, 1.05, dn).mul(float(1).sub(smoothstep(1.05, 1.55, dn))).mul(exists),
-    halo: smoothstep(1.0, 1.08, dn).mul(float(1).sub(smoothstep(1.08, 1.5, dn))).mul(exists),
-    cid,
-    metres: rad.mul(size),
-  };
-}
-
 export interface PoreOpts {
-  scale: TSLNode;      // uniform: spire radius / 14
-  porousMul: number;   // 1 for porous heroes, <1 otherwise
-  vertex: boolean;     // real push-in
-  fine: boolean;       // add the small-pore layer
-  fineSize?: number;   // metres per cell of the small layer
-  glow?: boolean;      // pores glow (default true)
-  heightRef?: number;  // spire height: pores shrink from big (low) to small (high)
-  darken?: number;     // albedo multiplier (dark outcrops)
+  tex1: any; tex2: any;   // baked pore textures (pores.ts)
+  maxD: number;           // metres encoded in the displacement channel
+  H: number; bury: number;
+  dens: [number, number, number]; // per-layer density factors, same as used in the bake
+  porousMul: number;      // 1 for porous heroes, <1 otherwise
+  vertex: boolean;        // real push-in (reads the baked displacement)
+  glow?: boolean;         // pores glow (default true)
+  darken?: number;        // albedo multiplier (dark outcrops)
+  warm?: boolean;         // tan sponge tint (crust lumps)
+  capTop?: boolean;       // frosty white heads above 62-86% of H
 }
 
-/** Returns { tint, emissive, position } to hand to the world material factory. */
+/** Returns { tint, emissive, position } to hand to the world material factory. Two texture reads, no search loops. */
 export function poreNodes(u: WorldUniforms, o: PoreOpts) {
-  const q = positionGeometry;
+  const p = positionGeometry;
+  const uvN = vec2(atan(p.z, p.x).div(6.28318).add(0.5), p.y.add(o.bury).div(o.H + o.bury).clamp(0, 1));
+  const s1 = texture(o.tex1, uvN), s2 = texture(o.tex2, uvN);
   const dens = clamp(u.pores.mul(o.porousMul), 0, 1);
-  // big pores low down, smaller towards the top
-  const hm = o.heightRef ? mix(float(1.25), float(0.55), smoothstep(0, o.heightRef * 0.75, positionGeometry.y)) : float(1);
-  const A = poreLayer(q, o.scale.mul(11).mul(hm), dens.mul(0.85), 0.3, 0.46, 0);
-  const B = poreLayer(q, o.scale.mul(4.6).mul(hm), dens.mul(0.9), 0.26, 0.42, 11.3);
-  const layers: Layer[] = [A, B];
-  if (o.fine) layers.push(poreLayer(q, o.scale.mul(o.fineSize ?? 1.8), dens, 0.2, 0.38, 27.1));
 
-  // albedo: dark inside, slight lip, warty speckle
+  const layer = (dnRaw: TSLNode, t: TSLNode, k: number) => {
+    const dn = dnRaw.mul(1.6);
+    const exists = step(t, dens.mul(k));
+    return {
+      t,
+      inside: float(1).sub(smoothstep(0.8, 1.0, dn)).mul(exists),
+      depth: float(1).sub(dn.mul(dn)).max(0).pow(0.8).mul(exists),
+      rim: smoothstep(0.85, 1.05, dn).mul(float(1).sub(smoothstep(1.05, 1.55, dn))).mul(exists),
+      halo: smoothstep(1.0, 1.08, dn).mul(float(1).sub(smoothstep(1.08, 1.5, dn))).mul(exists),
+    };
+  };
+  const layers = [layer(s1.r, s1.g, o.dens[0]), layer(s1.b, s1.a, o.dens[1]), layer(s2.r, s2.g, o.dens[2])];
+
   let dark = float(0), lip = float(0), halo = float(0);
   for (const l of layers) {
     dark = max(dark, l.inside.mul(float(0.55).add(l.depth.mul(0.45))));
     lip = max(lip, l.rim);
     halo = max(halo, l.halo);
   }
-  const speck = mx_fractal_noise_float(q.div(o.scale.mul(0.7)), 3, 2.0, 0.5, 1.0);
-  const warts = mx_fractal_noise_float(q.div(o.scale.mul(0.22)), 2, 2.0, 0.5, 1.0);
-  const surface = float(1).add(lip.mul(0.1)).sub(halo.mul(0.28)).sub(speck.abs().mul(0.2)).sub(warts.abs().mul(0.18));
+  const surface = float(1).add(lip.mul(0.1)).sub(halo.mul(0.28)).sub(s2.a.mul(0.4));
   // pull the factory's bone→stone gradient further toward the stain where age/heat have stained hard
   const boost = mix(vec3(1, 1, 1), u.stoneColor.div(vec3(0.925, 0.894, 0.839)), u.stainAmount.mul(0.75));
   const frost = float(1).add(u.snow.mul(0.4)).mul(o.darken ?? 1).mul(float(1).sub(u.snow.mul(float(0.45).mul(float(1).sub(smoothstep(2, 24, positionWorld.y))))));
-  const tint = mix(boost.mul(surface).mul(frost), u.shadowColor.mul(0.3), dark.mul(0.92));
+  let body: TSLNode = boost.mul(surface).mul(frost);
+  if (o.warm) body = body.mul(vec3(1.22, 1.08, 0.95));
+  if (o.capTop) body = mix(body, vec3(1.7, 1.75, 1.8), smoothstep(0.62, 0.86, p.y.div(o.H)).mul(clamp(u.snow.mul(1.6), 0, 1)).mul(0.85));
+  const tint = mix(body, u.shadowColor.mul(0.3), dark.mul(0.92));
 
-  // emissive: orange glow seated in the deepest pores, each cell breathing on its own 4-9s clock
+  // emissive: glow seated in the deepest pores, each cell breathing on its own 4-9 s clock
   const gate = u.niches.poreDwellers.mul(float(0.5).add(u.glow.mul(0.5)));
   let glow = float(0), wall = float(0);
   layers.forEach((l, i) => {
-    const period = mix(float(4), float(9), hash13(l.cid.add(vec3(5.1, 8.3, 2.7))));
-    const phase = hash13(l.cid.add(vec3(1.9, 4.4, 7.7))).mul(6.2832);
+    const period = mix(float(4), float(9), fract(l.t.mul(37.31)));
+    const phase = fract(l.t.mul(91.7)).mul(6.2832);
     const breathe = float(0.62).add(sin(u.time.mul(6.2832).div(period).add(phase)).mul(0.38));
     const shape = float(0.04).add(l.depth.pow(1.3).mul(0.96));
-    const lit = i < 2 ? 1 : step(0.55, hash13(l.cid.add(vec3(3.3, 6.6, 9.9)))).mul(0.55);
+    const lit = i < 2 ? float(1) : step(0.55, fract(l.t.mul(53.9))).mul(0.55);
     glow = max(glow, l.inside.mul(shape).mul(breathe).mul(lit));
     wall = max(wall, l.depth);
   });
-  // walls of the cavity glow deep orange-red, the back of it burns yellow-orange
   const glowCol = mix(u.poreGlowColor.mul(vec3(0.8, 0.32, 0.22)), u.poreGlowColor.mul(vec3(1.0, 1.12, 1.0)), wall.pow(0.7));
   const emissive = glowCol.mul(glow.mul(gate).mul(o.glow === false ? 0 : 4.2));
 
   let position: TSLNode;
   if (o.vertex) {
-    const push = A.depth.pow(0.6).mul(A.metres).add(B.depth.pow(0.6).mul(B.metres)).mul(0.42);
-    const bump = A.rim.mul(A.metres).add(B.rim.mul(B.metres)).mul(0.16);
-    const lumps = mx_fractal_noise_float(q.div(o.scale.mul(0.9)), 3, 2.0, 0.5, 1.0).mul(o.scale).mul(0.35).mul(float(1).sub(A.inside).sub(B.inside).max(0));
-    // never dig deeper than a third of the local radius (thin tops would invert)
-    const localR = positionGeometry.xz.length();
-    const dent = push.min(localR.mul(0.28));
-    position = positionGeometry.add(normalGeometry.mul(bump.sub(dent).add(lumps)));
+    const d = texture(o.tex2, uvN).level(float(0)).b.sub(0.5).mul(2 * o.maxD);
+    position = positionGeometry.add(normalGeometry.mul(d));
   }
   return { tint, emissive, position };
 }
@@ -119,7 +87,8 @@ export function archNodes(u: WorldUniforms, survive: TSLNode, radiusM: number) {
   const position = positionGeometry.sub(normalGeometry.mul(thin));
   const rim = float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(2.5);
   const streak = mx_fractal_noise_float(vec3(positionWorld.x.mul(0.5), positionWorld.y.mul(0.05), positionWorld.z.mul(0.5)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
-  const ice = mix(color(0x4a7fa8), color(0xb8d8ec), streak.pow(1.2));
+  const line = smoothstep(0.7, 0.82, mx_fractal_noise_float(vec3(positionWorld.x.mul(1.6), positionWorld.y.mul(0.04), positionWorld.z.mul(1.6)), 2, 2.0, 0.5, 1.0).mul(0.5).add(0.5));
+  const ice = mix(mix(color(0x3a73a0), color(0x9cc9e2), smoothstep(0.3, 0.7, streak)), color(0xf2fbff), line.mul(0.75));
   const tone = mix(u.stoneColor, ice, saturate(u.snow.mul(1.8)));
   return { opacity, position, rim, streak, tone: mix(tone, color(0xeaf5fb), rim.mul(0.55)) };
 }
@@ -131,6 +100,9 @@ export function terrainColor(u: WorldUniforms, crust: TSLNode, rock: TSLNode) {
   const wp = positionWorld;
   const stripe = mx_fractal_noise_float(vec3(wp.x.mul(0.22), wp.y.mul(0.3), wp.z.mul(0.03)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   let base = u.ground.mul(mix(float(0.68), float(1.2), smoothstep(0.28, 0.72, stripe)));
+  const hotness = smoothstep(0.6, 0.9, u.heat);
+  const band = smoothstep(0.35, 0.65, mx_fractal_noise_float(vec3(wp.x.mul(0.05), wp.y.mul(0.2), wp.z.mul(0.35)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5));
+  base = mix(base, mix(color(0xd93a19), color(0xbf5f39), band), band.mul(0.55).mul(hotness));
   const slope = float(1).sub(normalWorld.y);
   base = mix(base, u.stoneColor.mul(0.92), smoothstep(0.28, 0.6, slope).mul(0.85).mul(rock));
   // acid world: pale path in the middle, darker rough crust outside

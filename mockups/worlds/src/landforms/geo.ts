@@ -120,7 +120,7 @@ export function buildSpire(o: SpireOpts): Geo {
       const p0: V3 = [c0[0] + a.sign * r0 * 0.5, y0, c0[2]];
       const p1: V3 = [p0[0] + a.sign * (L + r0 * 0.5), p0[1] + r0 * 0.1, p0[2]];
       const p2: V3 = [p0[0] + a.sign * (L + r0 * 0.5), p0[1] + U, p0[2]];
-      const rA = r0 * 0.4;
+      const rA = r0 * 0.55;
       addTube(g, {
         rings: Math.max(10, o.rings >> 3), radial: Math.max(8, o.radial >> 2), tag: 1, n0: [0, 0, 1],
         center: (s) => {
@@ -156,7 +156,7 @@ export function buildArch(o: ArchOpts): Geo {
     rings: o.rings, radial: o.radial, ellipse: [1.55, 0.85], n0: [px, 0, pz],
     radius: (s, th, c, dir) => {
       const crown = Math.pow(Math.sin(Math.PI * s), 1.3);
-      const feet = 1 + 0.9 * Math.exp(-s * 12) + 0.9 * Math.exp(-(1 - s) * 12);
+      const feet = 1 + 1.5 * Math.exp(-s * 11) + 1.5 * Math.exp(-(1 - s) * 11);
       const n = fbm3(c[0] / (o.R * 2.2) + dir[0], c[1] / (o.R * 2.2), c[2] / (o.R * 2.2) + dir[2], 3, o.seed + 7);
       return o.R * (1 - 0.62 * crown) * feet * (1 + 0.16 * n);
     },
