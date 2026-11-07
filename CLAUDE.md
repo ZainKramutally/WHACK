@@ -713,10 +713,11 @@ Never cut the sliders, the particle box, the Generate transition, the Conditions
 
 ## Commands
 
-TypeScript and Vitest are set up at the repo root for `src/`, and Vitest only looks in `src/`, so it ignores `mockups/`. Vite and three.js arrive with build step 1; add the `dev` and `build` scripts then, and update this section.
+TypeScript and Vitest are set up at the repo root for `src/`, and Vitest only looks in `src/`, so it ignores `mockups/`. Vite and three.js (r187, `~0.187.0`) are installed. Append `?debug` to the page URL for an fps readout.
 
-- `npm run dev`: start the dev server (from build step 1)
-- `npm run build`: production build (slow; Tier 2 only; from build step 1)
+- `npm run dev`: Vite dev server on 127.0.0.1 (default port 5173)
+- `npm run build`: typecheck, then production build to `dist/` (slow; Tier 2 only)
+- `npm run preview`: serve the production build on 127.0.0.1 (port 4173)
 - `npm run typecheck`: typecheck
 - `npm test`: full unit suite
 - `npx vitest related --run <files>`: tests for changed files only
