@@ -1,6 +1,7 @@
 // App wiring: one runnable flow. Boots straight into a world (carbon by default, ?world=silicon) until the
 // selection screen lands. Order matters: build and subscribe everything, THEN emit world:selected.
 import { bus, type Bus } from './bus';
+import { createTerrain, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { buildVisualInputs, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
@@ -14,15 +15,19 @@ import type { Conditions, InspectTarget, SimSnapshot, VisualInputs, WorldConfig,
 /** Sim: replace with `import { startSim } from './sim/client'` when the real client lands. Must return a stop function. */
 const startSim: (b: Bus) => () => void = startStubSim;
 
-/**
- * Terrain: replace with gen/terrain.ts `createTerrain(world.terrain, world.demoSeed)` (it satisfies TerrainSampler),
- * and make `spawnFor` call its `spawnPoint(terrain, state, seaLevel)`.
- */
-function createTerrainSampler(_world: WorldConfig): TerrainSampler {
-  return flatTerrain;
+/** Terrain: the real analytic sampler (gen/terrain.ts); falls back to flat ground if its config is rejected. */
+function createTerrainSampler(world: WorldConfig): TerrainSampler | Terrain {
+  try {
+    return createTerrain(world.terrain, world.demoSeed);
+  } catch (e) {
+    console.warn('terrain config rejected, using flat ground:', e);
+    return flatTerrain;
+  }
 }
-function spawnFor(_terrain: TerrainSampler, _snapshot: SimSnapshot, _world: WorldConfig): { x: number; z: number } {
-  return { x: 0, z: 0 };
+function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, world: WorldConfig): { x: number; z: number } {
+  if (!('relics' in terrain)) return { x: 0, z: 0 };
+  const p = spawnPoint(terrain, terrainState(snapshot, world), snapshot.stats.seaLevel ?? 0);
+  return { x: p.x, z: p.z };
 }
 
 /**
