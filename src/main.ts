@@ -1,5 +1,6 @@
-// App wiring: one runnable flow. Boots straight into a world (carbon by default, ?world=silicon) until the
-// selection screen lands. Order matters: build and subscribe everything, THEN emit world:selected.
+// App wiring: the selection screen first; Generate builds the chosen world on the already-compiled renderer.
+// Dev deep link: ?world=carbon|silicon skips the selection screen and starts that world with the control defaults.
+// Order matters when starting a world: build and subscribe everything, THEN emit world:selected.
 import { bus } from './bus';
 import { createTerrain, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
@@ -9,6 +10,7 @@ import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type Terrain
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
+import { mountSelectionScreen } from './ui/selection/screen';
 import { controlList, worldFor } from './worlds';
 import type { Conditions, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
 
@@ -31,20 +33,26 @@ function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, worl
 
 // ---- boot ----
 
-async function boot() {
-  const worldId: WorldId = new URLSearchParams(location.search).get('world') === 'silicon' ? 'silicon' : 'carbon';
+/** World-agnostic setup, done while the selection screen is up: renderer, scene and every world's materials compile here. */
+async function prepare() {
+  const app = await createApp();
+  const view = createWorldView(app);
+  // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
+  await view.ready;
+  return { app, view };
+}
+
+async function start(
+  { app, view }: Awaited<ReturnType<typeof prepare>>,
+  worldId: WorldId,
+  requested: Conditions,
+) {
   const world = worldFor(worldId);
   const otherWorld = worldFor(worldId === 'carbon' ? 'silicon' : 'carbon');
-  const requested: Conditions = Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions;
-
-  const app = await createApp();
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
   const { seed } = pickSeed(location.search, world.demoSeed);
   const terrain = createTerrainSampler(world, seed);
-  const view = createWorldView(app);
   if ('relics' in terrain) view.setTerrainSampler(terrain);
-  // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
-  await view.ready;
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
@@ -125,7 +133,29 @@ async function boot() {
   bus.emit('world:selected', { worldId, requested, seed });
 }
 
-boot().catch((e) => {
+async function boot() {
+  const link = new URLSearchParams(location.search).get('world');
+  const prepared = prepare();
+  if (link === 'carbon' || link === 'silicon') {
+    const requested = Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions;
+    await start(await prepared, link, requested);
+    return;
+  }
+  // If the renderer fails to come up, surface it; the selection screen is DOM only and must not be left covering the error.
+  prepared.catch(fail);
+  const screen = mountSelectionScreen(document.getElementById('ui') ?? document.body, bus, {
+    onGenerate: ({ worldId, requested }) => {
+      prepared
+        .then((p) => start(p, worldId, requested))
+        .then(() => screen.worldStarted())
+        .catch(fail);
+    },
+  });
+}
+
+function fail(e: unknown) {
   console.error(e);
-  document.body.insertAdjacentHTML('beforeend', `<pre style="color:#f88;position:fixed;top:0;left:0">${String(e)}</pre>`);
-});
+  document.body.insertAdjacentHTML('beforeend', `<pre style="color:#f88;position:fixed;top:0;left:0;z-index:9999">${String(e)}</pre>`);
+}
+
+boot().catch(fail);
