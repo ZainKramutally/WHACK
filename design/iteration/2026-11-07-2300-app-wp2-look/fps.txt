@@ -1,0 +1,2 @@
+fps carbon pixel @1920x1080: best 60.1  median 59.4  runs [58.6, 60.1, 59.4]
+fps silicon pixel @1920x1080: best 58.0  median 57.4  runs [57.4, 57.2, 58.0]
