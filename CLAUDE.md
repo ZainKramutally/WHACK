@@ -121,7 +121,7 @@ Population traits respond continuously to every change. The phase timings and ye
 ## Life: creatures and plants
 
 Our controls and our two worlds stay as described above. **Creatures come from Caden's design F, as cut down by the simplicity guardrails**:
-- **The rules that govern the sim:** `docs/emergence/DECISIONS.md` (rev 2). §G holds the guardrails, the 12 genes and the constants. §3 holds the 12 rules, §A the variety metrics, and §B the science → body table. Those sections are the reference. This file links to them rather than copying them.
+- **The rules that govern the sim:** `docs/emergence/DECISIONS.md` (rev 2). §G holds the guardrails, the 12 body genes and the constants. §3 holds the 12 rules, §A the variety metrics, and §B the science → body table. Those sections are the reference. This file links to them rather than copying them.
 - **Design F** (`docs/emergence/F-body-plan-first.md`, chosen in `docs/emergence/README.md`) is the reference for the `develop()` chemistry grammar and for rendering bodies. Where F and DECISIONS disagree, DECISIONS wins (for example, F's midwife cheats and 32-gene genome are cut).
 - **The evolution recipe Caden measured:** `research/body-plans/`, notes 01 and 04.
 
@@ -769,7 +769,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 | `research/silicon-life/` | The evidence base for the silicon world. `REPORT.md` §3 and §10 have verified DOIs for Petkowski 2020, Bains 2004, NRC 2007 and Kan 2016. Its "off-limits" claims list applies to captions and the pitch. |
 | Art-direction docs and mockups | **The art layer**, separate from this file. It reads the logic through "Logic → art interface" and never adds logic. Caden sets which art doc is active. |
 | `docs/DESIGN.md`, `docs/WORLD_ATLAS.md` | The previous concept. Its controls and four-sea worlds are replaced by this file. Its creature rules (R1 stiff silicon bones, R9 life is the colour, R10 hunger makes hunters, R11 thick air is a sea) live on through F's development rules. |
-| `docs/emergence/DECISIONS.md` | **The creature rules** (rev 2): guardrails §G, the 12 genes, constants, 12 rules §3, metrics §A, science → body §B. Where it says glow ∝ oxygen, this file overrides it (glow from darkness). |
+| `docs/emergence/DECISIONS.md` | **The creature rules** (rev 2): guardrails §G, the 12 genes, constants, 12 rules §3, metrics §A, science → body §B. It matches this file on glow (from darkness), the 1,024 cap and the 15-gene budget. |
 | `docs/emergence/F-body-plan-first.md`, `docs/emergence/README.md`, `research/body-plans/` | **The creatures** (Caden). The reference for `develop()`'s chemistry grammar and body rendering. DECISIONS wins where they differ. "Life: creatures and plants" wires them to our controls. |
 | `docs/features/terrain-plan.md` | L0 (analytic heights and progress fields) is adopted in "Terrain and landforms". L1 and L2 stay parked. |
 | `.claude/skills/world-style` | Rendering and TSL guidance still applies, with the exceptions listed under Stack. |
