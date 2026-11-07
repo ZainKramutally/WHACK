@@ -5,6 +5,7 @@ import { fbm, ridged, smoothstep } from './rng';
 import { heightAt } from './field';
 import { paint, tube, merge, lerpHex } from './geo';
 import { worldMaterial } from './material';
+import { ARCH2, RIBS } from './layout';
 
 function strata(y: number, h: number, seed: number): [number, number, number] {
   const band = Math.floor((y / h) * 9 + fbm(y * 0.02, seed, 2, seed) * 1.5);
@@ -56,10 +57,12 @@ export function arch(cx: number, cz: number, span: number, height: number, thick
 
 /** Mountain range: an arc-shaped ridge strip at distance R spanning angles [a0, a1] (radians from -Z, + = left). */
 export function range(R: number, depth: number, a0: number, a1: number, H: number, seed: number, col: number): any {
-  const NA = 240, NR = 7, pos: number[] = [], idx: number[] = [];
+  const NA = Math.round((240 * (a1 - a0)) / 2.6), NR = 7, pos: number[] = [], idx: number[] = [];
   for (let i = 0; i <= NA; i++) {
     const a = a0 + ((a1 - a0) * i) / NA;
-    const crest = H * (0.25 + 0.95 * ridged(a * 5.5 + seed, seed * 0.1, 5, seed)) * (0.6 + 0.4 * fbm(a * 1.3, seed, 2, seed + 4) + 0.4);
+    const cr = (aa: number) => H * (0.25 + 0.95 * ridged(aa * 5.5 + seed, seed * 0.1, 5, seed)) * (0.6 + 0.4 * fbm(aa * 1.3, seed, 2, seed + 4) + 0.4);
+    // full rings: cross-fade into the wrapped angle near +π so the seam behind the camera is continuous
+    const crest = a > Math.PI - 0.5 ? cr(a) + (cr(a - 2 * Math.PI) - cr(a)) * smoothstep(Math.PI - 0.5, Math.PI, a) : cr(a);
     for (let j = 0; j <= NR; j++) {
       const u = -1 + (2 * j) / NR;
       const r = R + u * depth;
@@ -95,15 +98,34 @@ export function buildLandforms(): any {
     butte(560, -2300, 120, 330, 3, 0.75),
     butte(1500, -2600, 420, 360, 5),
     butte(-1700, -3100, 520, 430, 6),
+    // ring of buttes in every other direction so no view of the walkable disc ends empty
+    butte(2600, -900, 280, 380, 21),
+    butte(2300, 500, 250, 290, 22, 0.75),
+    butte(1500, 2300, 330, 330, 23),
+    butte(-600, 2700, 380, 300, 24),
+    butte(-2100, 1300, 300, 360, 25, 0.7),
+    butte(-2800, -300, 340, 310, 26),
+    butte(-2300, -1900, 260, 420, 27, 0.72),
+    butte(3000, -2400, 360, 300, 28),
   ]));
+  // second arch, south: the south riverbed leads to it
+  add(arch(ARCH2.x, ARCH2.z, ARCH2.span, ARCH2.height, ARCH2.thick, 31));
+  // fossil rib ridge, north-west: a row of narrowing arches like the ribs of something colossal
+  const ribs: any[] = [];
+  for (let i = 0; i < RIBS.count; i++) {
+    const t = i / (RIBS.count - 1);
+    ribs.push(arch(RIBS.x + Math.sin(t * 2.4) * 60, RIBS.z0 + (RIBS.z1 - RIBS.z0) * t, 330 - 140 * t, 360 - 150 * t, 24 - 8 * t, 40 + i));
+  }
+  add(merge(ribs));
   // the arch: behind the hero, its opening frames the hero cap against the sky
   add(arch(-880, -2700, 1300, 700, 80, 9));
   // ranges, each paler by distance (fog does the rest)
   for (const [R, D, a0, a1, H, s, c] of [
-    [3400, 380, -1.2, 1.25, 420, 11, PALETTE.red],
-    [4900, 600, -1.25, 1.3, 760, 12, PALETTE.crimson],
-    [6800, 800, -1.3, 1.3, 1150, 13, PALETTE.red],
-    [8600, 900, -1.35, 1.35, 1500, 14, PALETTE.crimson],
+    // full rings: the front arc (±1.2 rad) is what the hero camera sees; the rest closes every other view
+    [3400, 380, -Math.PI, Math.PI, 420, 11, PALETTE.red],
+    [4900, 600, -Math.PI, Math.PI, 760, 12, PALETTE.crimson],
+    [6800, 800, -Math.PI, Math.PI, 1150, 13, PALETTE.red],
+    [8600, 900, -Math.PI, Math.PI, 1500, 14, PALETTE.crimson],
   ] as [number, number, number, number, number, number, number][]) add(range(R, D, a0, a1, H, s, c), false);
   return group;
 }

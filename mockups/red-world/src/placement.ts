@@ -2,8 +2,8 @@
 // Pure (no three.js). Output scale = target height / archetype height (heightOf).
 import type { PlantInstance, SpeciesId } from './contracts';
 import { mulberry32, fbm, smoothstep } from './rng';
-import { riverDist, riverHalfWidth } from './field';
-import { HERO, EXPLORER } from './layout';
+import { riverDist, heightAt } from './field';
+import { HERO, EXPLORER, HOLLOW, TITAN_FOREST, ARCH2 } from './layout';
 
 export interface Rect { x0: number; x1: number; z0: number; z1: number }
 
@@ -49,7 +49,7 @@ function clear(x: number, z: number, tall: boolean, pad: number): boolean {
   const a = angOf(x, z), d = Math.hypot(x, z);
   if (Math.abs(a) > 0.95) return false;
   const rv = riverDist(x, z);
-  if (rv.d < riverHalfWidth(rv.t) * 1.1 + pad) return false;
+  if (rv.d < rv.w * 1.1 + pad) return false;
   if (tall && Math.abs(a - HERO_ANG) < 0.1 && d < 420) return false;
   if (tall && Math.abs(a - EXP_ANG) < 0.08 && d < 110) return false;
   if (Math.hypot(x - HERO.x, z - HERO.z) < 45) return false;
@@ -71,6 +71,35 @@ const SPECS: Spec[] = [
     mask: (x, z) => smoothstep(0.1, 0.3, fbm(x / 380, z / 380, 3, 12)) },
 ];
 
+// ---- the rest of the walkable world (360°). These never touch the hero camera's view wedge (|angle| < 0.75 rad),
+// except small species far beyond the crest, so the hero frame is unchanged; they run after SPECS so its rng sequence is too.
+const WEDGE = 0.75;
+const inRect = (x: number, z: number, r: Rect) => x >= r.x0 && x < r.x1 && z >= r.z0 && z < r.z1;
+const radial = (cx: number, cz: number, r0: number, r1: number) => (x: number, z: number) => 1 - smoothstep(r0, r1, Math.hypot(x - cx, z - cz));
+const around = (cx: number, cz: number, r: number): Rect => ({ x0: cx - r, x1: cx + r, z0: cz - r, z1: cz + r });
+const DISC: Rect = { x0: -2300, x1: 2300, z0: -2700, z1: 1800 };
+const clump = (x: number, z: number, s: number, seed: number, lo = 0.05, hi = 0.3) => smoothstep(lo, hi, fbm(x / s, z / s, 2, seed));
+
+type WorldSpec = Spec & { inWedgeBeyond?: number };
+const WORLD: WorldSpec[] = [
+  // ground-cover patches at the set pieces
+  ...([[HOLLOW.x, HOLLOW.z, 150], [TITAN_FOREST.x, TITAN_FOREST.z, 170], [ARCH2.x, ARCH2.z - 220, 130], [-420, 520, 110], [620, 380, 110]] as [number, number, number][])
+    .map(([cx, cz, r]): WorldSpec => ({ species: 'groundCover', rect: around(cx, cz, r), minDist: 2.6, h: [0.8, 1.8], absScale: true, variants: 3,
+      mask: (x, z) => radial(cx, cz, r * 0.4, r)(x, z) * (0.5 + 0.5 * clump(x, z, 20, 41, -0.2, 0.3)) })),
+  // pod-lantern hollow: the glow set piece
+  { species: 'lanternPods', rect: around(HOLLOW.x, HOLLOW.z, 230), minDist: 17, h: [6, 22], variants: 4, mask: radial(HOLLOW.x, HOLLOW.z, 80, 230) },
+  { species: 'lanternPods', rect: DISC, minDist: 90, h: [7, 18], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.5 * clump(x, z, 120, 42, 0.15, 0.4) },
+  { species: 'ribFan', rect: DISC, minDist: 85, h: [12, 34], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.45 * clump(x, z, 150, 43) },
+  { species: 'weeper', rect: DISC, minDist: 95, h: [20, 50], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.5 * clump(x, z, 200, 44) },
+  { species: 'coilSpire', rect: { x0: -3000, x1: 3000, z0: -3200, z1: 2800 }, minDist: 140, h: [40, 115], variants: 4,
+    mask: (x, z, d) => (d > 200 ? 0.85 * clump(x, z, 260, 45, 0.15, 0.32) : 0) },
+  // titan forest (east) and scattered titans everywhere else, a clearing kept around the hero camera
+  { species: 'parasolTitan', rect: around(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius), minDist: 62, h: [90, 175], variants: 4,
+    mask: radial(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius * 0.55, TITAN_FOREST.radius) },
+  { species: 'parasolTitan', rect: { x0: -3300, x1: 3300, z0: -3600, z1: 3300 }, minDist: 220, h: [50, 140], variants: 4,
+    mask: (x, z, d) => (d > 260 && Math.hypot(x - TITAN_FOREST.x, z - TITAN_FOREST.z) > TITAN_FOREST.radius ? clump(x, z, 380, 46, 0.05, 0.25) : 0) },
+];
+
 /** Hand-placed composition plants: hero, its grove (repeating, diminishing), and foreground framing. */
 export const HAND: { species: SpeciesId; variant: number; x: number; z: number; h: number; yaw: number; tilt?: [number, number] }[] = [
   { species: 'parasolTitan', variant: 1, x: HERO.x, z: HERO.z, h: HERO.height, yaw: 0.4, tilt: [0.02, -0.03] },
@@ -90,6 +119,9 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   // foreground framing: a cropped, overhanging young titan cap in the top-left corner; pods + fan tips on the bottom corners
   { species: 'parasolTitan', variant: 0, x: -36, z: -44, h: 28, yaw: 0.3, tilt: [0, -0.4] },
   { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
+  // a small glowing pair beside the explorer: the accent sits on the story beat
+  { species: 'lanternPods', variant: 0, x: -26, z: -76, h: 4.5, yaw: 1.3 },
+  { species: 'lanternPods', variant: 2, x: -3.5, z: -88, h: 3.5, yaw: 0.4 },
   { species: 'lanternPods', variant: 0, x: 11, z: -13, h: 5, yaw: 2.2 },
   { species: 'ribFan', variant: 1, x: 19, z: -15, h: 9, yaw: -0.9 },
   { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
@@ -111,5 +143,42 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
       out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }
   }
+  // the 360° world
+  const oldRect = new Map(SPECS.map((s) => [s.species, s.rect]));
+  for (const s of WORLD) {
+    const tall = s.species !== 'groundCover';
+    const pad = tall ? s.minDist * 0.25 : 0.5;
+    const own = oldRect.get(s.species)!;
+    const accept = (x: number, z: number) => {
+      const a = Math.abs(angOf(x, z)), d = Math.hypot(x, z);
+      const inWedge = a < WEDGE && !(s.inWedgeBeyond && d > s.inWedgeBeyond);
+      if (inWedge || (a <= 0.95 && inRect(x, z, own))) return 0; // hero frame keeps exactly what SPECS put there
+      const rv = riverDist(x, z);
+      if (rv.d < rv.w * 1.1 + pad) return 0;
+      return s.mask(x, z, d);
+    };
+    const pts = poissonDisk(rng, s.rect, s.minDist, accept);
+    for (const [x, z] of pts) {
+      if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
+      const variant = Math.floor(rng() * (variantsOf?.(s.species) ?? 3));
+      const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
+      out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
+    }
+  }
+  placed = out.map((p) => {
+    const height = s_height(p, heightOf);
+    return { ...p, position: [p.position[0], heightAt(p.position[0], p.position[2]), p.position[2]] as [number, number, number], height, trunkRadius: TRUNK_RADIUS[p.species] * height };
+  });
   return out;
 }
+
+// ---- read-only export for colliders (rw-move): every placed plant with its ground height, real height and trunk radius
+/** Trunk radius at the base as a fraction of the instance's height, per species (0 = walk-through). */
+export const TRUNK_RADIUS: Readonly<Record<SpeciesId, number>> = {
+  parasolTitan: 0.028, coilSpire: 0.04, lanternPods: 0.035, weeper: 0.03, ribFan: 0.035, groundCover: 0,
+};
+export interface PlacedPlant extends PlantInstance { height: number; trunkRadius: number }
+let placed: readonly PlacedPlant[] = [];
+/** Plants from the last placePlants() call; position[1] is the terrain height at the base. */
+export const getPlacedPlants = (): readonly PlacedPlant[] => placed;
+const s_height = (p: PlantInstance, heightOf: (s: SpeciesId, v: number) => number) => p.scale * heightOf(p.species, p.variant);

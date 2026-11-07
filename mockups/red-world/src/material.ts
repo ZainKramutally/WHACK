@@ -8,7 +8,7 @@ import {
   sin, cos, screenCoordinate, frontFacing, If, exp, smoothstep, floor, mod, texture, mx_worley_noise_vec2, clamp, dot,
 } from 'three/tsl';
 import { PALETTE } from './contracts';
-import { DATA_RECT } from './layout';
+import { DATA_RECT, HERO, EXPLORER } from './layout';
 
 export const PIXEL = new URLSearchParams(location.search).get('style') !== 'smooth';
 
@@ -77,6 +77,7 @@ export interface WorldMatOpts {
   bounce?: boolean;
   fog?: boolean;
   castShadowFlag?: boolean;
+  translucent?: boolean; // flora: pale down-facing tissue lets light through (rw-flora's banded undersides)
 }
 
 export function worldMaterial(o: WorldMatOpts = {}): any {
@@ -116,6 +117,11 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     const ndl = dot(N, U.lightDir);
     const core = float(1).sub(smoothstep(U.coreLow, U.coreHigh, ndl));
     const shade = max(core, caught.oneMinus()).clamp(0, 1).toVar();
+    if (o.translucent) {
+      // lit = max(NdotL_cel, luminance(vertexColor) * 0.8 * max(-N.y, 0)): thin pale bands glow through, dark ones stay shadowed
+      const trans = dot(base, vec3(0.2126, 0.7152, 0.0722)).mul(0.8).mul(max(N.y.negate(), 0));
+      shade.assign(shade.min(float(1).sub(trans)));
+    }
     if (PIXEL) shade.assign(floor(shade.mul(2).add(0.5)).div(2));
     const shadowCol = mix(col, vec3(U.shadowTint), U.shadowMix).mul(U.shadowGain);
     const out = mix(lit, shadowCol, shade).toVar();
@@ -135,7 +141,11 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
       if (o.glow) {
         const g = c3(PALETTE.glow);
         const hdr = g.div(dot(g, vec3(0.2126, 0.7152, 0.0722))).mul(U.glowK);
-        out.assign(mix(out, hdr, glowW.mul(f.oneMinus())));
+        // glow is pushed toward the focal area (hero neck/caps, pods around the explorer) and calmer elsewhere
+        const pxz = positionWorld.xz;
+        const focal = max(float(1).sub(smoothstep(60, 240, pxz.sub(vec2(HERO.x, HERO.z)).length())),
+          float(1).sub(smoothstep(12, 45, pxz.sub(vec2(EXPLORER.x, EXPLORER.z)).length())));
+        out.assign(mix(out, hdr.mul(mix(0.65, 1.5, focal)), glowW.mul(f.oneMinus())));
       }
     }
     return vec4(out, 1);

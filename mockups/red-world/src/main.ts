@@ -4,7 +4,7 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { SpeciesId } from './contracts';
-import { CAMERA, HERO, EXPLORER } from './layout';
+import { CAMERA, HERO, EXPLORER, SHADOW_CENTER, SHADOW_HALF } from './layout';
 import { heightAt } from './field';
 import { PIXEL, U } from './material';
 import { buildGroundTexture, buildTerrain } from './terrain';
@@ -39,9 +39,9 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.castShadow = true;
 light.shadow.mapSize.set(4096, 4096);
 const sc = light.shadow.camera;
-sc.left = -560; sc.right = 560; sc.top = 560; sc.bottom = -560; sc.near = 10; sc.far = 6000;
+sc.left = -SHADOW_HALF; sc.right = SHADOW_HALF; sc.top = SHADOW_HALF; sc.bottom = -SHADOW_HALF; sc.near = 10; sc.far = 6000;
 light.shadow.bias = -0.0004; light.shadow.normalBias = 0.6;
-light.target.position.set(40, 0, -330);
+light.target.position.set(SHADOW_CENTER[0], 0, SHADOW_CENTER[1]);
 light.position.copy(light.target.position).addScaledVector(U.lightDir.value, 2500);
 scene.add(light, light.target);
 
@@ -103,4 +103,4 @@ renderer.setAnimationLoop(() => {
   post.render();
   if (++frames === 4) (window as any).__ready = true;
 });
-(window as any).__scene = { scene, camera, plants: plants.length, player };
+(window as any).__scene = { scene, camera, plants: plants.length, player, controls };

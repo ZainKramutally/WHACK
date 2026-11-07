@@ -1,11 +1,11 @@
-// Terrain mesh (warped grid: ~2 m cells at the camera, ~100 m at 9 km) + ground data texture.
+// Terrain mesh (2.5 m cells at the hero camera, 10 m at the edge of the 2.4 km walkable square, coarse beyond) + ground data texture.
 import * as THREE from 'three/webgpu';
 import { positionWorld } from 'three/tsl';
 import { heightAt, groundData } from './field';
 import { DATA_RECT } from './layout';
 import { worldMaterial, groundColor, setGroundTexture } from './material';
 
-export function buildGroundTexture(size = 1024): any {
+export function buildGroundTexture(size = 2048): any {
   const data = new Uint8Array(size * size * 4);
   const { x0, x1, z0, z1 } = DATA_RECT;
   for (let j = 0; j < size; j++) {
@@ -25,19 +25,26 @@ export function buildGroundTexture(size = 1024): any {
   return t;
 }
 
-const warp = (t: number, a = 0.05) => a * t + (1 - a) * t * t * t;
+/** Axis coordinates: 2.5 m cells at the origin, 10 m at the edge of the walkable disc, then fast growth out to 9.5 km. */
+function axis(extent = 9500): number[] {
+  const half: number[] = [0];
+  let x = 0;
+  while (x < extent) {
+    const s = x < 60 ? 2.5 : x < 2400 ? 2.5 + (7.5 * (x - 60)) / 2340 : 10 + (x - 2400) * 0.09;
+    x = Math.min(extent, x + s); half.push(x);
+  }
+  return [...half.slice(1).reverse().map((v) => -v), ...half];
+}
 
 export function buildTerrain(): any {
-  const NX = 520, NZ = 560;
-  const XS = 9000, ZF = 9500, ZB = 700;
+  const xs = axis(), zs = axis();
+  const NX = xs.length - 1, NZ = zs.length - 1;
   const pos = new Float32Array((NX + 1) * (NZ + 1) * 3);
-  // z: t in [-1, 1] → far (-ZF) .. back (+ZB), split at z=0 so cells are densest at the camera
-  const zAt = (t: number) => (t < 0 ? -ZF * warp(-t, 0.035) : ZB * warp(t, 0.2));
   let k = 0;
   for (let j = 0; j <= NZ; j++) {
-    const z = zAt(-1 + (2 * j) / NZ);
+    const z = zs[j];
     for (let i = 0; i <= NX; i++) {
-      const x = XS * Math.sign(-1 + (2 * i) / NX) * warp(Math.abs(-1 + (2 * i) / NX), 0.035);
+      const x = xs[i];
       pos[k++] = x; pos[k++] = heightAt(x, z); pos[k++] = z;
     }
   }
