@@ -5,7 +5,7 @@ import { createTerrain, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createWorldView } from './render/world';
-import { buildVisualInputs, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
+import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
 import { controlList, worldFor } from './worlds';
@@ -40,18 +40,28 @@ async function boot() {
   const terrain = createTerrainSampler(world);
   const view = createWorldView(app);
   if ('relics' in terrain) view.setTerrainSampler(terrain);
+  // Compile the terrain, sea, sky, fauna and flora materials now, not lazily on the first frames.
+  await app.renderer.compileAsync(app.scene, app.camera);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
-  bus.on('sim:snapshot', (s) => { latest = s; });
+  const pendingBirths: SimSnapshot['births'] = [];
+  bus.on('sim:snapshot', (s) => {
+    latest = s;
+    if (s.births.length) pendingBirths.push(...s.births);
+  });
 
   // VisualInputs: rebuilt once per snapshot (20 Hz), not per frame.
   let visual: VisualInputs | null = null;
   let visualFor: SimSnapshot | null = null;
   app.setVisualInputsSource(() => {
-    if (latest && latest !== visualFor) {
-      visualFor = latest;
-      visual = buildVisualInputs(latest, world, terrain);
+    if (latest) {
+      // Births from every snapshot since the last frame are delivered exactly once, even if frames were skipped.
+      const births = drainBirths(pendingBirths);
+      if (latest !== visualFor || births.length || (visual && visual.births.length)) {
+        visualFor = latest;
+        visual = buildVisualInputs(latest, world, terrain, births);
+      }
     }
     return visual ?? app.inputs;
   });
@@ -78,7 +88,6 @@ async function boot() {
         onInspect(at) {
           const r = pick(at);
           if (r) bus.emit('inspect:open', r);
-          else if (r === null) bus.emit('inspect:close', {});
         },
         onToggleConditions: () => ui.toggleConditions(),
         onClose: () => ui.close(),

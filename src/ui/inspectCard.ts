@@ -96,11 +96,14 @@ export function mountInspectCard(
       const def = world.stats.find((x) => x.id === id);
       if (!def) continue;
       const mine = s.stats[id];
+      // Slider-controlled stats show the other world's default start (what the sliders give it); the rest, its target midpoint.
       const range = other?.targets[id];
+      const start = other?.startDefaults[id as keyof WorldConfig['startDefaults']];
+      const otherToday = start !== undefined ? start : range ? midpoint(range) : undefined;
       out.push([
         def.label,
         mine !== undefined ? formatValue(mine, def.unit) : '–',
-        range ? formatValue(midpoint(range), def.unit) : '–',
+        otherToday !== undefined ? formatValue(otherToday, def.unit) : '–',
         formatValue(def.earthValue, def.unit),
       ]);
     }

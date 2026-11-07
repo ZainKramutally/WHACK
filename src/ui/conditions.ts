@@ -23,6 +23,7 @@ interface SliderView {
   band: LivingBand | null;
   dragging: boolean;
   reasonTimer?: ReturnType<typeof setTimeout>;
+  bandKey?: string;
 }
 
 export function mountConditions(
@@ -69,6 +70,12 @@ export function mountConditions(
   }
 
   function paintBand(v: SliderView) {
+    // Called every snapshot (20 Hz): repaint only when the band visibly changed (3 significant digits), or the pulse
+    // animation would be killed.
+    const b = v.band;
+    const key = b ? `${b.low.toPrecision(3)}|${b.high.toPrecision(3)}|${b.empty ?? ''}|${b.lowLimitId ?? ''}|${b.highLimitId ?? ''}|${b.blockingLimitId ?? ''}` : '';
+    if (key === v.bandKey) return;
+    v.bandKey = key;
     v.reds.replaceChildren();
     v.chips.replaceChildren();
     if (!v.band) return;

@@ -75,7 +75,18 @@ export function lifeOnLand(
   return false;
 }
 
-export function buildVisualInputs(snapshot: SimSnapshot, world: WorldConfig, terrain: TerrainSampler): VisualInputs {
+/** Births queued from snapshots that arrived between frames; drained once so no creature misses its body plan. */
+export function drainBirths(queue: SimSnapshot['births']): SimSnapshot['births'] {
+  return queue.splice(0, queue.length);
+}
+
+/** `births` overrides the snapshot's own (pass the drained queue so births from skipped snapshots are not lost). */
+export function buildVisualInputs(
+  snapshot: SimSnapshot,
+  world: WorldConfig,
+  terrain: TerrainSampler,
+  births: SimSnapshot['births'] = snapshot.births,
+): VisualInputs {
   const stats = snapshot.stats;
   const state = terrainState(snapshot, world);
   const seaLevel = stats.seaLevel ?? 0;
@@ -98,7 +109,7 @@ export function buildVisualInputs(snapshot: SimSnapshot, world: WorldConfig, ter
     buildProgress: snapshot.buildProgress,
     terrain: { rise: state.rise, progress: state.progress, height: (x, z) => terrain.height(x, z, state) },
     organisms: snapshot.organisms,
-    births: snapshot.births,
+    births,
     flora: snapshot.flora,
     lifeOnLand: lifeOnLand(snapshot.flora, seaLevel, terrain, state),
   };

@@ -4,7 +4,7 @@ import { silicon } from '../worlds/silicon';
 import { controls } from '../worlds/controls';
 import { livingBands } from '../sim/limits';
 import type { SimSnapshot, WorldConfig } from '../worlds/types';
-import { buildVisualInputs, flatTerrain, GRID, heatSolvent, lifeOnLand, terrainState, type TerrainSampler } from './visualInputs';
+import { buildVisualInputs, drainBirths, flatTerrain, GRID, heatSolvent, lifeOnLand, terrainState, type TerrainSampler } from './visualInputs';
 
 function snap(world: WorldConfig, over: Partial<SimSnapshot> & { stats?: Record<string, number> } = {}): SimSnapshot {
   const cond = { temperature: world.id === 'carbon' ? 15 : -183, nitrogen: world.id === 'carbon' ? 1 : 30, oxygen: world.id === 'carbon' ? 21 : 0 };
@@ -106,5 +106,24 @@ describe('lifeOnLand', () => {
     const f = new Float32Array(GRID * GRID);
     f[cellAt(3, 10)] = 1;
     expect(lifeOnLand(f, 0, split, state)).toBe(true);
+  });
+});
+
+describe('births queue', () => {
+  const b = (id: number) => ({ id, plan: new Float32Array(1) });
+
+  it('drainBirths returns everything queued across snapshots, once', () => {
+    const q = [b(1), b(2), b(3)]; // births from three snapshots that arrived between two frames
+    expect(drainBirths(q).map((x) => x.id)).toEqual([1, 2, 3]);
+    expect(q).toHaveLength(0);
+    expect(drainBirths(q)).toEqual([]);
+  });
+
+  it('buildVisualInputs uses the drained births, not just the latest snapshot\'s', () => {
+    const s = snap(carbon);
+    s.births = [b(9)];
+    expect(buildVisualInputs(s, carbon, flatTerrain).births.map((x) => x.id)).toEqual([9]);
+    expect(buildVisualInputs(s, carbon, flatTerrain, [b(1), b(2), b(9)]).births.map((x) => x.id)).toEqual([1, 2, 9]);
+    expect(buildVisualInputs(s, carbon, flatTerrain, []).births).toEqual([]);
   });
 });

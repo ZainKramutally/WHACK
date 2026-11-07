@@ -37,7 +37,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   root.append(host);
 
   const formNames = new Map<number, string>();
-  const captions = mountCaptions(host, bus, world);
+  const captions = mountCaptions(host, bus, world, opts.controls ?? controlList);
   const summary = mountSummaryCard(host, world);
   const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
   const guide = mountFieldGuide(bus, formNames, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
