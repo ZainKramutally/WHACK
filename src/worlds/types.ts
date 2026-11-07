@@ -53,6 +53,11 @@ export interface Solvent {
   criticalC: number;
   solidSinks: boolean;                  // water ice floats (false); nitrogen ice sinks (true)
   vapourPressure: [number, number][];   // [°C, bar], interpolated
+  fixedPoints?: {                       // reference values for the UI and tests; not read by the sim
+    triplePressureBar: number;
+    criticalPressureBar: number;
+    liquidDensityAtTripleKgM3: number;
+  };
   sources: string[];
 }
 

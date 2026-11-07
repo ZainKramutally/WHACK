@@ -22,8 +22,8 @@ export const carbon: WorldConfig = {
       sources: ['som2016', 'goldblatt2009'],
     },
     {
-      text: 'Photosynthesis raises oxygen and draws down carbon dioxide, and consumers do the reverse. We treat net production as a stand-in for organic carbon burial, which really took billions of years.',
-      sources: [],
+      text: 'Photosynthesis raises oxygen and draws down carbon dioxide, and consumers do the reverse. We treat net production as a stand-in for organic carbon burial, which really took billions of years (Berner and Canfield 1989).',
+      sources: ['berner1989'],
       assumption: true,
     },
   ],
@@ -48,14 +48,15 @@ export const carbon: WorldConfig = {
     freezeC: 0,
     criticalC: 374,
     solidSinks: false,   // water ice floats
-    // Saturation vapour pressure of water, [°C, bar]. Approximate textbook values, interpolated; verify against NIST/IAPWS.
+    // Saturation vapour pressure of water, [°C, bar]. Checked against the NIST WebBook on 2026-11-07: 10 to 374 °C agree within 0.3%
+    // (the 100 °C entry is 1 atm, NIST gives 1.0142 bar). The entries below 0 °C are ice sublimation, not checked.
     vapourPressure: [
       [-50, 0.00004], [-20, 0.00103], [0, 0.00611], [10, 0.01228], [20, 0.02339], [30, 0.04247],
       [40, 0.07384], [50, 0.1235], [60, 0.1995], [70, 0.3119], [80, 0.4739], [90, 0.7014],
       [100, 1.0132], [110, 1.4338], [120, 1.985], [150, 4.76], [200, 15.55], [250, 39.7],
       [300, 85.8], [374, 220.6],
     ],
-    sources: [],
+    sources: ['nistH2O'],
   },
   stats: [
     { id: 'temperature', label: 'Surface temperature', unit: '°C', earthValue: 15, why: 'Water must stay liquid, and the star plus the CO₂ greenhouse set where the temperature sits.', sources: ['hoffman2017'] },
@@ -199,7 +200,7 @@ export const carbon: WorldConfig = {
       params: { value: 122 },
       reason: 'Too hot: proteins and DNA break down',
       boxEffect: 'shakeApart',
-      why: 'The highest temperature at which any known organism grows is 122 °C; the oceans themselves do not boil away below that.',
+      why: 'The highest temperature at which any known organism grows is 122 °C (under deep-sea pressure; 116 °C at low pressure); the oceans themselves do not boil away below that.',
       sources: ['takai2008'],
     },
     {

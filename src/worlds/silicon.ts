@@ -1,5 +1,5 @@
 // The silicon world (status: speculative). The reasoning chain and caveat are verbatim from CLAUDE.md.
-// The N₂ vapour-pressure table is approximate (issue #9); terrain numbers track issue #14, life input scalings issue #7.
+// The N₂ vapour-pressure table is NIST WebBook data (issue #9); terrain numbers track issue #14, life input scalings issue #7.
 import type { WorldConfig } from './types';
 
 export const silicon: WorldConfig = {
@@ -29,13 +29,13 @@ export const silicon: WorldConfig = {
       sources: ['bains2004', 'petkowski2020'],
     },
     {
-      text: "In the cold, silicon's weakness becomes its strength. At −183 °C, carbon chemistry is all but frozen. Silicon's weaker, more reactive bonds can keep reacting, and silicon compounds may dissolve in liquid nitrogen better than carbon compounds do (Petkowski 2020, Appendix C; NRC 2007). This is why this world runs on silicon rather than carbon.",
-      sources: ['petkowski2020', 'nrc2007'],
+      text: "In the cold, silicon's weakness becomes its strength. At −183 °C, carbon chemistry is all but frozen. Silicon's weaker, more reactive bonds can keep reacting, and silicon compounds may dissolve in liquid nitrogen better than carbon compounds do (NRC 2007; an assumption). Petkowski 2020 cautions that solubility of all molecules in cryosolvents, organosilicons included, is extremely low, which is part of the caveat below. This is why this world runs on silicon rather than carbon.",
+      sources: ['nrc2007', 'petkowski2020'],
+      assumption: true,   // NRC 2007 says silicon species "might have greater solubility" in N₂; Petkowski 2020 finds solubility extremely low for everything
     },
     {
       text: "The seas set the air. Nitrogen is only liquid between about −210 °C and −147 °C (its critical point). Because the seas and the air are both nitrogen, the seas evaporate or condense until the air pressure matches nitrogen's vapour pressure at that temperature. Around −183 °C that is about 3 to 4 bar, so this world has thick air, fixed by its temperature. Titan, at Saturn's distance from the Sun, is a real cold world with a thick nitrogen atmosphere and surface seas (of methane and ethane, not nitrogen).",
-      sources: [],
-      assumption: true,   // NIST nitrogen phase data and Titan figures still to verify (issue #9)
+      sources: ['nistN2', 'fulchignoni2005', 'stofan2007'],   // NIST for the liquid range and vapour pressure; Huygens and Cassini for Titan
     },
   ],
   caveat:
@@ -59,21 +59,22 @@ export const silicon: WorldConfig = {
   },
   solvent: {
     name: 'Liquid nitrogen',
-    freezeC: -210,     // triple point, about 63 K
-    criticalC: -147,   // critical point, about 126 K
-    solidSinks: true,  // solid nitrogen is denser than the liquid
-    // Saturation vapour pressure of N₂, [°C, bar]. APPROXIMATE values entered from memory (about 3.6 bar at −183 °C);
-    // replace with NIST WebBook data (issue #9). The assumption flag sits on the derived pressure stat.
+    freezeC: -210,     // triple point 63.14 K = −210.01 °C at 0.1252 bar (NIST)
+    criticalC: -147,   // critical point 126.2 K = −146.95 °C at 33.96 bar (NIST)
+    solidSinks: true,  // solid nitrogen is denser than the liquid (Scott 1976; NIST has no solid-phase density, so the figure is not in config)
+    // Saturation vapour pressure of N₂, [°C, bar]: NIST Chemistry WebBook fluid saturation properties, retrieved 2026-11-07,
+    // at 5 °C steps from the triple point to the critical point, plus the normal boiling point and −183 °C (the default start).
     vapourPressure: [
-      [-210, 0.125], [-203.15, 0.386], [-198.15, 0.76], [-195.8, 1.013], [-193.15, 1.37],
-      [-188.15, 2.29], [-183.15, 3.6], [-178.15, 5.4], [-173.15, 7.78], [-168.15, 10.8],
-      [-163.15, 14.7], [-158.15, 19.4], [-153.15, 25.1], [-148.15, 31.9], [-147, 33.9],
+      [-210, 0.1252], [-205, 0.29159], [-200, 0.5985], [-195.8, 1.0127], [-195, 1.1118], [-190, 1.9069],
+      [-185, 3.0663], [-183, 3.6511], [-180, 4.6771], [-175, 6.8303], [-170, 9.6204], [-165, 13.147],
+      [-160, 17.517], [-155, 22.855], [-150, 29.331], [-147, 33.889],
     ],
-    sources: ['bains2004', 'petkowski2020', 'nrc2007'],
+    fixedPoints: { triplePressureBar: 0.1252, criticalPressureBar: 33.96, liquidDensityAtTripleKgM3: 867.2 },
+    sources: ['bains2004', 'petkowski2020', 'nrc2007', 'nistN2', 'edejer1967', 'scott1976'],
   },
   stats: [
     { id: 'temperature', label: 'Surface temperature', unit: '°C', earthValue: 15, why: 'Cold keeps weak silicon bonds intact and the nitrogen seas liquid; the distant star sets it.', sources: ['petkowski2020'], assumption: true },
-    { id: 'pressure', label: 'Surface pressure', unit: 'bar', earthValue: 1, why: "While nitrogen seas exist, they hold the air at nitrogen's vapour pressure at this temperature.", sources: [], assumption: true },
+    { id: 'pressure', label: 'Surface pressure', unit: 'bar', earthValue: 1, why: "While nitrogen seas exist, they hold the air at nitrogen's vapour pressure at this temperature (NIST).", sources: ['nistN2'] },
     { id: 'gravity', label: 'Gravity', unit: 'g', earthValue: 1, why: 'Cold gas escapes slowly, so even modest gravity holds thick air; Titan holds 1.5 bar at 0.14 g.', sources: [], assumption: true },
     { id: 'oxygen', label: 'Oxygen', unit: '%', earthValue: 21, why: 'Any free oxygen would turn silicon into rock, so this world has none.', sources: ['petkowski2020'] },
     { id: 'nitrogen', label: 'Nitrogen', unit: '× Earth', earthValue: 1, why: 'Set by the Nitrogen slider; most of it sits in the seas, because the air can only hold what the sea pressure allows.', sources: [], assumption: true },
@@ -84,7 +85,7 @@ export const silicon: WorldConfig = {
   facts: [
     { id: 'mainGas', label: 'Main gas', value: 'Nitrogen', earthValue: 'Nitrogen', why: 'Bulk atmosphere, in balance with the nitrogen seas.', sources: [], assumption: true },
     { id: 'solvent', label: 'Solvent', value: 'Liquid nitrogen', earthValue: 'Water', why: 'Cold, unreactive and does not attack silicon compounds.', sources: ['bains2004', 'petkowski2020'] },
-    { id: 'star', label: 'Star', value: 'Sun-like, about 10× farther away', earthValue: 'The Sun', why: "Explains the cold; at Saturn's distance, Titan's surface is about −180 °C.", sources: [], assumption: true },
+    { id: 'star', label: 'Star', value: 'Sun-like, about 10× farther away', earthValue: 'The Sun', why: "Explains the cold; at Saturn's distance, Titan's surface is about −180 °C.", sources: ['fulchignoni2005'], assumption: true },
     { id: 'bodyChemistry', label: 'Body chemistry', value: 'Silicon–nitrogen compounds, with silicon-nitride ceramic plates', earthValue: 'Carbon chains with some oxygen', why: 'With no oxygen, silicon bodies are built from silicon–nitrogen compounds, and silicon nitride is a real, very hard ceramic.', sources: [], assumption: true },
     { id: 'feedstock', label: 'Silicon feedstock', value: 'Reduced silicon nitride and silicide minerals, powered by dim starlight', earthValue: 'Carbon dioxide fixed by sunlight', why: 'Silicon nitride (nierite) occurs in reduced enstatite chondrites, so a reduced world can hold it as rock; making silanes from silica would cost far more energy than this world has. Caveat: breaking the N≡N bond to fix nitrogen is energetically costly, which the model folds into upkeep.', sources: ['lee1995'], assumption: true },
     { id: 'rock', label: 'Ground', value: 'Water-ice bedrock with silicon-nitride crusts', earthValue: 'Silicate rock with limestone built by life', why: 'Water exists here only as frozen bedrock; the ice arches and spires are left over from formation.', sources: [], assumption: true },
@@ -131,8 +132,8 @@ export const silicon: WorldConfig = {
       statIds: ['pressure', 'light'],
       factIds: ['star', 'mainGas'],
       why: "The seas hold the air at nitrogen's vapour pressure, so cold means thick air, as on Titan.",
-      sources: [],
-      assumption: true,
+      sources: ['nistN2', 'fulchignoni2005'],
+      assumption: true,   // the star-distance part of this card is still ours
     },
   },
   build: {
@@ -177,10 +178,9 @@ export const silicon: WorldConfig = {
       statId: 'pressure',
       model: 'vapourPressure',
       inputs: ['temperature'],
-      params: {},   // reads the solvent's vapourPressure table (approximate, issue #9)
+      params: {},   // reads the solvent's vapourPressure table (NIST WebBook)
       why: "While the seas exist, the air pressure equals nitrogen's vapour pressure at the surface temperature.",
-      sources: [],
-      assumption: true,
+      sources: ['nistN2', 'edejer1967'],
     },
     {
       statId: 'seaCover',
@@ -206,8 +206,8 @@ export const silicon: WorldConfig = {
       reason: 'Too cold: the nitrogen seas freeze solid (speculative)',
       boxEffect: 'freeze',
       why: 'Below nitrogen\'s freezing point the solvent locks solid; nitrogen ice sinks, so unlike water ice it gives no insulating lid.',
-      sources: ['bains2004'],
-      assumption: true,
+      sources: ['bains2004', 'nistN2', 'scott1976'],
+      assumption: true,   // the freezing point is NIST data; "nitrogen ice sinks" is not checked against a density source (NIST has none for the solid)
     },
     {
       id: 'beyondCritical',
@@ -218,8 +218,7 @@ export const silicon: WorldConfig = {
       reason: "Too warm: past nitrogen's critical point (speculative)",
       boxEffect: 'dryUp',
       why: 'Above its critical point nitrogen cannot be a liquid at any pressure.',
-      sources: [],
-      assumption: true,
+      sources: ['nistN2'],
     },
     {
       id: 'seasGone',

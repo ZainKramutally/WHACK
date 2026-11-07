@@ -141,8 +141,20 @@ describe('silicon chemistry', () => {
     expect(silicon.solvent.freezeC).toBe(-210);
     expect(silicon.solvent.criticalC).toBe(-147);
     expect(silicon.solvent.solidSinks).toBe(true);
-    const at = silicon.solvent.vapourPressure.find(([t]) => Math.abs(t + 183.15) < 0.01);
-    expect(at![1]).toBeCloseTo(3.6, 1);
+    const at = silicon.solvent.vapourPressure.find(([t]) => t === -183);
+    expect(at![1]).toBeCloseTo(3.65, 2);   // NIST WebBook: 3.6511 bar
+  });
+
+  it('nitrogen table is NIST data: spans triple to critical point, rising, and ends at the critical pressure', () => {
+    const t = silicon.solvent.vapourPressure;
+    expect(t[0]).toEqual([-210, silicon.solvent.fixedPoints!.triplePressureBar]);
+    expect(t[t.length - 1][0]).toBe(silicon.solvent.criticalC);
+    expect(t[t.length - 1][1]).toBeCloseTo(silicon.solvent.fixedPoints!.criticalPressureBar, 0);
+    for (let i = 1; i < t.length; i++) {
+      expect(t[i][0]).toBeGreaterThan(t[i - 1][0]);
+      expect(t[i][1]).toBeGreaterThan(t[i - 1][1]);
+    }
+    expect(silicon.solvent.sources).toContain('nistN2');
   });
 
   it('starts cold and oxygen-free, with temperature and sea-cover limits', () => {
@@ -184,7 +196,7 @@ describe('lookups', () => {
   it('sourceFor throws on an unknown id and returns known ones', () => {
     expect(() => sourceFor('nope')).toThrow(/Unknown source/);
     expect(sourceFor('petkowski2020').doi).toBe('10.3390/life10060084');
-    for (const s of Object.values(sources)) expect(s.doi).toBeTruthy();
+    for (const s of Object.values(sources)) expect(s.doi ?? s.url).toBeTruthy();   // a DOI, or a URL for databases
   });
 
   it('worldFor returns the config by id', () => {

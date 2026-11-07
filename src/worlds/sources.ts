@@ -1,13 +1,14 @@
 // Citation list, referenced by id from every config. Only sources whose DOI was resolved are listed here
 // (silicon-life REPORT.md §10 resolved 2026-11-07; the four marked "Crossref" were resolved against Crossref
 // by title and first author while writing this file). Anything unverified is `assumption: true` in the
-// config instead, never a made-up citation. Still to verify and add (CLAUDE.md "Sources to verify"):
-// NIST Chemistry WebBook for nitrogen (issue #9), a bond-energy table, Titan/Cassini-Huygens figures.
+// config instead, never a made-up citation. Every entry was re-checked against Crossref (or NIST) on 2026-11-07;
+// the per-source status and the claims each supports are in research/sources-verified.md (issues #9, #26).
 
 export interface Source {
   id: string;
   citation: string;   // short human-readable reference
   doi?: string;
+  url?: string;       // for sources without a DOI (databases)
   note?: string;      // what we use it for
 }
 
@@ -95,6 +96,78 @@ const list: Source[] = [
     citation: 'Mastrogiuseppe M et al. (2014). The bathymetry of a Titan sea. Geophysical Research Letters.',
     doi: '10.1002/2013GL058618',
     note: 'Crossref. Cassini radar found Ligeia Mare at least about 160 m deep: the real scale of a cold-world sea.',
+  },
+  {
+    id: 'nistN2',
+    citation: 'Linstrom PJ, Mallard WG (eds). NIST Chemistry WebBook, NIST Standard Reference Database 69: nitrogen (CAS 7727-37-9), fluid saturation properties and phase-change data. Retrieved 2026-11-07.',
+    url: 'https://webbook.nist.gov/cgi/fluid.cgi?ID=C7727379&Action=Page',
+    note: 'N₂ vapour pressure and liquid density, −210 to −147 °C; triple point 63.14 K / 0.1252 bar and critical point 126.2 K / 33.96 bar. The WebBook has no solid-phase density.',
+  },
+  {
+    id: 'nistH2O',
+    citation: 'Linstrom PJ, Mallard WG (eds). NIST Chemistry WebBook, NIST Standard Reference Database 69: water (CAS 7732-18-5), fluid saturation properties. Retrieved 2026-11-07.',
+    url: 'https://webbook.nist.gov/cgi/fluid.cgi?ID=C7732185&Action=Page',
+    note: 'Water vapour pressure, 10 to 374 °C (the config table matches within 0.3%; the 100 °C entry is 1 atm). Below 0 °C the table is ice sublimation, not checked.',
+  },
+  {
+    id: 'edejer1967',
+    citation: 'Edejer MP, Thodos G (1967). Vapor pressures of liquid nitrogen between the triple and critical points. J Chem Eng Data 12:206.',
+    doi: '10.1021/je60033a014',
+    note: 'Crossref. Independent measured vapour pressures that the NIST table cites for the same range.',
+  },
+  {
+    id: 'stofan2007',
+    citation: 'Stofan ER et al. (2007). The lakes of Titan. Nature 445:61.',
+    doi: '10.1038/nature05438',
+    note: 'Crossref. Titan has surface lakes of liquid hydrocarbons (methane and ethane), not nitrogen.',
+  },
+  {
+    id: 'berner1989',
+    citation: 'Berner RA, Canfield DE (1989). A new model for atmospheric oxygen over Phanerozoic time. American Journal of Science 289:333.',
+    doi: '10.2475/ajs.289.4.333',
+    note: 'Crossref. Atmospheric oxygen tracks the burial of organic carbon (and pyrite) in sediments, not simply the amount of life.',
+  },
+  {
+    id: 'burgess1996',
+    citation: 'Burgess BK, Lowe DJ (1996). Mechanism of molybdenum nitrogenase. Chemical Reviews 96:2983.',
+    doi: '10.1021/cr950055x',
+    note: 'Crossref. Nitrogenase spends about 16 ATP per N₂ fixed (the upkeep cost of body nitrogen).',
+  },
+  {
+    id: 'jassby1976',
+    citation: 'Jassby AD, Platt T (1976). Mathematical formulation of the relationship between photosynthesis and light for phytoplankton. Limnology and Oceanography 21:540.',
+    doi: '10.4319/lo.1976.21.4.0540',
+    note: 'Crossref. Saturating photosynthesis–light curves (producer light response).',
+  },
+  {
+    id: 'manske2005',
+    citation: 'Manske AK, Glaeser J, Kuypers MMM, Overmann J (2005). Physiology and phylogeny of green sulfur bacteria forming a monospecific phototrophic assemblage at a depth of 100 meters in the Black Sea. Applied and Environmental Microbiology 71:8049.',
+    doi: '10.1128/AEM.71.12.8049-8060.2005',
+    note: 'Crossref. Phototrophs living on a tiny fraction of surface light.',
+  },
+  {
+    id: 'huffaker1958',
+    citation: 'Huffaker CB (1958). Experimental studies on predation: dispersion factors and predator-prey oscillations. Hilgardia 27:343.',
+    doi: '10.3733/hilg.v27n14p343',
+    note: 'Crossref. Predator–prey oscillations in a lab ecology.',
+  },
+  {
+    id: 'bell1936',
+    citation: 'Bell RP (1936). The theory of reactions involving proton transfers. Proc R Soc Lond A 154:414.',
+    doi: '10.1098/rspa.1936.0060',
+    note: 'Crossref. Bell–Evans–Polanyi principle (with evans1938): within one reaction family, weaker bonds mean lower barriers.',
+  },
+  {
+    id: 'evans1938',
+    citation: 'Evans MG, Polanyi M (1938). Inertia and driving force of chemical reactions. Trans Faraday Soc 34:11.',
+    doi: '10.1039/tf9383400011',
+    note: 'Crossref. Bell–Evans–Polanyi principle.',
+  },
+  {
+    id: 'scott1976',
+    citation: 'Scott TA (1976). Solid and liquid nitrogen. Physics Reports 27:89.',
+    doi: '10.1016/0370-1573(76)90032-6',
+    note: 'Crossref (existence only; figures not read). Standard review of solid and liquid N₂ properties, including that the solid is denser than the liquid.',
   },
 ];
 
