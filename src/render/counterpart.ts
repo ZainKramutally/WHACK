@@ -14,6 +14,8 @@ import { beadLayout } from './layout';
 import { creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle, type Tone } from './palette';
 
 export interface CounterpartPart {
+  /** Resolves when the swatch materials are compiled (never rejects). */
+  ready: Promise<void>;
   update(dt: number, t: number, inputs: VisualInputs): void;
   dispose(): void;
 }
@@ -266,7 +268,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   // Warm-up: build every swatch of both worlds once, compile them together, then clear. Materials and backdrops
   // stay cached, so opening a card later only builds meshes.
-  function warmUp() {
+  function warmUp(): Promise<void> {
     for (const id of ['carbon', 'silicon'] as const) {
       const other = deps.worldFor(id);
       seaContent(other); groundContent(other); producerContent(other); skyContent(other);
@@ -275,12 +277,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     }
     const all = [...backdrops.values()];
     all.forEach((b) => scene.add(b));
-    r.compileAsync(scene, cam).catch(console.error).finally(() => {
+    return r.compileAsync(scene, cam).catch(console.error).then(() => {
       all.forEach((b) => scene.remove(b));
       if (!target) clearContent(); // a card may have opened meanwhile; build() clears warm-up content itself
     });
   }
-  warmUp();
+  const ready = warmUp();
 
   const onWindow = (w: typeof rect) => { rect = w; if (!w) { builtFor = ''; clearContent(); } };
   const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
@@ -309,6 +311,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   };
 
   return {
+    ready,
     update(dt, _t, inputs) {
       if (!rect || !target) return;
       build(inputs);

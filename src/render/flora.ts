@@ -8,7 +8,8 @@ import { FLORA_GRID, cellCentre, floraAt, floraShape, hash01 } from './layout';
 import { floraColours } from './palette';
 
 const STEM_CAP = 30000, CAP_CAP = 12000, SPIKE_CAP = 40000, MAX_PLANTS = 10000;
-const REBUILD_EVERY = 0.25; // s
+const REBUILD_EVERY = 0.25; // s while the world builds
+const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly, and a rebuild is a ~10 ms spike
 const UP = new THREE.Vector3(0, 1, 0);
 
 export interface FloraPart {
@@ -66,7 +67,7 @@ export function createFlora(app: App): FloraPart {
       const needs =
         inputs.flora !== lastBuf || Math.abs(inputs.terrain.rise - lastRise) > 0.02 ||
         inputs.world.id !== lastWorld || patch !== lastPatch;
-      if (!needs || t - lastAt < REBUILD_EVERY) return;
+      if (!needs || t - lastAt < (inputs.buildProgress < 1 ? REBUILD_EVERY : REBUILD_EVERY_LIVE)) return;
       lastBuf = inputs.flora; lastRise = inputs.terrain.rise; lastWorld = inputs.world.id; lastAt = t; lastPatch = patch;
 
       stems.count = 0; caps.count = 0; spikes.count = 0;

@@ -50,7 +50,11 @@ export interface WorldView {
   pick(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } };
   /** Visual scale multiplier for creature bodies (default 3; readability only). */
   setCreatureScale(k: number): void;
+  /** Resolves when every material in the scene (including the card swatches) is compiled. Await this instead of calling compileAsync yourself. Never rejects. */
+  readonly ready: Promise<void>;
   readonly counts: { creatures: number; plants: number };
+  /** Per-part CPU ms accumulated since creation (for profiling; reset fields to 0 to restart). */
+  readonly prof: Record<'frames' | 'total' | 'terrain' | 'sky' | 'sea' | 'fauna' | 'flora' | 'counterpart', number>;
   dispose(): void;
 }
 
@@ -86,8 +90,11 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest });
   const picker = createPicker({ app, bus, fauna, getInputs: () => latest, getPatch: () => patch });
 
+  /** Accumulated ms per part (profiling aid; reset by the caller). */
+  const prof = { frames: 0, total: 0, terrain: 0, sky: 0, sea: 0, fauna: 0, flora: 0, counterpart: 0 };
   let lastMs = performance.now();
   function step(dt: number, t: number, inputs: VisualInputs) {
+    const tStart = performance.now();
     latest = inputs;
     if (patchOverride === undefined) patch = worldFor(inputs.world.id).terrain.patchSize;
 
@@ -106,12 +113,25 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       placeholderMat.color.setHex(ground);
     }
 
+    const t0 = performance.now();
     sky.update(dt, inputs, patch);
+    const t1 = performance.now();
     sea.update(dt, t, inputs, patch);
+    const t2 = performance.now();
     fauna.update(dt, t, inputs, patch);
+    const t3 = performance.now();
     flora.update(dt, t, inputs, patch);
+    const t4 = performance.now();
     counterpart.update(dt, t, inputs);
+    const t5 = performance.now();
+    prof.frames++; prof.total += t5 - t0 + (t0 - tStart);
+    prof.terrain += t0 - tStart; prof.sky += t1 - t0; prof.sea += t2 - t1; prof.fauna += t3 - t2; prof.flora += t4 - t3; prof.counterpart += t5 - t4;
   }
+
+  // Warm-up: swatches first, then the main scene (terrain/sea/creatures/flora), one compile at a time.
+  const ready: Promise<void> = counterpart.ready
+    .then(() => app.renderer.compileAsync(app.scene, app.camera))
+    .catch((e) => { console.error(e); });
 
   const unhook = opts.autoHook === false ? () => {} : app.registerFrameHook(step);
 
@@ -146,6 +166,8 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     setCreatureScale(k) {
       fauna.scaleBoost = k;
     },
+    prof,
+    ready,
     get counts() {
       return { creatures: fauna.count, plants: flora.plants };
     },
