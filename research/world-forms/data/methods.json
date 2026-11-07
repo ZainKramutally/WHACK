@@ -1,0 +1,335 @@
+{
+  "_meta": {
+    "axis": "Procedural methods: how to generate each landform live on three.js r187 WebGPU/TSL, driven by the dials",
+    "date": "2026-11-07",
+    "notes": "Costs tagged [est] are engineering estimates for an Apple Silicon Mac in Chrome WebGPU, not measurements. DOIs marked verified were resolved via api.crossref.org on 2026-11-07. 'morphs_live' = the shape follows a dragged dial every frame with no re-bake (a debounced re-bake that cross-fades in under ~1 s is recorded as false, with the pattern in the algorithm text).",
+    "dials": ["recipe.c", "recipe.si", "recipe.o", "sea.water", "sea.ammonia", "sea.methane", "sea.acid", "heat", "light", "age", "seed"],
+    "derived": ["builders", "spireHeight", "erosion", "pores", "arches", "snow", "life", "glow", "char", "stainAmount"]
+  },
+  "methods": [
+    {
+      "name": "GPU heightfield substrate (storage texture + vertex sampling)",
+      "landforms": ["all terrain", "canyon", "river", "dunes", "mesas", "patterned ground"],
+      "algorithm": "Replace the CPU ring bake with a 1024x1024 r32float storage texture over the central ~512 m (0.5 m cells). Layer 0 = TSL port of makeTerrainHeight (analytic, reads uniforms). Layer 1 = erosion/deposition delta written by compute. Terrain ring vertices sample h = base(uniforms) + delta in positionNode; normals by central differences in the vertex stage. Far rings stay analytic. Flora and spire feet read the same texture in their positionNode (instance xz -> height), so nothing needs CPU readback.",
+      "gpu_or_cpu": "GPU (compute writes storageTexture via textureStore; vertex reads it)",
+      "cost": "One-off: ~1 ms to fill base. Per frame: one texture fetch x4 per terrain vertex (~0.2 ms) [est]. Memory 4 MB per float layer.",
+      "dials_mapped": ["heat", "snow", "life", "sea.acid", "age"],
+      "morphs_live": true,
+      "effort": "M",
+      "refs": [
+        "three.js r187 TSL exports storageTexture, textureStore, instancedArray, workgroupArray (checked in node_modules/three/build/three.tsl.js)",
+        "three.js examples: webgpu_compute_texture, webgpu_compute_water (https://threejs.org/examples/)",
+        ".claude/skills/webgpu-threejs-tsl/docs/compute-shaders.md",
+        "docs/emergence/A-chemistry-up.md §4.1 (h0 buffer read by vertexIndex)"
+      ]
+    },
+    {
+      "name": "Pipe-model hydraulic erosion (virtual pipes, shallow water)",
+      "landforms": ["canyon", "river channels", "gullies", "alluvial fans", "badlands"],
+      "algorithm": "Mei, Decaudin & Hu 2007: per cell store terrain b, water d, sediment s, outflow flux f(L,R,T,B), velocity v. Each iteration: (1) add rain/source water, (2) update flux from height differences through virtual pipes, (3) update water and velocity, (4) erosion/deposition with capacity C = Kc*sin(slope)*|v|, (5) semi-Lagrangian sediment advection, (6) evaporation. Every step is a gather (single writer), so no atomics. Ping-pong two storage textures per field. Št'ava et al. 2008 add layered material hardness (erosion rate per layer), which gives caprocks and stepped canyon walls.",
+      "gpu_or_cpu": "GPU compute, 5-6 passes per iteration",
+      "cost": "Bake: 512^2 x 300-800 iterations ~ 0.15-0.3 ms/iter -> 60-250 ms total, spreadable over frames as 4-8 iter/frame [est]. Mei et al. report interactive rates at up to 2048^2 on 2007 hardware.",
+      "dials_mapped": ["age (iteration count = time)", "sea.water+sea.acid+sea.methane*(1-heat) (liquid availability = rain rate)", "heat (evaporation Ke)", "recipe.si+recipe.o (rock hardness -> Ks, lower = harder)", "seed"],
+      "morphs_live": false,
+      "effort": "L",
+      "refs": [
+        "Mei, Decaudin, Hu 2007, Fast Hydraulic Erosion Simulation and Visualization on GPU, Pacific Graphics, doi:10.1109/PG.2007.15 (verified)",
+        "Št'ava, Beneš, Brisbin, Křivánek 2008, Interactive Terrain Modeling Using Hydraulic Erosion, SCA 2008 (Eurographics digital library)",
+        "Jákó & Tóth 2011, Fast Hydraulic and Thermal Erosion on the GPU (CESCG/Hungarian conf, pipe model + thermal in one GPU loop)",
+        "Vanek et al. 2011, Large-Scale Physics-Based Terrain Editing Using Adaptive Tiles on the GPU, IEEE CG&A, doi:10.1109/MCG.2011.66 (verified)",
+        "Schott et al. 2023, Large-scale Terrain Authoring through Interactive Erosion Simulation, ACM TOG, doi:10.1145/3592787 (verified)"
+      ]
+    },
+    {
+      "name": "Particle (droplet) hydraulic erosion",
+      "landforms": ["gullies", "ridge detail", "canyon wall fluting"],
+      "algorithm": "Sebastian Lague / Hans Beyer: N droplets each walk downhill with inertia, pick up sediment up to capacity, deposit when slowing, erode with a brush radius. On GPU one thread per droplet; writes collide, so accumulate into u32 fixed-point buffers with atomicAdd (WGSL has no float atomics), then a resolve pass adds the delta to the height texture.",
+      "gpu_or_cpu": "GPU compute (atomics) or CPU worker",
+      "cost": "GPU: 100k-300k droplets x 30-60 steps ~ 10-40 ms one-off bake [est]. CPU worker: 1-5 s (Lague's CPU version takes seconds for ~70k drops).",
+      "dials_mapped": ["age (droplet count)", "sea liquid weights (droplet count)", "heat (evaporation)", "recipe.si+recipe.o (erode speed)"],
+      "morphs_live": false,
+      "effort": "M",
+      "refs": [
+        "Sebastian Lague, Coding Adventure: Hydraulic Erosion (2019), https://github.com/SebLague/Hydraulic-Erosion",
+        "Hans Theobald Beyer 2015, Implementation of a method for hydraulic erosion (TU Munich BSc thesis)",
+        "WGSL spec: atomic<u32>/atomic<i32> only, https://www.w3.org/TR/WGSL/#atomic-types"
+      ]
+    },
+    {
+      "name": "Thermal erosion / talus relaxation",
+      "landforms": ["scree slopes", "talus aprons below cliffs", "mesas slumping to plains", "dune slip faces"],
+      "algorithm": "Musgrave, Kolb & Mace 1989: material moves to lower neighbours where slope exceeds the talus angle. GPU gather form: each cell computes outflow to and inflow from its 8 neighbours from the same snapshot, writes only itself, ping-pong. Talus angle per cell can depend on stratum hardness.",
+      "gpu_or_cpu": "GPU compute, 1-2 passes per iteration",
+      "cost": "512^2: ~0.05-0.1 ms/iter, 50-200 iterations to settle [est]. Cheap enough to run every few frames continuously.",
+      "dials_mapped": ["heat (talus angle 70deg - 45deg*heat, doc A §4.6)", "age (iterations)", "snow (frost creep softens)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Musgrave, Kolb, Mace 1989, The Synthesis and Rendering of Eroded Fractal Terrains, SIGGRAPH, doi:10.1145/74334.74337 (verified)",
+        "Olsen 2004, Realtime Procedural Terrain Generation (thermal + hydraulic comparison, tech report)",
+        "docs/emergence/A-chemistry-up.md §4.6"
+      ]
+    },
+    {
+      "name": "Analytic erosion look (derivative-damped fBm, ridged, stream-power fake)",
+      "landforms": ["eroded ridges", "valley walls", "far mountains"],
+      "algorithm": "Inigo Quilez: accumulate fBm derivatives and divide each octave by (1 + dot(d,d)), so slopes get fewer high-frequency bumps and valleys smooth out (reads as erosion with no simulation). Port to TSL using mx_noise or a gradient-noise Fn with analytic derivatives.",
+      "gpu_or_cpu": "GPU (vertex positionNode) or CPU",
+      "cost": "Per vertex: 6-8 octaves of gradient noise, ~0.3-0.6 ms for 300k vertices [est]. No bake.",
+      "dials_mapped": ["erosion (heat*age) -> damping strength", "age -> octave falloff"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Inigo Quilez, More noise (fBm with derivatives), https://iquilezles.org/articles/morenoise/",
+        "Inigo Quilez, Terrain raymarching, https://iquilezles.org/articles/terrainmarching/"
+      ]
+    },
+    {
+      "name": "Stratified hardness + stepped strata (differential erosion)",
+      "landforms": ["mesas", "buttes", "caprocks", "hoodoos", "canyon walls (eco-10)", "tiered pillars (eco-03)", "rust rings (eco-13)"],
+      "algorithm": "Define hardness(y) = layer function of warped height: H(y) = hash(floor((y + warp(x,z))/bandH)) mixed with a few hard 'cap' bands. (a) Geometry, live: terrace the height through hardness, h' = h - k*(1-H(h))*smoothstep-riser, giving vertical risers at hard bands and soft slopes between. (b) Geometry, bake: feed H into the hydraulic/thermal kernels as per-cell erodibility (Št'ava 2008 layered materials), so soft layers undercut hard ones, giving caprock mesas and hoodoo hats. (c) Colour, live: fragment band = floor((worldY + warp)/bandH) -> per-band stain from an epoch palette (doc A §4.3).",
+      "gpu_or_cpu": "GPU (TSL vertex + fragment for live parts; compute for differential bake)",
+      "cost": "Live colour/terrace: <0.1 ms. Differential erosion: piggybacks on the hydraulic/thermal bake.",
+      "dials_mapped": ["recipe.si+recipe.o (contrast between hard and soft bands)", "age (number of visible bands, incision depth)", "sea (epoch stain colours)", "heat (riser sharpness)", "seed (band sequence)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Št'ava et al. 2008, Interactive Terrain Modeling Using Hydraulic Erosion (layered materials)",
+        "Cordonnier et al. 2017, Sculpting Mountains: Interactive Terrain Modeling Based on Subsurface Geology, IEEE TVCG",
+        "docs/emergence/A-chemistry-up.md §4.3 (epoch strata)"
+      ]
+    },
+    {
+      "name": "Stacked-tier lathe pillars (sea stacks, tiered pillars)",
+      "landforms": ["tiered pillars (eco-03)", "capped sea stacks (eco-06)", "hoodoos", "parasol tower trunk (eco-10)"],
+      "algorithm": "Reuse geo.ts addTube with a terraced radius profile r(t) = r0*taper(t)*(1 - notch*bump(fract(t*tiers))) where bump is a soft notch at each tier boundary, plus an undercut notch at the waterline (dissolution). Tier count and notch depth become vertex-shader uniforms if the tube is built with enough rings (displace along the baked radial direction stored as an attribute), so they morph live. Stain bands from the strata method.",
+      "gpu_or_cpu": "CPU geometry once + GPU vertex deform",
+      "cost": "Geometry 5-20 ms per hero pillar once; instanced fillers free per frame.",
+      "dials_mapped": ["age (tiers)", "heat*sea.water (waterline undercut)", "recipe.c (rounder, softer tiers) vs recipe.si (sharper)", "builders or a new reefs value (count)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "mockups/worlds/src/landforms/geo.ts addTube (existing)",
+        "Inigo Quilez, smooth minimum, https://iquilezles.org/articles/smin/"
+      ]
+    },
+    {
+      "name": "Fin erosion arches (SDF subtraction / stress-feedback)",
+      "landforms": ["arches cut through walls", "windows", "natural bridges", "sea arches"],
+      "algorithm": "Model a wall or fin as an SDF slab with noise. Subtract an ellipsoid or capsule SDF where the arch should be, with smooth-min blending; the opening size grows with erosion. Bruthans et al. 2014 show real sandstone arches form where low stress lets erosion proceed, and the remaining load path stabilises the arch; a cheap proxy is to carve where a vertical load-path test says the material carries little weight. Mesh with marching cubes (CPU worker, 96^3 ~ 30-80 ms) or surface nets on GPU. Alternative that stays live: keep the slab mesh and alpha-discard inside the SDF hole in the fragment shader with a rim darkening (silhouette-only, no inner faces).",
+      "gpu_or_cpu": "CPU worker (meshing) or GPU fragment discard (fake)",
+      "cost": "Bake 30-150 ms per fin [est]. Fragment discard: ~0.05 ms.",
+      "dials_mapped": ["arches (builders*(1-heat)^2)", "erosion (opening size)", "age"],
+      "morphs_live": false,
+      "effort": "M",
+      "refs": [
+        "Bruthans et al. 2014, Sandstone landforms shaped by negative feedback between stress and erosion, Nature Geoscience, doi:10.1038/ngeo2209 (verified)",
+        "Peytavie et al. 2009, Arches: a Framework for Modeling Complex Terrains, CGF, doi:10.1111/j.1467-8659.2009.01385.x (verified)",
+        "Paris et al. 2019, Terrain Amplification with Implicit 3D Features, ACM TOG",
+        "Inigo Quilez, distance functions, https://iquilezles.org/articles/distfunctions/"
+      ]
+    },
+    {
+      "name": "Swept-tube arches (current) extended to living arch",
+      "landforms": ["living arch (eco-13)", "frost arches (eco-04)", "dark river arches (eco-15)"],
+      "algorithm": "Existing: addTube along a raised curve between two feet, radius tapering to the crown, survival uniform thins it. Extend: (1) aT (curve param) already exists, so stain rings = bands of aT*ringCount + noise, coloured by epoch palette; (2) crystal studs = instanced octahedra scattered on the tube using its own position/normal arrays; (3) flora placement on the arch top (sample tube vertices with normal.y > 0.6) instead of terrainHeight.",
+      "gpu_or_cpu": "CPU geometry once + GPU material",
+      "cost": "Already ~ms. Rings and crystals add <0.2 ms.",
+      "dials_mapped": ["arches", "age (ring count)", "sea history (ring colours)", "recipe.o (crystal density/violet)", "life (shrubs on top)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": ["mockups/worlds/src/landforms/geo.ts", "mockups/worlds/src/landforms/nodes.ts archNodes"]
+    },
+    {
+      "name": "Tafoni / honeycomb (Worley void noise)",
+      "landforms": ["porous spires (eco-14)", "honeycomb weathering on walls", "pitted pillars"],
+      "algorithm": "Existing: 3D Worley F1 baked to an (angle,height) texture per tube, live density threshold per cell hash, baked push-in. Upgrade options: multi-scale nested cavities (F1 at 2-3 scales, small pits only on rims of big ones, which is how real tafoni nest), F2-F1 rims for ridges between cells, salt-weathering bias to shaded/lower faces (aspect from normal).",
+      "gpu_or_cpu": "CPU bake (existing) + GPU threshold",
+      "cost": "Existing bake reported in console; per frame two texture reads.",
+      "dials_mapped": ["pores (si*o*5*(1-erosion^2))", "erosion", "glow"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "mockups/worlds/src/landforms/pores.ts (existing)",
+        "Worley 1996, A Cellular Texture Basis Function, SIGGRAPH",
+        "Inigo Quilez, Voronoi edges, https://iquilezles.org/articles/voronoilines/"
+      ]
+    },
+    {
+      "name": "Werner slab cellular automaton (dunes)",
+      "landforms": ["dune fields", "ripples", "barchans", "star dunes (varying wind)"],
+      "algorithm": "Werner 1995: sand stored as integer slab counts per cell. Each step pick cells, lift one slab, hop it L cells downwind, deposit with probability p_sand (higher on sand) or p_bare, slabs in a shadow zone (15deg behind crests) always stick, then avalanche to the angle of repose. GPU version: parallel hops collide, so use a checkerboard/ random-subset update with atomicAdd on u32 slab counts, plus a gather avalanche pass. Dune type falls out of sand supply and wind variability.",
+      "gpu_or_cpu": "GPU compute (atomics) or CPU on 256^2",
+      "cost": "256^2 GPU: ~0.1-0.2 ms/step, 2000-10000 steps to form dunes -> 0.5-2 s bake or run continuously at a few steps per frame [est].",
+      "dials_mapped": ["heat (dry: runs only where heat > ~0.7)", "age (steps)", "sea liquid (wet sand sticks more: p_bare up)", "seed (wind direction)"],
+      "morphs_live": false,
+      "effort": "M",
+      "refs": [
+        "Werner 1995, Eolian dunes: Computer simulations and attractor interpretation, Geology 23(12), doi:10.1130/0091-7613(1995)023<1107:EDCSAA>2.3.CO;2 (verified)",
+        "Paris, Peytavie, Guérin, Argudo, Galin 2019, Desertscape Simulation, CGF, doi:10.1111/cgf.13815 (verified)"
+      ]
+    },
+    {
+      "name": "Analytic dune field (live fake)",
+      "landforms": ["dune ripples", "transverse dunes", "barchan-ish crests"],
+      "algorithm": "Asymmetric sawtooth along the wind axis: h = A * skew(fract(dot(p,w)/lambda + warp)), skew gives a gentle stoss and a steep lee, crest line domain-warped by low-frequency noise, amplitude modulated by a sand-supply noise to break into barchans. Existing terrain already has sin ripples for hot.",
+      "gpu_or_cpu": "GPU vertex (TSL)",
+      "cost": "<0.1 ms",
+      "dials_mapped": ["heat (amplitude)", "age (wavelength grows)", "seed (wind)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": ["mockups/worlds/src/landforms/terrain.ts (hot ripples)"]
+    },
+    {
+      "name": "Rimstone dam / travertine-sinter terrace growth",
+      "landforms": ["sinter terraces", "travertine pools", "rimstone dams", "silica sinter aprons"],
+      "algorithm": "Flowing film on a slope precipitates fastest where it speeds up and degasses (at rims), so rims grow, pond water upstream, and the pond floor grows slowly: a positive feedback that steps the slope into terraces. Grid model: water routing (pipe model or D8) gives local velocity v; deposition rate = k*f(v)*supersaturation, faster at convex lips; repeat. Veysey & Goldenfeld 2008 show travertine terrace statistics emerge from such a model. Live fake: terrace the height with pool-shaped Voronoi cells whose rims are raised (Worley F2-F1 rim + flat floors), water plane in each pool.",
+      "gpu_or_cpu": "GPU compute (growth) or GPU vertex (fake)",
+      "cost": "Growth bake 200-1000 iters x 0.2 ms [est]. Fake <0.1 ms.",
+      "dials_mapped": ["recipe.si (silica sinter) / recipe.c (carbonate travertine)", "heat (hot springs: supersaturation)", "age (terrace height)", "sea.acid (sinter)"],
+      "morphs_live": false,
+      "effort": "M",
+      "refs": [
+        "Veysey & Goldenfeld 2008, Watching rocks grow, Nature Physics, doi:10.1038/nphys911 (verified)",
+        "Hammer, Dysthe, Jamtveit 2007, The dynamics of travertine dams, Earth Planet. Sci. Lett."
+      ]
+    },
+    {
+      "name": "Tufa towers / chemical-garden tubes (DLA and path-guided growth)",
+      "landforms": ["tufa towers", "chimneys", "chemical-garden tubes", "branching coral-like stone"],
+      "algorithm": "DLA (Witten & Sander 1981): random walkers stick on contact, giving branching aggregates; bias the walk upward (buoyant fluid) to get columns. Cheaper and more controllable: space colonisation or a guided L-system along a buoyant plume path, each segment a tube with radius from flux. Chemical gardens grow as a membrane that ruptures and re-seals, producing a rising tube with bulges: grow a tube whose tip advances with a noisy upward walk, radius pulses with a rupture timer.",
+      "gpu_or_cpu": "CPU (worker) for skeleton, GPU for render",
+      "cost": "Skeleton 5-50 ms per tower; DLA voxel 64^3 with 20k walkers ~100-500 ms [est].",
+      "dials_mapped": ["recipe.si+recipe.o (mineral supply -> count)", "heat (plume strength)", "age (height)", "sea.water/acid (precipitation)"],
+      "morphs_live": false,
+      "effort": "M",
+      "refs": [
+        "Witten & Sander 1981, Diffusion-Limited Aggregation, PRL 47:1400, doi:10.1103/PhysRevLett.47.1400 (verified)",
+        "Barge et al. 2015, From Chemical Gardens to Chemobrionics, Chem. Rev., doi:10.1021/acs.chemrev.5b00014 (verified)",
+        "Runions, Lane, Prusinkiewicz 2007, Modeling Trees with a Space Colonization Algorithm"
+      ]
+    },
+    {
+      "name": "Karst tower dissolution",
+      "landforms": ["karst towers", "cone karst", "sinkholes", "tsingy blades"],
+      "algorithm": "Dissolution rate proportional to water flux x undersaturation, enhanced along a Voronoi joint network (joints = weak lines). Fast route: start with a plateau, lower everything by dissolution*(1 - distance-to-joint-cell-centre) so cell centres survive as towers and joints become corridors; residual towers get vertical walls plus an undercut notch at the water table. CA route: a few hundred iterations of dissolve-where-wet on the heightfield.",
+      "gpu_or_cpu": "GPU vertex (Voronoi fake) or GPU compute (CA)",
+      "cost": "Fake <0.2 ms; CA bake 50-200 ms [est].",
+      "dials_mapped": ["sea.water+sea.acid (solvent)", "age (tower relief)", "recipe.c (carbonate rock dissolves; silicon resists in water? see Si rule)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Inigo Quilez, Voronoi edges, https://iquilezles.org/articles/voronoilines/",
+        "Kaufmann 2009, Modelling karst geomorphology on different time scales, Geomorphology"
+      ]
+    },
+    {
+      "name": "Patterned ground (sorted circles/polygons)",
+      "landforms": ["frost polygons", "sorted stone circles", "salt polygons", "mud cracks"],
+      "algorithm": "Kessler & Werner 2003 self-organisation model (stones and soil sort through frost heave). Cheap visual: Worley F2-F1 polygon network in the fragment shader (and a small vertex dip at edges), cell size and edge width from dials; circles vs polygons via a blend between F1 and F2-F1. Reaction-diffusion (Gray-Scott) on a 512^2 texture gives labyrinths and spots if wanted.",
+      "gpu_or_cpu": "GPU fragment/vertex (Voronoi); GPU compute (RD)",
+      "cost": "Voronoi <0.1 ms; Gray-Scott 512^2 ~0.05 ms/iter, 1-5k iterations [est].",
+      "dials_mapped": ["snow (frost polygons)", "heat (salt/mud cracks when hot and dry)", "age (cell size)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Kessler & Werner 2003, Self-Organization of Sorted Patterned Ground, Science 299, doi:10.1126/science.1077309 (verified)",
+        "Turk 1991, Generating Textures on Arbitrary Surfaces Using Reaction-Diffusion, SIGGRAPH"
+      ]
+    },
+    {
+      "name": "Columnar jointing (Voronoi prisms)",
+      "landforms": ["basalt-like columns", "glass/silica columns", "hexagonal cliff faces"],
+      "algorithm": "Goehring et al. 2009: column diameter is set by cooling rate (slow cooling, wide columns). Generate with a 2D jittered-hex Voronoi in xz: each cell gets a top height h_cell = base + hash*step, so the surface is flat-topped prisms; on cliffs, project Voronoi on the wall plane. Instanced hex prisms are the fastest real-geometry route.",
+      "gpu_or_cpu": "GPU (Voronoi in vertex shader) or instanced CPU placement",
+      "cost": "<0.2 ms",
+      "dials_mapped": ["heat (cooling rate -> column width; hot = slower cooling = wider)", "recipe.si (glassy columns)", "age (broken tops)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Goehring, Mahadevan, Morris 2009, Nonequilibrium scale selection mechanism for columnar jointing, PNAS, doi:10.1073/pnas.0805132106 (verified)"
+      ]
+    },
+    {
+      "name": "Flow accumulation and river carving (D8 / spline)",
+      "landforms": ["rivers (eco-15)", "dry streambeds (eco-10 path)", "drainage networks", "canyon floors"],
+      "algorithm": "Two routes. (a) Hero river, live: the composition valley spline already exists; carve h -= depth*(1 - smoothstep(0, w, distToPath)) inside the floor and add a liquid surface mesh along the spline (ribbon) at bed + fill. Width/depth from dials. (b) Network, bake: priority-flood to fill pits, D8 flow directions, flow accumulation A, carve by stream power E = K*A^m*S^n (Cordonnier 2016), iterate. 256^2 CPU in a worker ~5-20 ms per iteration; or Génevaux 2013 river graph first, terrain built around it.",
+      "gpu_or_cpu": "(a) GPU vertex + CPU ribbon; (b) CPU worker",
+      "cost": "(a) <0.1 ms; (b) 50-500 ms bake [est].",
+      "dials_mapped": ["sea liquid weights (is there liquid at this heat: methane only cold, water mild)", "heat (dry bed when hot)", "age (incision depth)", "sea (liquid colour: white methane)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": [
+        "Génevaux et al. 2013, Terrain Generation Using Procedural Models Based on Hydrology, ACM TOG, doi:10.1145/2461912.2461996 (verified)",
+        "Cordonnier et al. 2016, Large Scale Terrain Generation from Tectonic Uplift and Fluvial Erosion, CGF, doi:10.1111/cgf.12820 (verified)",
+        "Barnes, Lehman, Mulla 2014, Priority-Flood: an optimal depression-filling and watershed-labeling algorithm, Computers & Geosciences"
+      ]
+    },
+    {
+      "name": "Sea / liquid surface plane",
+      "landforms": ["shallow sea (eco-03)", "river surface (eco-15)", "pools in terraces"],
+      "algorithm": "Flat plane (or ribbon) at seaLevel in the shared world material: colour from palette + sea weights, depth tint from (seaLevel - terrainHeight) sampled from the height texture, shoreline foam band, Voronoi caustics on the bed under shallow water (eco-03 shows them), slow flow-aligned noise scroll. Sea level from dials so it rises and falls live.",
+      "gpu_or_cpu": "GPU",
+      "cost": "<0.3 ms (one extra draw, transparent)",
+      "dials_mapped": ["sea weights (colour, opacity)", "heat (liquid present: methane only when cold, water evaporates when hot)", "age", "light (caustic strength)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": ["docs/emergence/A-chemistry-up.md §4.1 (sea plane, white methane rivers)", "three.js examples webgpu_ocean / water shaders"]
+    },
+    {
+      "name": "Sediment epochs (strata from history, design A §4)",
+      "landforms": ["banded cliffs", "rust rings", "two-tone mesas"],
+      "algorithm": "Generator version (stateless): epoch palette = seeded sequence of stain colours perturbed around the current sea stain, with band count = f(age). Stateful version: keep a 16-entry ring buffer of (sea, heat) snapshots every N seconds or on dial release; band k shows snapshot k's stain, so changing Sea leaves a visible band in the next deposited layer. Reads as a uniform array in the stone fragment shader, indexed by floor(worldY/bandH).",
+      "gpu_or_cpu": "GPU fragment + tiny CPU state",
+      "cost": "<0.05 ms",
+      "dials_mapped": ["sea (stain colour per epoch)", "age (bands)", "heat (weathering rate)"],
+      "morphs_live": true,
+      "effort": "S",
+      "refs": ["docs/emergence/A-chemistry-up.md §4.3"]
+    }
+  ],
+  "generator_gap": [
+    {
+      "pin": "eco-10 Red Canyon Parasol",
+      "missing": "Steep stratified canyon walls (the hot style multiplies wallH by mix(1,0.3,hot), so a hot world gets low walls, the opposite of eco-10); horizontal strata bands; talus blocks and fallen slabs at the wall feet; a dry winding streambed on the floor; the parasol tower (tall trunk + flat disc cap); a sky-blue clear sky anchor (palette field has no hot+bright+water clear-sky anchor except eco-01's sage). No preset exists.",
+      "fix": "(1) Add a canyon term: wallH scales with age*liquidHistory instead of shrinking with heat; wall profile via terraced hardness bands so risers are near-vertical. (2) Strata colour bands in the stone/terrain fragment shader. (3) Instanced talus boulders (fallen strata blocks) along the wall foot, density = erosion. (4) Streambed = narrow pale carve along the valley spline. (5) Parasol tower landmark: spire tube + lathe cap disc, cap radius from light (reuse capWidth). (6) eco-10 preset with valleyWidth ~40 and measured pin palette.",
+      "effort": "M"
+    },
+    {
+      "pin": "eco-15 Lantern River",
+      "missing": "Any liquid surface: there is no sea or river plane anywhere in mockups/worlds. No channel carve. Dark (stained) arches exist in principle but only cold-preset arches have been tuned. Pink parasol flora along banks has no bank-aware placement.",
+      "fix": "(1) River ribbon mesh along the valley spline, white methane liquid with flow-scrolled noise and mist, shown when liquid(sea, heat) > threshold. (2) Carve the bed: h -= depth*(1-smoothstep(0,w,dist)). (3) Bank-weighted flora placement (density peak at dist ~ w). (4) Dark stain: stainAmount high for old methane already; check arch material uses stoneColor. (5) eco-15 preset.",
+      "effort": "S"
+    },
+    {
+      "pin": "eco-13 Living Arch",
+      "missing": "Arches only appear as builders*(1-heat)^2 between two spire feet; no rust-orange ring banding along the arch; no violet crystal studs; no flora placed on top of an arch (flora uses terrainHeight only); ammonia sea has no pin anchor in the palette field (only ART_DIRECTION default).",
+      "fix": "(1) Ring bands from the existing aT attribute x ringCount(age), coloured by the epoch palette. (2) Instanced crystal octahedra scattered on arch vertices, density from recipe.o. (3) Surface-sampled flora placement on arch tops. (4) A thick, gnarled arch variant (bigger radius, twisted, root-like feet that flare into the ground). (5) eco-13 preset as an ammonia anchor.",
+      "effort": "M"
+    },
+    {
+      "pin": "eco-03 Sindha pillars",
+      "missing": "No sea surface, no caustics; no tiered/stacked pillar profile; and the derive rules give a carbon-heavy world (c heavy, si+o low) builders ~ 0, so no stone pillars would grow at all. The pin's pillars are coral-red banded (agate-like) stacks rising out of shallow water.",
+      "fix": "(1) New derived value reefs = life*sea.water*smoothstep(.4,.7,c) (carbon builders make coral pillars) or widen builders to include C reef-building; document as [game]. (2) Tiered lathe profile in addTube with live tier/notch uniforms and waterline undercut. (3) Strata bands as agate stripes (higher band frequency, warped). (4) Sea plane at seaLevel with depth tint and Voronoi caustics on the bed. (5) Top-down camera preset.",
+      "effort": "M"
+    },
+    {
+      "pin": "all pins (core promise)",
+      "missing": "Terrain geometry does not morph: makeTerrainHeight is evaluated on the CPU at build time from preset.dials (heat) and derived snow/life, then baked into ring vertex buffers. Only colour uniforms update (uRock in update(); uCrust is created from tp.acid and never updated). Spire and pore geometry is fixed per preset; only spire scale.y, pore threshold and arch survival follow dials. docs/features/world-generator.md §3 says 'GPU-displaced plane (TSL positionNode)', which the code does not do.",
+      "fix": "Port terrain height to TSL (positionNode reading the same uniforms) or to a compute-filled storage texture; drive style weights (hot/snow/life/acid) from uniforms updated in update(); move flora and spire feet to sample height on GPU. Update the spec to match whichever is built.",
+      "effort": "M"
+    }
+  ],
+  "add_next": [
+    {"rank": 1, "item": "Liquid surface (sea plane + river ribbon) with depth tint, foam band, caustics", "unlocks": ["eco-15", "eco-03", "eco-06", "eco-11"], "effort": "S", "why": "Nothing on the board with water can be shown today; one draw call, fully live."},
+    {"rank": 2, "item": "Strata bands + hardness terracing (colour live, risers live) with epoch palette", "unlocks": ["eco-10", "eco-03", "eco-13", "eco-01"], "effort": "S", "why": "Single fragment/vertex function gives canyon walls, tiered pillars and rust rings."},
+    {"rank": 3, "item": "Terrain height on GPU (TSL positionNode or storage texture) so terrain morphs with dials", "unlocks": ["all (core promise)"], "effort": "M", "why": "Today dragging Heat/Sea/Age recolours but does not reshape the ground."},
+    {"rank": 4, "item": "Canyon term + talus boulders + parasol tower landmark + eco-10 preset", "unlocks": ["eco-10"], "effort": "M", "why": "Fixes the inverted heat->wall rule and adds the pin's hero."},
+    {"rank": 5, "item": "Tiered lathe pillar profile + reefs derived value (carbon builders) + eco-03 preset", "unlocks": ["eco-03", "eco-06", "eco-07"], "effort": "M", "why": "Carbon worlds currently grow no stone at all."},
+    {"rank": 6, "item": "Arch rings + crystal studs + on-arch flora placement + eco-13 preset", "unlocks": ["eco-13", "eco-15"], "effort": "M", "why": "Extends existing tube arches, mostly shading and placement."},
+    {"rank": 7, "item": "Thermal erosion compute pass (talus) on the GPU heightfield", "unlocks": ["eco-10", "eco-01"], "effort": "S", "why": "Cheap, continuous, live with heat; first real simulation once item 3 lands."},
+    {"rank": 8, "item": "Pipe-model hydraulic erosion bake (debounced, cross-faded, iterations = age)", "unlocks": ["eco-10", "eco-15"], "effort": "L", "why": "Real canyons and gullies; biggest visual upgrade but highest risk."},
+    {"rank": 9, "item": "Analytic dunes + Voronoi patterned ground / columnar jointing", "unlocks": ["eco-01", "eco-04", "Venus/Mars-like worlds"], "effort": "S", "why": "Cheap texture of the ground; not required by any pin."},
+    {"rank": 10, "item": "Werner dune CA, sinter terraces, tufa/DLA, karst CA", "unlocks": ["off-board world types"], "effort": "M", "why": "Research-grade; only if time remains."}
+  ]
+}
