@@ -60,7 +60,8 @@ function clear(x: number, z: number, tall: boolean, pad: number, species?: Speci
 
 const SPECS: Spec[] = [
   { species: 'groundCover', rect: { x0: -90, x1: 90, z0: -170, z1: 6 }, minDist: 2.1, h: [0.8, 1.7], absScale: true, variants: 3,
-    mask: (x, z, d) => (1 - smoothstep(25, 170, d)) * (0.55 + 0.45 * smoothstep(-0.2, 0.3, fbm(x / 18, z / 18, 2, 5))) },
+    // the near right of the hero frame stays open for one clean silhouette (the hand-placed rib fan)
+    mask: (x, z, d) => (x > 1.5 && x > -z * 0.12 && d < 140 ? 0.1 : 1) * (1 - smoothstep(25, 170, d)) * (0.55 + 0.45 * smoothstep(-0.2, 0.3, fbm(x / 18, z / 18, 2, 5))) },
   { species: 'lanternPods', rect: { x0: -320, x1: 320, z0: -520, z1: -12 }, minDist: 45, h: [7, 18], variants: 3,
     mask: (x, z) => 0.6 * smoothstep(0.2, 0.45, fbm(x / 90, z / 90, 2, 8)) },
   { species: 'ribFan', rect: { x0: -420, x1: 420, z0: -720, z1: -30 }, minDist: 60, h: [12, 30], variants: 3,
@@ -83,7 +84,7 @@ const DISC: Rect = { x0: -2300, x1: 2300, z0: -2700, z1: 1800 };
 const clump = (x: number, z: number, s: number, seed: number, lo = 0.05, hi = 0.3) => smoothstep(lo, hi, fbm(x / s, z / s, 2, seed));
 
 /** Low-frequency grove field for the 360° world: 0 in open clearings, 1 in groves (tall species only). */
-const grove = (x: number, z: number) => smoothstep(0.02, 0.22, fbm(x / 520, z / 520, 2, 61));
+const grove = (x: number, z: number) => smoothstep(0.0, 0.18, fbm(x / 320, z / 320, 2, 61)); // features ~300-600 m
 
 type WorldSpec = Spec & { inWedgeBeyond?: number; variant?: number; thin?: boolean };
 
@@ -113,15 +114,16 @@ const WORLD: WorldSpec[] = [
   { species: 'ribFan', rect: around(-70, 10, 170), minDist: 38, h: [10, 24], variants: 4, mask: (x, z) => 0.7 * radial(-70, 10, 70, 170)(x, z) },
   // pod-lantern hollow: the glow set piece
   { species: 'lanternPods', rect: around(HOLLOW.x, HOLLOW.z, 230), minDist: 17, h: [6, 22], variants: 4, mask: radial(HOLLOW.x, HOLLOW.z, 80, 230) },
-  { species: 'lanternPods', rect: DISC, minDist: 90, h: [7, 18], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.5 * clump(x, z, 120, 42, 0.15, 0.4) },
-  { species: 'ribFan', rect: DISC, minDist: 85, h: [12, 34], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.45 * clump(x, z, 150, 43) },
+  // mid-scale life everywhere (30-300 m from any spot): small pod clusters and fans, also in the clearings
+  { species: 'lanternPods', rect: DISC, minDist: 60, h: [5, 16], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.3 + 0.45 * clump(x, z, 120, 42, 0.15, 0.4) },
+  { species: 'ribFan', rect: DISC, minDist: 70, h: [10, 30], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.25 + 0.45 * clump(x, z, 150, 43) },
   { species: 'weeper', rect: DISC, minDist: 95, h: [20, 50], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.25 + 0.5 * clump(x, z, 200, 44) },
-  { species: 'coilSpire', rect: { x0: -3000, x1: 3000, z0: -3200, z1: 2800 }, minDist: 105, h: [40, 115], variants: 4,
-    mask: (x, z, d) => (d > 200 ? 0.35 + 0.5 * clump(x, z, 260, 45, 0.15, 0.32) : 0) },
+  { species: 'coilSpire', rect: { x0: -3000, x1: 3000, z0: -3200, z1: 2800 }, minDist: 80, h: [40, 115], variants: 4,
+    mask: (x, z, d) => (d > 60 ? 0.35 + 0.5 * clump(x, z, 260, 45, 0.15, 0.32) : 0) },
   // titan forest (east) and scattered titans everywhere else, a clearing kept around the hero camera
   { species: 'parasolTitan', rect: around(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius), minDist: 62, h: [90, 175], variants: 4,
     mask: radial(TITAN_FOREST.x, TITAN_FOREST.z, TITAN_FOREST.radius * 0.55, TITAN_FOREST.radius) },
-  { species: 'parasolTitan', rect: { x0: -3300, x1: 3300, z0: -3600, z1: 3300 }, minDist: 165, h: [50, 140], variants: 4,
+  { species: 'parasolTitan', rect: { x0: -3300, x1: 3300, z0: -3600, z1: 3300 }, minDist: 125, h: [50, 140], variants: 4,
     mask: (x, z, d) => (d > 260 && Math.hypot(x - TITAN_FOREST.x, z - TITAN_FOREST.z) > TITAN_FOREST.radius ? 0.3 + 0.7 * clump(x, z, 380, 46, 0.05, 0.25) : 0) },
 ];
 
@@ -145,14 +147,12 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   { species: 'parasolTitan', variant: 0, x: -36, z: -44, h: 28, yaw: 0.3, tilt: [0, -0.4] },
   { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
   // spike-crown silhouettes rising from the bottom edge
-  { species: 'groundCover', variant: 3, x: 4.6, z: -8.5, h: 2.3, yaw: 0.7 },
-  { species: 'groundCover', variant: 3, x: 6.8, z: -10.5, h: 2.7, yaw: 2.1 },
   { species: 'groundCover', variant: 3, x: -4.6, z: -8, h: 2.6, yaw: 1.4 },
   // a small glowing pair beside the explorer: the accent sits on the story beat
   { species: 'lanternPods', variant: 0, x: -26, z: -76, h: 6.5, yaw: 1.3 },
   { species: 'lanternPods', variant: 2, x: -3.5, z: -88, h: 5, yaw: 0.4 },
-  { species: 'lanternPods', variant: 0, x: 11, z: -13, h: 5, yaw: 2.2 },
-  { species: 'ribFan', variant: 1, x: 19, z: -15, h: 9, yaw: -0.9 },
+  // one clean foreground silhouette on the right: a big rib fan cropped by the frame edge
+  { species: 'ribFan', variant: 1, x: 7.5, z: -11.5, h: 3.9, yaw: -0.3 },
   { species: 'ribFan', variant: 0, x: -30, z: -46, h: 9, yaw: 0.9 },
 ];
 
@@ -184,7 +184,7 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
       if (inWedge || (a <= 0.95 && inRect(x, z, own))) return 0; // hero frame keeps exactly what SPECS put there
       const rv = riverDist(x, z);
       if (rv.d < rv.w * 1.1 + pad) return 0;
-      return s.mask(x, z, d) * thinFar(s.species, d) * (tall && s.species !== 'lanternPods' && !s.variant ? grove(x, z) : 1);
+      return s.mask(x, z, d) * thinFar(s.species, d) * (tall && s.species !== 'lanternPods' && s.species !== 'ribFan' && !s.variant ? grove(x, z) : 1);
     };
     const pts = poissonDisk(rng, s.rect, s.minDist, accept);
     for (const [x, z] of pts) {
