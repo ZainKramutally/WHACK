@@ -55,3 +55,4 @@
 - 20:30: lilac default merged (a963625 cherry-pick). 98 tests, 60fps.
 - 21:11: rebased session/red-world onto main 5afb26c (full app logic). CLAUDE.md from main (#22). Red-world 98 tests + build, root tsc + 325 tests green. Pushed session/red-world.
 - 21:39: handoff: wrote PLAN.md for a fresh session; shutting down rw-scene/flora/move/fauna (all work merged).
+- 22:23: art-layer phase 1 started. Caden: TSL waiver approved (CLAUDE.md amended by a1), silicon gets own palette variant, plants big+dense with fg/mg/bg composition, faster flora growth (a1 flora-tune). Doc docs/features/art-layer.md (456ddd3). Agents: art-look, art-post, art-world, art-flora. Phase 2 fauna waits for a1 ping.
