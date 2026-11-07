@@ -6,11 +6,11 @@ The art direction for the project, adopted 2026-11-07. It replaces every earlier
 
 ## 1. Rules
 
-1. **Two colours own the frame.** The ground is red (vermilion to crimson). The sky is white (warm at the horizon, faintly cool at the zenith). Everything else is a shade of those two, plus ink.
+1. **Two colours own the frame.** The ground is red (vermilion to crimson). The sky is white (a faint lilac at the horizon, cool white at the zenith). Everything else is a shade of those two, plus ink.
 2. **One accent.** Cyan bioluminescence (`glow #3ff5e0`, `glowDeep #0f8f9a`) covers under 5% of the pixels; the reference frame measures 0.25%. Glow sits on pods, cores, gill lines and spores, and it pulls toward the focal point.
 3. **Distance fades to a cool white-lilac.** Atmospheric perspective lifts toward the pale lilac haze (`haze #e4daef`, chosen 2026-11-07 over warm pink, teal, apricot, ash and sulfur). Warm red near and cool lilac far is the depth split, and it rhymes with the violet-oxblood shadows. Each depth plane gets a value band: the **foreground** is darkest (ink, maroon), the **midground** is full red with the strongest contrast, and the **background** dissolves into white.
 4. **Plant value inverts with height.** Bases are ink/maroon so they separate from the red ground. Tops are crimson, blush or bone so they read against the white sky.
-5. **Scale is the eeriness.** Plants are 60–180 m tall and landforms are kilometres across. A 1.8 m explorer makes the scale obvious. Motion is slow: sway, drifting spores, a tiny camera drift.
+5. **Scale is the eeriness.** Plants are 60–180 m tall and landforms are kilometres across. A 1.8 m explorer makes the scale obvious. Motion is slow: sway, breathing creatures, a tiny camera drift. There are no particles.
 6. **Composition.** Each frame has one focal point on a thirds line, with the strongest dark-vs-white contrast in the image. A leading line brightens toward the focal point. Foreground silhouettes break the frame edge. The sky takes 35–50% of the frame, and the planes overlap.
 
 ## 2. Palette
