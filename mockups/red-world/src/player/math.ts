@@ -65,3 +65,22 @@ export function angleDelta(a: number, b: number): number {
 }
 
 export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** True if (x, y, z) is inside any circle (padded by `pad`) below its top. */
+export function insideCircles(x: number, z: number, y: number, pad: number, circles: readonly Circle[]): boolean {
+  for (const c of circles) if (y <= c.top && Math.hypot(x - c.x, z - c.z) < c.r + pad) return true;
+  return false;
+}
+
+/**
+ * Camera boom pull-in: march from the focus along the unit direction (dx, dy, dz) up to `len`, and return the longest
+ * clear length (first blocked sample minus `margin`, at least `min`). `blocked` tests one world point.
+ */
+export function marchBoom(fx: number, fy: number, fz: number, dx: number, dy: number, dz: number, len: number,
+  blocked: (x: number, y: number, z: number) => boolean, step = 0.5, margin = 0.6, min = 1.2): number {
+  for (let s = Math.min(step, len); s <= len + 1e-9; s += step) {
+    if (blocked(fx + dx * s, fy + dy * s, fz + dz * s)) return Math.max(min, s - margin);
+    if (s < len && s + step > len) s = len - step; // always test the far end
+  }
+  return len;
+}

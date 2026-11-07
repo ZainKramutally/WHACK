@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moveVector, clampPitch, PITCH_MIN, PITCH_MAX, resolveCircles, clampDisc, edgeSlow, angleDelta } from './math';
+import { moveVector, clampPitch, PITCH_MIN, PITCH_MAX, resolveCircles, clampDisc, edgeSlow, angleDelta, marchBoom, insideCircles } from './math';
 import { CircleGrid, LandGrid, plantColliders } from './colliders';
 
 const close = (a: [number, number], b: [number, number]) => { expect(a[0]).toBeCloseTo(b[0], 9); expect(a[1]).toBeCloseTo(b[1], 9); };
@@ -96,5 +96,28 @@ describe('colliders', () => {
     b.addTriangles([...quad(-6), ...quad(20)]);
     expect(b.blocked(5, 5, 0, 1.8)).toBe(true);
     expect(b.blocked(5, 5, 20, 1.8)).toBe(false);
+  });
+});
+
+describe('camera boom pull-in', () => {
+  const trunk = { x: 0, z: 5, r: 1, top: 30 };
+  const hit = (x: number, y: number, z: number) => insideCircles(x, z, y, 0.35, [trunk]);
+  it('keeps the full boom when the segment is clear', () => {
+    expect(marchBoom(10, 1.4, 0, 0, 0, 1, 9, hit)).toBe(9);
+  });
+  it('shortens in front of a trunk between focus and camera', () => {
+    const b = marchBoom(0, 1.4, 0, 0, 0, 1, 9, hit);
+    expect(b).toBeLessThan(5 - 1.35);
+    expect(b).toBeGreaterThanOrEqual(1.2);
+  });
+  it('a camera above the trunk top is not pulled in', () => {
+    expect(marchBoom(0, 31, 0, 0, 0, 1, 9, hit)).toBe(9);
+  });
+  it('tests the far end even when the boom is not a multiple of the step', () => {
+    const wall = (_x: number, _y: number, z: number) => z > 9.1;
+    expect(marchBoom(0, 0, 0, 0, 0, 1, 9.2, wall, 0.5, 0.6, 1)).toBeCloseTo(8.6, 9);
+  });
+  it('never returns less than the minimum', () => {
+    expect(marchBoom(0, 0, 0, 0, 0, 1, 9, () => true)).toBe(1.2);
   });
 });

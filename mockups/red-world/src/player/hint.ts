@@ -3,7 +3,7 @@ import { PALETTE } from '../contracts';
 
 export function createHint() {
   const el = document.createElement('div');
-  el.textContent = 'click or press a key to explore · WASD move · drag look · scroll zoom · Shift run · F fly (Space up, C down)';
+  el.textContent = 'click or press a key to explore · WASD move · drag look · scroll zoom · Shift run · F fly · Space/C up/down';
   const ink = '#' + PALETTE.ink.toString(16).padStart(6, '0');
   Object.assign(el.style, {
     position: 'fixed', left: '18px', bottom: '14px', font: '12px/1.4 ui-monospace, Menlo, monospace', letterSpacing: '0.04em',
