@@ -2,8 +2,8 @@
 // counterpart viewport. Driven only by VisualInputs (read-only). The final art look replaces materials, not wiring.
 //
 //   const view = createWorldView(app);
-//   view.setTerrain(createTerrainMesh(terrain, uniforms), uniforms);   // until then a flat placeholder ground is drawn
-//   player onInspect → view.pick(at)                                   // emits inspect:open
+//   view.setTerrainSampler(terrain);   // builds the GPU mesh; until then a flat placeholder ground is drawn
+//   player onInspect → const r = view.pick(at); bus.emit('inspect:open', r)
 //
 // By default it registers one frame hook on the app, so you do not need to call update() yourself.
 import * as THREE from 'three/webgpu';
@@ -18,6 +18,8 @@ import { createFlora } from './flora';
 import { createPicker } from './pick';
 import { createCounterpart } from './counterpart';
 import { groundColour } from './palette';
+import { createTerrainMesh, createTerrainUniforms } from './terrainNode';
+import type { Terrain } from '../gen/terrain';
 
 type U = { value: number };
 /** What the terrain mesh's uniforms look like (createTerrainUniforms() in render/terrainNode.ts satisfies it). */
@@ -37,10 +39,15 @@ export interface WorldView {
   update(inputs: VisualInputs): void;
   /** Use this terrain mesh (replaces the flat placeholder). Its uniforms are driven from VisualInputs.terrain. */
   setTerrain(mesh: THREE.Mesh, uniforms?: TerrainUniformsLike): void;
+  /** Build the GPU terrain mesh for this sampler (render/terrainNode.ts) and use it. */
+  setTerrainSampler(terrain: Terrain, opts?: { segments?: number }): void;
   setPatchSize(metres: number): void;
   readonly patchSize: number;
-  /** Inspect what is under client pixels (or the screen centre for the gamepad reticle); emits inspect:open. */
-  pick(at: { x: number; y: number } | 'reticle'): InspectTarget;
+  /**
+   * What is under client pixels (or the screen centre for the gamepad reticle). Does NOT emit: main.ts emits
+   * `inspect:open` with the returned `{ target, at }` (matches its PickFn).
+   */
+  pick(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } };
   /** Visual scale multiplier for creature bodies (default 3; readability only). */
   setCreatureScale(k: number): void;
   readonly counts: { creatures: number; plants: number };
@@ -122,6 +129,12 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       app.scene.add(mesh);
       placeholder.visible = false;
     },
+    setTerrainSampler(t, o) {
+      const u = createTerrainUniforms();
+      this.setTerrain(createTerrainMesh(t, u, o), u);
+      patchOverride = t.patchSize;
+      patch = t.patchSize;
+    },
     setPatchSize(m) {
       patchOverride = m;
       patch = m;
@@ -129,7 +142,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     get patchSize() {
       return patch;
     },
-    pick: (at) => picker.pick(at),
+    pick: (at) => picker.resolve(at),
     setCreatureScale(k) {
       fauna.scaleBoost = k;
     },

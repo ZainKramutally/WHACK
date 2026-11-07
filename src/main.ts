@@ -4,11 +4,12 @@ import { bus, type Bus } from './bus';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
+import { createWorldView } from './render/world';
 import { buildVisualInputs, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
 import { startStubSim, type StubSimOptions } from './stubSim';
 import { mountWorldUI } from './ui';
 import { controlList, worldFor } from './worlds';
-import type { Conditions, InspectTarget, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
+import type { Conditions, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
 
 // ---- injection points (swap each with one line) ----
 
@@ -28,16 +29,6 @@ function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, worl
   if (!('relics' in terrain)) return { x: 0, z: 0 };
   const p = spawnPoint(terrain, terrainState(snapshot, world), snapshot.stats.seaLevel ?? 0);
   return { x: p.x, z: p.z };
-}
-
-/**
- * Picker: replace with the render-world agent's src/render/pick.ts. Returns the clicked thing and where to put the
- * card, or null for nothing (the card closes). If the real picker emits inspect:open itself, return void.
- */
-type PickResult = { target: InspectTarget; at: { x: number; y: number } } | null | void;
-type PickFn = (at: { x: number; y: number } | 'reticle') => PickResult;
-function createPicker(_app: Awaited<ReturnType<typeof createApp>>): PickFn {
-  return () => null;
 }
 
 /** Stub-sim sea level from the terrain (cached per 2% of build progress and whole % of sea cover). The real sim does this itself. */
@@ -67,6 +58,8 @@ async function boot() {
 
   const app = await createApp();
   const terrain = createTerrainSampler(world);
+  const view = createWorldView(app);
+  if ('relics' in terrain) view.setTerrainSampler(terrain);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
@@ -87,7 +80,7 @@ async function boot() {
   const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true });
 
   // Player.
-  const pick = createPicker(app);
+  const pick = view.pick;
   const groundHeight = (x: number, z: number) =>
     latest ? terrain.height(x, z, terrainState(latest, world)) : 0;
   const player = attachPlayer(
