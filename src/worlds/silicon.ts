@@ -288,17 +288,17 @@ export const silicon: WorldConfig = {
   },
   terrain: {
     patchSize: 400,
-    base: { amplitude: 24, octaves: 5, frequency: 0.004, lacunarity: 2, gain: 0.5, warp: 40 },
+    base: { amplitude: 24, frequency: 0.006, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.2, rampRange: 0.75, rampDetail: 0.25 },
     spawn: { shoreDistance: 60 },
     heatSolventSpan: 40,   // −230..−190 °C maps to 0..1, so −210 °C (freezing) sits at 0.5
     machines: [
-      { id: 'M2', rate: 0.01, params: { marginWidth: 8, crustHeight: 2, deadBandHeight: 1 } },   // silicon-nitride crusts at the sea margin
-      { id: 'M4', rate: 0.01, params: { depth: 6, steepnessPerDryHeat: 1.0 } },                   // canyons
-      { id: 'M5', rate: 0.01, params: { bands: 5, bandThickness: 0.25 } },                        // strata
+      { id: 'M2', rate: 0.01, params: { rimHeight: 3, bandCenter: 0.2, bandWidth: 0.25, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
+      { id: 'M4', rate: 0.01, params: { depth: 10, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
+      { id: 'M5', rate: 0.01, params: { bandH: 6, sharpness: 0.6, strength: 0.6 } },                                            // strata terraces
     ],
     relics: [
-      { kind: 'iceArch', count: 3, params: { height: 18, span: 12 } },
-      { kind: 'iceSpire', count: 5, params: { height: 25, radius: 3 } },
+      { kind: 'iceArch', count: 3, params: { height: 18, radius: 5, span: 24 } },
+      { kind: 'iceSpire', count: 5, params: { height: 25, radius: 6 } },
     ],
     why: 'Placeholder terrain numbers, to be tuned by eye and by the spawn-shore test; the ice relics are seeded, not grown.',
     sources: [],

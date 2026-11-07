@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createTerrain, heightCore, kit32, sampleHeights, seaLevelForCover, seaLevelFromHeights, spawnPoint, type TerrainState, type Terrain } from './terrain';
 import { carbonLike, siliconLike } from './terrainFixtures';
+import { carbon } from '../worlds/carbon';
+import { silicon } from '../worlds/silicon';
 
 const full = (hs = 0.5): TerrainState => ({ rise: 1, heatSolvent: hs, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } });
 const grid = (n: number, S: number) => Array.from({ length: n * n }, (_, i) => [((i % n) / (n - 1) - 0.5) * S, ((Math.floor(i / n)) / (n - 1) - 0.5) * S] as const);
@@ -119,3 +121,22 @@ function distToShore(t: Terrain, st: TerrainState, lvl: number, x: number, z: nu
   }
   return best;
 }
+
+describe('real world configs', () => {
+  const state = (rise = 1): TerrainState => ({ rise, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } });
+  it.each([['carbon', carbon], ['silicon', silicon]] as const)('%s demo seed: builds, hits default sea cover, finds a shore', (_n, w) => {
+    const t = createTerrain(w.terrain, w.demoSeed);
+    const [lo, hi] = w.targets.seaCover;
+    const cover = (lo + hi) / 200;
+    const ref = sampleHeights(t, state(), 200);
+    for (const c of [cover, 0.3, 0.8]) {
+      const lvl = seaLevelForCover(t, state(), c);
+      expect(Math.abs(ref.filter((h) => h < lvl).length / ref.length - c)).toBeLessThan(0.01);
+    }
+    const lvl = seaLevelForCover(t, state(), cover);
+    const sp = spawnPoint(t, state(), lvl);
+    expect(sp.shoreFound).toBe(true);
+    expect(sp.height).toBeGreaterThan(lvl);
+    expect(distToShore(t, state(), lvl, sp.x, sp.z)).toBeLessThanOrEqual(w.terrain.spawn.shoreDistance);
+  });
+});
