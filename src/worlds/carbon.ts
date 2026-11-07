@@ -152,9 +152,11 @@ export const carbon: WorldConfig = {
         greenhouseK: 33,            // baseline greenhouse warming with the reference air (1× nitrogen, 0.04% CO₂)
         greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009)
         nitrogenRef: 1,             // × Earth
+        referenceCo2: 0.04,         // %, the CO₂ the baseline greenhouse already includes (Earth today)
+        co2PerDoublingK: 3,         // K of extra warming per doubling of CO₂ (Myhre 1998 forcing; Sherwood 2020 sensitivity about 3.1 K)
       },
-      why: 'Absorbed starlight balances the heat the planet radiates, with a greenhouse that thicker air strengthens a little.',
-      sources: ['goldblatt2009'],
+      why: 'Absorbed starlight balances the heat the planet radiates, with a greenhouse that thicker air and more CO₂ strengthen (about 3 K per doubling).',
+      sources: ['goldblatt2009', 'myhre1998', 'sherwood2020'],
       assumption: true,
     },
     {
