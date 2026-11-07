@@ -18,6 +18,8 @@ import { createFlora } from './flora';
 import { createPicker } from './pick';
 import { createCounterpart } from './counterpart';
 import { groundColour } from './palette';
+import { PAL, updateLook, worldMaterial } from './material';
+import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
 import { createTerrainMesh, createTerrainUniforms } from './terrainNode';
 import type { Terrain } from '../gen/terrain';
 
@@ -76,7 +78,32 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     if (g.type === 'BoxGeometry' && g.parameters?.width === 2) app.scene.remove(m);
   }
 
-  const placeholderMat = new THREE.MeshStandardNodeMaterial({ color: 0x8a7960, roughness: 0.95 });
+  /** The Red World ground: the terrain colorNode if one is set (art-world), else base ground with crimson slopes. */
+  const groundMaterial = (from?: THREE.Material) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const f = from as any;
+    const colorNode = f?.colorNode ?? mix(vec3(PAL.red), vec3(PAL.crimson), smoothstep(0.6, 0.92, normalWorld.y).oneMinus());
+    const m = worldMaterial({ kind: 'ground', colorNode });
+    if (f?.positionNode) m.positionNode = f.positionNode;
+    if (f?.normalNode) m.normalNode = f.normalNode;
+    return m;
+  };
+  /** Re-skin a part's lit meshes with the world material (unlit/basic materials, e.g. glow lamps, are kept). */
+  const reskin = (objs: THREE.Object3D[], kind: 'flora' | 'prop') => {
+    for (const o of objs) {
+      const mesh = o as THREE.Mesh;
+      const old = mesh.material as THREE.Material & { flatShading?: boolean; isMeshStandardNodeMaterial?: boolean; userData: Record<string, unknown> };
+      if (!mesh.isMesh || !old || Array.isArray(old) || !old.isMeshStandardNodeMaterial || old.userData.look) continue;
+      const m = worldMaterial({ kind, side: old.side, flat: old.flatShading === true });
+      m.transparent = old.transparent;
+      m.opacity = old.opacity;
+      m.depthWrite = old.depthWrite;
+      mesh.material = m;
+      old.dispose();
+    }
+  };
+
+  const placeholderMat = groundMaterial();
   const placeholder = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), placeholderMat);
   placeholder.rotation.x = -Math.PI / 2;
   app.scene.add(placeholder);
@@ -88,7 +115,9 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const sky = createSky(app);
   const sea = createSea(app);
   const fauna = createFauna(app);
+  const beforeFlora = new Set(app.scene.children);
   const flora = createFlora(app);
+  reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
   const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id) });
   const picker = createPicker({ app, bus, fauna, getInputs: () => latest, getPatch: () => patch });
 
@@ -99,11 +128,12 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     const tStart = performance.now();
     latest = inputs;
     if (patchOverride === undefined) patch = worldFor(inputs.world.id).terrain.patchSize;
+    updateLook(inputs, app.camera, dt, patch);
 
     lifeBlend += ((inputs.lifeOnLand ? 1 : 0) - lifeBlend) * (1 - Math.exp(-dt / 3));
     const ground = groundColour(inputs.world.composition, lifeBlend);
     if (terrain) {
-      (terrain.material as THREE.MeshStandardNodeMaterial).color.setHex(ground);
+      (terrain.material as THREE.MeshStandardNodeMaterial).color.setHex(ground);   // only read if a colorNode is absent
       if (uniforms) {
         if (uniforms.rise) uniforms.rise.value = inputs.terrain.rise;
         if (uniforms.heatSolvent) uniforms.heatSolvent.value = inputs.heatSolvent;
@@ -146,6 +176,11 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     },
     setTerrain(mesh, u) {
       if (terrain) app.scene.remove(terrain);
+      if (!(mesh.material as THREE.Material).userData.look) {
+        const old = mesh.material as THREE.Material;
+        mesh.material = groundMaterial(old);
+        old.dispose();
+      }
       terrain = mesh;
       uniforms = u;
       app.scene.add(mesh);
