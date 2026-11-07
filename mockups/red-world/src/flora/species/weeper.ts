@@ -49,7 +49,8 @@ export function weeper(rng: Rng, variant: number) {
     });
     // tip droplet pod
     const tip = pts[nPts - 1];
-    bead(b, add(tip, [0, -rBase * 0.7, 0]), norm(sub(tip, pts[nPts - 2])), rBase * 0.9, 8, 4, 'glow', 1, 1);
+    // weepers frame the foreground against the sky: keep their accent dim (glowDeep, low aGlow, small)
+    bead(b, add(tip, [0, -rBase * 0.4, 0]), norm(sub(tip, pts[nPts - 2])), rBase * 0.4, 6, 3, 'glowDeep', 0.4, 1);
     // curtain of threads hanging from the outer arc only: apex -> where the crozier starts
     const apex = pts.reduce((m, p, q) => (p[1] > pts[m][1] ? q : m), 0);
     const sA = Math.max(0.3, S[apex] / Ltot - 0.06), sB = u0 - 0.03;
@@ -76,7 +77,10 @@ export function weeper(rng: Rng, variant: number) {
         key: (u) => (u < 0.3 ? 'blush' : u < 0.7 ? 'crimson' : 'maroon'), // pale at the arc, dark tips over red ground
         sway: (u) => s0 + (1 - s0) * u,
       });
-      if (t % 7 === 3) bead(b, tp[6], [0, -1, 0], H * 0.011, 5, 3, 'glow', 1, 1);
+      if (t % 11 === 5) {
+        const bright = k === 0 && t === 5; // a single bright bead per plant
+        bead(b, tp[6], [0, -1, 0], H * 0.007, 5, 3, bright ? 'glow' : 'glowDeep', bright ? 0.8 : 0.4, 1);
+      }
     }
   }
   return b.build();

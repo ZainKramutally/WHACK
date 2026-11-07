@@ -129,4 +129,21 @@ describe('flora library', () => {
       expect(glowArea / area).toBeLessThan(0.05);
     }
   });
+
+  it('weeper accent stays dim: at most one bright bead, glow area under 0.5%', () => {
+    for (const arch of lib.bySpecies('weeper')) {
+      const g = arch.geometry, pos = g.attributes.position.array, col = g.attributes.color.array, glow = g.attributes.aGlow.array, idx = g.index.array;
+      let area = 0, glowArea = 0, brightArea = 0;
+      for (let t = 0; t < idx.length; t += 3) {
+        const [a, b, c] = [idx[t], idx[t + 1], idx[t + 2]];
+        const u = [0, 1, 2].map((q) => pos[b * 3 + q] - pos[a * 3 + q]), v = [0, 1, 2].map((q) => pos[c * 3 + q] - pos[a * 3 + q]);
+        const ar = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2;
+        area += ar;
+        if (glow[a] > 0 && glow[b] > 0 && glow[c] > 0) glowArea += ar;
+        if (keyOf(col, a) === 'glow') brightArea += ar;
+      }
+      expect(glowArea / area).toBeLessThan(0.005);
+      expect(brightArea).toBeLessThanOrEqual(glowArea / 2 + 1e-9);
+    }
+  });
 });
