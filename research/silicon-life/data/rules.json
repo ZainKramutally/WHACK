@@ -1,0 +1,1091 @@
+{
+ "meta": {
+  "round": 2,
+  "date": "2026-11-07",
+  "normalisation": "bond 0to1 = kJ/500 capped at 1; abundance 0to1 = log10(value)/log10(max in set); valence_0to1 = valence/4; rate factors from Arrhenius with Ea=50 kJ/mol unless noted",
+  "warning": "solvent_attack and pi_bond_ability for non-C/Si elements are [INFERRED] game numbers anchored on qualitative literature, not measurements"
+ },
+ "elements": [
+  {
+   "symbol": "H",
+   "group": 1,
+   "valence": 1,
+   "max_coordination": 1,
+   "valence_0to1": 0.25,
+   "electronegativity": 2.2,
+   "self_bond_kJ": 436,
+   "self_bond_0to1": 0.87,
+   "bond_to_O_kJ": 463,
+   "bond_to_O_0to1": 0.93,
+   "oxygen_hunger": 1.06,
+   "pi_bond_ability": 0.0,
+   "pi_note": "no pi bonds",
+   "abundance_cosmic_atoms_per_1e6Si": 27900000000.0,
+   "abundance_cosmic_0to1": 1.0,
+   "abundance_crust_ppm": 1400,
+   "abundance_crust_0to1": 0.56,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "B",
+   "group": 13,
+   "valence": 3,
+   "max_coordination": 4,
+   "valence_0to1": 0.75,
+   "electronegativity": 2.04,
+   "self_bond_kJ": 293,
+   "self_bond_0to1": 0.59,
+   "bond_to_O_kJ": 536,
+   "bond_to_O_0to1": 1,
+   "oxygen_hunger": 1.83,
+   "pi_bond_ability": 0.4,
+   "pi_note": "B=N (borazine) and B=C exist but are polar/reactive [INFERRED]",
+   "abundance_cosmic_atoms_per_1e6Si": 21.2,
+   "abundance_cosmic_0to1": 0.13,
+   "abundance_crust_ppm": 10,
+   "abundance_crust_0to1": 0.18,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data",
+    "bains2004"
+   ]
+  },
+  {
+   "symbol": "C",
+   "group": 14,
+   "valence": 4,
+   "max_coordination": 4,
+   "valence_0to1": 1.0,
+   "electronegativity": 2.55,
+   "self_bond_kJ": 346,
+   "self_bond_0to1": 0.69,
+   "bond_to_O_kJ": 358,
+   "bond_to_O_0to1": 0.72,
+   "oxygen_hunger": 1.03,
+   "pi_bond_ability": 1.0,
+   "pi_note": "C=C pi ~274 kJ/mol (65.4 kcal, ethene, GVB) ; stable in water",
+   "abundance_cosmic_atoms_per_1e6Si": 10100000.0,
+   "abundance_cosmic_0to1": 0.67,
+   "abundance_crust_ppm": 200,
+   "abundance_crust_0to1": 0.41,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "petkowski2020",
+    "wang_poirier1998",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "N",
+   "group": 15,
+   "valence": 3,
+   "max_coordination": 4,
+   "valence_0to1": 0.75,
+   "electronegativity": 3.04,
+   "self_bond_kJ": 167,
+   "self_bond_0to1": 0.33,
+   "bond_to_O_kJ": 201,
+   "bond_to_O_0to1": 0.4,
+   "oxygen_hunger": 1.2,
+   "pi_bond_ability": 1.0,
+   "pi_note": "N=N, N≡N, C=N all strong [BOOK]",
+   "abundance_cosmic_atoms_per_1e6Si": 3130000.0,
+   "abundance_cosmic_0to1": 0.62,
+   "abundance_crust_ppm": 19,
+   "abundance_crust_0to1": 0.23,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "O",
+   "group": 16,
+   "valence": 2,
+   "max_coordination": 3,
+   "valence_0to1": 0.5,
+   "electronegativity": 3.44,
+   "self_bond_kJ": 142,
+   "self_bond_0to1": 0.28,
+   "bond_to_O_kJ": 142,
+   "bond_to_O_0to1": 0.28,
+   "oxygen_hunger": 1.0,
+   "pi_bond_ability": 1.0,
+   "pi_note": "C=O, S=O, P=O strong; Si=O weak pi, oligomerises",
+   "abundance_cosmic_atoms_per_1e6Si": 23800000.0,
+   "abundance_cosmic_0to1": 0.71,
+   "abundance_crust_ppm": 461000,
+   "abundance_crust_0to1": 1.0,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "Si",
+   "group": 14,
+   "valence": 4,
+   "max_coordination": 6,
+   "valence_0to1": 1.0,
+   "electronegativity": 1.9,
+   "self_bond_kJ": 222,
+   "self_bond_0to1": 0.44,
+   "bond_to_O_kJ": 452,
+   "bond_to_O_0to1": 0.9,
+   "oxygen_hunger": 2.04,
+   "pi_bond_ability": 0.35,
+   "pi_note": "Si=Si pi ~97 kJ/mol (23.2 kcal, disilene, GVB) = 0.35 x C=C; Si=C pi ~132 kJ/mol; needs bulky shields (West 1981)",
+   "abundance_cosmic_atoms_per_1e6Si": 1000000.0,
+   "abundance_cosmic_0to1": 0.57,
+   "abundance_crust_ppm": 282000,
+   "abundance_crust_0to1": 0.96,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "petkowski2020",
+    "wang_poirier1998",
+    "west1981",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "P",
+   "group": 15,
+   "valence": 3,
+   "max_coordination": 5,
+   "valence_0to1": 0.75,
+   "electronegativity": 2.19,
+   "self_bond_kJ": 201,
+   "self_bond_0to1": 0.4,
+   "bond_to_O_kJ": 335,
+   "bond_to_O_0to1": 0.67,
+   "oxygen_hunger": 1.67,
+   "pi_bond_ability": 0.4,
+   "pi_note": "P=O strong; P=P and P=C only with bulky groups [BOOK]",
+   "abundance_cosmic_atoms_per_1e6Si": 10400.0,
+   "abundance_cosmic_0to1": 0.38,
+   "abundance_crust_ppm": 1050,
+   "abundance_crust_0to1": 0.53,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "S",
+   "group": 16,
+   "valence": 2,
+   "max_coordination": 6,
+   "valence_0to1": 0.5,
+   "electronegativity": 2.58,
+   "self_bond_kJ": 226,
+   "self_bond_0to1": 0.45,
+   "bond_to_O_kJ": 265,
+   "bond_to_O_0to1": 0.53,
+   "oxygen_hunger": 1.17,
+   "pi_bond_ability": 0.6,
+   "pi_note": "S=O strong; C=S weaker than C=O [BOOK]",
+   "abundance_cosmic_atoms_per_1e6Si": 515000.0,
+   "abundance_cosmic_0to1": 0.55,
+   "abundance_crust_ppm": 350,
+   "abundance_crust_0to1": 0.45,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "Ge",
+   "group": 14,
+   "valence": 4,
+   "max_coordination": 6,
+   "valence_0to1": 1.0,
+   "electronegativity": 2.01,
+   "self_bond_kJ": 188,
+   "self_bond_0to1": 0.38,
+   "bond_to_O_kJ": 363,
+   "bond_to_O_0to1": 0.73,
+   "oxygen_hunger": 1.93,
+   "pi_bond_ability": 0.3,
+   "pi_note": "Ge=Ge weaker still [INFERRED from group trend]",
+   "abundance_cosmic_atoms_per_1e6Si": null,
+   "abundance_cosmic_0to1": null,
+   "abundance_crust_ppm": 1.5,
+   "abundance_crust_0to1": 0.03,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "F",
+   "group": 17,
+   "valence": 1,
+   "max_coordination": 1,
+   "valence_0to1": 0.25,
+   "electronegativity": 3.98,
+   "self_bond_kJ": 155,
+   "self_bond_0to1": 0.31,
+   "bond_to_O_kJ": 190,
+   "bond_to_O_0to1": 0.38,
+   "oxygen_hunger": 1.23,
+   "pi_bond_ability": 0.0,
+   "pi_note": "terminator",
+   "abundance_cosmic_atoms_per_1e6Si": null,
+   "abundance_cosmic_0to1": null,
+   "abundance_crust_ppm": 585,
+   "abundance_crust_0to1": 0.49,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "Cl",
+   "group": 17,
+   "valence": 1,
+   "max_coordination": 1,
+   "valence_0to1": 0.25,
+   "electronegativity": 3.16,
+   "self_bond_kJ": 242,
+   "self_bond_0to1": 0.48,
+   "bond_to_O_kJ": 218,
+   "bond_to_O_0to1": 0.44,
+   "oxygen_hunger": 0.9,
+   "pi_bond_ability": 0.0,
+   "pi_note": "terminator",
+   "abundance_cosmic_atoms_per_1e6Si": null,
+   "abundance_cosmic_0to1": null,
+   "abundance_crust_ppm": 145,
+   "abundance_crust_0to1": 0.38,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data"
+   ]
+  },
+  {
+   "symbol": "As",
+   "group": 15,
+   "valence": 3,
+   "max_coordination": 5,
+   "valence_0to1": 0.75,
+   "electronegativity": 2.18,
+   "self_bond_kJ": 146,
+   "self_bond_0to1": 0.29,
+   "bond_to_O_kJ": 330,
+   "bond_to_O_0to1": 0.66,
+   "oxygen_hunger": 2.26,
+   "pi_bond_ability": 0.2,
+   "pi_note": "weak",
+   "abundance_cosmic_atoms_per_1e6Si": null,
+   "abundance_cosmic_0to1": null,
+   "abundance_crust_ppm": 1.8,
+   "abundance_crust_0to1": 0.05,
+   "verified": "C,Si single bonds = Petkowski 2020 Table 1; EN verified (CRC/WebElements); other bond enthalpies textbook means, NOT re-verified",
+   "sources": [
+    "textbook_bonds",
+    "en_wiki_data",
+    "westheimer1987"
+   ]
+  }
+ ],
+ "worlds": [
+  {
+   "name": "water",
+   "solvent": "H2O",
+   "T_K": 300,
+   "P_atm": 1,
+   "dielectric": 80.1,
+   "rate_factor_vs_300K": 1.0,
+   "rate_factor_Ea30": 1.0,
+   "rate_factor_Ea80": 1.0,
+   "rate_log10_Ea50": 0.0,
+   "solubility_mobility_0to1": 1.0,
+   "notes": "Polar protic, high dielectric; dissolves ions; attacks delta+ Si. Earth reference.",
+   "sources": [
+    "petkowski2020",
+    "crc_solvents",
+    "arrhenius_calc"
+   ]
+  },
+  {
+   "name": "ammonia",
+   "solvent": "NH3",
+   "T_K": 220,
+   "P_atm": 1,
+   "dielectric": 22,
+   "rate_factor_vs_300K": 0.000683,
+   "rate_factor_Ea30": 0.0126,
+   "rate_factor_Ea80": 8.6e-06,
+   "rate_log10_Ea50": -3.2,
+   "solubility_mobility_0to1": 0.7,
+   "notes": "Liquid 195-240 K at 1 atm. Dielectric ~22 at 239 K (higher when colder). Basic/nucleophilic: ammonolysis expected to attack Si like water; Si chemistry in NH3 'has not been studied'.",
+   "sources": [
+    "petkowski2020",
+    "nh3_eps",
+    "baldwin_gill1970",
+    "arrhenius_calc"
+   ]
+  },
+  {
+   "name": "titan",
+   "solvent": "CH4/C2H6 (+N2)",
+   "T_K": 94,
+   "P_atm": 1.5,
+   "dielectric": 1.7,
+   "rate_factor_vs_300K": 8.33e-20,
+   "rate_factor_Ea30": 3.57e-12,
+   "rate_factor_Ea80": 2.97e-31,
+   "rate_log10_Ea50": -19.1,
+   "solubility_mobility_0to1": 0.02,
+   "notes": "Non-polar aprotic cryosolvent, dielectric ~1.7. Almost no solvolysis, but solubility tiny (SiH4 ppt in N2, glycine-size <ppm) and reactions ~1e-19 x slower (Ea 50).",
+   "sources": [
+    "petkowski2020",
+    "nrc2007",
+    "mckay2016",
+    "crc_solvents",
+    "arrhenius_calc"
+   ]
+  },
+  {
+   "name": "venus_clouds",
+   "solvent": "81-98% H2SO4",
+   "T_K": 330,
+   "P_atm": 1,
+   "dielectric": 100,
+   "rate_factor_vs_300K": 6.19,
+   "rate_factor_Ea30": 2.98,
+   "rate_factor_Ea80": 18.5,
+   "rate_log10_Ea50": 0.8,
+   "solubility_mobility_0to1": 0.6,
+   "notes": "Venus clouds 48-60 km, <100 C, <2 bar. Electrophilic, dehydrating. Most Earth biochemicals degrade fast but nucleobases/most amino acids stable; dipeptides solvolyse within weeks. Larger share of Si chemical space stable than in water. Dielectric value for H2SO4 is ~100 (25 C) per Gillespie & Cole 1956 title-verified only.",
+   "sources": [
+    "petkowski2020",
+    "bains2021life",
+    "seager2023",
+    "seager2024",
+    "petkowski2024dipep",
+    "gillespie_cole1956",
+    "arrhenius_calc"
+   ]
+  },
+  {
+   "name": "magma",
+   "solvent": "molten silicate",
+   "T_K": 1500,
+   "P_atm": 1,
+   "dielectric": null,
+   "rate_factor_vs_300K": 9220000.0,
+   "rate_factor_Ea30": 15100.0,
+   "rate_factor_Ea80": 139000000000.0,
+   "rate_log10_Ea50": 7.0,
+   "solubility_mobility_0to1": 0.3,
+   "notes": "Silicate melt; Si-O bonds broken on ms timescale; no persistent molecular information.",
+   "sources": [
+    "petkowski2020",
+    "arrhenius_calc"
+   ]
+  }
+ ],
+ "element_in_world": [
+  {
+   "symbol": "H",
+   "world": "water",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 0.97,
+   "bond_lifetime_log10": -0.0,
+   "rationale": "H is a terminator; C-H inert, Si-H hydrolyses (scored on Si)",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "B",
+   "world": "water",
+   "solvent_attack_0to1": 0.9,
+   "bond_lifetime_rel": 0.111,
+   "bond_lifetime_log10": -1.0,
+   "rationale": "boranes hydrolyse and burn",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "C",
+   "world": "water",
+   "solvent_attack_0to1": 0.02,
+   "bond_lifetime_rel": 1.0,
+   "bond_lifetime_log10": 0.0,
+   "rationale": "alkanes, C-C, C=C stable in water; CCl4 lasts years",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "N",
+   "world": "water",
+   "solvent_attack_0to1": 0.5,
+   "bond_lifetime_rel": 0.515,
+   "bond_lifetime_log10": -0.3,
+   "rationale": "N-N chains (hydrazines) unstable; C-N amides kinetically stable",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "O",
+   "world": "water",
+   "solvent_attack_0to1": 0.6,
+   "bond_lifetime_rel": 0.414,
+   "bond_lifetime_log10": -0.4,
+   "rationale": "O-O peroxides decompose; C-O-C ethers stable",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "Si",
+   "world": "water",
+   "solvent_attack_0to1": 0.9,
+   "bond_lifetime_rel": 0.111,
+   "bond_lifetime_log10": -1.0,
+   "rationale": "'Almost all Si-X bonds, incl. Si-Si, readily hydrolysed'; Si-H -> Si-OH in hours; SiCl4 instantly; Si-C survives (hybrid route)",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "P",
+   "world": "water",
+   "solvent_attack_0to1": 0.35,
+   "bond_lifetime_rel": 0.667,
+   "bond_lifetime_log10": -0.2,
+   "rationale": "phosphate esters kinetically very stable (Westheimer 1987); P-P/P-H oxidise",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "S",
+   "world": "water",
+   "solvent_attack_0to1": 0.2,
+   "bond_lifetime_rel": 0.818,
+   "bond_lifetime_log10": -0.1,
+   "rationale": "S-S disulfides and C-S stable on biological timescales",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "H",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 1420.0,
+   "bond_lifetime_log10": 3.2,
+   "rationale": "terminator",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "B",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.4,
+   "bond_lifetime_rel": 902.0,
+   "bond_lifetime_log10": 3.0,
+   "rationale": "B-N adducts form (ammonia-borane) rather than full destruction",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "C",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.02,
+   "bond_lifetime_rel": 1460.0,
+   "bond_lifetime_log10": 3.2,
+   "rationale": "hydrocarbons stable in NH3",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "N",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.2,
+   "bond_lifetime_rel": 1200.0,
+   "bond_lifetime_log10": 3.1,
+   "rationale": "native solvent element",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "O",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.5,
+   "bond_lifetime_rel": 754.0,
+   "bond_lifetime_log10": 2.9,
+   "rationale": "O-O unstable; esters ammonolyse",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "Si",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.75,
+   "bond_lifetime_rel": 385.0,
+   "bond_lifetime_log10": 2.6,
+   "rationale": "NH3 is nucleophilic like water, so ammonolysis of delta+ Si expected; slower at 220 K; UNTESTED (Petkowski: 'not studied')",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "P",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.3,
+   "bond_lifetime_rel": 1050.0,
+   "bond_lifetime_log10": 3.0,
+   "rationale": "phosphazene P-N chemistry plausible",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "S",
+   "world": "ammonia",
+   "solvent_attack_0to1": 0.25,
+   "bond_lifetime_rel": 1120.0,
+   "bond_lifetime_log10": 3.1,
+   "rationale": "sulfur dissolves in NH3 forming polysulfide/S-N species",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "H",
+   "world": "titan",
+   "solvent_attack_0to1": 0.01,
+   "bond_lifetime_rel": 1.21e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "aprotic, no attack",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "B",
+   "world": "titan",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 1.16e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "boranes stable without water/O2",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "C",
+   "world": "titan",
+   "solvent_attack_0to1": 0.01,
+   "bond_lifetime_rel": 1.21e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "hydrocarbons are the solvent itself",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "N",
+   "world": "titan",
+   "solvent_attack_0to1": 0.03,
+   "bond_lifetime_rel": 1.19e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "N-N weak but no protic attack",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "O",
+   "world": "titan",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 1.16e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "polar O compounds insoluble -> precipitate",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "Si",
+   "world": "titan",
+   "solvent_attack_0to1": 0.03,
+   "bond_lifetime_rel": 1.19e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "'almost any chemistry is stable' in aprotic cryosolvent; majority of Si chemical space available; solubility is the limit",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "P",
+   "world": "titan",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 1.16e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "no attack",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "S",
+   "world": "titan",
+   "solvent_attack_0to1": 0.05,
+   "bond_lifetime_rel": 1.16e+19,
+   "bond_lifetime_log10": 19.1,
+   "rationale": "no attack",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "H",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.1,
+   "bond_lifetime_rel": 0.148,
+   "bond_lifetime_log10": -0.8,
+   "rationale": "protonation everywhere; terminator",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "B",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.6,
+   "bond_lifetime_rel": 0.0669,
+   "bond_lifetime_log10": -1.2,
+   "rationale": "boranes oxidised/hydrolysed by residual water [INFERRED]",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "C",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.5,
+   "bond_lifetime_rel": 0.0832,
+   "bond_lifetime_log10": -1.1,
+   "rationale": "C backbone survives but many functional groups destroyed: sugars charred <1 min, most terrestrial biochemicals half-life <1 s; nucleobases & most amino acids stable; dipeptides solvolyse within weeks",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "N",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.3,
+   "bond_lifetime_rel": 0.116,
+   "bond_lifetime_log10": -0.9,
+   "rationale": "amines protonated to stable ammonium; nitrogen heterocycles stable (nucleobases)",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "O",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.5,
+   "bond_lifetime_rel": 0.0832,
+   "bond_lifetime_log10": -1.1,
+   "rationale": "esters/ethers solvolysed; sulfate esters form",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "Si",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.3,
+   "bond_lifetime_rel": 0.116,
+   "bond_lifetime_log10": -0.9,
+   "rationale": "chlorosilanes hours-days in 100% H2SO4 (vs instant in water); Si-Si more stable than Si-C; Si-H allowed; alternating Si-C polymers stable in 98% H2SO4 at 90 C; small strained Si rings explode",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "P",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.4,
+   "bond_lifetime_rel": 0.0995,
+   "bond_lifetime_log10": -1.0,
+   "rationale": "P-O chemistry; phosphine is oxidised in acid aerosol [INFERRED]",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "S",
+   "world": "venus_clouds",
+   "solvent_attack_0to1": 0.15,
+   "bond_lifetime_rel": 0.14,
+   "bond_lifetime_log10": -0.9,
+   "rationale": "native solvent element; S-oxide heteropolymers modelled (Madan 2025)",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "H",
+   "world": "magma",
+   "solvent_attack_0to1": 1.0,
+   "bond_lifetime_rel": 1.1e-09,
+   "bond_lifetime_log10": -9.0,
+   "rationale": "degasses as H2/H2O",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "B",
+   "world": "magma",
+   "solvent_attack_0to1": 0.95,
+   "bond_lifetime_rel": 6.57e-09,
+   "bond_lifetime_log10": -8.2,
+   "rationale": "borate in melt",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "C",
+   "world": "magma",
+   "solvent_attack_0to1": 1.0,
+   "bond_lifetime_rel": 1.1e-09,
+   "bond_lifetime_log10": -9.0,
+   "rationale": "oxidised to CO/CO2 or graphite; no molecular C chains",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "N",
+   "world": "magma",
+   "solvent_attack_0to1": 1.0,
+   "bond_lifetime_rel": 1.1e-09,
+   "bond_lifetime_log10": -9.0,
+   "rationale": "N2 gas",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "O",
+   "world": "magma",
+   "solvent_attack_0to1": 0.9,
+   "bond_lifetime_rel": 1.21e-08,
+   "bond_lifetime_log10": -7.9,
+   "rationale": "O is part of the network solvent",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "Si",
+   "world": "magma",
+   "solvent_attack_0to1": 0.95,
+   "bond_lifetime_rel": 6.57e-09,
+   "bond_lifetime_log10": -8.2,
+   "rationale": "Si-O network bonds break/reform on a ms timescale; no stable information",
+   "status": "plausible/theorised",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "P",
+   "world": "magma",
+   "solvent_attack_0to1": 0.95,
+   "bond_lifetime_rel": 6.57e-09,
+   "bond_lifetime_log10": -8.2,
+   "rationale": "phosphate in melt",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  },
+  {
+   "symbol": "S",
+   "world": "magma",
+   "solvent_attack_0to1": 0.95,
+   "bond_lifetime_rel": 6.57e-09,
+   "bond_lifetime_log10": -8.2,
+   "rationale": "sulfide/sulfate in melt",
+   "status": "consensus",
+   "number_basis": "[INFERRED] score anchored on cited qualitative statements; lifetime = (1-attack+0.01)/rate_factor(Ea=50), normalised to C in water = 1"
+  }
+ ],
+ "knobs": [
+  {
+   "name": "Group 14 backbone (C <-> Si <-> Ge slider)",
+   "controls": "interpolates self_bond, bond_to_O, pi_bond_ability, electronegativity of the backbone type",
+   "physical_meaning": "Going down group 14 the atom gets bigger and less electronegative: X-X single bond 346 -> 222 -> ~188 kJ/mol, pi bond 274 -> 97 kJ/mol, X-O bond 358 -> 452 kJ/mol",
+   "emergent_effect": "[INFERRED] Carbon end: long chains, rings and double-bond motifs persist -> high motif diversity. Silicon end: chains short-lived in polar solvents, few rigid/unsaturated motifs, O captures Si into inert silica blocks -> reef/sand worlds",
+   "sources": [
+    "petkowski2020",
+    "wang_poirier1998",
+    "textbook_bonds"
+   ]
+  },
+  {
+   "name": "Bond count (valence / hypervalency)",
+   "controls": "maxBonds per particle 1-6; hypervalent toggle lets Si/P/S hold 5-6 transiently",
+   "physical_meaning": "Valence 1 terminates, 2 makes chains/rings, 3-4 branches/networks. Si can be 5-6-coordinate; the 5-coordinate intermediate speeds both catalysis and hydrolysis",
+   "emergent_effect": "[INFERRED] valence <=2: only chains and rings, no complex branching; 4: tree-like polymers and catalytic sets; 5-6: faster reaction but faster decay (trade-off)",
+   "sources": [
+    "petkowski2020"
+   ]
+  },
+  {
+   "name": "Oxygen hunger",
+   "controls": "ratio bond_to_O / self_bond (C 1.03, Si 2.04) -> probability a backbone atom next to O converts irreversibly to an oxide sink",
+   "physical_meaning": "Si-O (452) is far stronger than Si-Si (222); SiO2 polymerises into insoluble solid; making SiH4 from silica costs +434 kJ/mol vs methane from CO2 -142",
+   "emergent_effect": "[INFERRED] high hunger: oxide waste accumulates as solid, entombs organisms, energy budget drains; low hunger (C): gaseous waste diffuses away, clean recycling",
+   "sources": [
+    "petkowski2020"
+   ]
+  },
+  {
+   "name": "Solvent",
+   "controls": "world preset: solvent_attack per element, dielectric, solubility/mobility",
+   "physical_meaning": "Protic polar solvents (water, NH3) attack delta+ Si; aprotic cryosolvents attack nothing but dissolve almost nothing; conc. H2SO4 is electrophilic and spares Si relative to water",
+   "emergent_effect": "[INFERRED] water: Si worlds stall at 'first chain'; Titan/N2: Si chains survive but nothing meets (no metabolism); H2SO4: Si-C hybrids thrive (best Si world)",
+   "sources": [
+    "petkowski2020",
+    "nrc2007",
+    "bains2021life",
+    "seager2023"
+   ]
+  },
+  {
+   "name": "Temperature",
+   "controls": "global kT -> Arrhenius rate factor for both bond making and breaking; clamped to solvent liquid range",
+   "physical_meaning": "k ~ exp(-Ea/RT). Ea=50 kJ/mol: 94 K is ~1e-19 x, 220 K ~7e-4 x, 330 K ~6 x, 1500 K ~1e7 x the 300 K rate. Petkowski cites 2-3 x drop per 10 C",
+   "emergent_effect": "[INFERRED] Goldilocks band: too cold = frozen museum (bonds last but no reactions), too hot = soup that never holds structure. Weak bonds (Si-Si) need colder worlds; use log-compressed rate in the sim",
+   "sources": [
+    "arrhenius_calc",
+    "petkowski2020"
+   ]
+  },
+  {
+   "name": "Energy source",
+   "controls": "rate and type of energy injection: UV (surface/cloud top), redox gradient (vents), thermal cycling, radiolysis",
+   "physical_meaning": "Life needs disequilibrium: chemosynthesis and photosynthesis on Earth; radiolytic H2 powers a single-species ecosystem 2.8 km down; Titan C2H2 + 3H2 -> 2CH4 proposed",
+   "emergent_effect": "[INFERRED] localised sources (vents) give patchy ecosystems and competition for hotspots; diffuse UV gives surface mats; low energy + slow T = sparse life",
+   "sources": [
+    "nrc2007",
+    "lin2006",
+    "mckay_smith2005"
+   ]
+  }
+ ],
+ "steelman": [
+  {
+   "scenario": "Sulfuric-acid hybrid: carbon + silicon co-backbone in Venus-like cloud droplets",
+   "conditions": "81-98% H2SO4, ~280-370 K, <2 bar, sunlight; Si as common heteroatom (Si-Si, Si-C, Si-H bonds); needs a peptide-bond substitute",
+   "status": "plausible/theorised (strongest Si case in the literature)",
+   "sources": [
+    "petkowski2020",
+    "bains2021life",
+    "seager2023",
+    "seager2024",
+    "petkowski2024dipep"
+   ]
+  },
+  {
+   "scenario": "Cryogenic nitrogen/methane world with mostly-silicon chemistry",
+   "conditions": "aprotic liquid N2 (63-77 K, Triton, cold planets far from M dwarfs) or CH4/C2H6 (~94 K, Titan); unsaturated/reactive Si species to beat the cold; silanes more soluble in N2 than carbon species",
+   "status": "plausible/theorised, disfavoured (solubility: SiH4 only ppt in N2; 'any biochemistry implausible in cryosolvents')",
+   "sources": [
+    "petkowski2020",
+    "nrc2007",
+    "bains2004"
+   ]
+  },
+  {
+   "scenario": "Carbon life that recruits silicon: Si-C enzymes, biosilica armour, clay-template origins",
+   "conditions": "water, carbon backbone; Si used structurally (diatoms, sponges) or as specialised heteroatom (evolved cytochrome c makes Si-C bonds); optionally silicate clay scaffolds at the origin",
+   "status": "consensus for biosilica & lab Si-C enzymes; plausible/theorised (minority) for clay genes",
+   "sources": [
+    "kan2016",
+    "kroger1999",
+    "shimizu1998",
+    "cairns_smith1982",
+    "petkowski2020"
+   ]
+  },
+  {
+   "scenario": "REJECTED: high pressure makes silicon carbon-like",
+   "conditions": "GPa pressures",
+   "status": "no support found: pressure pushes Si to higher coordination (6-coordinate network solids, e.g. stishovite) and makes CARBON silicon-like (quartz-like CO2-V above 40 GPa/1800 K), the reverse of what the idea needs [INFERRED from cited result]",
+   "sources": [
+    "iota1999"
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "key": "petkowski2020",
+   "citation": "Petkowski JJ, Bains W, Seager S (2020) On the potential of silicon as a building block for life. Life 10(6):84",
+   "doi": "10.3390/life10060084",
+   "type": "REVIEW"
+  },
+  {
+   "key": "wang_poirier1998",
+   "citation": "Wang Y, Poirier RA (1998) GVB study of rotational singlet structures and pi bond energies for C=C, Si=Si and C=Si. Can J Chem 76(4):477",
+   "doi": "10.1139/cjc-76-4-477",
+   "type": "PEER",
+   "note": "E_pi ethene 65.4, disilene 23.2, silaethene 31.6 kcal/mol (abstract)"
+  },
+  {
+   "key": "schmidt1987",
+   "citation": "Schmidt MW, Truong PN, Gordon MS (1987) pi-Bond strengths in the second and third periods. JACS 109:5217",
+   "doi": "10.1021/ja00251a029",
+   "type": "PEER",
+   "note": "DOI verified; paywalled; Si=O and C=O pi values not read"
+  },
+  {
+   "key": "west1981",
+   "citation": "West R, Fink MJ, Michl J (1981) Tetramesityldisilene. Science 214:1343",
+   "doi": "10.1126/science.214.4527.1343",
+   "type": "PEER"
+  },
+  {
+   "key": "en_wiki_data",
+   "citation": "Electronegativities of the elements (data page), Wikipedia; values = WebElements/CRC/Lange (Allred 1961; Huheey 1993)",
+   "url": "https://en.wikipedia.org/wiki/Electronegativities_of_the_elements_(data_page)",
+   "type": "POP"
+  },
+  {
+   "key": "textbook_bonds",
+   "citation": "Standard mean bond enthalpy tables (e.g. Huheey, Inorganic Chemistry 1993; Greenwood & Earnshaw 1997) - values other than C and Si single bonds NOT re-verified this round",
+   "type": "BOOK"
+  },
+  {
+   "key": "crc_solvents",
+   "citation": "CRC Handbook solvent properties as compiled in note 02 (water 80.1 at 293 K; CH4 1.68 at 91 K)",
+   "type": "BOOK"
+  },
+  {
+   "key": "nh3_eps",
+   "citation": "Ammonia (data page), Wikipedia: dielectric 22 at 239 K (unsourced)",
+   "url": "https://en.wikipedia.org/wiki/Ammonia_(data_page)",
+   "type": "POP"
+  },
+  {
+   "key": "baldwin_gill1970",
+   "citation": "Baldwin J, Gill JB (1970) The determination of the dielectric constant of liquid ammonia. Phys Chem Liq 2:25 (measured -35 to -70 C; values not read)",
+   "doi": "10.1080/00319107008084075",
+   "type": "PEER"
+  },
+  {
+   "key": "gillespie_cole1956",
+   "citation": "Gillespie RJ, Cole RH (1956) The dielectric constant of sulphuric acid. Trans Faraday Soc 52:1325 (title verified; ~100 value not read)",
+   "doi": "10.1039/TF9565201325",
+   "type": "PEER"
+  },
+  {
+   "key": "nrc2007",
+   "citation": "National Research Council (2007) The Limits of Organic Life in Planetary Systems, Ch. 6 'Why Water? Toward More Exotic Habitats'",
+   "doi": "10.17226/11919",
+   "type": "BOOK"
+  },
+  {
+   "key": "bains2004",
+   "citation": "Bains W (2004) Many chemistries could be used to build living systems. Astrobiology 4:137",
+   "doi": "10.1089/153110704323175124",
+   "type": "PEER"
+  },
+  {
+   "key": "bains2021life",
+   "citation": "Bains W, Petkowski JJ, Zhan Z, Seager S (2021) Evaluating alternatives to water as solvents for life: the example of sulfuric acid. Life 11(5):400",
+   "doi": "10.3390/life11050400",
+   "type": "PEER"
+  },
+  {
+   "key": "seager2023",
+   "citation": "Seager S et al. (2023) Stability of nucleic acid bases in concentrated sulfuric acid. PNAS 120:e2220007120",
+   "doi": "10.1073/pnas.2220007120",
+   "type": "PEER"
+  },
+  {
+   "key": "seager2024",
+   "citation": "Seager MD et al. (2024) Stability of 20 biogenic amino acids in concentrated sulfuric acid. Astrobiology 24:386",
+   "doi": "10.1089/ast.2023.0082",
+   "type": "PEER"
+  },
+  {
+   "key": "petkowski2024dipep",
+   "citation": "Petkowski JJ, Seager MD, Bains W, Seager S (2024) General instability of dipeptides in concentrated sulfuric acid. Sci Rep 14:17083",
+   "doi": "10.1038/s41598-024-67342-w",
+   "type": "PEER"
+  },
+  {
+   "key": "mckay2016",
+   "citation": "McKay CP (2016) Titan as the abode of life. Life 6:8",
+   "doi": "10.3390/life6010008",
+   "type": "PEER"
+  },
+  {
+   "key": "mckay_smith2005",
+   "citation": "McKay CP, Smith HD (2005) Possibilities for methanogenic life in liquid methane on the surface of Titan. Icarus 178:274",
+   "doi": "10.1016/j.icarus.2005.05.018",
+   "type": "PEER"
+  },
+  {
+   "key": "lin2006",
+   "citation": "Lin L-H et al. (2006) Long-term sustainability of a high-energy, low-diversity crustal biome. Science 314:479",
+   "doi": "10.1126/science.1127376",
+   "type": "PEER"
+  },
+  {
+   "key": "kan2016",
+   "citation": "Kan SBJ, Lewis RD, Chen K, Arnold FH (2016) Directed evolution of cytochrome c for carbon-silicon bond formation. Science 354:1048",
+   "doi": "10.1126/science.aah6219",
+   "type": "PEER"
+  },
+  {
+   "key": "kroger1999",
+   "citation": "Kroger N, Deutzmann R, Sumper M (1999) Polycationic peptides from diatom biosilica. Science 286:1129",
+   "doi": "10.1126/science.286.5442.1129",
+   "type": "PEER"
+  },
+  {
+   "key": "shimizu1998",
+   "citation": "Shimizu K et al. (1998) Silicatein alpha. PNAS 95:6234",
+   "doi": "10.1073/pnas.95.11.6234",
+   "type": "PEER"
+  },
+  {
+   "key": "cairns_smith1982",
+   "citation": "Cairns-Smith AG (1982) Genetic Takeover and the Mineral Origins of Life. Cambridge UP",
+   "type": "BOOK"
+  },
+  {
+   "key": "iota1999",
+   "citation": "Iota V, Yoo C-S, Cynn H (1999) Quartzlike carbon dioxide. Science 283:1510",
+   "doi": "10.1126/science.283.5407.1510",
+   "type": "PEER"
+  },
+  {
+   "key": "westheimer1987",
+   "citation": "Westheimer FH (1987) Why nature chose phosphates. Science 235:1173",
+   "doi": "10.1126/science.2434996",
+   "type": "PEER"
+  },
+  {
+   "key": "clements2024",
+   "citation": "Clements DL (2024) Venus phosphine: updates and lessons learned. Proc IAU (S387)",
+   "doi": "10.1017/S1743921324001509",
+   "type": "PEER"
+  },
+  {
+   "key": "bains2024front",
+   "citation": "Bains W, Seager S, Clements DL, Greaves JS et al. (2024) Source of phosphine on Venus - an unsolved problem. Front Astron Space Sci 11:1372057",
+   "doi": "10.3389/fspas.2024.1372057",
+   "type": "REVIEW"
+  },
+  {
+   "key": "mrazikova2024",
+   "citation": "Mrazikova K et al. (2024) A novel abiotic pathway for phosphine synthesis over acidic dust in Venus' atmosphere. Astrobiology 24:407",
+   "doi": "10.1089/ast.2023.0046",
+   "type": "PEER"
+  },
+  {
+   "key": "tang2026epsc",
+   "citation": "Tang W, Clements DL, Greaves JS, Richards AMS et al. (2026) JCMT-Venus: long-term monitoring of chemical variability in Venus' upper mesosphere. EPSC 2026 abstract",
+   "doi": "10.5194/epsc2026-1119",
+   "type": "PREPRINT"
+  },
+  {
+   "key": "arrhenius_calc",
+   "citation": "Our calculation: k(T)/k(300K)=exp(-Ea/R(1/T-1/300)), Ea=30/50/80 kJ/mol",
+   "type": "INFERRED"
+  }
+ ]
+}
