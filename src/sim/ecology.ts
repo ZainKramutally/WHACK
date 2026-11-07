@@ -19,7 +19,7 @@ export const TICK_HZ = 20;
 export const CAP = 1024;
 
 /** The sim's inputs for one step: population.ts's Environment plus the living-band heat for develop(). */
-export interface EcologyEnv extends Environment { heatBand: number }
+export interface EcologyEnv extends Environment { heatBand: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
 
 /**
  * World-config `life.ledger`: scalings that turn the rules into numbers (units: matter = animal mass = energy).
@@ -361,7 +361,7 @@ export class Ecology {
       const cell = pool[Math.floor(this.rnd() * pool.length)];
       const fit = this.climateMatch(this.spores[k].climate, this.env.temperature, this.shelter(cell));
       if (fit < CONSTANTS.SPORE_VIABILITY.value) { k++; continue; }
-      const child = mutate(this.spores[k], this.rnd, this.rules);
+      const child = mutate(this.spores[k], this.rnd, this.rules, this.env.mutationSigma);
       this.spores.splice(k, 1);
       if (this.spawn(child, (cell % GRID) + this.rnd(), Math.floor(cell / GRID) + this.rnd(), 0, null, this.env)) n++;
     }
@@ -698,7 +698,7 @@ export class Ecology {
   // ---- R8: bud with mutation; R6: newborn plates thicken by INDUCE·Hunger·Afraid ---------------------------------
   private bud(p: number): void {
     if (!this.alive[p] || this.free.length === 0 || this.energy[p] <= 2 * this.struct[p]) return;
-    const child = mutate(this.genome[p], this.rnd, this.rules);
+    const child = mutate(this.genome[p], this.rnd, this.rules, this.env.mutationSigma);
     this.spawn(child, this.x[p] + 0.3 * gaussian(this.rnd), this.y[p] + 0.3 * gaussian(this.rnd), this.gen[p] + 1, p, this.env);
   }
 

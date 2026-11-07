@@ -8,7 +8,8 @@ import type { LifeDrivers, LifeModel } from './lifeModel';
 import { PLAN_LENGTH } from './plan';
 import { organismCount, readOrganism } from './organismLayout';
 import { makeRng } from './rng';
-import { WorldSimulation, ticksDueAfter, ticksDueAt, type SimEvent } from './simulation';
+import { CONSTANTS } from './constants';
+import { WorldSimulation, mutationSigmaAt, ticksDueAfter, ticksDueAt, type SimEvent } from './simulation';
 
 // Multi-second ecology runs (full 20 s builds) only run with SLOW=1 (npm run test:slow).
 const slow = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SLOW;
@@ -631,5 +632,25 @@ describe('WorldSimulation', () => {
         expect(s.stats[id], `${w.id} ${id}`).toBeLessThanOrEqual(hi);
       }
     });
+  });
+});
+
+describe('mutation schedule (owner ruling: high σ while the world builds, normal σ after)', () => {
+  const total = ticksDueAt(carbon.build.durationSec, carbon.build);
+  it('starts at SIGMA_BUILD, eases down, and is SIGMA from the end of the build on', () => {
+    expect(mutationSigmaAt(0, total)).toBe(CONSTANTS.SIGMA_BUILD.value);
+    expect(mutationSigmaAt(total, total)).toBe(CONSTANTS.SIGMA.value);
+    expect(mutationSigmaAt(total * 5, total)).toBe(CONSTANTS.SIGMA.value);
+    let prev = Infinity;
+    for (let t = 0; t <= total; t += 100) {
+      const s = mutationSigmaAt(t, total);
+      expect(s).toBeLessThanOrEqual(prev);
+      expect(s).toBeGreaterThanOrEqual(CONSTANTS.SIGMA.value);
+      expect(s).toBeLessThanOrEqual(CONSTANTS.SIGMA_BUILD.value);
+      prev = s;
+    }
+  });
+  it('is a pure function of the tick count, so it is the same at any frame rate', () => {
+    for (const t of [0, 1000, 3000, 6800, 9000]) expect(mutationSigmaAt(t, total)).toBe(mutationSigmaAt(t, total));
   });
 });

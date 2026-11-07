@@ -37,13 +37,13 @@ export const DEFAULT_CLIMATE_RULES: Pick<LifeRules, 'mutation' | 'bounds'> = {
   bounds: { size: [0.2, 5], tolerance: [1, 30] },
 };
 
-/** A child genome: every body gene steps by N(0, SIGMA) clamped to [0, 1]; composition and lineage are inherited. */
+/** A child genome: every body gene steps by N(0, sigma) clamped to [0, 1] (sigma defaults to SIGMA); composition and lineage are inherited. */
 export function mutate(
   parent: AnimalGenome,
   rng: Rng,
   climate: Pick<LifeRules, 'mutation' | 'bounds'> = DEFAULT_CLIMATE_RULES,
+  sigma: number = CONSTANTS.SIGMA.value,
 ): AnimalGenome {
-  const sigma = CONSTANTS.SIGMA.value;
   const body = {} as BodyGenes;
   for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * gaussian(rng));
   return {

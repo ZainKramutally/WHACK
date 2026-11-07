@@ -70,6 +70,8 @@ export const CONSTANTS = deepFreeze({
   SPAWN_SPREAD: c(0.03, 'game'),
   /** population.ts: how far a consumer drifts per reference-time unit, as a share of the patch. */
   WANDER: c(0.02, 'game'),
+  /** R8: mutation σ during the build's fast-forward, so variety appears fast; SIGMA applies again from build:complete on. */
+  SIGMA_BUILD: c(0.15, 'game'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;
