@@ -45,7 +45,9 @@ Composition rules:
 - Use a strong silhouette against the sky. The hero plant's cap should read as a shape against white.
 - Use asymmetry. The sky takes about 35 to 50% of the frame and the horizon isn't centred.
 - Drifting spores, motes and haze layers give the air depth (light sparse particles; a few cyan ones glow).
-- Movement is slow and subtle: plants sway (weighted by the `aSway` attribute) and spores drift. The default camera is the hero shot with a tiny drift. `?free` gives orbit controls.
+- Movement is slow and subtle: plants sway (weighted by the `aSway` attribute). The page opens on the hero shot with a tiny drift.
+
+**Explore mode** (`src/player/`): click or press any key to fly the camera in behind the explorer. WASD or the arrow keys walk, Shift runs, drag looks and the wheel zooms. F toggles flight, with Space rising and C/Ctrl descending, capped at 400 m. Plant trunks and landforms block movement, and shadows follow the player. Switches: `?hero` locks the hero shot, `#capture` freezes it for `scripts/capture.py`, `#tour` runs a scripted fps path, `?free` gives OrbitControls and `?style=smooth` turns off pixelation.
 
 ## 4. Flora: procedural, generated once, instanced
 
