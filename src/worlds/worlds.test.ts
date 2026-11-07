@@ -145,10 +145,11 @@ describe('silicon chemistry', () => {
     expect(at![1]).toBeCloseTo(3.6, 1);
   });
 
-  it('starts cold, oxygen-free and with seas that can exist', () => {
+  it('starts cold and oxygen-free, with temperature and sea-cover limits', () => {
     expect(silicon.startDefaults).toEqual({ temperature: -183, nitrogen: 30, oxygen: 0 });
     const t = silicon.limits.filter((l) => l.statId === 'temperature').map((l) => l.id);
-    expect(t).toEqual(expect.arrayContaining(['seasFreeze', 'beyondCritical', 'seasBoilOff']));
+    expect(t).toEqual(expect.arrayContaining(['seasFreeze', 'beyondCritical']));
+    expect(silicon.limits.find((l) => l.model === 'seasEmpty')).toMatchObject({ statId: 'seaCover', side: 'below' });
   });
 
   it('uses the vapourPressure and seaVolume models; carbon uses partialPressures', () => {

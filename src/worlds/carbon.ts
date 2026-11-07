@@ -145,12 +145,15 @@ export const carbon: WorldConfig = {
       model: 'radiativeBalance',
       inputs: ['light', 'co2', 'nitrogen'],
       params: {
-        solarConstant: 1361,        // W/m² at the reference distance, times the light stat
+        solarConstant: 1361,        // W/m² at 1 AU from a Sun-like star
+        luminosity: 1,              // star luminosity relative to the Sun
         albedo: 0.3,
-        greenhouseBaseK: 33,        // warming from the reference air (1× nitrogen, 0.04% CO₂)
+        greenhouseK: 33,            // baseline greenhouse warming with the reference air (1× nitrogen, 0.04% CO₂)
+        greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009)
+        nitrogenRef: 1,             // × Earth
+        // Not read by sim/models.ts yet (kept so the data is not lost): the CO₂ greenhouse and brightening.
         referenceCo2: 0.04,         // %
         co2PerDoublingK: 3,         // extra warming per doubling of CO₂
-        nitrogenPerDoublingK: 1,    // thicker air strengthens the greenhouse a little (Goldblatt 2009)
         luminosityRiseTotal: 0,     // fractional brightening over the build; none for carbon
       },
       why: 'Absorbed starlight balances the heat the planet radiates, with a CO₂-and-air greenhouse on top.',
@@ -162,10 +165,9 @@ export const carbon: WorldConfig = {
       model: 'partialPressures',
       inputs: ['nitrogen', 'oxygen', 'co2', 'gravity', 'temperature'],
       params: {
-        n2BarPerEarth: 0.78,        // bar of N₂ at 1× Earth nitrogen and 1 g
-        o2BarPerPercent: 0.01,
-        co2BarPerPercent: 0.01,
-        referenceGravity: 1,
+        earthN2Bar: 0.78,           // bar of N₂ at 1× Earth nitrogen and 1 g
+        barPerPercentO2: 0.01,      // bar of O₂ per % at 1 g
+        co2Bar: 0.0004,             // CO₂ partial pressure at 1 g (the 0.04% reference)
       },
       why: 'Each gas weighs on the ground in proportion to how much there is and how hard gravity pulls, plus water vapour.',
       sources: [],

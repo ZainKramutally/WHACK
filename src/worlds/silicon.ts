@@ -156,13 +156,14 @@ export const silicon: WorldConfig = {
       model: 'radiativeBalance',
       inputs: ['light'],
       params: {
-        solarConstant: 1361,
+        solarConstant: 1361,        // W/m² at 1 AU from a Sun-like star
+        luminosity: 1,              // star luminosity relative to the Sun
         albedo: 0.3,
-        greenhouseBaseK: 0,
-        referenceCo2: 0.04,
-        co2PerDoublingK: 0,
-        nitrogenPerDoublingK: 0,
-        luminosityRiseTotal: 0.4,   // a Sun-like star brightens slowly; this is the slow warming over the build
+        greenhouseK: 0,
+        greenhousePerLnN: 0,
+        nitrogenRef: 1,
+        // Not read by sim/models.ts yet (kept so the data is not lost): slow brightening of a Sun-like star.
+        luminosityRiseTotal: 0.4,
       },
       why: 'Absorbed starlight balances the heat the planet radiates; a Sun-like star brightens over its life, so the world warms slowly.',
       sources: [],
@@ -180,13 +181,13 @@ export const silicon: WorldConfig = {
     {
       statId: 'seaCover',
       model: 'seaVolume',
-      inputs: ['nitrogen', 'pressure', 'gravity'],
+      inputs: ['nitrogen', 'temperature', 'gravity'],
       params: {
-        n2BarPerEarth: 0.78,    // bar of N₂ at 1× Earth nitrogen and 1 g
-        referenceGravity: 1,
-        coverPerExcess: 0.02,   // share of the patch covered per × Earth of nitrogen in the seas
+        earthN2Bar: 0.78,   // bar of N₂ at 1× Earth nitrogen and 1 g
+        halfVolume: 20,     // sea volume (× Earth N₂) at which cover reaches half its maximum; the saturating form is invented
+        maxCover: 0.9,      // cover approached as the seas deepen (a fraction, 0..1)
       },
-      why: 'Sea cover follows the nitrogen the air cannot hold: whatever is left over lies in the seas.',
+      why: 'Sea cover follows the nitrogen the air cannot hold: whatever is left over lies in the seas, and it saturates as the seas deepen.',
       sources: [],
       assumption: true,
     },
@@ -197,7 +198,7 @@ export const silicon: WorldConfig = {
       statId: 'temperature',
       side: 'below',
       model: 'solventFreezes',
-      params: { offsetC: 0 },
+      params: { offset: 0 },
       reason: 'Too cold: the nitrogen seas freeze solid (speculative)',
       boxEffect: 'freeze',
       why: 'Below nitrogen\'s freezing point the solvent locks solid; nitrogen ice sinks, so unlike water ice it gives no insulating lid.',
@@ -209,7 +210,7 @@ export const silicon: WorldConfig = {
       statId: 'temperature',
       side: 'above',
       model: 'solventCritical',
-      params: { offsetC: 0 },
+      params: { offset: 0 },
       reason: "Too warm: past nitrogen's critical point (speculative)",
       boxEffect: 'dryUp',
       why: 'Above its critical point nitrogen cannot be a liquid at any pressure.',
@@ -217,26 +218,14 @@ export const silicon: WorldConfig = {
       assumption: true,
     },
     {
-      id: 'seasBoilOff',
-      statId: 'temperature',
-      side: 'above',
-      model: 'seasEmpty',
-      params: {},
-      reason: 'Too warm: the nitrogen seas boil away (speculative)',
-      boxEffect: 'dryUp',
-      why: 'A smaller nitrogen inventory evaporates completely into the air at a lower temperature.',
-      sources: [],
-      assumption: true,
-    },
-    {
-      id: 'seasNeedNitrogen',
-      statId: 'nitrogen',
+      id: 'seasGone',
+      statId: 'seaCover',
       side: 'below',
       model: 'seasEmpty',
-      params: {},
+      params: { minCover: 0 },
       reason: 'Too little nitrogen for seas (speculative)',
       boxEffect: 'dryUp',
-      why: 'A nitrogen sea can only exist if the planet has more nitrogen than its air can hold at this temperature.',
+      why: 'A nitrogen sea can only exist if the planet has more nitrogen than its air can hold at this temperature; a smaller inventory boils away completely at a lower temperature.',
       sources: [],
       assumption: true,
     },
