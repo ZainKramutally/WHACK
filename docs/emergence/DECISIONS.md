@@ -3,7 +3,7 @@
 > **Proxy decisions by an agent acting for the owner. Override any line.**
 > 2026-11-07. **Revised the same day after an owner override: no Storm, and no global or periodic cycle of any kind** (no day/night, no seasons-as-rule). The jobs the Storm did are now done by space, chemistry and predation.
 >
-> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Gene budget (owner ruling):** 15 genes = 12 body + the 3 climate genes in `population.ts`.
+> **Third revision (owner rulings relayed 2026-11-07, see `CLAUDE.md`):** glow comes from darkness on both worlds, not oxygen (silicon glow is chemiluminescence, `assumption: true`). The animal cap is **1,024**. Terrain L0 is un-parked. **Open items are tracked as GitHub issues:** #25 (round-3 prototype), #26 (verify recalled sources), #27 (quantities that feed nothing). **Gene budget (owner ruling):** 15 genes = 12 body + the 3 climate genes in `population.ts`.
 >
 > **Second revision, same day: the owner's 10 simplicity guardrails are applied throughout (§G).** Limits: 12 rules, 12 genes, ≤ 25 sim constants in `sim/constants.ts`, no preset code, read-only render, and a `→ NOT_NOW` parking lot at the end of §4.
 >
