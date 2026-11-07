@@ -79,8 +79,8 @@ export default function landforms(): WorldModule {
       }
 
       // ------------------------------------------------ materials
-      const stoneMat = (scale: number, porousMul: number, vertex: boolean, fine: boolean, fineSize = 1.8) => {
-        const n = poreNodes(u, { scale: float(scale), porousMul, vertex, fine, fineSize });
+      const stoneMat = (scale: number, porousMul: number, vertex: boolean, fine: boolean, fineSize = 1.8, glow = true) => {
+        const n = poreNodes(u, { scale: float(scale), porousMul, vertex: vertex && !location.search.includes('nopush'), fine, fineSize, glow });
         const m = ctx.materials.create({ stone: true, snowCover: true, color: n.tint, emissive: n.emissive, positionNode: n.position });
         disposables.push(m);
         return m;
@@ -124,7 +124,7 @@ export default function landforms(): WorldModule {
             H: lm.height, w: lm.width, d: lm.depth, overhang: !!lm.overhang,
             radial: Math.round((crust ? 56 : 72) * f), rings: Math.round((crust ? 36 : 110) * f), seed: seed + i * 13,
           });
-          const m = stoneMat(clamp(Math.min(lm.width, lm.depth) / 18, 0.3, 2), crust ? 1.5 : 1, !crust, true, crust ? 1.2 : 1.8);
+          const m = stoneMat(clamp(Math.min(lm.width, lm.depth) / 18, 0.3, 2), crust ? 1.5 : 1, !crust, true, crust ? 0.9 : 1.8, !crust);
           const mesh = addGeo(toGeometry(g), m, lm.pos[0], lm.pos[1]);
           mesh.rotation.y = lm.yaw ?? 0;
         } else if (lm.kind === 'arch') {
@@ -172,10 +172,10 @@ export default function landforms(): WorldModule {
 
       // ------------------------------------------------ crust lumps (acid sponge) along the path edge
       if (tp.acid > 0.4) {
-        const geos = [0, 1, 2].map((v) => toGeometry(buildWall({ H: 6, w: 7 + v, d: 6 + v * 0.5, overhang: false, radial: 28, rings: 20, seed: seed + 300 + v })));
-        const cmat = stoneMat(0.35, 1.5, false, true, 1.2);
+        const geos = [0, 1, 2].map((v) => toGeometry(buildWall({ H: 6, w: 7 + v, d: 6 + v * 0.5, overhang: false, radial: 40, rings: 28, seed: seed + 300 + v })));
+        const cmat = stoneMat(0.3, 1.5, false, true, 0.9, false);
         const dummy = new THREE.Object3D();
-        const nC = low ? 20 : 44, per = Math.ceil(nC / 3);
+        const nC = low ? 30 : 66, per = Math.ceil(nC / 3);
         geos.forEach((geo, v) => {
           disposables.push(geo);
           const mesh = new THREE.InstancedMesh(geo, cmat, per);
@@ -186,7 +186,7 @@ export default function landforms(): WorldModule {
             const side = rnd() < 0.5 ? -1 : 1;
             const lat = side * (halfW * (0.5 + rnd() * 0.9));
             const x = p[0] + -dir[1] * lat, z = p[1] + dir[0] * lat;
-            const s = 0.5 + rnd() * 1.1;
+            const s = 0.18 + rnd() * rnd() * 0.5;
             dummy.position.set(x, height(x, z), z);
             dummy.rotation.set(0, rnd() * 6.28, 0);
             dummy.scale.set(s, s * (0.7 + rnd() * 0.5), s);

@@ -48,13 +48,14 @@ export interface PoreOpts {
   vertex: boolean;     // real push-in
   fine: boolean;       // add the small-pore layer
   fineSize?: number;   // metres per cell of the small layer
+  glow?: boolean;      // pores glow (default true)
 }
 
 /** Returns { tint, emissive, position } to hand to the world material factory. */
 export function poreNodes(u: WorldUniforms, o: PoreOpts) {
   const q = positionGeometry;
   const dens = clamp(u.pores.mul(o.porousMul), 0, 1);
-  const A = poreLayer(q, o.scale.mul(14), dens.mul(0.55), 0.2, 0.32, 0);
+  const A = poreLayer(q, o.scale.mul(18), dens.mul(0.7), 0.22, 0.36, 0);
   const B = poreLayer(q, o.scale.mul(5), dens.mul(0.8), 0.22, 0.38, 11.3);
   const layers: Layer[] = [A, B];
   if (o.fine) layers.push(poreLayer(q, o.scale.mul(o.fineSize ?? 1.8), dens, 0.2, 0.38, 27.1));
@@ -76,7 +77,7 @@ export function poreNodes(u: WorldUniforms, o: PoreOpts) {
     const lit = i < 2 ? 1 : step(0.55, hash13(l.cid.add(vec3(3.3, 6.6, 9.9)))).mul(0.55);
     glow = max(glow, l.inside.mul(shape).mul(breathe).mul(lit));
   });
-  const emissive = u.poreGlowColor.mul(glow.mul(gate).mul(4.2));
+  const emissive = u.poreGlowColor.mul(glow.mul(gate).mul(o.glow === false ? 0 : 4.2));
 
   let position: TSLNode;
   if (o.vertex) {

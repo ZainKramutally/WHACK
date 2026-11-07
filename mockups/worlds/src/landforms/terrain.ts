@@ -63,7 +63,7 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
   const path = extendPath(p.valley, p.valleyWidth);
   const halfW = Math.max(4, p.valleyWidth / 2);
   const s = p.seed;
-  const wallH = clamp(p.valleyWidth * 1.6, 25, 120) * mix(1, 0.18, p.hot);
+  const wallH = clamp(p.valleyWidth * 0.45, 7, 40) * mix(1, 0.3, p.hot);
   const wsum = Math.max(1, p.hot + p.snow + p.life + p.acid);
   const wBase = Math.max(0, 1 - (p.hot + p.snow + p.life + p.acid) / wsum) + 0.0;
 
@@ -98,6 +98,10 @@ export function makeTerrainHeight(p: TerrainParams): TerrainFn {
     const side = smoothstep(0.75, 2.4, uu);
     const rough = 0.72 + 0.55 * ridged3(x / 90, 0.2, z / 90, 3, s + 15);
     h += wallH * Math.pow(side, 1.35) * rough + wallH * 0.35 * Math.max(0, uu - 2.4) * 0.5;
+    // far ridges: huge mountains at the edge of the world so the horizon is never flat or empty
+    const dd = uu * halfW;
+    const ridge = ridged3(x / 260, 0.3, z / 260, 3, s + 16);
+    h += smoothstep(150, 750, dd) * (60 + 140 * ridge) * mix(1, 0.22, p.hot);
     return h;
   }) as TerrainFn;
 

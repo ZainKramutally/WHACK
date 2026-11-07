@@ -119,13 +119,13 @@ export const PRESETS: Preset[] = [
       valley: [[0, 0], [1, -60], [-3, -160], [0, -300]],
       valleyWidth: 18,
       landmarks: [
-        { kind: 'spire', pos: [-19, -32], height: 160, radius: 14, porous: true },
-        { kind: 'spire', pos: [17, -20], height: 185, radius: 16, porous: true },
+        { kind: 'spire', pos: [-25, -32], height: 160, radius: 14, porous: true },
+        { kind: 'spire', pos: [26, -22], height: 185, radius: 16, porous: true },
         { kind: 'spire', pos: [-6, -150], height: 120, radius: 10, porous: true },
         { kind: 'spire', pos: [14, -220], height: 150, radius: 11, porous: true },
         { kind: 'spire', pos: [-28, -260], height: 100, radius: 9, porous: true },
-        { kind: 'wall', pos: [-9, -7], height: 4, width: 6, depth: 5 },     // crust lumps bottom-left
-        { kind: 'wall', pos: [-12, -14], height: 7, width: 8, depth: 7 },
+        { kind: 'wall', pos: [-9.5, -7], height: 3, width: 5, depth: 4 },     // crust lumps bottom-left
+        { kind: 'wall', pos: [-12.5, -13], height: 4.5, width: 6.5, depth: 5.5 },
       ],
       figure: { pos: [1.5, -48], height: 1.75 },
     },

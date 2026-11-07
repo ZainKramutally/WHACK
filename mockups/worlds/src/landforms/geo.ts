@@ -48,7 +48,7 @@ export function addTube(g: Geo, o: TubeOpts): void {
   for (let i = 0; i < o.rings; i++) for (let k = 0; k < o.radial; k++) {
     const a = base + i * o.radial + k, b = base + i * o.radial + ((k + 1) % o.radial);
     const c = a + o.radial, d = b + o.radial;
-    g.idx.push(a, c, b, b, c, d);
+    g.idx.push(a, b, c, b, d, c);
   }
 }
 
@@ -63,7 +63,7 @@ export function spireProfile(t: number, erosion: number): number {
   const taperExp = mix(0.3, 0.72, e);
   const tipSharp = mix(2.8, 1.1, e);
   const body = Math.pow(1 - Math.pow(tt, tipSharp), taperExp) * mix(1, 0.7, e);
-  const flare = 1 + mix(1.0, 1.6, e) * Math.exp(-tt * mix(9, 16, e));
+  const flare = 1 + mix(0.35, 0.6, e) * Math.exp(-tt * mix(10, 16, e));
   return body * flare;
 }
 
@@ -77,7 +77,7 @@ export function buildSpire(o: SpireOpts): Geo {
   const { H, R, erosion: e, seed } = o;
   const bury = o.bury ?? Math.max(3, H * 0.03);
   const lean = o.lean ?? [0, 0];
-  const lumpAmp = mix(0.4, 0.13, e);
+  const lumpAmp = mix(0.28, 0.13, e);
   const lumpFreq = 1 / (R * mix(1.1, 2.2, e));
   const centre = (s: number): V3 => {
     const y = -bury + (H + bury) * s;
