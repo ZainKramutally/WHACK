@@ -627,13 +627,13 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 - **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`.
 - **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
 - **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `buildProgress` (0..1 across the build).
-- **Terrain:** the TSL height node and the CPU sampler, the `rise` value, and the per-machine progress values.
+- **Terrain:** the TSL height node and the CPU sampler, the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
 - **Life:** the `organisms` buffer, the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
 
 **Rules for the art layer:**
 - Everything that carries meaning must follow these inputs (see "Visuals are stylised but never contradict the stats").
 - Decoration is allowed, but only as a pure function of these inputs. For example, plant shapes come from flora biomass, composition and conditions, and body templates are look attractors applied to `develop()` output.
-- **Plant form is `floraForm(cell, VisualInputs)`**, a pure render function. There is no flora genome; the seed picks only variant and jitter.
+- **Plant form is `floraForm(cell, VisualInputs)`**, a pure render function. There is no flora genome; the seed picks only variant and jitter. Per-cell inputs: the mat/canopy mix, whether the cell is submerged (cell height against sea level), and biomass magnitude (sparse, normal, lush); light and heat are world-wide.
   - Composition: si gives straight stems, 60° branching and faceted caps; c gives curl.
   - Light: bright light gives wide caps; dim light gives lantern pods and glow.
   - `heatBand` sets maximum height (cold makes tall, as for creatures).
