@@ -89,7 +89,7 @@ export function lanternCups(env: Env): SpeciesBuild {
     }),
   ];
   const cam = ctx.camera.position; // keep cups out of the lens
-  insts = insts.filter((i) => { const d = Math.hypot(i.x - cam.x, i.z - cam.z); return !(i.scale * 0.5 > d * 0.7 || d < 1.6); });
+  insts = insts.filter((i) => { const d = Math.hypot(i.x - cam.x, i.z - cam.z); return !(i.scale * 0.5 > d * 0.38 || d < 1.6); });
   // hero glowing-dome cups, framed bottom-right / left of the camera (works for any pin camera)
   const tgt = ctx.preset.composition.camera.target;
   let fx = tgt[0] - cam.x, fz = tgt[2] - cam.z; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
@@ -128,7 +128,7 @@ export function lanternCups(env: Env): SpeciesBuild {
   const col = mix(hue.mul(0.35), hue.mul(0.7), bodyMask.mul(0.6).add(inside.mul(0.4)));
   const mat = ctx.materials.create({
     color: col, emissive,
-    positionNode: floraPosition(ctx, 'lanternCups', { sway: 0.025, swayHz: 0.3, swayPow: 2.2, breathe: 0.03, stretchY: fract(aRand().mul(13.7)).mul(0.8).add(0.7) }),
+    positionNode: floraPosition(ctx, 'lanternCups', { sway: 0.025, swayHz: 0.3, swayPow: 2.2, breathe: 0.03, stretchY: fract(aRand().mul(13.7)).mul(1.1).add(0.8) }),
   });
   // domes keep their natural proportions (no random stretch)
   const mat2 = ctx.materials.create({
@@ -169,7 +169,7 @@ export function frostFans(env: Env): SpeciesBuild {
 
 export function glowStalks(env: Env): SpeciesBuild {
   const { ctx, ownUniforms } = env, u = ctx.uniforms;
-  const size = (r: Rng, mul: number) => { const u = r(); return (u < 0.2 ? 0.6 + r() * 1.9 : u < 0.86 ? powerLaw(r, 3, 12, 1.2) : 12 + r() * 8) * Math.min(1.2, mul); };
+  const size = (r: Rng, mul: number) => { const u = r(); return (u < 0.24 ? 0.6 + r() * 1.9 : u < 0.86 ? powerLaw(r, 3, 12, 1.2) : 12 + r() * 8) * Math.min(1.2, mul); };
   const insts = [
     ...clusters(env, 'glowStalks', size, 200, 1.5),
     ...scatter(env, {
@@ -214,7 +214,7 @@ export function glowStalks(env: Env): SpeciesBuild {
     const rr = pow(float(1).sub(aAux().w), 1.8);
     const poolHue = mix(vec3(1.0, 0.62, 0.1), vec3(0.85, 0.9, 0.3), pow(rr, 0.5));
     const pm = e2.ctx.materials.create({
-      color: color(0x000000), emissive: poolHue.mul(1.0), opacity: pow(rr, 1.3).mul(0.8),
+      color: color(0x000000), emissive: poolHue.mul(0.85), opacity: pow(rr, 1.6).mul(0.75),
       positionNode: floraPosition(e2.ctx, 'glowStalks', {}),
     });
     pm.blending = THREE.AdditiveBlending; pm.depthWrite = false; pm.side = THREE.DoubleSide;
@@ -249,10 +249,10 @@ export function mossDomes(env: Env): SpeciesBuild {
   for (const f of filler) { f.yOff = -f.scale * 0.2; insts.push(f); }
   const nrm = normalWorld.y.mul(0.5).add(0.5);
   const streak = mx_fractal_noise_float(positionGeometry.mul(vec3(2.4, 8.0, 2.4)).add(aRand().mul(30)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
-  const base = mix(color(0x0b5442), color(0x2fb8a6), smoothstep(0.25, 0.9, nrm));
-  const olive = smoothstep(0.52, 0.72, streak).mul(float(1).sub(nrm.mul(0.5)));
-  const blue = smoothstep(0.38, 0.2, streak).mul(nrm);
-  const col = mix(mix(base, color(0xb4c640), olive.mul(0.9)), color(0x4f9be0), blue.mul(0.8));
+  const base = mix(color(0x0a4a45), color(0x27aaa6), smoothstep(0.25, 0.95, nrm));
+  const olive = smoothstep(0.58, 0.8, streak).mul(float(1).sub(nrm)).mul(smoothstep(0.55, 0.2, positionGeometry.y.mul(0.5).add(0.5)));
+  const soft = smoothstep(0.3, 0.7, streak);
+  const col = mix(mix(base, base.mul(1.18).add(0.03), soft.mul(0.5)), color(0x7fa84a), olive.mul(0.35));
   const emissive = col.mul(0.22).mul(mix(0.6, 1.0, saturate(u.glow)));
   const mat = ctx.materials.create({ color: col, emissive, positionNode: floraPosition(ctx, 'mossDomes', { breathe: 0.01 }) });
   return { id: 'mossDomes', geo: S.mossDome(2), mat, insts };
@@ -324,13 +324,15 @@ export function blackMonoliths(env: Env): SpeciesBuild {
 export function ashScrub(env: Env): SpeciesBuild {
   const { ctx } = env;
   const insts = [...clusters(env, 'ashScrub', (r, mul) => Math.min(60, powerLaw(r, 2, 8, 1.7) * mul), 800), ...scatter(env, {
-    n: 150, parents: 22, sMin: 4, sMax: 230, sPow: 1.5, latMin: 0, latSpread: Math.min(env.vw * 0.3, 70), sigma: 5,
-    size: (r, x, z) => Math.min(60, powerLaw(r, 2, 8, 1.7) * (1 + Math.abs(z) * 0.035)), yOff: () => -0.02,
+    n: 150, parents: 20, sMin: 12, sMax: 230, sPow: 1.5, latMin: 0, latSpread: Math.min(env.vw * 0.3, 70), sigma: 5,
+    size: (r, x, z) => Math.min(60, powerLaw(r, 2, 8, 1.7) * (0.6 + Math.abs(z) * 0.035)), yOff: () => -0.02,
   })];
+  for (const i of insts) i.yOff = 0.08;
   const t = aAux().w;
   const n = mx_fractal_noise_float(vec3(positionGeometry.x.mul(3.5), positionGeometry.y.mul(4), positionGeometry.z.mul(40)).add(aRand().mul(20)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
   const col = mix(mix(mix(color(0x2a4440), color(0x6b8a82), n), color(0x5c5a3a), smoothstep(0.62, 0.8, n).mul(0.6)), color(0x1c2a2a), smoothstep(0.6, 1.0, t));
-  const mat = ctx.materials.create({ color: col, flatShading: true, positionNode: floraPosition(ctx, 'ashScrub', {}) });
+  const mat = ctx.materials.create({ color: col, flatShading: true, opacity: smoothstep(1.0, 0.72, t), positionNode: floraPosition(ctx, 'ashScrub', {}) });
+  mat.depthWrite = false;
   return { id: 'ashScrub', geo: S.ashMat(5), mat, insts };
 }
 

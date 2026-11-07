@@ -7,14 +7,14 @@ import { MB, MeshData, V3, fbm, lathe, merge, tube, vnoise, ProfilePt } from './
 const TAU = Math.PI * 2;
 
 /** eco-04 hero: stalked goblet with flared cup and rolled rim. mask 1 = interior, 0.5 = rim. */
-export function lanternCup(segs = 16): MeshData {
+export function lanternCup(segs = 20): MeshData {
   const mb = new MB();
   const prof: ProfilePt[] = [
     [0, 0, 0], [0.085, 0, 0], [0.07, 0.1, 0], [0.06, 0.2, 0], [0.07, 0.3, 0],
     [0.13, 0.4, 0], [0.2, 0.52, 0], [0.265, 0.65, 0], [0.31, 0.78, 0], [0.33, 0.9, 0], [0.335, 0.96, 0.5],
     [0.325, 1.0, 0.5], [0.3, 0.995, 0.5], [0.28, 0.95, 1], [0.24, 0.84, 1], [0.17, 0.74, 1], [0.09, 0.68, 1], [0, 0.66, 1],
   ];
-  lathe(mb, prof, segs, { radial: (th, i) => 1 + (i > 5 ? 0.07 * Math.sin(5 * th + i * 0.3) : 0) });
+  lathe(mb, prof, segs, { radial: (th, i) => 1 + (i > 4 ? 0.13 * Math.sin(7 * th + i * 0.25) : 0) });
   return mb.data();
 }
 
@@ -67,7 +67,7 @@ export function glowStalk(seed = 1): MeshData {
   for (let i = 0; i <= N; i++) {
     const t = i / N, u = 1 - t;
     path.push([2 * u * t * bx + t * t * tx, t * 0.985, 2 * u * t * bz + t * t * tz]);
-    radii.push(0.0072 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
+    radii.push(0.0085 * (1 - 0.55 * t) * (1 + 0.9 * Math.pow(1 - t, 20)));
   }
   tube(mb, path, radii, 5, () => 0);
   const R = 0.04;
@@ -189,7 +189,7 @@ export function blackMonolith(seed = 1): MeshData {
 export function ashMat(seed = 1): MeshData {
   const mb = new MB();
   const S = 26, RING = 5, rows: number[][] = [];
-  const stretch = 0.38 + 0.14 * vnoise(seed, 1, 2);
+  const stretch = 0.2 + 0.07 * vnoise(seed, 1, 2);
   rows.push([mb.v([0, 0.045, 0], [0, 1, 0], 0)]);
   for (let r = 1; r <= RING; r++) {
     const row: number[] = [];
