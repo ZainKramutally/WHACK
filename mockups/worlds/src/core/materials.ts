@@ -3,7 +3,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, color, mix, smoothstep, saturate, positionWorld, normalWorld, normalView,
-  positionViewDirection, mx_fractal_noise_float,
+  positionViewDirection, positionView, mx_fractal_noise_float,
 } from 'three/tsl';
 import type { MaterialFactory, WorldMaterialOptions, WorldUniforms } from '../contracts';
 
@@ -19,13 +19,16 @@ function celRamp(): any {
 export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
   const ramp = celRamp();
   const white = vec3(1, 1, 1);
+  // flat facets: face normal from screen-space derivatives
+  const flatNormal = positionView.dFdx().cross(positionView.dFdy()).normalize();
 
   // Shadows are never grey/black: lit = 1, shadowed = shadow hue lifted so albedo × it keeps its colour.
   const shadowTint = Fn(([s]: any[]) => mix(u.shadowColor.mul(0.55).add(0.18), white, s.x ?? s));
 
   return {
     create(opts: WorldMaterialOptions = {}) {
-      const mat = new THREE.MeshToonNodeMaterial({ gradientMap: ramp, flatShading: opts.flatShading ?? false });
+      const mat = new THREE.MeshToonNodeMaterial({ gradientMap: ramp });
+      if (opts.flatShading) mat.normalNode = flatNormal;
       mat.receivedShadowNode = shadowTint;
 
       let base: any = typeof opts.color === 'number' ? color(opts.color) : (opts.color ?? u.ground);
@@ -48,7 +51,7 @@ export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
       if (opts.glass) {
         const rim = float(1).sub(normalView.dot(positionViewDirection).saturate()).pow(3);
         base = mix(base, color(0xd2f8ff), rim.mul(0.85));
-        mat.flatShading = true;
+        mat.normalNode = flatNormal;
       }
       mat.colorNode = base;
       if (opts.emissive) mat.emissiveNode = opts.emissive;
