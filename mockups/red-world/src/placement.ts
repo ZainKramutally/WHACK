@@ -80,12 +80,27 @@ const around = (cx: number, cz: number, r: number): Rect => ({ x0: cx - r, x1: c
 const DISC: Rect = { x0: -2300, x1: 2300, z0: -2700, z1: 1800 };
 const clump = (x: number, z: number, s: number, seed: number, lo = 0.05, hi = 0.3) => smoothstep(lo, hi, fbm(x / s, z / s, 2, seed));
 
-type WorldSpec = Spec & { inWedgeBeyond?: number };
+type WorldSpec = Spec & { inWedgeBeyond?: number; variant?: number; thin?: boolean };
+
+/** Scatter variant pick: spike crowns (groundCover#3) and the 11k-triangle lantern (lanternPods#2) are hand-placed / own-spec only. */
+function pickVariant(species: SpeciesId, r: number, count: number): number {
+  if (species === 'groundCover' && count > 3) return Math.floor(r * 3);
+  if (species === 'lanternPods' && count > 3) return [0, 1, 3][Math.floor(r * 3)];
+  return Math.floor(r * count);
+}
+/** Far forest thinning (~30%) for the tall species beyond the hero midground. */
+const thinFar = (species: SpeciesId, d: number) => ((species === 'coilSpire' || species === 'parasolTitan') && d > 600 ? 0.7 : 1);
 const WORLD: WorldSpec[] = [
   // ground-cover patches at the set pieces
   ...([[HOLLOW.x, HOLLOW.z, 150], [TITAN_FOREST.x, TITAN_FOREST.z, 170], [ARCH2.x, ARCH2.z - 220, 130], [-420, 520, 110], [620, 380, 110]] as [number, number, number][])
     .map(([cx, cz, r]): WorldSpec => ({ species: 'groundCover', rect: around(cx, cz, r), minDist: 2.6, h: [0.8, 1.8], absScale: true, variants: 3,
       mask: (x, z) => radial(cx, cz, r * 0.4, r)(x, z) * (0.5 + 0.5 * clump(x, z, 20, 41, -0.2, 0.3)) })),
+  // dune dressing off the riverbed in the basin (tiny from the hero camera, reads when walking)
+  { species: 'groundCover', rect: { x0: -220, x1: 260, z0: -320, z1: -110 }, minDist: 3.4, h: [0.9, 1.9], absScale: true, variants: 3, inWedgeBeyond: 0,
+    mask: (x, z) => 0.55 * clump(x, z, 30, 47, -0.1, 0.3) },
+  // spike crowns (groundCover#3, 3.5 m thistles): sparse silhouettes in clumps, never as filler
+  { species: 'groundCover', variant: 3, rect: DISC, minDist: 28, h: [0.8, 1.2], absScale: true, variants: 4, inWedgeBeyond: 700,
+    mask: (x, z, d) => (d > 40 ? 0.35 * clump(x, z, 90, 48, 0.15, 0.35) : 0) },
   // pod-lantern hollow: the glow set piece
   { species: 'lanternPods', rect: around(HOLLOW.x, HOLLOW.z, 230), minDist: 17, h: [6, 22], variants: 4, mask: radial(HOLLOW.x, HOLLOW.z, 80, 230) },
   { species: 'lanternPods', rect: DISC, minDist: 90, h: [7, 18], variants: 4, inWedgeBeyond: 1100, mask: (x, z) => 0.5 * clump(x, z, 120, 42, 0.15, 0.4) },
@@ -119,6 +134,10 @@ export const HAND: { species: SpeciesId; variant: number; x: number; z: number; 
   // foreground framing: a cropped, overhanging young titan cap in the top-left corner; pods + fan tips on the bottom corners
   { species: 'parasolTitan', variant: 0, x: -36, z: -44, h: 28, yaw: 0.3, tilt: [0, -0.4] },
   { species: 'lanternPods', variant: 2, x: -7.5, z: -10.5, h: 5.5, yaw: 0.8 },
+  // spike-crown silhouettes rising from the bottom edge
+  { species: 'groundCover', variant: 3, x: 4.6, z: -8.5, h: 2.3, yaw: 0.7 },
+  { species: 'groundCover', variant: 3, x: 6.8, z: -10.5, h: 2.7, yaw: 2.1 },
+  { species: 'groundCover', variant: 3, x: -4.6, z: -8, h: 2.6, yaw: 1.4 },
   // a small glowing pair beside the explorer: the accent sits on the story beat
   { species: 'lanternPods', variant: 0, x: -26, z: -76, h: 4.5, yaw: 1.3 },
   { species: 'lanternPods', variant: 2, x: -3.5, z: -88, h: 3.5, yaw: 0.4 },
@@ -135,10 +154,10 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
   for (const s of SPECS) {
     const tall = s.species !== 'groundCover';
     const pad = tall ? s.minDist * 0.25 : 0.5;
-    const pts = poissonDisk(rng, s.rect, s.minDist, (x, z) => (clear(x, z, tall, pad) ? s.mask(x, z, Math.hypot(x, z)) : 0));
+    const pts = poissonDisk(rng, s.rect, s.minDist, (x, z) => (clear(x, z, tall, pad) ? s.mask(x, z, Math.hypot(x, z)) * thinFar(s.species, Math.hypot(x, z)) : 0));
     for (const [x, z] of pts) {
       if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
-      const variant = Math.floor(rng() * (variantsOf?.(s.species) ?? s.variants));
+      const variant = pickVariant(s.species, rng(), variantsOf?.(s.species) ?? s.variants);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
       out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }
@@ -151,16 +170,16 @@ export function placePlants(seed: number, heightOf: (s: SpeciesId, variant: numb
     const own = oldRect.get(s.species)!;
     const accept = (x: number, z: number) => {
       const a = Math.abs(angOf(x, z)), d = Math.hypot(x, z);
-      const inWedge = a < WEDGE && !(s.inWedgeBeyond && d > s.inWedgeBeyond);
+      const inWedge = a < WEDGE && !(s.inWedgeBeyond !== undefined && d > s.inWedgeBeyond);
       if (inWedge || (a <= 0.95 && inRect(x, z, own))) return 0; // hero frame keeps exactly what SPECS put there
       const rv = riverDist(x, z);
       if (rv.d < rv.w * 1.1 + pad) return 0;
-      return s.mask(x, z, d);
+      return s.mask(x, z, d) * thinFar(s.species, d);
     };
     const pts = poissonDisk(rng, s.rect, s.minDist, accept);
     for (const [x, z] of pts) {
       if (tall && taken.some(([tx, tz, th]) => Math.hypot(tx - x, tz - z) < Math.max(s.minDist, th * 0.5))) continue;
-      const variant = Math.floor(rng() * (variantsOf?.(s.species) ?? 3));
+      const variant = s.variant ?? pickVariant(s.species, rng(), variantsOf?.(s.species) ?? 3);
       const h = s.h[0] + (s.h[1] - s.h[0]) * Math.pow(rng(), 1.4);
       out.push({ species: s.species, variant, position: [x, 0, z], yaw: rng() * Math.PI * 2, scale: s.absScale ? h : h / heightOf(s.species, variant), tilt: [(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12] });
     }

@@ -9,6 +9,9 @@ import {
 } from 'three/tsl';
 import { PALETTE } from './contracts';
 import { DATA_RECT, HERO, EXPLORER } from './layout';
+import { heightAt } from './field';
+
+const HERO_BASE_Y = heightAt(HERO.x, HERO.z);
 
 export const PIXEL = new URLSearchParams(location.search).get('style') !== 'smooth';
 
@@ -119,7 +122,11 @@ export function worldMaterial(o: WorldMatOpts = {}): any {
     const shade = max(core, caught.oneMinus()).clamp(0, 1).toVar();
     if (o.translucent) {
       // lit = max(NdotL_cel, luminance(vertexColor) * 0.8 * max(-N.y, 0)): thin pale bands glow through, dark ones stay shadowed
-      const trans = dot(base, vec3(0.2126, 0.7152, 0.0722)).mul(0.8).mul(max(N.y.negate(), 0));
+      const trans = dot(base, vec3(0.2126, 0.7152, 0.0722)).mul(0.8).mul(max(N.y.negate(), 0)).toVar();
+      // the hero's lowest cap keeps a dark rim/underside so its silhouette still wins against the sky
+      const heroLow = float(1).sub(smoothstep(70, 95, positionWorld.xz.sub(vec2(HERO.x, HERO.z)).length()))
+        .mul(float(1).sub(smoothstep(HERO_BASE_Y + HERO.height * 0.66, HERO_BASE_Y + HERO.height * 0.72, positionWorld.y)));
+      trans.mulAssign(float(1).sub(heroLow.mul(0.8)));
       shade.assign(shade.min(float(1).sub(trans)));
     }
     if (PIXEL) shade.assign(floor(shade.mul(2).add(0.5)).div(2));

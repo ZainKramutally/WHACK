@@ -26,7 +26,7 @@ export const MOVE = {
   fgPlayer: 0.35,                     // foreground value push in player mode, × hero value
 };
 /** Walkable world: a disc around the composed area. rw-scene may move or grow it as the map fills. */
-export const WORLD_DISC: Disc = { x: 0, z: -500, r: 1000 };
+export const WORLD_DISC: Disc = { x: 0, z: -300, r: 1900 }; // rw-scene: matches the 360° world (fine terrain ±2.4 km)
 
 export interface PlayerDeps {
   dom: HTMLElement;
