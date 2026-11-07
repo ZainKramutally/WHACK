@@ -39,17 +39,19 @@ export function skyStyle(starType: string, light: number, pressureBar: number, t
   const L = Math.max(1e-4, light);
   const brightness = clamp01(Math.pow(L, 0.22));
   const cold = clamp01((15 - temperatureC) / 180);
-  // Warm daylight to cold blue-violet as the world gets colder.
-  const zenith = mixHex(0x4f94d8, 0x4a58b8, cold);
-  const horizon = mixHex(0xcfe6ef, 0x8fa4d8, cold);
-  // Thicker air hazes the horizon (log scale around 1 bar).
+  // Red World white sky, turning to the silicon violet-lilac as the world gets colder.
+  const C = LOOK_PALETTES.carbon, S = LOOK_PALETTES.silicon;
+  const zenith = mixHex(C.skyZenith, S.skyZenith, cold);
+  const horizon = mixHex(C.skyHorizon, S.skyHorizon, cold);
+  // Thicker air hazes the horizon toward the lilac haze (log scale around 1 bar).
   const haze = clamp01(Math.log10(Math.max(0.05, pressureBar)) * 0.6);
-  const horizonHazed = mixHex(horizon, 0xe6edf5, haze * 0.5);
+  const horizonHazed = mixHex(horizon, mixHex(C.haze, S.haze, cold), haze * 0.5);
   const dim = 0.12 + 0.88 * brightness;
+  const k = Math.pow(dim, 1 / 2.2);   // dim is a linear-light factor; hex colours are sRGB
   return {
-    zenith: scaleHex(zenith, dim * 0.8),
-    horizon: scaleHex(horizonHazed, dim),
-    fog: scaleHex(horizonHazed, dim),
+    zenith: scaleHex(zenith, k),
+    horizon: scaleHex(horizonHazed, k),
+    fog: scaleHex(horizonHazed, k),
     starColour: STAR_COLOUR[starType[0]?.toUpperCase()] ?? STAR_COLOUR.G,
     brightness,
     sunIntensity: 3 * brightness,
@@ -84,11 +86,11 @@ export function seaStyle(solventName: string, frozen: boolean, solidSinks: boole
   return { colour: 0x2a86a0, opacity: 0.62, roughness: 0.08, underwater: 0x1b5f78, underwaterFar: 35, metalness: 0 };
 }
 
-/** Ground colour: bare rock; carbon ground greens as life reaches land (lifeBlend 0..1). */
+/** Ground colour (Red World base ground): red on carbon, pale violet stone on silicon. Life is the plants' colour, so
+ *  lifeBlend only deepens the ground slightly toward its shadow family (0..1). */
 export function groundColour(comp: { c: number; si: number; o: number }, lifeBlend: number): number {
-  const silicon = comp.si > 0.5;
-  if (silicon) return 0x6e7388;                       // water-ice bedrock and silicate rock, blue-grey
-  return mixHex(0x8a7960, 0x5b7d3d, clamp01(lifeBlend)); // bare rock → vegetated
+  const p = LOOK_PALETTES[comp.si > 0.5 ? 'silicon' : 'carbon'];
+  return mixHex(p.red, p.crimson, 0.15 * clamp01(lifeBlend));
 }
 
 export type Tone = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -110,28 +112,33 @@ export function shiftHue(hex: number, deg: number, dl = 0): number {
 }
 
 /**
- * Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn, accent (bands, fins, crests), spot. The
- * lineage's `hue` (0..1) turns the world's palette (±35° carbon, ±18° silicon, so glassy blue stays glassy) so related lineages share a colour and strangers differ, and
- * `accent` (0..1) picks how far the accent tone sits from the body colour. Both come from the plan, never from a world id.
+ * Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn, accent (bands, fins, crests), spot.
+ * Base is the Red World palette: carbon grazers pale blush-bone and hunters dark maroon; silicon grazers ice-bone and
+ * hunters violet. The lineage's `hue` (0..1) turns that base (±35° carbon, ±18° silicon) so related lineages share a
+ * colour and strangers differ, and `accent` (0..1) picks how far the accent tone sits from the body. Silicon dot eyes take
+ * the glow accent (dark world), carbon ring eyes are ink. Inputs come from the plan, never from a world id.
  */
 export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5): number {
-  const band = shiftHue(silicon
-    ? mixHex(0xd6ecff, 0xe0b8ff, clamp01(diet))      // glassy blue → violet hunters
-    : mixHex(0xc4ee4a, 0xff8a2c, clamp01(diet)), (hue - 0.5) * (silicon ? 36 : 70));   // green grazers → orange hunters
+  const p = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
+  const base = silicon
+    ? mixHex(mixHex(p.bone, p.blush, 0.3), p.crimson, clamp01(diet))
+    : mixHex(mixHex(p.bone, p.blush, 0.5), p.maroon, clamp01(diet));
+  const band = shiftHue(base, (hue - 0.5) * (silicon ? 36 : 70));
   switch (tone) {
-    case 1: return silicon ? 0xfaffff : 0x161616;
+    case 1: return silicon ? p.glow : p.ink;
     case 2: return scaleHex(band, 0.62);
     case 3: return scaleHex(band, 0.82);
-    case 4: return mixHex(band, 0xf0f0e0, 0.5);
+    case 4: return mixHex(band, p.bone, 0.5);
     case 5: return shiftHue(band, silicon ? 25 + 35 * accent : 25 + 55 * accent, silicon ? -0.08 : -0.05);
     case 6: return mixHex(shiftHue(band, silicon ? 40 : 150, 0.05), 0xffffff, 0.35);
     default: return band;
   }
 }
 
+/** Plant value inverts with height (ART_DIRECTION rule 4): dark stems, pale tips that read against the white sky. */
 export function floraColours(silicon: boolean, canopy: number): { stem: number; tip: number } {
-  if (silicon) return { stem: 0xa8c8dc, tip: mixHex(0xdff4ff, 0xc9b6ff, clamp01(canopy)) };
-  return { stem: 0x4f8f3a, tip: mixHex(0x9bd25a, 0xe6c34a, clamp01(canopy)) };
+  const p = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
+  return { stem: mixHex(p.maroon, p.crimson, 0.35), tip: mixHex(p.bone, p.blush, clamp01(canopy)) };
 }
 
 /** Everything the scene needs from a VisualInputs, in one place. */
@@ -141,4 +148,82 @@ export function styleFor(i: VisualInputs) {
     sky: skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, t),
     sea: seaStyle(i.world.solvent.name, i.frozen, i.world.solvent.solidSinks),
   };
+}
+
+// ---- Red World look (docs/ART_DIRECTION.md). Keys are colour ROLES named after the carbon palette, so the reference
+// code ports by swapping `PALETTE.x` for `pal.x`: on silicon `red` is still "the base ground", `glow` still "the accent".
+export type LookKey =
+  | 'skyZenith' | 'skyHorizon' | 'haze'
+  | 'redLight' | 'red' | 'crimson' | 'maroon' | 'ink'
+  | 'bone' | 'blush' | 'shadow' | 'glow' | 'glowDeep';
+export type LookColours = Record<LookKey, number>;
+
+/** Unmodulated palettes. Vertex colours and colorNodes on worldMaterial surfaces use these (the material applies the star). */
+export const LOOK_PALETTES: Record<'carbon' | 'silicon', LookColours> = {
+  // Red World exactly (mockups/red-world/src/contracts.ts PALETTE, lilac haze pick).
+  carbon: {
+    skyZenith: 0xeef0f4, skyHorizon: 0xf3eef8, haze: 0xe4daef,
+    redLight: 0xff5a36, red: 0xe8331f, crimson: 0xa8122a, maroon: 0x5c0a1e, ink: 0x22060f,
+    bone: 0xf4e6dc, blush: 0xf2a2a0, shadow: 0x5a1040, glow: 0x3ff5e0, glowDeep: 0x0f8f9a,
+  },
+  // Silicon: the same two-family structure turned cold, with the value order inverted so it reads apart at thumbnail
+  // size: pale bone-lilac stone ground under a deeper violet-lilac sky (thick nitrogen air, distant star), indigo-ink
+  // darks, ice-blue highlights, indigo shadow, and an ice-cyan accent (glow from darkness).
+  silicon: {
+    skyZenith: 0x6450b0, skyHorizon: 0xbca8ea, haze: 0xab98e2,
+    redLight: 0xf4eefa, red: 0xd8c8ee, crimson: 0x7c5cc8, maroon: 0x3a2478, ink: 0x100828,
+    bone: 0xf6f8ff, blush: 0x9fcff2, shadow: 0x2a2272, glow: 0x6ff4ff, glowDeep: 0x2f7fe0,
+  },
+};
+
+/** Which look a world gets: from its body chemistry (as groundColour does), never its id. */
+export function lookKind(comp: { si: number }): 'carbon' | 'silicon' {
+  return comp.si > 0.5 ? 'silicon' : 'carbon';
+}
+
+export interface LookPalette extends LookColours {
+  /** The unmodulated palette (for vertex colours / colorNodes that go through worldMaterial). */
+  base: LookColours;
+  kind: 'carbon' | 'silicon';
+  /** skyStyle brightness, light^0.22. */
+  brightness: number;
+  /** Scene dimming 0.12..1 from brightness (as skyStyle). Lit and shadow terms are multiplied by it. */
+  dim: number;
+  /** Star tint relative to a G star (G → white), multiplied into the key light. Hex. */
+  starTint: number;
+  /** 0..~1 extra air from pressure (as skyStyle): thicker air shortens the fog. */
+  airHaze: number;
+}
+
+/** Per-channel ratio a/b as a hex (clamped to 255). */
+function ratioHex(a: number, b: number): number {
+  const ch = (s: number) => {
+    const x = (a >> s) & 255, y = Math.max(1, (b >> s) & 255);
+    return Math.max(0, Math.min(255, Math.round((255 * x) / y)));
+  };
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/**
+ * The active Red World palette modulated by the star (skyStyle): dimmed by brightness and tinted by the star's colour
+ * relative to a G star. Carbon under a G star at light 1 is the reference palette exactly. Glow is emissive, so it is
+ * never dimmed: on a dim world it dominates, which is honest (glow from darkness).
+ */
+export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>): LookPalette {
+  const kind = lookKind(i.world.composition);
+  const base = LOOK_PALETTES[kind];
+  const st = skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, i.stats.temperature ?? 15);
+  const dim = 0.12 + 0.88 * st.brightness;
+  const starTint = ratioHex(st.starColour, STAR_COLOUR.G);
+  const k = Math.pow(dim, 1 / 2.2);   // dim is linear light (as the material applies it); hexes are sRGB
+  const tint = (hex: number) => {
+    const t = scaleHex(hex, k);
+    const r = Math.round((((t >> 16) & 255) * ((starTint >> 16) & 255)) / 255);
+    const g = Math.round((((t >> 8) & 255) * ((starTint >> 8) & 255)) / 255);
+    const b = Math.round(((t & 255) * (starTint & 255)) / 255);
+    return (r << 16) | (g << 8) | b;
+  };
+  const out = { base, kind, brightness: st.brightness, dim, starTint, airHaze: clamp01(Math.log10(Math.max(0.05, i.stats.pressure ?? 1)) * 0.6) } as LookPalette;
+  for (const k of Object.keys(base) as LookKey[]) out[k] = k === 'glow' || k === 'glowDeep' ? base[k] : tint(base[k]);
+  return out;
 }
