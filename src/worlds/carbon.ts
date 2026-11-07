@@ -135,16 +135,16 @@ export const carbon: WorldConfig = {
   },
   feedbacks: [
     // Rates are change in the stat per unit biomass per ecology second, scaled to the Ecology's biomass units
-    // (producerBiomass ≈ 4,080 flat after the aquatic change (deeper water now carries flora), consumerBiomass swinging 1,000 → ~400 after the build boom); placeholders for the headless tuner (issues #31, #11).
+    // (producerBiomass ≈ 3,960 flat (deeper water carries flora), consumerBiomass ≈ 960 with real, massive bodies); placeholders for the headless tuner (issues #31, #11).
     { id: 'photosynthesisOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: 2.5e-6, why: 'Photosynthesis releases oxygen.', sources: [], assumption: true },
-    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -5.5e-6, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
+    { id: 'respirationOxygen', statId: 'oxygen', driver: 'consumerBiomass', rate: -2.4e-6, why: 'Consumers breathe oxygen, pulling it back down.', sources: [], assumption: true },
     { id: 'photosynthesisCo2', statId: 'co2', driver: 'producerBiomass', rate: -2.5e-7, why: 'Photosynthesis draws carbon dioxide out of the air.', sources: [], assumption: true },
     // Decomposition: plant respiration and litter decay turn part of what photosynthesis fixed back into CO₂, using oxygen.
-    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 4,080, consumers ≈ 400), so the air holds still
+    // Sized so photosynthesis and decay nearly cancel at the ecology's steady state (producers ≈ 3,960, consumers ≈ 960), so the air holds still
     // when idle and moves when the population shifts (issue #31).
     { id: 'decayOxygen', statId: 'oxygen', driver: 'producerBiomass', rate: -1.91e-6, why: 'Plants and the litter they shed are respired and decay, using oxygen.', sources: [], assumption: true },
     { id: 'decayCo2', statId: 'co2', driver: 'producerBiomass', rate: 2.21e-7, why: 'Plants and the litter they shed are respired and decay, returning carbon dioxide.', sources: [], assumption: true },
-    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 2.8e-7, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
+    { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 1.2e-7, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
   ],
   derived: [
     {
@@ -259,7 +259,7 @@ export const carbon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
-      intake: 1.2, // matter per second per M^0.75 at full appetite
+      intake: 2, // matter per second per M^0.75 at full appetite; raised from 1.2 so a collapsed population regrows in about 90 s at live speed
       speed: 1.5, // cells per ecology second
       moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost
       catchRate: 0.4, // catch attempts per ecology second when a prey is in reach; tuned so hunters persist
