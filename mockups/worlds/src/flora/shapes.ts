@@ -141,7 +141,7 @@ export function blackMonolith(seed = 1): MeshData {
   const hunch = (y: number) => 0.055 * Math.pow(Math.max(0, (y - 0.45) / 0.5), 1.6);
   const saw = (th: number) => 0.045 * Math.abs(Math.sin(th * 4.5 + seed)) + 0.03 * vnoise(th * 3, seed, 0);
   lathe(mb, body, 20, { yOf: (th, i, y) => (i <= 1 ? y - saw(th) : y) });
-  for (let i = 0; i < mb.verts; i++) mb.position[i * 3 + 2] -= hunch(mb.position[i * 3 + 1]); // lean away from camera → head tilts forward
+  for (let i = 0; i < mb.verts; i++) mb.position[i * 3 + 2] += hunch(mb.position[i * 3 + 1]); // head tilts forward (+z, towards the camera)
   // drip skirt: strands hanging from the hem
   const strands = 13;
   for (let k = 0; k < strands; k++) {
@@ -153,7 +153,7 @@ export function blackMonolith(seed = 1): MeshData {
   }
   // antlers
   for (const s of [-1, 1]) {
-    const hz = -hunch(0.9);
+    const hz = hunch(0.9);
     const path: V3[] = [[0.045 * s, 0.9, hz], [0.1 * s, 0.925, hz], [0.15 * s, 0.97, hz], [0.158 * s, 1.03, hz], [0.135 * s, 1.07, hz]];
     tube(mb, path, [0.0135, 0.0115, 0.009, 0.0065, 0], 4, () => 0.5);
     tube(mb, [[0.11 * s, 0.94, hz], [0.145 * s, 0.975, hz], [0.185 * s, 0.985, hz]], [0.007, 0.0055, 0], 3, () => 0.5);
@@ -161,7 +161,7 @@ export function blackMonolith(seed = 1): MeshData {
   // three white eye dots on the hood, facing +z (the camera)
   for (const [ex, ey] of [[-0.028, 0.9], [0.028, 0.9], [0, 0.935]] as const) {
     const e = new MB();
-    const c: V3 = [ex, ey, 0.062 - hunch(ey)];
+    const c: V3 = [ex, ey, 0.062 + hunch(ey)];
     const ids = [e.v(c, [0, 0, 1], 1)];
     for (let j = 0; j < 6; j++) { const a = (j / 6) * TAU; ids.push(e.v([c[0] + Math.cos(a) * 0.0105, c[1] + Math.sin(a) * 0.0105, c[2]], [0, 0, 1], 1)); }
     for (let j = 1; j <= 6; j++) e.tri(ids[0], ids[j], ids[(j % 6) + 1], true);
