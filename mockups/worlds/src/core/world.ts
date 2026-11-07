@@ -133,9 +133,13 @@ export class World {
     // sun: warm-neutral key from the haze colour; fill: sky (top) over ground bounce
     this.sun.color.copy(c(p.haze)).lerp(new THREE.Color(1, 0.97, 0.92), 0.55);
     this.sun.intensity = Math.PI * 0.85;
-    this.hemi.color.copy(c(p.skyHorizon)).lerp(c(p.shadow), 0.25);
-    this.hemi.groundColor.copy(c(p.ground)).lerp(c(p.shadow), 0.35);
-    this.hemi.intensity = Math.PI * 0.55;
+    // fill = shadow hue lifted to a mid luminance (keeps its chroma), a little sky mixed in
+    const sh = c(p.shadow);
+    const lum = Math.max(0.004, 0.2126 * sh.r + 0.7152 * sh.g + 0.0722 * sh.b);
+    sh.multiplyScalar(Math.min(12, 0.3 / lum));
+    this.hemi.color.copy(sh).lerp(c(p.skyHorizon), 0.3);
+    this.hemi.groundColor.copy(c(p.ground)).lerp(this.hemi.color, 0.5);
+    this.hemi.intensity = Math.PI * 0.65;
     const [r, g, b] = hexToLinear(p.skyHorizon);
     this.post.setPalette(0.2126 * r + 0.7152 * g + 0.0722 * b);
   }

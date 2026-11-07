@@ -19,8 +19,8 @@ export const PRESETS: Preset[] = [
     composition: {
       aspect: 0.716,
       // Low on a flat plain, slight up-tilt: horizon sits at ~58% from the top of the frame.
-      camera: { position: [0, 2.2, 0], target: [4, 14, -200], fov: 52 },
-      sunDir: [0.17, 0.3, -1],          // eclipse at ~(0.6, 0.33) of the frame
+      camera: { position: [0, 2.2, 0], target: [4, 29, -200], fov: 52 },
+      sunDir: [0.1, 0.32, -0.95],          // eclipse at ~(0.6, 0.33) of the frame
       skyEvent: 'eclipse',
       valley: [[0, 0], [0, -400]],
       valleyWidth: 400,                 // open plain

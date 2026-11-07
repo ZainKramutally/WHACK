@@ -9,8 +9,10 @@ import type { MaterialFactory, WorldMaterialOptions, WorldUniforms } from '../co
 
 /** 3-step cel ramp (shadow core / mid / lit). NearestFilter keeps the steps hard. */
 function celRamp(): any {
-  const data = new Uint8Array([70, 70, 70, 255, 150, 150, 150, 255, 255, 255, 255, 255]);
-  const t = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  // 16 texels over n·l: <0.06 core shadow (sun contributes nothing, only the tinted fill) · 0.06–0.25 mid · >0.25 lit.
+  const v = [0, 150, 150, 150, ...Array(12).fill(255)];
+  const data = new Uint8Array(v.flatMap((x) => [x, x, x, 255]));
+  const t = new THREE.DataTexture(data, v.length, 1, THREE.RGBAFormat);
   t.minFilter = t.magFilter = THREE.NearestFilter;
   t.needsUpdate = true;
   return t;
@@ -23,7 +25,7 @@ export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
   const flatNormal = positionView.dFdx().cross(positionView.dFdy()).normalize();
 
   // Shadows are never grey/black: lit = 1, shadowed = shadow hue lifted so albedo × it keeps its colour.
-  const shadowTint = Fn(([s]: any[]) => mix(u.shadowColor.mul(0.55).add(0.18), white, s.x ?? s));
+  const shadowTint = Fn(([s]: any[]) => mix(u.shadowColor.mul(0.4), white, s.x ?? s));
 
   return {
     create(opts: WorldMaterialOptions = {}) {
@@ -38,8 +40,8 @@ export function createMaterialFactory(u: WorldUniforms): MaterialFactory {
         // vertical streaks: noise stretched along y
         const streak = mx_fractal_noise_float(vec3(p.x.mul(0.35), p.y.mul(0.03), p.z.mul(0.35)), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
         // low = older = more stained; tips stay paler (bone)
-        const low = float(1).sub(smoothstep(4, 150, p.y).mul(0.6));
-        const t = saturate(low.mul(0.9).add(streak.sub(0.5).mul(0.6)));
+        const low = float(1).sub(smoothstep(4, 220, p.y).mul(0.5));
+        const t = saturate(low.mul(1.1).add(streak.sub(0.5).mul(0.6)));
         base = mix(color(0xece4d6), u.stoneColor, t);
       }
       if (opts.snowCover) {

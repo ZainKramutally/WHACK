@@ -32,7 +32,7 @@ export function createSkyNode(u: WorldUniforms, comp: Composition) {
     const ang = acos(s.clamp(-1, 1)); // angular distance to the sun/eclipse centre
 
     if (comp.skyEvent === 'eclipse') {
-      const R = float(0.052); // disc angular radius (rad)
+      const R = float(0.088); // disc angular radius (rad)
       // azimuth around the sun axis
       const az = atan(dot(d, basisY), dot(d, basisX)); // -π..π
       const x = az.div(TAU).add(0.5);
@@ -47,11 +47,11 @@ export function createSkyNode(u: WorldUniforms, comp: Composition) {
         const w = float(wBase).mul(k.add(0.04)); // taper: rays get sharper towards the tip
         return saturate(float(1).sub(f.div(w.max(0.001)))).mul(k.pow(0.8));
       };
-      const rayA = rays(11, 3.0, 1.8, 3.4, 0.55);
-      const rayB = rays(7, 19.0, 1.2, 2.2, 0.4);
-      const glow = exp(r.mul(-2.2)).mul(0.55);
+      const rayA = rays(11, 3.0, 0.28, 0.6, 0.34);
+      const rayB = rays(7, 19.0, 0.18, 0.3, 0.28);
+      const glow = exp(r.mul(-9.0)).mul(0.25);
       const corona = saturate(max(rayA, rayB.mul(0.8)).add(glow)).mul(smoothstep(-0.01, 0.0, ang.sub(R)));
-      const ring = smoothstep(0.075, 0.0, abs(ang.sub(R.mul(1.06))).div(R)).mul(0.95);
+      const ring = smoothstep(0.045, 0.0, abs(ang.sub(R.mul(1.035))).div(R)).mul(0.95);
       const white = vec3(1.0, 0.99, 0.96);
       col = mix(col, white, saturate(corona.add(ring)));
       col = mix(col, vec3(0.045, 0.038, 0.034), smoothstep(R.add(0.002), R.sub(0.002), ang));

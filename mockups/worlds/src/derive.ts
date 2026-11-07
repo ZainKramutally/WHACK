@@ -55,7 +55,7 @@ export const STAIN: Record<keyof SeaWeights, number> = {
 const FAMILY = { c: 0xffa41b, si: 0x27aaa6, o: 0xda1b58 }; // glow hue: C amber, Si cyan, O magenta
 const PORE_GLOW = 0xff7a1a;
 // base fog density (1/m, exponential) per sea; × (1.2 − heat)
-const FOG_BASE: Record<keyof SeaWeights, number> = { water: 0.0035, ammonia: 0.005, methane: 0.009, acid: 0.006 };
+const FOG_BASE: Record<keyof SeaWeights, number> = { water: 0.003, ammonia: 0.0045, methane: 0.0045, acid: 0.0045 };
 
 // ------------------------------------------------------------------ calibrated palette field
 

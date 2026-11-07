@@ -12,7 +12,7 @@ export function createFogNode(u: WorldUniforms, density: any) {
   const factor = Fn(() => {
     const ground = exp(max(positionWorld.y, 0).mul(-0.02)); // 1 at ground → 0 high up
     const d = dist();
-    const dd = density.mul(float(0.55).add(ground.mul(1.2))); // thicker near the ground
+    const dd = density.mul(float(0.4).add(ground.mul(0.9))); // thicker near the ground
     return saturate(float(1).sub(exp(d.mul(dd).negate())));
   });
   return fog(color(), factor());
