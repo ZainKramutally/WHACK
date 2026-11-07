@@ -58,7 +58,7 @@ Each world is procedurally generated from its seed. The three sliders set the st
 | Oxygen | 21% by default, nudged by life (the default is `assumption: true`) | 21% | Set by the Oxygen slider. Photosynthesis raises it, and consumers pull it back down. The start is Earth's value; at 0% bodies would sit at the oxygen size cap, with nothing in the build to raise it. |
 | Nitrogen | 1 × Earth's by default | 1 × | Set by the Nitrogen slider. Life needs it for proteins and DNA. |
 | Main gas | Nitrogen | Nitrogen | Unreactive bulk gas that persists over billions of years. |
-| Carbon dioxide | Starts high, falls as life grows | about 0.04% | Drawn down by photosynthesis, and returned by consumers. |
+| Carbon dioxide | Starts about 0.25%, rises slightly during the build, then holds steady | about 0.04% | Drawn down by photosynthesis, returned by consumers and by plant respiration and decay, which nearly cancel once life settles (`assumption: true`). |
 | Solvent | Water | Water | Liquid over a wide temperature range and dissolves many carbon compounds. |
 | Star | Sun-like | The Sun | The reference. |
 | Pace of chemistry | 1 × Earth | 1 | The reference. |
