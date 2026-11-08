@@ -290,11 +290,25 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
     perBin[Math.min(BINS - 1, Math.floor(r / binW))].push(A[i * 4 + 3] + B[i * 4 + 2]);
   }
   const ring = new Float32Array(BINS + 1);
-  let prev = 0.6;
+  const raw = new Float32Array(BINS);
+  let last = 1.5;
   for (let k = 0; k < BINS; k++) {
     const v = perBin[k].sort((x, y) => x - y);
-    const t = v.length ? v[Math.floor(v.length * 0.35)] + 0.12 : prev + 0.02;
-    prev = Math.max(prev, t);
+    raw[k] = v.length >= 8 ? v[Math.floor(v.length * 0.3)] : NaN;   // sparse bins say nothing: interpolate over them
+  }
+  for (let k = 0; k < BINS; k++) {
+    if (Number.isNaN(raw[k])) {
+      let j = k; while (j < BINS && Number.isNaN(raw[j])) j++;
+      raw[k] = j < BINS ? raw[j] : last;
+    }
+    last = raw[k];
+  }
+  // Smooth (moving average), then force monotone: the ring only ever moves outward.
+  let prev = 1.5;
+  for (let k = 0; k < BINS; k++) {
+    let sum = 0, n = 0;
+    for (let d = -4; d <= 4; d++) { const q = k + d; if (q >= 0 && q < BINS) { sum += raw[q]; n++; } }
+    prev = Math.max(prev + 0.004, sum / n);
     ring[k] = prev;
   }
   ring[BINS] = prev + 0.05;
@@ -306,7 +320,7 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
       const f = r / binW, k0 = Math.min(BINS - 1, Math.floor(f));
       const base = r > rmax ? ring[BINS] + (r - rmax) / vFar : lerp(ring[k0], ring[Math.min(BINS, k0 + 1)], f - k0);
       const h = Math.sin(xx * 12.9898 + zz * 78.233) * 43758.5453; const n = h - Math.floor(h);
-      reveal[zz * REVEAL_RES + xx] = base + (n - 0.5) * 0.22;
+      reveal[zz * REVEAL_RES + xx] = base + (n - 0.5) * 0.3;
     }
     if (zz % 32 === 31) yield;
   }
