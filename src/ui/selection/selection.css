@@ -56,7 +56,9 @@
   transition: opacity 0.4s steps(4, end);
 }
 &.launching { pointer-events: none; }
-.shadowbox { width: 100%; max-width: 1360px; margin: 0 auto; filter: drop-shadow(8px 8px 0 var(--f0)); }
+.shadowbox { position: relative; isolation: isolate; width: 100%; max-width: 1360px; margin: 0 auto; }
+/* Static offset shadow (a filter here would re-filter the whole sheet every frame the box canvas repaints). */
+.shadowbox::before { content: ""; position: absolute; inset: 0; z-index: -1; translate: 8px 8px; background: var(--f0); clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)); }
 .sheet {
   position: relative; box-sizing: border-box;
   background: var(--bone4);
