@@ -7,6 +7,7 @@ import type {
 } from '../worlds/types';
 import { controlList, controls } from '../worlds/controls';
 import { CONSTANTS } from './constants';
+import { baseWorld, crustMap, withCrustChoice } from '../gen/crust';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
 import { CELLS, GRID, liquidFromHeights } from './grid';
 import { FormTracker, type NewForm } from './guide';
@@ -16,8 +17,8 @@ import {
 } from './limits';
 import { EcologyLife, type LifeEnv, type LifeModel } from './lifeModel';
 import {
-  surfaceAir, orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
-  type PartialPressureParams, type RadiativeParams,
+  seaFreeboard, surfaceAir, orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
+  type FreeboardParams, type PartialPressureParams, type RadiativeParams,
 } from './models';
 import { arrheniusFactor } from './population';
 import { makeRng } from './rng';
@@ -119,6 +120,9 @@ export class WorldSimulation {
   private readonly radBase: RadiativeParams & Record<string, number>;
   private readonly buildTicks: number;
   private readonly seaLimited: boolean;
+  /** Carbon's crust-and-ice sea cover: base cover (%), basalt shares, and the slider's setpoint (°C) the ice term reads. */
+  private readonly freeboard: { p: FreeboardParams & { easePerSec: number }; base: number; share: number; ref: number } | undefined;
+  private tempSetpoint = 15;
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
   private readonly tracker: FormTracker;
@@ -167,7 +171,18 @@ export class WorldSimulation {
     this.stats.nitrogen = start.nitrogen;
     this.stats.oxygen = start.oxygen;
     this.orbitAU = orbitForTemperature(this.radNow(), start.temperature, start.nitrogen);
+    this.tempSetpoint = start.temperature;
+    const fb = world.derived.find((d) => d.model === 'seaFreeboard');
+    if (fb) {
+      this.freeboard = {
+        p: fb.params as unknown as FreeboardParams & { easePerSec: number },
+        base: this.stats.seaCover / 100,
+        share: this.basaltShare(world),
+        ref: this.basaltShare(this.defaultRockWorld(world)),
+      };
+    }
     this.refreshDerived();
+    if (this.freeboard) this.stats.seaCover = this.freeboardTarget();   // starts at equilibrium; only later changes ease
 
     this.tickBands = livingBands(world, this.conditions(), this.limitsEnv);
     this.life = opts.life ?? new EcologyLife(world, this.seed, { liquid: () => this.liquidNow() });
@@ -390,6 +405,7 @@ export class WorldSimulation {
 
   /** Set one slider's physical quantity (orbit for temperature) and recompute everything derived from it. */
   private setControlValue(id: ControlId, value: number): void {
+    if (id === 'temperature') this.tempSetpoint = value;
     if (id === 'temperature') this.orbitAU = orbitForTemperature(this.radNow(), value, this.stats.nitrogen);
     else this.stats[id] = value;
     this.refreshDerived();
@@ -418,6 +434,27 @@ export class WorldSimulation {
       }
     }
     if ('airDensity' in s) s.airDensity = this.air().density;
+    if (this.freeboard) {   // ease toward the equilibrium cover (percent) at the tick rate: a slider drag floods or drains over seconds
+      const step = this.freeboard.p.easePerSec * 100 * TICK_DT;
+      const goal = this.freeboardTarget();
+      s.seaCover = Math.abs(goal - s.seaCover) <= step ? goal : s.seaCover + Math.sign(goal - s.seaCover) * step;
+    }
+  }
+
+  private freeboardTarget(): number {
+    const f = this.freeboard!;
+    return 100 * seaFreeboard(f.p, f.base, f.share, f.ref, this.tempSetpoint, this.world.startDefaults.temperature);
+  }
+
+  private basaltShare(w: WorldConfig): number {
+    const i = w.terrain.crust.minerals.findIndex((m) => m.id === 'basalt');
+    return i < 0 ? 0 : crustMap(w, this.seed).shares[i];
+  }
+
+  /** The world as the default rock chip makes it: the reference rock, so the default run keeps its sampled cover. */
+  private defaultRockWorld(w: WorldConfig): WorldConfig {
+    const base = baseWorld(w);
+    return withCrustChoice(base, base.terrain.crust.defaultPick);
   }
 
   // ---- terrain: sea level and the ecology's liquid grid ----------------------------------------------------------

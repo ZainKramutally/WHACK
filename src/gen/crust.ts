@@ -66,6 +66,10 @@ export function rust(world: WorldConfig, oxygenPct: number): number {
 }
 
 const derived = new WeakMap<WorldConfig, Map<string, WorldConfig>>();
+const baseOf = new WeakMap<WorldConfig, WorldConfig>();
+
+/** The natural-crust world that `withCrustChoice` derived `world` from (or `world` itself). */
+export function baseWorld(world: WorldConfig): WorldConfig { return baseOf.get(world) ?? world; }
 
 /**
  * The world a run uses when the player picks a rock chip: the picked mineral's share bounds sit at its `favour` (else `crust.favour`), the others
@@ -92,6 +96,7 @@ export function withCrustChoice(world: WorldConfig, pickId?: CrustPickId): World
     const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()}` } : f));
     out = { ...world, facts, terrain: { ...world.terrain, crust: { ...crust, minerals } } };
     byId.set(pickId!, out);
+    baseOf.set(out, world);
   }
   return out;
 }

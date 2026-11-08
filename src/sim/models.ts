@@ -159,3 +159,25 @@ export function seaVolume(sea: SeaParams, solvent: Solvent, nitrogen: number, tC
 export function seaCover(sea: SeaParams, volume: number): number {
   return (sea.maxCover * volume) / (volume + sea.halfVolume);
 }
+
+// --- seaFreeboard: carbon's sea cover from crust and temperature ---------------------------------------
+export interface FreeboardParams {
+  kBasalt: number;       // cover per unit of basalt share above the reference rock
+  coldMax: number;       // largest fall in cover when ice locks water up
+  coldScaleK: number;    // K below the reference at which the fall reaches tanh(1) of coldMax
+  warmMax: number;       // largest rise in cover from melt and thermal expansion
+  warmScaleK: number;
+  minCover: number;
+  maxCover: number;
+}
+
+/** Ice and thermal expansion: a smooth, saturating, monotonic change in cover (0 at the reference temperature). */
+export function iceCoverShift(p: FreeboardParams, dT: number): number {
+  return dT < 0 ? -p.coldMax * Math.tanh(-dT / p.coldScaleK) : p.warmMax * Math.tanh(dT / p.warmScaleK);
+}
+
+/** Sea cover 0..1: the seeded base, plus the basalt term (no granite continents means a drowned world), plus the ice term. */
+export function seaFreeboard(p: FreeboardParams, base: number, basaltShare: number, basaltRef: number, tC: number, tRefC: number): number {
+  const c = base + p.kBasalt * (basaltShare - basaltRef) + iceCoverShift(p, tC - tRefC);
+  return Math.min(p.maxCover, Math.max(p.minCover, c));
+}

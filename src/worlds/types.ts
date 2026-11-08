@@ -44,7 +44,7 @@ export interface Feedback extends Sourced {  // change driven by life
 
 export interface DerivedStat extends Sourced {  // recomputed every tick, never integrated
   statId: string;
-  model: 'radiativeBalance' | 'vapourPressure' | 'partialPressures' | 'seaVolume';
+  model: 'radiativeBalance' | 'vapourPressure' | 'partialPressures' | 'seaVolume' | 'seaFreeboard';
   inputs: string[];
   params: Record<string, number>;
 }

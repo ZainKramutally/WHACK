@@ -66,7 +66,7 @@ export const carbon: WorldConfig = {
     { id: 'oxygen', label: 'Oxygen', unit: '%', earthValue: 21, why: 'Set by the Oxygen slider, then nudged by life: photosynthesis adds it and consumers breathe it back down.', sources: [], assumption: true },
     { id: 'nitrogen', label: 'Nitrogen', unit: '× Earth', earthValue: 1, why: 'Set by the Nitrogen slider; life needs nitrogen for proteins and DNA.', sources: ['som2016'] },
     { id: 'co2', label: 'Carbon dioxide', unit: '%', earthValue: 0.04, why: 'Starts high and falls as photosynthesis draws it down; consumers return some.', sources: [], assumption: true },
-    { id: 'seaCover', label: 'Sea cover', unit: '%', earthValue: 71, why: 'Water covers most of a planet with this much water; the patch sea level is set so this share lies below it.', sources: [], assumption: true },
+    { id: 'seaCover', label: 'Sea cover', unit: '%', earthValue: 71, why: 'Water covers most of a planet with this much water; the patch sea level is set so this share lies below it. More basalt (ocean crust) and less granite (continents) floods it, and ice ages draw it down.', sources: [], assumption: true },
     { id: 'light', label: 'Starlight', unit: '× Earth', earthValue: 1, why: 'Set by the planet\'s distance from its star, which the Temperature slider moves.', sources: [], assumption: true },
     { id: 'pace', label: 'Pace of chemistry', unit: '× Earth', earthValue: 1, why: 'Earth is the reference: reactions run at their normal speed in this warm water.', sources: [] , assumption: true },
   ],
@@ -149,6 +149,24 @@ export const carbon: WorldConfig = {
     { id: 'respirationCo2', statId: 'co2', driver: 'consumerBiomass', rate: 1.3e-8, why: 'Consumers breathe out carbon dioxide.', sources: [], assumption: true },
   ],
   derived: [
+    {
+      statId: 'seaCover',
+      model: 'seaFreeboard',
+      inputs: ['temperature'],
+      params: {
+        kBasalt: 0.28,        // cover per unit of basalt share above the default rock chip's share: all-basalt (about 0.9) gives about +0.24
+        coldMax: 0.2,         // an ice age takes at most this much cover (Last Glacial Maximum: about -120 m on Earth)
+        coldScaleK: 67,       // tanh scale: about -0.15 cover at -50 °C
+        warmMax: 0.06,        // melt plus thermal expansion add at most this much
+        warmScaleK: 37.5,     // about +0.05 at 60 °C
+        minCover: 0.25,
+        maxCover: 0.97,
+        easePerSec: 0.03,     // cover moves at most this fraction per ecology second, so a slider drag floods or drains over seconds
+      },
+      why: 'Oceanic crust is basalt and continents stand above the sea only because granite is thick and buoyant, so a world of basalt is mostly ocean; cold locks water into ice caps and warmth melts them and swells the sea.',
+      sources: [],   // Johnson and Wing 2020 (early Earth as a water world) is recalled, not verified, so this stays an assumption
+      assumption: true,
+    },
     {
       statId: 'temperature',
       model: 'radiativeBalance',
@@ -365,7 +383,7 @@ export const carbon: WorldConfig = {
   },
   terrain: {
     patchSize: 400,
-    base: { amplitude: 80, frequency: 0.009, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.0, rampRange: 0.18, rampDetail: 0.2 },
+    base: { amplitude: 80, frequency: 0.009, octaves: 5, lacunarity: 2, gain: 0.5, warpAmp: 30, warpFreq: 0.0045, exponent: 1.0, rampRange: 0.38, rampDetail: 0.2 },
     spawn: { shoreDistance: 36 },
     heatSolventSpan: 120,   // −60..60 °C maps to 0..1, so 0 °C (freezing) sits at 0.5
     machines: [
