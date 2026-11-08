@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createTerrain, heightCore, kit32, sampleHeights, seaLevelForCover, seaLevelFromHeights, spawnPoint, type TerrainState, type Terrain } from './terrain';
+import { createTerrain, crustScore, crustWeights, heightCore, kit32, kit64, warpBase, sampleHeights, seaLevelForCover, seaLevelFromHeights, spawnPoint, type TerrainState, type Terrain } from './terrain';
 import { carbonLike, siliconLike } from './terrainFixtures';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 
-const full = (hs = 0.5): TerrainState => ({ rise: 1, heatSolvent: hs, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } });
+const full = (hs = 0.5): TerrainState => ({ rise: 1, heatSolvent: hs, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 } });
 const grid = (n: number, S: number) => Array.from({ length: n * n }, (_, i) => [((i % n) / (n - 1) - 0.5) * S, ((Math.floor(i / n)) / (n - 1) - 0.5) * S] as const);
 
 describe('terrain', () => {
@@ -94,16 +94,51 @@ describe('terrain', () => {
   });
 
   it('f32 emulation of the GPU maths agrees with the f64 sampler', () => {
-    for (const cfg of [carbonLike, siliconLike]) {
+    for (const cfg of [carbonLike, siliconLike, carbon.terrain, silicon.terrain]) {
       const t = createTerrain(cfg, 31);
       const P = t.params;
-      let worst = 0;
+      const errs: number[] = [];
       for (const [x, z] of grid(40, 400)) {
         const a = t.height(x, z, full(0.5));
-        const b = heightCore(P, 1, 0.5, 1, 1, 1, 1, 1, Math.fround(x), Math.fround(z), kit32);
-        worst = Math.max(worst, Math.abs(a - b));
+        const b = heightCore(P, 1, 0.5, 1, 1, 1, 1, 1, Math.fround(x), Math.fround(z), kit32, 1, 1, 1);
+        errs.push(Math.abs(a - b));
+      }
+      errs.sort((p, q) => p - q);
+      expect(errs[errs.length - 1]).toBeLessThan(0.05);
+    }
+  });
+
+  it('crust weights: f32 emulation agrees with f64, sum to 1, and pick the same mineral', () => {
+    for (const w of [carbon, silicon]) {
+      const t = createTerrain(w.terrain, w.demoSeed);
+      const P = t.params;
+      let worst = 0;
+      for (const [x, z] of grid(30, 400)) {
+        const a = t.crustWeights(x, z);
+        expect(a.reduce((p, q) => p + q, 0)).toBeCloseTo(1, 9);
+        const fx = Math.fround(x), fz = Math.fround(z);
+        const w32 = crustWeights(P, crustScore(P, warpBase(P, fx, fz, kit32).bn, fx, fz, kit32), kit32);
+        const w64 = crustWeights(P, crustScore(P, warpBase(P, x, z, kit64).bn, x, z, kit64), kit64);
+        w64.forEach((v, j) => { worst = Math.max(worst, Math.abs(v - w32[j])); });
       }
       expect(worst).toBeLessThan(0.05);
+    }
+  });
+
+  it.each([['carbon', carbon, ['M7', 'M8']], ['silicon', silicon, ['M9']]] as const)('%s landform machines: 0 at progress 0, 0 where their minerals are absent, something elsewhere', (_n, w, ids) => {
+    const t = createTerrain(w.terrain, w.demoSeed);
+    const minerals = w.terrain.crust.minerals.map((m) => m.id);
+    for (const id of ids) {
+      const gate = w.terrain.machines.find((m) => m.id === id)!.minerals!.map((m) => minerals.indexOf(m));
+      const off: TerrainState = { ...full(), progress: { ...full().progress, [id]: 0 } };
+      let moved = 0;
+      for (const [x, z] of grid(80, 400)) {
+        const weight = t.crustWeights(x, z).reduce((a, v, j) => a + (gate.includes(j) ? v : 0), 0);
+        const d = Math.abs(t.height(x, z, full()) - t.height(x, z, off));
+        if (weight < 1e-9) expect(d).toBe(0);
+        if (d > 0.01) moved++;
+      }
+      expect(moved, id).toBeGreaterThan(20);
     }
   });
 });
@@ -123,7 +158,7 @@ function distToShore(t: Terrain, st: TerrainState, lvl: number, x: number, z: nu
 }
 
 describe('real world configs', () => {
-  const state = (rise = 1): TerrainState => ({ rise, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } });
+  const state = (rise = 1): TerrainState => ({ rise, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 } });
   it.each([['carbon', carbon], ['silicon', silicon]] as const)('%s demo seed: builds, hits default sea cover, finds a shore', (_n, w) => {
     const t = createTerrain(w.terrain, w.demoSeed);
     const [lo, hi] = w.targets.seaCover;
@@ -142,7 +177,7 @@ describe('real world configs', () => {
 });
 
 describe('real world configs across seeds', () => {
-  const state: TerrainState = { rise: 1, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 } };
+  const state: TerrainState = { rise: 1, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 } };
   // 10 spread-out seeds per world (the integration's ?seed=N picks arbitrary ones)
   const seeds = [1, 2, 3, 7, 42, 99, 314, 1234, 31337, 987654];
   it.each([['carbon', carbon], ['silicon', silicon]] as const)('%s: spawnPoint finds a shore and a reachable sea on every seed', (_n, w) => {

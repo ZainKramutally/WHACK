@@ -110,6 +110,12 @@ describe.each(all)('$id world config', (w) => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('machine and relic mineral ids exist in this world\'s crust', () => {
+    const ids = new Set(w.terrain.crust.minerals.map((m) => m.id));
+    for (const m of w.terrain.machines) for (const id of m.minerals ?? []) expect(ids.has(id), `${m.id}: ${id}`).toBe(true);
+    for (const r of w.terrain.relics ?? []) for (const id of r.minerals ?? []) expect(ids.has(id), `${r.kind}: ${id}`).toBe(true);
+  });
+
   it('terrain relics exist only on silicon', () => {
     expect(Boolean(w.terrain.relics?.length)).toBe(w.id === 'silicon');
   });

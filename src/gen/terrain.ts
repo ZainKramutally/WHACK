@@ -411,17 +411,18 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
       };
       let best: { x: number; z: number; w: number } | undefined;
       for (let tries = 0; tries < 90; tries++) {
-        const a = tries < 45 ? -Math.PI / 2 + (rrng() * 2 - 1) * (55 * Math.PI / 180) : rrng() * TWO_PI;
+        const a = tries < 60 ? -Math.PI / 2 + (rrng() * 2 - 1) * (55 * Math.PI / 180) : rrng() * TWO_PI;
         const rho = ring + rrng() * 70;
         x = ramp.cx + Math.cos(a) * rho;
         z = ramp.cz + Math.sin(a) * rho;
         const clear = placed.every(([px, pz]) => Math.hypot(x - px, z - pz) > 40);
         const inside = Math.abs(x) <= 0.46 * S && Math.abs(z) <= 0.46 * S;
-        if (inside && (clear || tries >= 75)) {
-          const w = wOf(x, z);
-          if (w >= 0.5 || tries >= 75) { if (w < 0.5 && best) ({ x, z } = best); break; }   // good ground, or out of tries: take the best seen
-          if (clear && (!best || w > best.w)) best = { x, z, w };
-        }
+        const w = inside && (clear || tries >= 75) ? wOf(x, z) : 0;
+        if (inside && (clear || tries >= 75) && w >= 0.5) break;   // good ground for this relic
+        if (inside && clear && (!best || w > best.w)) best = { x, z, w };
+        // end of the camera-side cone, or out of tries: settle for the best-weighted clear spot seen, else the original rule
+        if (best && (tries === 29 || tries >= 75)) { x = best.x; z = best.z; break; }
+        if (!best && tries >= 75 && inside) break;
       }
       placed.push([x, z]);
       const angle = rrng() * Math.PI;

@@ -387,12 +387,13 @@ export const silicon: WorldConfig = {
       { id: 'M2', rate: 0.01, params: { rimHeight: 2.5, bandCenter: 0.08, bandWidth: 0.2, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
       { id: 'M4', rate: 0.01, params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
       { id: 'M5', rate: 0.01, params: { bandH: 4, sharpness: 0.6, strength: 0.5 } },                                              // strata terraces
+      { id: 'M9', rate: 0.01, minerals: ['nitride'], params: { spikeHeight: 14, size: 10, density: 0.12, girth: 0.5, sharp: 1.6 } },   // sparse hexagonal nitride crystal spikes (stylised, declared illustration: 10 m cells so the 2 m mesh resolves them)
     ],
     relics: [
-      { kind: 'iceArch', count: 3, params: { height: 28, radius: 5.5, span: 38 } },
-      { kind: 'iceSpire', count: 4, params: { height: 50, radius: 6 } },
+      { kind: 'iceArch', count: 3, minerals: ['waterIce'], params: { height: 28, radius: 5.5, span: 38 } },
+      { kind: 'iceSpire', count: 4, minerals: ['waterIce'], params: { height: 50, radius: 6 } },
     ],
-    why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye.',
+    why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye. Nitride crystal spikes (M9) are stylised, declared illustration: 10 m cells because the terrain mesh is about 2 m per vertex.',
     sources: ['mastrogiuseppe2014'],
     assumption: true,
     crust: {
