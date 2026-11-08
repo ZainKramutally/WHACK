@@ -328,7 +328,8 @@ describe.skipIf(!SLOW)('flora asset audit: placement and wiring (SLOW)', () => {
       const g = mesh.geometry, mat = mesh.material as THREE.Material & { vertexColors: boolean };
       const n = g.getAttribute('position').count;
       // (aPart is source data off the drawn geometry until a material reads it: floraLibrary() keeps it in BuiltPlant.part)
-      for (const [name, size] of [['color', 3], ['aGlow', 1], ['aSway', 1], ['normal', 3]] as const) {
+      // a look packs sway, glow and the part weights into aVtx (floraLib/instance.ts lookGeometry)
+      for (const [name, size] of [['color', 3], ['aVtx', 4], ['normal', 3]] as const) {
         const at = g.getAttribute(name);
         if (!at || at.itemSize !== size || at.count !== n) fails.push(`${mesh.name}: attribute ${name}`);
       }

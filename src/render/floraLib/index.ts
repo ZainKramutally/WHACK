@@ -300,9 +300,12 @@ export function paintSites(p: Pick<BuiltPlant, 'geometry' | 'keys' | 'glowKey' |
   // headroom: colours ÷ NEUTRAL_TINT (≤ 1), drawn × the plant's tint (NEUTRAL_TINT when nothing shifts it)
   const c = (p.geometry as BufferGeometry).getAttribute('color').array as Float32Array;
   for (let i = 0; i < c.length; i++) c[i] = Math.min(1, c[i] / NEUTRAL_TINT);
-  const a = (p.geometry as BufferGeometry).getAttribute('aGlow').array as Float32Array;
+  // the signed site weights go to aGlow, or to aVtx.y on a packed look geometry (floraLib/instance.ts lookGeometry)
+  const geo = p.geometry as BufferGeometry, ga = geo.getAttribute('aGlow') ?? geo.getAttribute('aVtx');
+  const a = ga.array as Float32Array, stride = ga.itemSize, at = ga.itemSize === 4 ? 1 : 0;
   const deep = FLORA_KEYS.indexOf('glowDeep');
-  for (let i = 0; i < p.keys.length; i++) a[i] = p.glowKey[i] ? (p.glowKey[i] === deep ? -1 : 1) * p.site[i] : 0;
+  for (let i = 0; i < p.keys.length; i++) a[i * stride + at] = p.glowKey[i] ? (p.glowKey[i] === deep ? -1 : 1) * p.site[i] : 0;
+  ga.needsUpdate = true;
 }
 
 /**
@@ -314,7 +317,7 @@ export function paint(p: Pick<BuiltPlant, 'geometry' | 'keys' | 'glowKey' | 'sit
   const g = Math.max(0, Math.min(1, glow));
   const geo = p.geometry as BufferGeometry;
   const c = geo.getAttribute('color').array as Float32Array;
-  const a = geo.getAttribute('aGlow').array as Float32Array;
+  const ga = geo.getAttribute('aGlow'), a = ga ? (ga.array as Float32Array) : null; // a packed look has none (paintSites)
   const n = p.keys.length;
   for (let i = 0; i < n; i++) {
     let ki = p.keys[i];
@@ -322,8 +325,8 @@ export function paint(p: Pick<BuiltPlant, 'geometry' | 'keys' | 'glowKey' | 'sit
     const gk = p.glowKey[i];
     const w = gk ? p.site[i] * g : 0;
     for (let ch = 0; ch < 3; ch++) c[i * 3 + ch] = L[ki * 3 + ch] + (gk ? (L[gk * 3 + ch] - L[ki * 3 + ch]) * Math.min(1, g * 1.5) * (p.site[i] > 0 ? 1 : 0) : 0);
-    a[i] = w;
+    if (a) a[i] = w;
   }
   geo.getAttribute('color').needsUpdate = true;
-  geo.getAttribute('aGlow').needsUpdate = true;
+  if (ga) ga.needsUpdate = true;
 }

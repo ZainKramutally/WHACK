@@ -11,14 +11,30 @@ const UP = new THREE.Vector3(0, 1, 0);
 /** Per-instance attributes every plant look geometry adds (aPlant shape terms, aLook tint and glow), besides the
  * instance matrix. */
 export const LOOK_INSTANCE_ATTRS = 2;
+/** The packed per-vertex attribute of a look geometry: vec4(sway, glow-site weight, rim, cap). */
+export const VTX_ATTR = 'aVtx';
+/** Material attribute names for its components (material.ts reads 'name.c' as one component of a vec4). */
+export const VTX_SWAY = 'aVtx.x', VTX_GLOW = 'aVtx.y', VTX_RIM = 'aVtx.z', VTX_CAP = 'aVtx.w';
 /**
- * A drawable copy of a library plant for one look (archetype × LOD × value step): position, normal, sway and index are
- * shared with the library; colour and glow are its own (paintSites writes them). flora.ts's buckets and the producer
- * card both draw through these, then add their LOOK_INSTANCE_ATTRS per-instance buffers.
+ * A drawable copy of a library plant for one look (archetype × LOD × value step): position, normal and index shared
+ * with the library; its own colour (paintSites writes it), and one packed aVtx vec4 = (sway, glow-site weight, rim,
+ * cap) from the library's aSway, aGlow and part weights, so a look binds position, normal, color, aVtx and its
+ * LOOK_INSTANCE_ATTRS per-instance buffers plus the matrix: 7 of three's 8. flora.ts's buckets and the producer card
+ * both draw through these.
  */
-export function lookGeometry(built: Pick<BuiltPlant, 'geometry'>): THREE.BufferGeometry {
+export function lookGeometry(built: Pick<BuiltPlant, 'geometry' | 'part'>): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry(), src = built.geometry;
-  for (const [name, at] of Object.entries(src.attributes)) g.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
+  for (const [name, at] of Object.entries(src.attributes)) {
+    if (name === 'aSway' || name === 'aGlow' || name === 'aPart') continue; // packed into aVtx below
+    g.setAttribute(name, name === 'color' ? at.clone() : at);
+  }
+  const n = src.getAttribute('position').count, vtx = new Float32Array(n * 4);
+  const sway = src.getAttribute('aSway')?.array, glow = src.getAttribute('aGlow')?.array, part = built.part;
+  for (let i = 0; i < n; i++) {
+    vtx[i * 4] = sway ? sway[i] : 0; vtx[i * 4 + 1] = glow ? glow[i] : 0;
+    vtx[i * 4 + 2] = part ? part[i * 2] : 0; vtx[i * 4 + 3] = part ? part[i * 2 + 1] : 0;
+  }
+  g.setAttribute(VTX_ATTR, new THREE.BufferAttribute(vtx, 4));
   g.setIndex(src.index);
   g.boundingBox = src.boundingBox; g.boundingSphere = src.boundingSphere;
   return g;

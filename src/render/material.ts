@@ -28,9 +28,9 @@ export interface WorldMaterialOpts {
   colorNode?: N;
   /** Read attribute `color` (linear rgb). Instance colours (InstancedMesh.instanceColor) always apply. */
   vertexColors?: boolean;
-  /** Float attribute, 0..1 emissive weight → LOOK glow colour at HDR > 1. */
+  /** Float attribute, 0..1 emissive weight → LOOK glow colour at HDR > 1 ('name.c': one component of a vec4). */
   glowAttr?: string | null;
-  /** Float attribute, 0..1 wind weight (0 at the base, rising to the tips). */
+  /** Float attribute, 0..1 wind weight (0 at the base, rising to the tips) ('name.c': one component of a vec4). */
   swayAttr?: string | null;
   /** Flora underside translucency + far pale-tissue tint (default: true for kind 'flora'). */
   translucent?: boolean;
@@ -188,6 +188,12 @@ class PlantMaterial extends THREE.MeshLambertNodeMaterial {
   }
 }
 
+/** A float attribute by name, or one component of a vec4 attribute as 'name.c' (e.g. 'aVtx.y': a packed look's glow). */
+const attr1 = (name: string): N => {
+  const [n, c] = name.split('.');
+  return c ? (attribute(n, 'vec4') as N)[c] : attribute(n, 'float');
+};
+
 /** A plant's own glow and tint (lookAttr: vec4(r, g, b, glow)) on colours painted by floraLib paintSites: its glow sites
  * (signed weight `glowW`: + glow, − glowDeep) turn toward their glow colour by min(1, 1.5 g), as paint() does at that glow,
  * then the tint applies. */
@@ -213,7 +219,7 @@ class PlantViewMaterial extends THREE.MeshStandardNodeMaterial {
 export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string }): N {
   const m = new PlantViewMaterial({ side: THREE.DoubleSide, roughness: 0.7 });
   m.deform = plantDeform(opts.plantAttr);
-  const look = attribute(opts.lookAttr, 'vec4'), glowW = attribute(opts.glowAttr, 'float');
+  const look = attribute(opts.lookAttr, 'vec4'), glowW = attr1(opts.glowAttr);
   m.colorNode = plantSiteColour(attribute('color', 'vec3'), look, glowW);
   m.emissiveNode = vec3(PAL.glow).mul(abs(glowW).mul(look.w).mul(0.8)); // no bloom here: the sites just light up
   m.userData.look = 'flora';
@@ -232,12 +238,12 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
   m.fog = false; // the outputNode does its own air
   m.userData.look = kind;
   if (opts.colorNode) m.colorNode = opts.colorNode;
-  const glowW: N = opts.glowAttr ? attribute(opts.glowAttr, 'float') : null;
+  const glowW: N = opts.glowAttr ? attr1(opts.glowAttr) : null;
   const look: N = opts.lookAttr ? attribute(opts.lookAttr, 'vec4') : null;
 
   if (opts.swayAttr) {
     // positionNode runs after instancing in r187: positionLocal is already instance-transformed (identity mesh)
-    const s = attribute(opts.swayAttr, 'float');
+    const s = attr1(opts.swayAttr);
     const ph = positionLocal.x.mul(0.13).add(positionLocal.z.mul(0.17));
     const t = LOOK.time;
     const near = smoothstep(2, 12, positionLocal.sub(cameraPosition).length()).mul(0.3).add(0.7); // fg sway damped 30%

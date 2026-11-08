@@ -17,7 +17,7 @@ import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Cle
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
-import { lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { VTX_GLOW, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
@@ -106,11 +106,11 @@ interface Bucket {
 
 export function createFlora(app: App): FloraPart {
   const lib = floraLibrary(); // shared with the producer card: read-only here (every look has its own geometry)
-  // The world material for every plant (cel terminator, translucency, fog, sway from aSway, HDR glow from aGlow).
+  // The world material for every plant (cel terminator, translucency, fog, sway and HDR glow from the look's packed aVtx).
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
-  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });
   const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
   const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
@@ -141,7 +141,8 @@ export function createFlora(app: App): FloraPart {
   // Instance matrices keep the default static usage: in three r187 a DynamicDraw attribute is re-uploaded whole on every
   // render (Attributes.update), while a static one uploads only after needsUpdate, and then only its update range.
   // The per-plant look buffers follow the same rule. With aPlant and aLook a bucket binds 8 vertex buffers
-  // (position, normal, aSway, color, aGlow, aPlant, aLook and the matrix): WebGPU's default limit, and the most
+  // at most (position, normal, color, aVtx, aPlant, aLook and the matrix: 7 since aVtx packs sway, glow, rim and cap):
+  // WebGPU's default limit is 8, the most
   // three r187 shares one build across meshes with (Instance.js canReferenceInstanceData). Add none without removing one.
   const buckets = new Map<number, Bucket>();
   for (const d of bucketDefs()) {

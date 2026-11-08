@@ -5,6 +5,8 @@ import { cellAt } from './layout';
 import { MAX_VERTEX_BUFFERS, createFlora, vertexBuffers } from './flora';
 import { floraLibrary } from './floraLib';
 import { LOOK_INSTANCE_ATTRS, lookGeometry } from './floraLib/instance';
+import { paintSites } from './floraLib';
+import { LOOK_PALETTES } from './palette';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 
@@ -46,6 +48,30 @@ describe('flora buckets', () => {
       if (l.part) expect(l.part.length, a.key).toBe(2 * l.geometry.getAttribute('position').count);
     }
     expect(over).toEqual([]);
+  });
+});
+
+describe('packed look geometry (aVtx)', () => {
+  it('carries the library\'s sway, painted glow-site weights, colours and part weights unchanged', () => {
+    let bad = 0, checked = 0;
+    for (const a of floraLibrary().archetypes) for (const l of a.lod) for (const dark of [false, true]) {
+      const pal = LOOK_PALETTES[a.chem];
+      const look = lookGeometry(l), ref = l.geometry.clone(); // ref: the unpacked layout (aSway, aGlow)
+      paintSites({ ...l, geometry: look }, pal, dark);
+      paintSites({ ...l, geometry: ref }, pal, dark);
+      const v = look.getAttribute('aVtx').array, sway = ref.getAttribute('aSway').array, glow = ref.getAttribute('aGlow').array;
+      const c = look.getAttribute('color').array, cr = ref.getAttribute('color').array;
+      for (let i = 0; i < sway.length; i++) {
+        if (v[i * 4] !== sway[i] || v[i * 4 + 1] !== glow[i]) bad++;
+        if (l.part && (v[i * 4 + 2] !== l.part[i * 2] || v[i * 4 + 3] !== l.part[i * 2 + 1])) bad++;
+        checked++;
+      }
+      for (let i = 0; i < c.length; i++) if (c[i] !== cr[i]) bad++;
+      expect(look.getAttribute('aSway') ?? look.getAttribute('aGlow') ?? look.getAttribute('aPart')).toBeUndefined();
+      ref.dispose();
+    }
+    expect(checked).toBeGreaterThan(10000);
+    expect(bad).toBe(0);
   });
 });
 

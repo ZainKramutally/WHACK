@@ -17,7 +17,7 @@ import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixH
 import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
 import type { PlacedPlant } from './flora';
 import { plantViewMaterial } from './material';
-import { lookGeometry } from './floraLib/instance';
+import { VTX_GLOW, lookGeometry } from './floraLib/instance';
 import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
@@ -315,7 +315,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   // read-only: each look draws through its own geometry (shared position, normal, sway and index; its own colour, glow
   // and per-instance buffers), kept for later cards and repainted only when the palette changes.
   const PLANT_CAP = 32; // plants of one look in one cell (a cell holds at most ~18)
-  const plantMat = plantViewMaterial({ plantAttr: 'aPlant', lookAttr: 'aLook', glowAttr: 'aGlow' });
+  const plantMat = plantViewMaterial({ plantAttr: 'aPlant', lookAttr: 'aLook', glowAttr: VTX_GLOW });
   interface CardLook { geometry: THREE.BufferGeometry; shape: THREE.InstancedBufferAttribute; look: THREE.InstancedBufferAttribute; painted: FloraPalette | null }
   const cardLooks = new Map<string, CardLook>();
   function cardLook(arch: number, lod: 0 | 1, dark: boolean, pal: FloraPalette): CardLook {
