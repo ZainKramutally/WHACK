@@ -151,6 +151,13 @@ describe('swimY: swimmers stay in the water', () => {
     expect(r.beached).toBe(true);
     expect(r.y0).toBeCloseTo(-0.3 - SWIM_EMBED);
   });
+  it('reuses a passed out object (no allocation per swimmer per frame)', () => {
+    const out = { y0: 0, beached: false };
+    expect(swimY(-20, 0, 0, 1, out)).toBe(out);
+    expect(out.y0).toBeCloseTo(-13);
+    expect(swimY(2, 0, 0, 1, out)).toBe(out);
+    expect(out).toEqual({ y0: 2, beached: true });
+  });
   it('dry cell or no sea: beached, lying on the ground', () => {
     expect(swimY(2, 0, 0, 1)).toEqual({ y0: 2, beached: true });
     expect(swimY(-5, -Infinity, 0, 1)).toEqual({ y0: -5, beached: true });

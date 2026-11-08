@@ -1140,7 +1140,7 @@ export function createFauna(app: App): FaunaPart {
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
   let fGravity = 1, fDt = 1 / 60, warnedNear = false;
-  const NUDGE = { dx: 0, dz: 0 };
+  const NUDGE = { dx: 0, dz: 0 }, SWIM_OUT = { y0: 0, beached: false }; // reused outs: nothing allocated per swimmer
   let fCell = 6.25;
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
@@ -1176,16 +1176,31 @@ export function createFauna(app: App): FaunaPart {
    * 1: posed proxies; 0: proxies at rest pose.
    */
   function draw(e: Entry, alpha: number, mode: number, live: boolean, tier: number) {
+    const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
+    let bLo = 0, bHi = 0;
+    if (s > 0 && mode === LOCOMOTION.swim) {
+      // the aquatic body exists from the first frame it will be drawn near (swimmerOf is cached), so hS is right then too
+      if (tier === 2 && fSwim < SWIM_MAX && (live ? e.swRank <= fSwimCut : e.swOn)) swimmerOf(e);
+      // The drawn swimmer's bottom and top above y0: a radial body lies laid (pivotY ± rollRadius), any other the bead
+      // layout (0 … 2·centreY); then the union with the aquatic body around centreY, so every tier sits at one height.
+      const c = e.layout.centreY * s, hS = e.sw ? swimHalfH(e.sw) * swimScale(e, alpha) : 0, R = e.layout.radial;
+      bLo = Math.min(R ? (R.pivotY - R.rollRadius) * s : 0, c - hS);
+      bHi = Math.max(R ? (R.pivotY + R.rollRadius) * s : 2 * c, c + hS);
+    }
+    if (mode === LOCOMOTION.swim || e.nx !== 0 || e.nz !== 0) nudge(e, s > 0 && mode === LOCOMOTION.swim && fSeaThere ? swimNeed(bLo, bHi) : -1);
+    // Render-only: draw at the sim position plus the nudge, then put the sim position back (interpolation never sees it).
+    const sx = e.x, sz = e.z;
+    e.x = sx + e.nx; e.z = sz + e.nz;
+    try { drawAt(e, alpha, mode, live, tier, s, bLo, bHi); } finally { e.x = sx; e.z = sz; }
+  }
+
+  function drawAt(e: Entry, alpha: number, mode: number, live: boolean, tier: number, s: number, bLo: number, bHi: number) {
     e.tier = 0; e.bell = false;
     const wasSwim = e.swOn;
     e.swOn = false;
     if (!wasSwim && e.trail >= 0) releaseTrail(e); // not drawn as a swimmer last frame: its trail slot goes back
-    const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
-    const c = e.layout.centreY * s, hS = mode === LOCOMOTION.swim && e.sw ? swimHalfH(e.sw) * swimScale(e, alpha) : 0;
-    const bLo = Math.min(0, c - hS), bHi = Math.max(2 * c, c + hS); // the drawn swimmer's bottom and top above y0
-    if (mode === LOCOMOTION.swim || e.nx !== 0 || e.nz !== 0) nudge(e, mode === LOCOMOTION.swim && fSeaThere ? swimNeed(bLo, bHi) : -1);
-    const ground = groundOf(e);
+    const ground = groundOf(e); // at the drawn (nudged) point, as is everything below
     let y0 = ground;
     e.yDrawn = ground; // for next frame's view test
     // Walkers on slopes: pitch the body from the ground under head and tail and stand it on whichever is higher, the
@@ -1206,7 +1221,7 @@ export function createFauna(app: App): FaunaPart {
       // Keep the whole drawn body under the surface (and at most 40% into the seabed); with no water, beach it. The body
       // spans the bead layout (y0 … y0 + 2·centreY·s) or, once it has one, the aquatic body around y0 + centreY·s: the
       // union of both, so every tier (and a fallback between them) sits at the same height.
-      const sy = swimY(ground, fSeaThere ? fSea : -Infinity, bLo, bHi);
+      const sy = swimY(ground, fSeaThere ? fSea : -Infinity, bLo, bHi, SWIM_OUT);
       y0 = sy.y0;
       const beached = sy.beached && !(fSeaThere && e.nOk); // easing towards found water: keep swimming on the way
       if (beached && !e.beached) e.beachT = ft;
@@ -1295,11 +1310,11 @@ export function createFauna(app: App): FaunaPart {
    * Shoreline nudge. The sim tests liquid at its 6.25 m cell centre, so a swimmer near the shore can sit where the exact
    * ground is dry or too shallow for its body: draw it up to one cell downhill, over water at least `need` deep (need < 0:
    * no target, ease back). The solve is cached until the sim position moves G_MOVE, the terrain or sea changes, or the
-   * body's need does; the offset eases so it never pops. e.x/e.z hold the drawn position, so pick, bounds, the scanner
-   * lock and the trail all follow it.
+   * body's need does; the offset eases so it never pops. It is a render-only draw offset: e.x/e.z stay the sim's
+   * position, and draw() adds it, so pick, bounds, locate (the scanner lock, the card anchor) and the trail use it.
    */
   function nudge(e: Entry, need: number) {
-    const sx = e.x - e.nx, sz = e.z - e.nz;
+    const sx = e.x, sz = e.z;
     if (need < 0) { e.nTx = 0; e.nTz = 0; e.nOk = true; e.nSX = NaN; }
     else {
       const dx = sx - e.nSX, dz = sz - e.nSZ;
@@ -1313,7 +1328,6 @@ export function createFauna(app: App): FaunaPart {
     const k = Math.min(1, fDt / NUDGE_EASE);
     e.nx += (e.nTx - e.nx) * k; e.nz += (e.nTz - e.nz) * k;
     if (e.nTx === 0 && e.nTz === 0 && Math.abs(e.nx) + Math.abs(e.nz) < 1e-3) { e.nx = 0; e.nz = 0; }
-    e.x = sx + e.nx; e.z = sz + e.nz;
   }
 
   /** The aquatic body's drawn scale (it is built at adult drawn length; growth, fade and the boost scale it). */
@@ -1324,8 +1338,7 @@ export function createFauna(app: App): FaunaPart {
   /** Half the aquatic body's height around its centre, in its build metres (fins and sails included; bells use frameR). */
   function swimHalfH(sw: Swimmer): number {
     const p = sw.params;
-    if (p.plan === 'bell') return sw.frameR;
-    if (p.chemistry === 'silicon') return sw.L * (0.5 * p.aspect + 0.1); // a rower's hub, arms level
+    if (p.plan === 'bell' || p.chemistry === 'silicon') return sw.frameR; // bells, and rowers, which roll as they row (arms reach rMax + armL)
     return sw.L * (0.5 * p.aspect * p.depth + Math.max(p.fins.dorsal, p.fins.ventral, 0.5 * p.tailSize));
   }
 
@@ -1476,7 +1489,7 @@ export function createFauna(app: App): FaunaPart {
             // Continue from where the creature is drawn now, so a new snapshot never pops.
             const sp = len2(tx - e.cx, tz - e.cz) / dtSnap;
             e.speed += (sp - e.speed) * 0.5;
-            e.px = e.x - e.nx; e.pz = e.z - e.nz; e.ph = e.h; // the sim position: the drawn one minus its nudge
+            e.px = e.x; e.pz = e.z; e.ph = e.h;
             e.cx = tx; e.cz = tz; e.ch = th;
           }
           e.snapT = t; e.dtSnap = dtSnap;
@@ -1484,7 +1497,7 @@ export function createFauna(app: App): FaunaPart {
         P0.x = e.px; P0.z = e.pz; P0.h = e.ph; P1.x = e.cx; P1.z = e.cz; P1.h = e.ch;
         const pose = interpPose(P0, P1, (t - e.snapT) / e.dtSnap);
         const ox = e.x, oz = e.z, oh = e.h, Lw = boost * drawnLength(e.scale, e.g);
-        e.x = pose.x + e.nx; e.z = pose.z + e.nz; // drawn = sim + the shoreline nudge (draw() updates it)
+        e.x = pose.x; e.z = pose.z;
         // The sim can turn ±1.2 rad in one 50 ms tick: the drawn body turns at most turnRateMax(L), so it never spins
         // and its planted feet never skate.
         e.h = slewAngle(oh, pose.h, turnRateMax(Lw) * dt);
@@ -1497,10 +1510,10 @@ export function createFauna(app: App): FaunaPart {
           const dist = Math.hypot(e.x - ox, e.z - oz) + 0.5 * Lw * Math.abs(dh);
           e.hW = gaitStep(e, dist, e.speed, Lw, rig.hip.y * s0, (rig.len1 + rig.len2) * s0, dt, fGravity);
         }
-        const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
+        const ddx = camPos.x - (e.x + e.nx), ddz = camPos.z - (e.z + e.nz), d2 = ddx * ddx + ddz * ddz;
         if (d2 < R2) {
           const sv = boost * drawnFactor(e.scale, e.g);
-          const back = inView(e.x, e.yDrawn + lay.centreY * sv, e.z, lay.radius * sv * 1.3 + VIEW_PAD) ? 0 : R2;
+          const back = inView(e.x + e.nx, e.yDrawn + lay.centreY * sv, e.z + e.nz, lay.radius * sv * 1.3 + VIEW_PAD) ? 0 : R2;
           e.rank = back + d2 * (e.tier === 2 ? LOFT_STICK : 1);
           e.swRank = back + d2 * (e.swOn ? LOFT_STICK : 1);
         } else { e.rank = Infinity; e.swRank = Infinity; }
@@ -1573,7 +1586,7 @@ export function createFauna(app: App): FaunaPart {
         const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
         let t = -1;
         const test = (lx: number, ly: number, lz: number, r: number) => {
-          c.x = e.x + (lx * s) * cosH - (lz * s) * sinH; c.y = y0 + ly * s; c.z = e.z + (lx * s) * sinH + (lz * s) * cosH;
+          c.x = e.x + e.nx + (lx * s) * cosH - (lz * s) * sinH; c.y = y0 + ly * s; c.z = e.z + e.nz + (lx * s) * sinH + (lz * s) * cosH; // drawn = sim + nudge
           const d = raySphereEntry(origin, dir, c, r * s * 1.2 + 0.05);
           if (d > 0 && (t < 0 || d < t)) t = d;
         };
