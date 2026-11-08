@@ -209,7 +209,9 @@ const RING: Record<'carbon' | 'silicon', Lab[]> = {
     [0.76, 0.1, 345], [0.67, 0.12, 305], [0.69, 0.1, 275], [0.67, 0.07, 248], [0.7, 0.03, 205],
     [0.73, 0.1, 148], [0.76, 0.125, 128], [0.8, 0.13, 96], [0.75, 0.14, 72], [0.71, 0.15, 56],
   ],
-  silicon: [[0.5, 0.12, 80], [0.5, 0.12, 140], [0.48, 0.11, 185], [0.46, 0.13, 225], [0.43, 0.15, 258], [0.45, 0.11, 240]],
+  // gold · olive · green · pewter · steel blue · deep blue · gunmetal blue (docs/features/fauna-colour.md §2.1): like
+  // carbon, a low-chroma pewter where the ring crosses the glow's cyan, and no fold-back, so hue candidates stay apart
+  silicon: [[0.52, 0.12, 78], [0.5, 0.11, 108], [0.5, 0.12, 140], [0.47, 0.035, 205], [0.47, 0.12, 232], [0.43, 0.15, 258], [0.38, 0.06, 262]],
 };
 const RING_LAB: Record<'carbon' | 'silicon', Lab[]> = {
   carbon: RING.carbon.map(lchToLab), silicon: RING.silicon.map(lchToLab),
@@ -227,7 +229,7 @@ const SI_ICE: Lab[] = [0xf6f8ff, 0xb9dcf6, 0xf2e6b8].map(hexToLab); // silicon a
 
 /** A species' place (0..1) on its chemistry's colour ring: hue spreads species, diet slides it (grazers → hunters). */
 export function creatureRing(silicon: boolean, diet: number, hue: number): number {
-  const k = silicon ? 0.8 : 0.62; // silicon's ring is narrower, so hue keeps more of it
+  const k = silicon ? 1 : 0.62; // silicon: hue keeps the whole ring (diet only darkens it, creatureBody)
   return clamp01(k * clamp01(hue) + (1 - k) * smooth01(0.2, 0.8, diet));
 }
 

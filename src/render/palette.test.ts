@@ -128,7 +128,8 @@ describe('creatureColour (#57: colour is a strong species axis)', () => {
       let span = 0;
       for (const a of hs) for (const b of hs) span = Math.max(span, arc(a, b));
       expect(span).toBeGreaterThan(si ? 70 : 150);
-      for (const h of hues) expect(ok(creatureColour(si, 0.1, 0, h)).C).toBeGreaterThan(si ? 0.065 : 0.03); // carbon's slate–sage pewter and silicon's steel-teal are muted on purpose (teal is gamut-limited at this value)
+      // both rings cross the glow's cyan through a muted pewter on purpose (fauna-colour §2.1), so the floor is the pewter's
+      for (const h of hues) expect(ok(creatureColour(si, 0.1, 0, h)).C).toBeGreaterThan(0.03);
     }
   });
 
@@ -161,6 +162,27 @@ describe('creatureColour (#57: colour is a strong species axis)', () => {
       const body = ok(creatureColour(si, diet, 0, h, a)), acc = ok(creatureColour(si, diet, 5, h, a));
       expect(Math.abs(acc.L - body.L)).toBeGreaterThan(0.12);
       expect(creatureColour(si, diet, 6, h, a)).toBe(creatureColour(si, diet, 5, h, a)); // spots wear the accent
+    }
+  });
+
+  it('ring spacing: the 9 hue candidates stay apart on both rings (fauna-colour §6 test 3; silicon was ΔE 0.008)', async () => {
+    const { creatureColour } = await import('./palette');
+    for (const si of [false, true]) for (const diet of [0.05, 0.5, 0.95]) {
+      const labs = hues.map((h) => hexToLab(creatureColour(si, diet, 0, h)));
+      let min = Infinity;
+      for (let i = 0; i < labs.length; i++) for (let j = i + 1; j < labs.length; j++) {
+        min = Math.min(min, Math.hypot(labs[i][0] - labs[j][0], labs[i][1] - labs[j][1], labs[i][2] - labs[j][2]));
+      }
+      expect(min, `${si ? 'silicon' : 'carbon'} diet ${diet}`).toBeGreaterThanOrEqual(0.03);
+    }
+  });
+
+  it('the glow band stays reserved: no saturated silicon skin within 15 degrees of the glow hue (§6 test 2)', async () => {
+    const { creatureColour } = await import('./palette');
+    const glow = ok(LOOK_PALETTES.silicon.glow).h;
+    for (let i = 0; i <= 64; i++) for (const diet of [0.05, 0.5, 0.95]) {
+      const c = ok(creatureColour(true, diet, 0, i / 64));
+      expect(c.C < 0.06 || arc(c.h, glow) > 15, `hue ${i / 64} diet ${diet}: C ${c.C.toFixed(3)} at ${c.h.toFixed(0)}°`).toBe(true);
     }
   });
 
