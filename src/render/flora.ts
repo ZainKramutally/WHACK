@@ -23,6 +23,10 @@ import { plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './fl
 const PLANT_ATTR = 'aPlant';
 /** Per-instance tint and glow (floraLib/instance.ts plantLook): each plant lights its own glow sites. */
 const LOOK_ATTR = 'aLook';
+/** WebGPU's default vertex-buffer limit, and the most three r187 shares one build across meshes with. */
+export const MAX_VERTEX_BUFFERS = 8;
+/** Vertex buffers an instanced mesh binds: its geometry attributes, the instance matrix and any instance colour. */
+export const vertexBuffers = (mesh: THREE.InstancedMesh): number => Object.keys(mesh.geometry.attributes).length + 1 + (mesh.instanceColor ? 1 : 0);
 const REBUILD_EVERY = 0.25; // s while the world builds
 const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
@@ -151,6 +155,7 @@ export function createFlora(app: App): FloraPart {
     mesh.visible = false;
     mesh.frustumCulled = false;
     mesh.name = `${L.arch.key}/L${d.lod}${d.dark ? 'd' : ''}`;
+    if (vertexBuffers(mesh) > MAX_VERTEX_BUFFERS) console.error(`flora: ${mesh.name} binds ${vertexBuffers(mesh)} vertex buffers (max ${MAX_VERTEX_BUFFERS}): free a slot before adding one`);
     group.add(mesh);
     buckets.set(d.id, { mesh, cap: d.cap, shape, look });
   }

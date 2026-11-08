@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three/webgpu';
 import { makeStubVisualInputs } from './visualInputs';
 import { cellAt } from './layout';
-import { createFlora } from './flora';
+import { MAX_VERTEX_BUFFERS, createFlora, vertexBuffers } from './flora';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 
@@ -17,6 +17,24 @@ function fakeApp(): App {
   camera.position.set(0, 3, 6);
   return { scene: new THREE.Scene(), camera } as unknown as App;
 }
+
+describe('flora buckets', () => {
+  it('every bucket and warm-up mesh binds at most 8 vertex buffers (WebGPU default; three r187 shared builds)', () => {
+    const app = fakeApp();
+    const flora = createFlora(app);
+    const over: string[] = [];
+    let n = 0;
+    for (const o of app.scene.getObjectByName('flora')!.children) {
+      const mesh = o as THREE.InstancedMesh;
+      if (!mesh.isInstancedMesh) continue;
+      n++;
+      if (vertexBuffers(mesh) > MAX_VERTEX_BUFFERS) over.push(`${mesh.name || 'warm-up'}: ${vertexBuffers(mesh)}`);
+    }
+    expect(n).toBeGreaterThan(30);
+    expect(over).toEqual([]);
+    flora.dispose();
+  });
+});
 
 describe('FloraPart.plantsIn', () => {
   it('returns exactly the plants the world drew in a cell, after the spawn clearing, with their drawn instance matrices', () => {

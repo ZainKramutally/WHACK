@@ -128,6 +128,10 @@ function traited(param: TraitParam, chem: 'carbon' | 'silicon', ctx: TraitContex
   }
   return v;
 }
+/** A plant's seeded noise 0..1 for one of its dimensions (module scope: no closure per plant per rebuild). */
+const noise = (cell: number, slot: number, salt: number, dim: number) => hash01(cell, slot * 16 + dim, salt);
+/** A plant's seeded sign ±1 for one of its dimensions. */
+const signOf = (cell: number, slot: number, salt: number, dim: number) => (noise(cell, slot, salt, dim) < 0.5 ? -1 : 1);
 /** Level value: (level − centre) × step, jittered by ±JITTER step. */
 const level = (lvl: number, n: number, step: number, u: number) => (lvl - (n - 1) / 2 + (u - 0.5) * 2 * JITTER) * step;
 
@@ -143,7 +147,7 @@ export function varyPlant(
   const meta = ARCHETYPE_META[arch];
   const chem = meta.chem, role = meta.role, G = GRID[chem];
   const roleI = ROLE_INDEX[role];
-  const u = (dim: number) => hash01(cell, slot * 16 + dim, 4242 + roleI * 2 + (dark ? 1 : 0));
+  const salt = 4242 + roleI * 2 + (dark ? 1 : 0); // per-plant noise: noise(cell, slot, salt, dim)
 
   // the level code: distinct per role and value step within any 3 × 3 block of cells
   const col = cell % FLORA_GRID, row = Math.floor(cell / FLORA_GRID);
@@ -157,23 +161,22 @@ export function varyPlant(
 
   const carbon = chem === 'carbon';
   // the levels, then the traits (world-wide only on these two, so the levels keep their spacing between neighbours)
-  out.girth = traited('girth', chem, ctx, 1 + level(gl, G.girth[0], G.girth[1], u(0)));
-  out.crown = traited('crown', chem, ctx, 1 + level(cl, G.crown[0], G.crown[1], u(1)));
-  const v = 1 + level(vl, G.value[0], G.value[1], u(2));
-  const h = level(hl, G.hue[0], G.hue[1], u(3));
+  out.girth = traited('girth', chem, ctx, 1 + level(gl, G.girth[0], G.girth[1], noise(cell, slot, salt, 0)));
+  out.crown = traited('crown', chem, ctx, 1 + level(cl, G.crown[0], G.crown[1], noise(cell, slot, salt, 1)));
+  const v = 1 + level(vl, G.value[0], G.value[1], noise(cell, slot, salt, 2));
+  const h = level(hl, G.hue[0], G.hue[1], noise(cell, slot, salt, 3));
   out.r = v * (1 + h); out.g = v; out.b = v * (1 - h);
 
   // free per-plant noise, shaped by the traits of the plant's own cell and world
   const [lo, hi] = LEAN_DEG[role];
-  const deg = traited('lean', chem, ctx, (lo + (hi - lo) * u(4)) * (LEAN_SCALE[ARCHETYPE_KEYS[arch]] ?? 1));
-  const t = Math.tan((deg * Math.PI) / 180), az = u(5) * Math.PI * 2;
+  const deg = traited('lean', chem, ctx, (lo + (hi - lo) * noise(cell, slot, salt, 4)) * (LEAN_SCALE[ARCHETYPE_KEYS[arch]] ?? 1));
+  const t = Math.tan((deg * Math.PI) / 180), az = noise(cell, slot, salt, 5) * Math.PI * 2;
   out.leanX = -t * Math.cos(az); out.leanZ = -t * Math.sin(az);
   if (!carbon) { out.twist = 0; out.droop = 0; out.bend = 0; return out; }
-  const sign = (k: number) => (u(k) < 0.5 ? -1 : 1);
   // carbon curls: stems bend and twist, caps droop or splay
-  out.bend = sign(6) * traited('bend', chem, ctx, 0.02 + 0.1 * u(7));
-  out.twist = sign(8) * traited('twist', chem, ctx, role === 'giant' ? 0.05 + 0.35 * u(9) : 0.1 + 0.6 * u(9));
-  out.droop = traited('droop', chem, ctx, 0.12 * u(10));
+  out.bend = signOf(cell, slot, salt, 6) * traited('bend', chem, ctx, 0.02 + 0.1 * noise(cell, slot, salt, 7));
+  out.twist = signOf(cell, slot, salt, 8) * traited('twist', chem, ctx, role === 'giant' ? 0.05 + 0.35 * noise(cell, slot, salt, 9) : 0.1 + 0.6 * noise(cell, slot, salt, 9));
+  out.droop = traited('droop', chem, ctx, 0.12 * noise(cell, slot, salt, 10));
   return out;
 }
 
