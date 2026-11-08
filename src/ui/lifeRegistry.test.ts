@@ -194,6 +194,20 @@ describe('mountLifeRegistry: species come from the sim', () => {
     reg.dispose();
   });
 
+  it("the tile's plan is the announced organism's own plan, and waits if it hasn't arrived", () => {
+    const bus = createBus();
+    const reg = mountLifeRegistry(bus);
+    const mk = (m: number) => { const p = new Float32Array(PLAN_LENGTH); p[0] = PLAN_VERSION; p[1 + PLAN_FIELDS.indexOf('mode')] = m; return p; };
+    bus.emit('guide:newForm', newForm(1, 'Late One', 103));
+    bus.emit('sim:snapshot', snap(3, buffer(worms), [{ id: 100, plan: mk(LOCOMOTION.swim) }]));   // another animal's plan: must not be used
+    expect(reg.bestiary().get('Late One')!.plan).toBeUndefined();
+    bus.emit('sim:snapshot', snap(4.5, buffer(worms), [{ id: 103, plan: mk(LOCOMOTION.walk) }]));
+    const tile = reg.bestiary().get('Late One')!.plan;
+    expect(tile).toBe(reg.planOf(103));
+    expect(tile!.mode).toBe(LOCOMOTION.walk);
+    reg.dispose();
+  });
+
   it('keeps unpacked body plans from births and survives a bad plan', () => {
     const bus = createBus();
     const reg = mountLifeRegistry(bus);

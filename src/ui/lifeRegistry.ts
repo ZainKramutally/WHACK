@@ -14,7 +14,7 @@ import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
 
 export interface FormInfo { name: string; type: FunctionalType; alive: number; repId: number }
-export interface Species { binId: number; name: string; centroid: FormCentroid }
+export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number }
 export interface Analysis {
   /** Animal id → species name. Animals matching no announced species have no entry. */
   nameOf: Map<number, string>;
@@ -90,8 +90,17 @@ export function mountLifeRegistry(bus: UiBus) {
     analysis = a;
     for (const sp of species) { const c = a.drifted.get(sp.binId); if (c) sp.centroid = c; }
     const sightings = new Map<string, KindSighting>();
-    for (const [name, f] of a.forms) sightings.set(name, { alive: f.alive, type: f.type.label, plan: plans.get(f.repId) });
+    for (const [name, f] of a.forms) sightings.set(name, { alive: f.alive, type: f.type.label });
     bestiary.update(sightings, now);
+  }
+
+  /** Species announced before their organism's body plan arrived: the tile waits for plans.get(organismId), unmodified. */
+  function fillPlans() {
+    for (const sp of species) {
+      if (bestiary.get(sp.name)?.plan) continue;
+      const plan = sp.organismId === undefined ? undefined : plans.get(sp.organismId);
+      if (plan) bestiary.setPlan(sp.name, plan);
+    }
   }
 
   /** The announcing organism's genes give the species centroid. Events arrive just before the snapshot that holds it. */
@@ -103,7 +112,7 @@ export function mountLifeRegistry(bus: UiBus) {
           if (r.id !== p.organismId) continue;
           if (!species.some((sp) => sp.binId === p.binId)) {
             const centroid = genomeCentroid({ body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage });
-            species.push({ binId: p.binId, name: p.name, centroid });
+            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId });
             const plan = plans.get(p.organismId);
             bestiary.announce(p.name, functionalType(centroid, { mode: plan?.mode }).label, now, plan);
           }
@@ -124,7 +133,7 @@ export function mountLifeRegistry(bus: UiBus) {
       const r = readOrganism(organisms, i);
       if (r.id === id) { generation = r.generation; break; }
     }
-    const isNew = bestiary.discover(name, now, { type: analysis.forms.get(name)?.type.label, plan: plans.get(id), generation });
+    const isNew = bestiary.discover(name, now, { type: analysis.forms.get(name)?.type.label, generation });
     if (isNew) finds.forEach((f) => f(name));
     notify();
   }
@@ -147,6 +156,7 @@ export function mountLifeRegistry(bus: UiBus) {
       }
       const hadPending = pending.length;
       if (hadPending) resolvePending();
+      fillPlans();
       if (now - lastAt >= ANALYSE_EVERY_SEC || now < lastAt || (hadPending && pending.length < hadPending)) {
         lastAt = now;
         analyse();

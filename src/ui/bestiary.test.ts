@@ -24,15 +24,25 @@ describe('Bestiary', () => {
   it('finds a kind on the first click only, keeping the clicked specimen', () => {
     const b = new Bestiary();
     b.announce('Shell Strider', 'grazer · strider', 2, plan(1));
-    b.update(seen([['Shell Strider', { alive: 12, plan: plan(1) }]]), 3);
-    expect(b.discover('Shell Strider', 4, { plan: plan(2), generation: 7 })).toBe(true);
-    expect(b.discover('Shell Strider', 5, { plan: plan(3) })).toBe(false);
+    b.update(seen([['Shell Strider', { alive: 12 }]]), 3);
+    expect(b.discover('Shell Strider', 4, { generation: 7 })).toBe(true);
+    expect(b.discover('Shell Strider', 5)).toBe(false);
     const e = b.get('Shell Strider')!;
     expect(e).toMatchObject({ found: true, foundAtSec: 4, generation: 7 });
-    expect(e.plan!.scale).toBe(2);
-    b.update(seen([['Shell Strider', { alive: 10, plan: plan(9) }]]), 6);
-    expect(b.get('Shell Strider')!.plan!.scale).toBe(2); // a found kind keeps its specimen's picture
+    expect(e.plan!.scale).toBe(1); // the announced organism's plan, not the clicked one
+    b.update(seen([['Shell Strider', { alive: 10 }]]), 6);
+    expect(b.get('Shell Strider')!.plan!.scale).toBe(1); // never replaced
+    expect(b.setPlan('Shell Strider', plan(5))).toBe(false);
     expect(b.counts()).toEqual({ found: 1, total: 1 });
+  });
+
+  it('takes a late plan once, for a species announced before its plan arrived', () => {
+    const b = new Bestiary();
+    b.announce('Late', 'grazer · walker', 1);
+    expect(b.get('Late')!.plan).toBeUndefined();
+    expect(b.setPlan('Late', plan(4))).toBe(true);
+    expect(b.setPlan('Late', plan(5))).toBe(false);
+    expect(b.get('Late')!.plan!.scale).toBe(4);
   });
 
   it('cannot find a kind the sim never announced', () => {

@@ -5,7 +5,8 @@
 //   - Living kinds stay locked ("?") until the player clicks one of their animals: discovery is the player's job.
 //   - A kind with no live animals for EXTINCT_AFTER_SEC is filed as extinct automatically, found or not, so the history
 //     of what evolved and died out fills in by itself. If the name comes back, the kind returns to the living.
-// The body plan kept for a kind is the clicked specimen's (if found) or the latest representative's, for its picture.
+// The body plan kept for a kind is the announced organism's own, unmodified (the art layer keys species colours on its bits).
+// It is set once, at announcement or as soon as that plan arrives (setPlan), and never replaced.
 import type { BodyPlan } from '../sim/develop';
 
 /** Seconds (snapshot clock) a kind must have no live animals before it is filed as extinct, so a brief dip to zero doesn't flicker. */
@@ -16,8 +17,6 @@ export interface KindSighting {
   alive: number;
   /** Functional type label, e.g. "grazer · walker". */
   type: string;
-  /** A representative's body plan, when known. */
-  plan?: BodyPlan;
 }
 
 export interface BestiaryEntry {
@@ -59,7 +58,6 @@ export class Bestiary {
         e.lastAliveSec = now;
         e.peak = Math.max(e.peak, alive);
         if (s!.type) e.type = s!.type;
-        if (!e.found && s!.plan) e.plan = s!.plan;   // a found kind keeps the specimen the player clicked
         if (e.extinct) { e.extinct = false; changed = true; }
       } else if (!e.extinct && now - e.lastAliveSec >= EXTINCT_AFTER_SEC) {
         e.extinct = true;
@@ -76,17 +74,24 @@ export class Bestiary {
     return true;
   }
 
+  /** Late plan for an announced species that had none yet. Never replaces an existing plan. */
+  setPlan(name: string, plan: BodyPlan): boolean {
+    const e = this.kinds.get(name);
+    if (!e || e.plan) return false;
+    e.plan = plan;
+    return true;
+  }
+
   /**
    * The player clicked a live animal of this species. Only announced species can be found.
    * Returns true only for a new find, so the caller can announce it once.
    */
-  discover(name: string, now: number, specimen: { type?: string; plan?: BodyPlan; generation?: number } = {}): boolean {
+  discover(name: string, now: number, specimen: { type?: string; generation?: number } = {}): boolean {
     const e = this.kinds.get(name);
     if (!e || e.found) return false;
     e.found = true;
     e.foundAtSec = now;
     e.generation = specimen.generation;
-    if (specimen.plan) e.plan = specimen.plan;
     if (specimen.type) e.type = specimen.type;
     e.extinct = false;
     e.lastAliveSec = now;
