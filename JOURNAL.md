@@ -193,3 +193,4 @@
 - 05:50: iron-red merged (2eaab59): rusted ironstone = Red World (reds, oxblood, rose dust, crimson flora, red-orange shore stain); fresh jasper darker; rusted basalt mild brown-grey (Volcanic stays green); flora blend squares weights. 207+87 tests, build green. Docs updated. Waiting on owner approval for main.
 - 05:58: box golden test (main's perf refactor) failed after rebase because hex basalt grains intentionally change carbon pixels; box-ref updated boxReference.testdata.ts with the same sprite rule (no assertion changes). 411 related tests + build green. Pushing iron-red + basalt-hex to main (owner approved).
 - 04:53 16: merged #84 (live gas-mix air density, airDensity stat, flight ceiling card row, plan v5 liftSpan).
+- 04:45 16: owner: no gravity slider; #84 started (flight); apex hunters + giants retry with structural levers (sim-worker, 90 min).
