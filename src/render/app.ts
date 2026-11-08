@@ -77,8 +77,13 @@ export async function createApp(): Promise<App> {
   };
 
   const hooks: FrameHook[] = [];
-  /** Hooks that have thrown at least once (warned once each; they keep being called). */
-  const failed = new WeakSet<FrameHook>();
+  /** Frame callbacks (hooks, the render step, overlays) that have thrown at least once: warned once each, still called. */
+  const failed = new WeakSet<object>();
+  const warnOnce = (what: string, fn: object, err: unknown) => {
+    if (failed.has(fn)) return;
+    failed.add(fn);
+    console.warn(`${what} threw (warned once; it keeps running):`, err);
+  };
   let source: () => VisualInputs = makeStubVisualInputs;
   let inputs = source();
 
@@ -108,21 +113,21 @@ export async function createApp(): Promise<App> {
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     inputs = source();
-    // A throwing hook must not stop the rest of the frame (later hooks, post, render) and freeze the picture: warn once
-    // per hook and keep calling it, so one bad frame doesn't end the run.
+    // A throwing hook, render step or overlay must not stop the rest of the frame (later hooks, post, render, the held
+    // target's restore) and freeze the picture: warn once per callback and keep calling it, so one bad frame doesn't
+    // end the run.
     for (const h of hooks) {
-      try {
-        h(dt, now / 1000, inputs);
-      } catch (err) {
-        if (!failed.has(h)) { failed.add(h); console.warn('frame hook threw (warned once; it keeps running):', err); }
-      }
+      try { h(dt, now / 1000, inputs); } catch (err) { warnOnce('frame hook', h, err); }
     }
     post.update(inputs);
     // compile() may hold the post pass's target as the renderer's current target across awaits; frames draw to the canvas.
     const held = renderer.getRenderTarget();
     if (held) renderer.setRenderTarget(null);
-    renderStep();
-    for (const o of overlays) o(renderer);
+    const step = renderStep;
+    try { step(); } catch (err) { warnOnce(step === defaultRender ? 'render' : 'render override', step, err); }
+    for (const o of overlays) {
+      try { o(renderer); } catch (err) { warnOnce('overlay', o, err); }
+    }
     if (held) renderer.setRenderTarget(held);
     if (fpsEl && ++fpsFrames >= 30) {
       fpsEl.textContent = `${Math.round((fpsFrames * 1000) / (now - fpsStart))} fps`;
