@@ -36,7 +36,7 @@ export interface WorldMaterialOpts {
   /** Faceted normals. */
   flat?: boolean;
   side?: number;
-  /** Dither cut-out around the camera→LOOK.focus line (default: true for 'flora'). It adds a discard, which costs
+  /** Cut-out around the camera→LOOK.focus line (default: true for 'flora'; pixel mode: hard edge, smooth: dither). It adds a discard, which costs
    *  early-z on every fragment of the material, so turn it off on buckets that can't hide the player (far LOD, ground cover). */
   cutout?: boolean;
   /** Fresnel rim toward PAL.bone, 0..1 strength (fauna). */
@@ -163,7 +163,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
 
   m.outputNode = Fn(() => {
     if (opts.cutout ?? kind === 'flora') {
-      // dither cut-out in a cylinder from the camera to the focus, widening toward the focus
+      // cut-out in a cylinder from the camera to the focus, widening toward the focus
       const C = cameraPosition, F = vec3(LOOK.focus), P = positionWorld;
       const CF = F.sub(C);
       const len2 = dot(CF, CF).max(1e-4);
@@ -171,7 +171,9 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
       const d = P.sub(C.add(CF.mul(t))).length();
       const inside = t.greaterThan(0).and(t.lessThan(1)).and(len2.lessThan(1e6));
       const fade = float(1).sub(smoothstep(LOOK.focusR.mul(0.6), LOOK.focusR, d.div(t.mul(0.65).add(0.35))));
-      If(inside.and(bayer4().lessThan(fade)), () => { Discard(); });
+      // Pixel mode cuts with one hard edge (mid-band): a dithered band leaves kept plant pixels beside discarded ones,
+      // and post.ts's depth-edge ink then fires on nearly every kept pixel (a dark speckled ring). Smooth keeps the dither.
+      If(inside.and(PIXEL ? fade.greaterThan(0.5) : bayer4().lessThan(fade)), () => { Discard(); });
     }
     // diffuseColor = colorNode (or material colour) × vertex colour × instance colour, with opacity in .a
     const base = vec3(diffuseColor.rgb).toVar();
