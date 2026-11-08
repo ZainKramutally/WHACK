@@ -1390,8 +1390,10 @@ export function createFauna(app: App): FaunaPart {
         e.nTx = 0; e.nTz = 0; e.nOk = true; e.nSX = NaN;
       } else if (!(dx * dx + dz * dz <= G_MOVE * G_MOVE) || e.nStamp !== terrainStamp || Math.abs(fSea - e.nSea) > 0.05
         || Math.abs(need - e.nNeed) > 0.1 * e.nNeed + 0.02) {
-        // hysteresis: a nudge that still lands in deep enough water is kept (one sample), else solve again
-        if ((e.nTx !== 0 || e.nTz !== 0) && fSea - fHeight(sx + e.nTx, sz + e.nTz) >= need) e.nOk = true;
+        // the sim position itself deep enough: no nudge (so a swimmer heading out to open water drops a stale offset);
+        // else hysteresis: a nudge that still lands in deep enough water is kept (one sample), else solve again
+        if (fSea - fHeight(sx, sz) >= need) { e.nTx = 0; e.nTz = 0; e.nOk = true; }
+        else if ((e.nTx !== 0 || e.nTz !== 0) && fSea - fHeight(sx + e.nTx, sz + e.nTz) >= need) e.nOk = true;
         else { e.nOk = nudgeToWater(sx, sz, fSea, need, fHeight, fCell, NUDGE); e.nTx = NUDGE.dx; e.nTz = NUDGE.dz; }
         e.nSX = sx; e.nSZ = sz; e.nStamp = terrainStamp; e.nSea = fSea; e.nNeed = need;
       }
@@ -1512,6 +1514,7 @@ export function createFauna(app: App): FaunaPart {
     count: 0,
     update(dt, t, inputs, patch) {
       frame++;
+      FLASH = 0; // a kill draw that threw last frame never leaves every creature glowing
       // A new run (another world, or the build restarting) starts a new book: ids and species don't carry over.
       if (inputs.world.id !== lastWorld || inputs.buildProgress + 0.25 < lastBuild) {
         if (lastWorld !== '') { entries.clear(); dying.length = 0; pending.clear(); book.reset(); trailPool.reset(); } // the cleared entries held trail slots
@@ -1681,7 +1684,7 @@ export function createFauna(app: App): FaunaPart {
       // last drawn (while there are slots), so a death near the player never pops to a proxy or its rest pose.
       if (snapshot) {
         for (const e of entries.values()) {
-          if (e.seen && e.stamp !== snapId && e.dieT < 0) { e.dieT = t; dying.push(e); if (e.killT === -2) e.killT = t; }
+          if (e.seen && e.stamp !== snapId && e.dieT < 0) { e.dieT = t; dying.push(e); e.atk = 0; e.lunge = 0; e.wob = 0; if (e.killT === -2) e.killT = t; }
         }
         for (const [id, p] of pending) if (snapId - p.snap > PENDING_SNAPS) pending.delete(id);
         // Kills since the last snapshot: the hunter strikes, the prey gets the kill animation instead of the plain fade
