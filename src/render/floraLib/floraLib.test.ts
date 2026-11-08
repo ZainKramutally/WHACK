@@ -4,7 +4,7 @@ import { makeStubVisualInputs } from '../visualInputs';
 import { formForBin, type FloraBin } from '../floraForm';
 import type { VisualInputs } from '../../worlds/types';
 import {
-  ARCHETYPE_KEYS, ARCHETYPE_META, ROLE_BAND, archetypesFor, buildFloraLibrary, paint, plantHeight,
+  ALONG_DITHER, ARCHETYPE_KEYS, ARCHETYPE_META, ROLE_BAND, archetypesFor, buildFloraLibrary, paint, pickAlong, plantHeight,
   type FloraLibrary, type FloraPalette, type FloraRole,
 } from './index';
 import { LOD_NEAR, makePlantList, placePlants } from './place';
@@ -263,5 +263,69 @@ describe('placePlants', () => {
     }
     expect(nearN).toBeGreaterThan(ringN * 1.8);
     expect(nearDark).toBeGreaterThan(0);
+  });
+});
+
+describe('C2 body variants and the T9 density build', () => {
+  const PATCH = 400;
+  const grid = (m: number, k: number) => { const f = new Float32Array(64 * 64 * 2); for (let c = 0; c < 4096; c++) { f[c * 2] = m; f[c * 2 + 1] = k; } return f; };
+  const carbonIn = (stats: Record<string, number> = {}, heatBand = 0.5): VisualInputs => {
+    const stub = makeStubVisualInputs();
+    return { ...stub, flora: grid(0.6, 1), seaLevel: -1, heatBand, stats: { ...stub.stats, co2: 0.25, ...stats }, terrain: { rise: 1, progress: {}, height: () => 0 }, lifeOnLand: true };
+  };
+
+  it('pickAlong shows at most two adjacent variants of a species for any heatBand', () => {
+    expect(ALONG_DITHER).toBeLessThan(0.5);
+    for (const light of [0, 1, 2] as const) for (const role of ['mid', 'giant'] as FloraRole[]) {
+      const list = archetypesFor(formForBin({ silicon: false, water: true, sub: false, lush: 1, light, heat: 2, mix: 2 }), role, light === 2);
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const bySpecies = new Map<string, Set<string>>();
+        for (let r = 0; r < 1; r += 0.01) for (let d = 0; d < 1; d += 0.05) {
+          const key = pickAlong(list, r, t, d)!;
+          const sp = key.split('#')[0];
+          if (!bySpecies.has(sp)) bySpecies.set(sp, new Set());
+          bySpecies.get(sp)!.add(key);
+        }
+        for (const [sp, set] of bySpecies) expect(set.size, `${sp} at t ${t.toFixed(2)}`).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('the patch shows two body variants per carbon mid and giant species (worst case drops to 25 draws)', () => {
+    const tri = (a: number, l: number) => lib.archetypes[a].lod[l].triangles;
+    const list = placePlants(carbonIn(), PATCH, { x: 0, z: 0 }, makePlantList());
+    const kinds = new Map<string, Set<string>>();
+    for (let i = 0; i < list.n; i++) {
+      const m = ARCHETYPE_META[list.arch[i]];
+      if (m.role === 'ground') continue;
+      if (!kinds.has(m.species)) kinds.set(m.species, new Set());
+      kinds.get(m.species)!.add(ARCHETYPE_KEYS[list.arch[i]]);
+    }
+    for (const [sp, set] of kinds) expect(set.size, sp).toBeLessThanOrEqual(2);
+    const d = countDraws(list, tri);
+    expect(d.draws).toBeLessThanOrEqual(25);
+    expect(d.dropped).toBe(0);
+  });
+
+  it('T9: the dense build replaces the sparse one patch-wide at P = (O2/CO2)/525 ≥ 0.45, never both', () => {
+    const tri = (a: number, l: number) => lib.archetypes[a].lod[l].triangles;
+    const species = (inp: VisualInputs) => {
+      const l = placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList());
+      return { set: new Set(Array.from(l.arch.subarray(0, l.n), (a) => ARCHETYPE_META[a].species)), d: countDraws(l, tri) };
+    };
+    const sparse = species(carbonIn({ oxygen: 21, co2: 0.25 }));   // P 0.16 (carbon default)
+    const dense = species(carbonIn({ oxygen: 21, co2: 0.04 }));    // P 1 (Earth today)
+    expect(sparse.set.has('ribFanDense') || sparse.set.has('parasolTitanDense')).toBe(false);
+    expect(dense.set.has('ribFan') || dense.set.has('parasolTitan')).toBe(false);
+    expect(dense.set.has('ribFanDense') && dense.set.has('parasolTitanDense')).toBe(true);
+    expect(dense.d.draws).toBe(sparse.d.draws);
+    expect(dense.d.triangles).toBeLessThan(4.5e6);
+    expect(dense.d.dropped).toBe(0);
+    // the same plant, denser: a dense build keeps its sparse twin's size
+    for (const v of [0, 1, 2, 3]) {
+      const a = lib.byKey.get(`ribFan#${v}`)!, b = lib.byKey.get(`ribFanDense#${v}`)!;
+      expect(b.lod[0].triangles).toBeGreaterThan(a.lod[0].triangles);
+      expect(Math.abs(b.height / a.height - 1)).toBeLessThan(0.1);
+    }
   });
 });

@@ -46,7 +46,8 @@ export type FloraPalette = Record<FloraKey, number>;
 
 type Gen = (rng: Rng, variant: number) => BuiltPlant;
 
-interface SpeciesDef { id: string; chem: 'carbon' | 'silicon'; role: FloraRole; gen: Gen; variants: number[] }
+/** `seedAs`: draw the jitter of that species, so a T9 dense build is the same plant with denser ribs. */
+interface SpeciesDef { id: string; chem: 'carbon' | 'silicon'; role: FloraRole; gen: Gen; variants: number[]; seedAs?: string }
 const SPECIES: SpeciesDef[] = [
   { id: 'groundCover', chem: 'carbon', role: 'ground', gen: groundCover, variants: [0, 1, 2, 3] },
   { id: 'jellyDome', chem: 'carbon', role: 'ground', gen: jellyDome, variants: [0, 1] },
@@ -59,6 +60,10 @@ const SPECIES: SpeciesDef[] = [
   { id: 'crystalGround', chem: 'silicon', role: 'ground', gen: crystalGround, variants: [0, 1, 2, 3] },
   { id: 'shardTree', chem: 'silicon', role: 'mid', gen: shardTree, variants: [0, 1, 2, 3] },
   { id: 'prismTitan', chem: 'silicon', role: 'giant', gen: prismTitan, variants: [0, 1, 2, 3] },
+  // New species go last, so every existing archetype keeps its seed (subSeed by species index) and shape.
+  // T9 (flora-traits): high-photorespiration builds, a hard switch at P = 0.45 (gates.ts denseBuild)
+  { id: 'parasolTitanDense', chem: 'carbon', role: 'giant', gen: (r, v) => parasolTitan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'parasolTitan' },
+  { id: 'ribFanDense', chem: 'carbon', role: 'mid', gen: (r, v) => ribFan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'ribFan' },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */
@@ -101,7 +106,8 @@ export interface FloraLibrary {
 /** Build every archetype (both LODs). Deterministic for a seed. ~100–300 ms; call once at startup. */
 export function buildFloraLibrary(seed: number): FloraLibrary {
   const archetypes: Archetype[] = [];
-  SPECIES.forEach((sp, si) => {
+  SPECIES.forEach((sp, i) => {
+    const si = sp.seedAs ? SPECIES.findIndex((o) => o.id === sp.seedAs) : i;
     for (const v of sp.variants) {
       const lods: BuiltPlant[] = [];
       for (const detail of [1, farDetailOf(sp.chem)]) {
@@ -167,6 +173,60 @@ export function archetypesFor(form: FloraForm, role: FloraRole, bright: boolean)
 export function pickArchetype(form: FloraForm, role: FloraRole, bright: boolean, r: number): string | null {
   const list = archetypesFor(form, role, bright);
   return list.length ? list[Math.min(list.length - 1, Math.floor(r * list.length))] : null;
+}
+
+// ---- C2: body variants along the climate (flora-traits §0.5, §9.2) ------------------------------------------------
+
+/** Each carbon mid and giant species' variants in cline order, cold → hot heatBand: an [art] climate cline with the
+ * tallest native build at the cold end (the owner's cold → tall rule). */
+const CLINE: Readonly<Record<string, readonly number[]>> = {
+  weeper: [2, 0, 1, 3], ribFan: [2, 0, 1, 3], lanternPods: [3, 1, 0, 2], lanternGiant: [3, 1, 0, 2],
+  parasolTitan: [3, 1, 0, 2], coilSpire: [2, 0, 1, 3],
+};
+/** Dither half-width, in variant steps: under 0.5, so one heatBand never spans three variants. */
+export const ALONG_DITHER = 0.45;
+/** Base key → its T9 dense build. */
+const DENSE: ReadonlyMap<string, string> = new Map(
+  SPECIES.filter((sp) => sp.seedAs).flatMap((sp) => sp.variants.map((v) => [`${sp.seedAs}#${v}`, `${sp.id}#${v}`] as const)));
+/** Per pick list: each entry → its species' entries in that list, distinct, in cline order (no allocation per plant). */
+const alongMemo = new WeakMap<readonly string[], Map<string, readonly string[]>>();
+function alongOf(list: readonly string[], key: string): readonly string[] {
+  let m = alongMemo.get(list);
+  if (!m) {
+    m = new Map();
+    for (const e of list) {
+      if (m.has(e)) continue;
+      const sp = e.split('#')[0], order = CLINE[sp];
+      if (!order) { m.set(e, [e]); continue; }
+      const same = [...new Set(list.filter((o) => o.split('#')[0] === sp))].sort((a, b) => order.indexOf(+a.split('#')[1]) - order.indexOf(+b.split('#')[1]));
+      for (const o of same) m.set(o, same);
+    }
+    alongMemo.set(list, m);
+  }
+  return m.get(key)!;
+}
+
+/**
+ * C2 pick from a list: the species is the list's pick at `r` (repeats weight it, as before); its body variant is the
+ * one of that species' variants in the list nearest heatBand `t` along its cline, dithered per plant by ±ALONG_DITHER
+ * of a step (`dither` 0..1), so the whole patch shows at most two adjacent variants of a species. Species without a
+ * cline keep the list's own pick.
+ */
+export function pickAlong(list: readonly string[], r: number, t: number, dither: number): string | null {
+  if (!list.length) return null;
+  const key = list[Math.min(list.length - 1, Math.floor(r * list.length))];
+  const vs = alongOf(list, key);
+  if (vs.length < 2) return key;
+  const at = Math.max(0, Math.min(1, t)) * (vs.length - 1) + (dither - 0.5) * 2 * ALONG_DITHER;
+  return vs[Math.max(0, Math.min(vs.length - 1, Math.round(at)))];
+}
+
+/** A plant's archetype: the form's list pick, its C2 body variant on carbon mid and giant lists (heatBand `t`), and the
+ * T9 dense build when `dense`. */
+export function pickPlant(form: FloraForm, role: FloraRole, bright: boolean, r: number, t: number, dither: number, dense: boolean): string | null {
+  const list = archetypesFor(form, role, bright);
+  const key = form.chemistry === 'carbon' && role !== 'ground' ? pickAlong(list, r, t, dither) : list.length ? list[Math.min(list.length - 1, Math.floor(r * list.length))] : null;
+  return key && dense ? DENSE.get(key) ?? key : key;
 }
 
 // ---- size --------------------------------------------------------------------------------------------------------

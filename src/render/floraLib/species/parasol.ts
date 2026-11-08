@@ -18,7 +18,8 @@ const VARIANTS: Cfg[] = [
   { H: 180, r0: 2.4, lean: 0.04, discs: [{ t: 0.55, R: 26, cup: 0.05, dome: 0.02 }, { t: 0.7, R: 32, cup: 0.06, dome: 0.02 }, { t: 0.84, R: 24, cup: 0.08, dome: 0.02 }, { t: 0.95, R: 14, cup: 0.12, dome: 0.06 }], neckGlow: true, crown: true, collars: 5 },
 ];
 
-export function parasolTitan(rng: Rng, variant: number) {
+/** `dense`: the T9 high-photorespiration build (flora-traits T9): 32 gills a disc instead of 24, finer pleats. */
+export function parasolTitan(rng: Rng, variant: number, dense = false) {
   const c = VARIANTS[variant];
   const H = c.H * rng.range(0.94, 1.06);
   const b = new MeshBuilder();
@@ -77,7 +78,7 @@ export function parasolTitan(rng: Rng, variant: number) {
   // discs
   for (const d of c.discs) {
     const axis = norm(lerp3(tan(d.t), [0, 1, 0], 0.55));
-    disc(b, rng, path(d.t), axis, d, rAt(d.t), swayY, H);
+    disc(b, rng, path(d.t), axis, d, rAt(d.t), swayY, H, dense ? 64 : 48);
   }
   if (c.crown) {
     const p = add(path(1), [0, 1.5, 0]);
@@ -96,7 +97,7 @@ const FLARE = 0.2; // rim upturn as a fraction of disc radius
 /** aPart rim weight across a disc: 0 inside 85% of the radius, 1 at the lip. */
 const rimW = (f: number) => Math.max(0, Math.min(1, (f - 0.85) / 0.15));
 
-function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, swayY: (y: number) => number, H: number) {
+function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, swayY: (y: number) => number, H: number, segs: number) {
   const { R, cup, dome } = d;
   const th = R * 0.035;
   const gill = R * 0.045;
@@ -124,7 +125,7 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
   const ty = (f: number) => th + cup * R * f * f + FLARE * R * Math.pow(f, 5) + dome * R * (1 - f) * (1 - f);
   tops.forEach(([f, key], i) => prof.push({ r: R * f, y: ty(f), key, sway: sw(R * f, cup * R), crease: i === 0, lift: i > 0 ? pleat(R * 0.012 * f) : undefined, cap: f, rim: rimW(f) }));
   prof.push({ r: 0, y: ty(0), key: 'bone', sway: sw(0, dome * R) });
-  revolve(b, o, axis, prof, 48, rng.range(0, 1));
+  revolve(b, o, axis, prof, segs, rng.range(0, 1)); // gills alternate per side: segs / 2 of them
   // dangling fringe filaments from the rim underside
   if (d.fringe) {
     for (let k = 0; k < d.fringe; k++) {

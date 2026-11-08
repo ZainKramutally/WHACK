@@ -14,7 +14,8 @@
 import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
-import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
+import { ARCHETYPE_INDEX, ARCHETYPE_META, pickPlant, plantHeight, type FloraRole } from './index';
+import { worldEnv } from './gates';
 import { varyPlant, type PlantVary, type TraitContext } from './vary';
 
 export const MAX_PLANTS = 16000;
@@ -240,6 +241,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   // water and land cover on the dry side, whichever side its centre is on.
   const forms: (FloraForm | null)[] = new Array(cells);
   const bins: (FloraBin | null)[] = new Array(cells);
+  // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
+  const env = worldEnv(inputs), hb = inputs.heatBand;
   const seaForms: (FloraForm | undefined)[] = new Array(cells);
   const seaForm = (c: number): FloraForm => {
     let f = seaForms[c];
@@ -280,7 +283,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const y = yAt(x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
-        push(pickArchetype(tall, 'giant', bright, hash01(c, 0, 14)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
+        push(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
@@ -294,7 +297,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
           const y = yAt(x, z);
           if (y < sea) continue;
-          push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
+          push(pickPlant(tall, 'mid', bright, hash01(c, k, 23), hb, hash01(c, k, 27), env.dense), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
         }
       } else {
         const dc = Math.hypot(ccx - cam.x, ccz - cam.z);
@@ -314,7 +317,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const under = y < sea;
           if (!under && !inputs.lifeOnLand) continue;
           const f = under ? seaForm(c) : form;
-          push(pickArchetype(f, 'ground', bright, hash01(c, k, 34)), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
+          push(pickPlant(f, 'ground', bright, hash01(c, k, 34), hb, 0.5, env.dense), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
         }
       }
     }

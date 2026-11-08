@@ -15,8 +15,10 @@ const VARIANTS: Cfg[] = [
   { H: 24, form: 'crinoid', span: 0, ribs: 7, rungs: 0, fans: 0, cup: 0, web: 0 },
 ];
 
-export function ribFan(rng: Rng, variant: number) {
-  const c = VARIANTS[variant];
+/** `dense`: the T9 high-photorespiration build (flora-traits T9): ~1.3× the ribs, arms and plates, one more rung. */
+export function ribFan(rng: Rng, variant: number, dense = false) {
+  const c0 = VARIANTS[variant];
+  const c = dense ? { ...c0, ribs: Math.round(c0.ribs * 1.3), rungs: c0.rungs + 1 } : c0;
   const H = c.H * rng.range(0.94, 1.06);
   const b = new MeshBuilder();
   const swayY = (y: number) => clamp01(Math.pow(Math.max(0, y) / H, 1.4));
