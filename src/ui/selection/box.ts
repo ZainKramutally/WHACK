@@ -16,6 +16,7 @@ export const BOX_PAL = {
   /** Bed grains per mineral id: dark, mid, light. Unknown ids fall back to `rock`. */
   crust: {
     basalt: ['#1F2A26', '#3A4A42', '#58695E'],
+    ironstone: ['#4A1710', '#8C2A1C', '#B8402A'],
     granite: ['#8E8A84', '#C9C3B8', '#F2EEE4'],
     silicide: ['#4A525C', '#8794A3', '#CDD8E4'],
     nitride: ['#9A9484', '#CFC8B2', '#F4EEDA'],
@@ -25,6 +26,7 @@ export const BOX_PAL = {
   /** Where oxidising grains end up at full rust: basalt to rust red, silicide to grey-white silica. */
   crustRust: {
     basalt: ['#5A1E12', '#A8432A', '#D9694A'],
+    ironstone: ['#6A2216', '#B8402A', '#D96A4E'],
     silicide: ['#B9B9B4', '#DCDCD6', '#F6F6F2'],
     rock: ['#6A3A2A', '#9A5A40', '#C98060'],
   } as Record<string, string[]>,
