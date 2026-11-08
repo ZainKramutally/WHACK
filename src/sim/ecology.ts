@@ -710,7 +710,20 @@ export class Ecology {
     const plan = develop(genome, { light: env.light, heatBand: env.heatBand }, this.inputs);
     if (!this.habitable(plan, this.grid.liquid[cellOf(px, py)])) {
       // A newborn stays with its parent; a founder or spore is placed in a cell that suits its body.
-      if (parent !== null) { px = this.x[parent]; py = this.y[parent]; }
+      if (parent !== null) {
+        // A newborn whose body does not suit its parent's cell (a mutant swimmer born on the shore) is born in the nearest cell that does, within 2 cells; if none, it is not born.
+        const cx = Math.floor(this.x[parent]), cy = Math.floor(this.y[parent]);
+        let best = -1, bestD = Infinity;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+          const c = ny * GRID + nx;
+          const d = dx * dx + dy * dy;
+          if (d < bestD && this.habitable(plan, this.grid.liquid[c])) { bestD = d; best = c; }
+        }
+        if (best < 0) { this.free.push(slot); return false; }
+        px = (best % GRID) + 0.5; py = Math.floor(best / GRID) + 0.5;
+      }
       else {
         const pool = plan.mode === LOCOMOTION.swim ? this.seaPool : this.landPool;
         if (pool.length > 0) { const c = pool[Math.floor(this.rnd() * pool.length)]; px = (c % GRID) + this.rnd(); py = Math.floor(c / GRID) + this.rnd(); }
