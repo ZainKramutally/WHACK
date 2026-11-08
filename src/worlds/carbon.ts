@@ -368,10 +368,12 @@ export const carbon: WorldConfig = {
     assumption: true,
     crust: {
       minerals: [
-        { id: 'basalt', label: 'Basalt', description: 'Dark volcanic rock rich in iron; it weathers fast, feeds life, and rusts red once the air holds oxygen.', share: [0.45, 0.65], elevation: 0.25, supply: { c: 1.4, si: 1.4, o: 1.4 }, oxidises: true,
+        { id: 'basalt', label: 'Basalt', description: 'Dark volcanic rock rich in iron; it weathers fast, feeds life, and rusts red once the air holds oxygen.', share: [0.40, 0.55], elevation: 0.2, supply: { c: 1.4, si: 1.4, o: 1.4 }, oxidises: true,
           why: 'Oceanic crust is basalt, which lies low and weathers faster than granite, so it releases more nutrients; its iron rusts in oxygen.', sources: ['dessert2003', 'rudnick2003', 'holland2006'], assumption: true },
-        { id: 'granite', label: 'Granite', description: 'Pale, silica-rich rock that rides high as continents and weathers slowly, so it feeds life poorly.', share: [0.35, 0.55], elevation: 0.75, supply: { c: 0.6, si: 0.6, o: 0.6 }, oxidises: false,
+        { id: 'granite', label: 'Granite', description: 'Pale, silica-rich rock that rides high as continents and weathers slowly, so it feeds life poorly.', share: [0.25, 0.40], elevation: 0.8, supply: { c: 0.6, si: 0.6, o: 0.6 }, oxidises: false,
           why: 'Continental crust is granitic and less dense, so it stands higher; it weathers slowly and releases fewer nutrients.', sources: ['dessert2003', 'rudnick2003'], assumption: true },
+        { id: 'ironstone', label: 'Banded ironstone', description: 'Layered red and black iron rock, laid down where dissolved iron met oxygen.', share: [0.15, 0.30], elevation: 0.5, supply: { c: 0.5, si: 0.5, o: 0.5 }, oxidises: true,
+          why: 'Banded iron formations record dissolved iron meeting oxygen in the early oceans; they are iron-rich but poor in other nutrients.', sources: ['holland2006'], assumption: true },
       ],
       patchCells: 12,
       rustOxygen: 1,
