@@ -22,6 +22,7 @@ export interface SkyPart {
   dispose(): void;
 }
 
+// The moons are declared decoration: no world config or source models them (render-only illustration, like the sky and fog in CLAUDE.md's honesty box).
 /** Fixed moon directions (world space), each well clear of the star (LOOK.lightDir), so a moon never covers it. */
 const MOONS: { dir: [number, number, number]; radiusDeg: number; seed: number; strength: number }[] = [
   { dir: [0.255, 0.174, -0.951], radiusDeg: 5, seed: 3.1, strength: 0.78 },   // ~10° up: in frame at walking pitch
