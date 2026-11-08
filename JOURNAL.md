@@ -274,3 +274,4 @@
 - 09:16: OWNER bug: plant-scan preview ground defaults to red. Cause: counterpart.ts plates use palette groundColour (fixed Red World red / silicon lilac). card-ground agent: plate = clicked cell's mineral via mineralColour + rust; other-world views use the other world's defaultPick mineral.
 - 09:17: card-ground merged (33a12aa): card plates use cell mineral colour; other-world views use defaultPick. 25 tests + build green.
 - 09:18: OWNER: no kelp visible; wants ocean worlds. Ocean = Basalt chip on carbon (on main; all dev servers have it). Kelp request re-sent to art lead 6a (first expired); needs owner approval in that terminal.
+- 09:25 16: merged years counter keeps rising after the build.

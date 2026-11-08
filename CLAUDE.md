@@ -117,7 +117,7 @@ After Generate, the world goes from nothing to a living world in one fast build 
 | Whole build | The ecology fast-forwards on a fixed tick schedule, reaching about 340 ecology-seconds on carbon (see "The ecology clock") | `ecologySec` |
 | After the build | The ecology runs live at `timeScale`, and the feedbacks keep going | |
 
-**The years counter is flavour.** During the build, a compressed "years since formation" counter runs from 0 to `build.yearsShown`: about 4.5 billion on carbon and about 6 billion on silicon. It follows `buildProgress`, nothing in the sim reads it, and the UI labels it illustrative.
+**The years counter is flavour.** During the build, a compressed "years since formation" counter runs from 0 to `build.yearsShown`: about 4.5 billion on carbon and about 6 billion on silicon. It follows `buildProgress`, nothing in the sim reads it, and the UI labels it illustrative. **After the build it keeps rising** (owner request, 2026-11-08): `build.liveYearsPerEcologySec` (`assumption: true`) is 1 million years per ecology-second on carbon, and 2.4 million on silicon, where slower chemistry makes each generation span more years. It comes from the tick count, so it races with the time control, and it is shown to the million ("4.512 billion years").
 
 **Captions.** One when the build starts (`build.captions.start`, for example "A carbon world forms") and one when life appears (`build.captions.life`), plus the existing "why it moved" slider lines. Captions describe processes rather than outcomes the sliders can change, so they hold anywhere inside the living bands.
 
