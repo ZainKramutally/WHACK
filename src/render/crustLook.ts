@@ -12,7 +12,7 @@ export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
   silicide: [0x3a3e4c, 0x9a9488],   // dark metallic → pale silica
   nitride: [0xf0e6cc, 0xf0e6cc],    // pale cream
   waterIce: [0xdcecf8, 0xdcecf8],   // white-blue
-  reducedLava: [0x30363e, 0xb8bcc2], // dark slate (metallic flecks are a look detail) → pale grey silica
+  reducedLava: [0xc9c4bc, 0xeeece8], // pale warm-grey enstatite (aubrite-like) → near-white silica
 };
 /** Ironstone's hematite band colour (mixed in by height, subtly): maroon, in the red family. */
 export const BAND_DARK = 0x5c0a1e;
@@ -129,11 +129,12 @@ export const MINERAL_LOOK: Record<string, readonly [Family] | readonly [Family, 
   ],
   // cream and pale gold, pale cream haze, cream-white crystal flora, pale shallows
   nitride: [fam(0xfff8e4, 0xf0e0b8, 0xc8aa6a, 0x7a6030, 0x44587a, 0xeeeadc, 0xf6f2e4, 0xcfd8d0, [0x6a5a30, 0xe6d8a8, 0xfffaf0])],
-  // Reduced lava (silicon's volcanic rock, no oxygen): dark slate grey with metallic flecks, grey-blue haze, steel-blue crystal
-  // flora, dark clear shallows. Rusted = silica: pale grey. Look decision, speculative like the world.
+  // Reduced lava (silicon's volcanic rock, no oxygen): pale warm-grey enstatite like aubrite meteorites (reduced igneous rock,
+  // mostly near-white enstatite), grey-blue air, steel-blue crystal flora. Pale on purpose: it is the shore and shallows where
+  // life starts, so the dark creatures must read against it. Rusted = silica: near-white. Speculative like the world.
   reducedLava: [
-    fam(0x7a838e, 0x424a54, 0x2a3139, 0x151a20, 0x1a2c4a, 0x8c9db0, 0xa4b4c6, 0x16202e, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
-    fam(0xe4e6e8, 0xb8bcc0, 0x7c8086, 0x3c4046, 0x2a3a58, 0xb4bfcc, 0xcfd7e0, 0x34404e, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
+    fam(0xe6e2da, 0xc9c4bc, 0x9a958f, 0x5a5650, 0x2c4470, 0xb0bccb, 0xc8d2de, 0x2a3a4e, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
+    fam(0xf6f5f2, 0xeeece8, 0xc4c2be, 0x6a6864, 0x34507c, 0xc4ccd8, 0xdce2ea, 0x3c4c62, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
   ],
   // white and pale blue, frost-white haze, nothing grows, white-blue shallows
   waterIce: [fam(0xffffff, 0xdcecf8, 0x9cc0e0, 0x4a6a96, 0x32467a, 0xe8f2fa, 0xf2f8fd, 0xe0f0fa, [0x4a6a96, 0x9cc0e0, 0xffffff], 0)],

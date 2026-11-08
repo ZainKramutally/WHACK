@@ -21,7 +21,7 @@ export const BOX_PAL = {
     silicide: ['#4A525C', '#8794A3', '#CDD8E4'],
     nitride: ['#9A9484', '#CFC8B2', '#F4EEDA'],
     waterIce: ['#A9C2DA', '#D8E8F6', '#FFFFFF'],
-    reducedLava: ['#1B1F24', '#3A424C', '#6A7684'],
+    reducedLava: ['#8E8A84', '#C9C4BC', '#EEEAE2'],
     rock: ['#4A4A4A', '#808080', '#B8B8B8'],
   } as Record<string, string[]>,
   /** Where oxidising grains end up at full rust: basalt to rust red, silicide to grey-white silica. */
@@ -29,7 +29,7 @@ export const BOX_PAL = {
     basalt: ['#5A1E12', '#A8432A', '#D9694A'],
     ironstone: ['#6A2216', '#B8402A', '#D96A4E'],
     silicide: ['#B9B9B4', '#DCDCD6', '#F6F6F2'],
-    reducedLava: ['#8A9098', '#B4BAC2', '#E2E6EA'],
+    reducedLava: ['#C8C6C0', '#E8E6E2', '#FAFAF8'],
     rock: ['#6A3A2A', '#9A5A40', '#C98060'],
   } as Record<string, string[]>,
 };

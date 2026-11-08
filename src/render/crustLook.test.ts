@@ -57,7 +57,9 @@ describe('reducedLava family', () => {
     const fresh = mineralFamily('reducedLava', true, 0), rusted = mineralFamily('reducedLava', true, 1);
     expect(fresh.red).not.toBe(rusted.red);
     const lum = (h: number) => 0.2126 * ((h >> 16) & 255) + 0.7152 * ((h >> 8) & 255) + 0.0722 * (h & 255);
-    expect(lum(rusted.red)).toBeGreaterThan(lum(fresh.red) + 60);   // slate → pale silica
+    expect(lum(rusted.red)).toBeGreaterThan(lum(fresh.red) + 10);   // pale enstatite → near-white silica
+    // pale on purpose: the shore ground must hold the dark creatures (ring L ≤ 0.5)
+    for (const c of [MINERAL_COLOURS.reducedLava[0], MINERAL_COLOURS.reducedLava[1], fresh.red, rusted.red]) expect(hexToLab(c)[0]).toBeGreaterThanOrEqual(0.7);
     for (const f of [fresh, rusted]) for (const k of ['haze', 'horizon', 'shadow', 'floraCrimson'] as const) {
       const [, a, b] = hexToLab(f[k]), h = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
       expect(Math.hypot(a, b) < 0.03 || h < 280 || h > 330, k).toBe(true);
