@@ -60,6 +60,8 @@ export interface BuiltPlant {
   geometry: BufferGeometry;
   height: number;
   radius: number;
+  /** Contact radius: the widest vertex within the bottom 3% of the height (what has to meet sloping ground). */
+  foot: number;
   triangles: number;
   /** Per vertex: tissue palette key index into FLORA_KEYS. */
   keys: Uint8Array;
@@ -168,6 +170,8 @@ export class MeshBuilder {
     }
     const pos = new Float32Array(this.pos);
     for (let i = 1; i < pos.length; i += 3) pos[i] -= minY;
+    let foot = 0;
+    for (let i = 0; i < pos.length; i += 3) if (pos[i + 1] < 0.03 * (maxY - minY)) foot = Math.max(foot, Math.hypot(pos[i], pos[i + 2]));
     let g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(pos, 3));
     g.setAttribute('normal', new BufferAttribute(new Float32Array(this.nor), 3));
@@ -193,7 +197,7 @@ export class MeshBuilder {
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return {
-      geometry: g, height: maxY - minY, radius: rad, triangles: this.triangles,
+      geometry: g, height: maxY - minY, radius: rad, foot, triangles: this.triangles,
       keys: Uint8Array.from(keyF), glowKey: Uint8Array.from(gkF), site: Float32Array.from(site),
     };
   }

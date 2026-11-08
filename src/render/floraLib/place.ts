@@ -8,14 +8,17 @@
 // canopy-dominant cell (floraForm's own bin) makes the biggest giants likelier. Plants exist only where the cell has
 // biomass; mid and giant plants need land (and so lifeOnLand); underwater cells keep only ground cover (sea-margin mats
 // and crusts). Camera distance thins far ground cover and picks the LOD.
+// Plants stand on the DRAWN ground: the terrain mesh is piecewise linear between its vertices (TERRAIN_SEGMENTS), so
+// heights and slopes come from the mesh triangle under the plant, not the analytic height (they differ by metres on
+// frost fins and relic flanks). Each ground plant takes the form of its own side of the sea (a shore cell holds both).
 import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, cellCentre, hash01 } from '../layout';
-import { floraBin, floraForm, formForBin, type FloraBin, type FloraForm } from '../floraForm';
+import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
-const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 = SLOTS − GROUND_SLOT
+const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 per cell
 const FOREGROUND_R = 30;
 /** Ground cover thins from THIN_START to none at THIN_END metres from the camera (sub-pixel at our resolution). */
 const THIN_START = 45, THIN_END = 150;
@@ -36,12 +39,17 @@ export interface PlantList {
   h: Float32Array; yaw: Float32Array;
   lod: Uint8Array; dark: Uint8Array;
   glow: Float32Array;
+  /** Tilt to draw the plant with, as the slope (dy/dx, dy/dz) its up axis follows (0: upright). */
+  gx: Float32Array; gz: Float32Array;
+  /** Extra depth (m) to sink the base so its contact ring meets the drawn ground on every side. */
+  sink: Float32Array;
 }
 
 export function makePlantList(cap = MAX_PLANTS): PlantList {
   return {
     n: 0, arch: new Int16Array(cap), x: new Float32Array(cap), y: new Float32Array(cap), z: new Float32Array(cap),
     h: new Float32Array(cap), yaw: new Float32Array(cap), lod: new Uint8Array(cap), dark: new Uint8Array(cap), glow: new Float32Array(cap),
+    gx: new Float32Array(cap), gz: new Float32Array(cap), sink: new Float32Array(cap),
   };
 }
 
@@ -68,12 +76,28 @@ export function clumpAt(col: number, row: number): number {
   return 0.25 + 0.75 * smooth(0.3, 0.6, noiseAt(col, row, 4, 78));
 }
 
+/** Segments per side of the GPU terrain mesh: terrainNode.ts createTerrainMesh's default, which main.ts uses
+ * (floraAudit.test.ts keeps the two in step). */
+export const TERRAIN_SEGMENTS = 192;
+const VERTS = (TERRAIN_SEGMENTS + 1) * (TERRAIN_SEGMENTS + 1);
+
 /**
- * Optional ground-height cache for placePlants. The terrain is `rise × h(x, z)`, and h drifts only slowly (landform
- * progress), so each plant slot keeps h and is re-sampled round-robin: 1/4 of slots per rebuild during the build,
- * 1/8 after it. Cuts ~10k terrain samples per rebuild to ~1–2k. Reset it when the world or patch changes.
+ * Optional ground-height cache for placePlants, one entry per terrain-mesh vertex. The terrain is rise × h(x, z, p),
+ * and h is affine in the landform progress p (each machine adds p × its term; during the build every machine's
+ * progress is buildProgress) while heatSolvent holds. So a vertex keeps its last two unit heights h and gives h at any
+ * p exactly; vertices are re-sampled round-robin (1/4 per rebuild during the build, 1/8 after it) and all of them when
+ * heatSolvent moves. A single cached h went stale by up to 0.5 m while the landforms grew. Reset it when the world or
+ * patch changes.
  */
-export interface HeightCache { unit: Float32Array; ok: Uint8Array; gen: number }
+export interface HeightCache {
+  /** Per vertex: the last two unit heights (height ÷ rise), the build progress of each, and how many are held. */
+  a: Float32Array; b: Float32Array; pa: Float32Array; pb: Float32Array; n: Uint8Array;
+  /** placePlants call that last sampled each vertex. */
+  stamp: Int32Array;
+  gen: number;
+  /** heatSolvent the samples hold for. */
+  hs: number;
+}
 /** Density by FloraForm.lush (biomass magnitude): sparse, normal, lush. Absent (older floraForm) counts as normal. */
 const LUSH_DENSITY = [0.7, 1, 1.2] as const;
 /** Mid groves thin in sparse cells but never thicken past normal: mids are the costliest plants, and the worst case
@@ -83,12 +107,13 @@ const lushOf = (f: FloraForm): 0 | 1 | 2 => (f as { lush?: 0 | 1 | 2 }).lush ?? 
 /** The cell's bin with another mix: keeps every per-cell field the bin carries (submerged, lush on newer floraForm). */
 const withMix = (b: FloraBin, mix: 0 | 1 | 2): FloraBin => Object.assign({}, b, { mix });
 
-/** Plant slots per cell: 1 giant, 3 mid, the rest ground cover. */
-const SLOTS = 18, MID_SLOT = 1, GROUND_SLOT = 4;
+/** Plants per cell: 1 giant, up to 3 mid (GROUND_SLOT − MID_SLOT), and up to 14 ground cover. */
+const MID_SLOT = 1, GROUND_SLOT = 4;
 export function makeHeightCache(): HeightCache {
-  return { unit: new Float32Array(FLORA_GRID * FLORA_GRID * SLOTS), ok: new Uint8Array(FLORA_GRID * FLORA_GRID * SLOTS), gen: 0 };
+  const f = () => new Float32Array(VERTS);
+  return { a: f(), b: f(), pa: f(), pb: f(), n: new Uint8Array(VERTS), stamp: new Int32Array(VERTS).fill(-1), gen: 0, hs: NaN };
 }
-export function resetHeightCache(c: HeightCache) { c.ok.fill(0); c.gen = 0; }
+export function resetHeightCache(c: HeightCache) { c.n.fill(0); c.stamp.fill(-1); c.gen = 0; c.hs = NaN; }
 
 /**
  * Fill `out` with every plant to draw. Deterministic: the same inputs, patch and camera give the same list (with a
@@ -100,8 +125,19 @@ export interface Clearing { x: number; z: number; r: number }
 
 /** Extra clearance for giants beyond the clearing radius: their caps overhang (m). */
 const GIANT_OVERHANG = 12;
+/** Ground cover tilts with the ground under its contact ring up to TILT_MAX (crusts, mats and domes lie on slopes); mid
+ * and giant plants stay upright. What the tilt leaves (more slope, crests, terrace edges) sinks the base until the whole
+ * ring meets the ground, up to SINK_MAX × its drawn height; a plant that would still float there (a cliff) is not drawn. */
+const TILT_MAX = Math.tan(0.7);
+const SINK_MAX: Record<FloraRole, number> = { ground: 0.35, mid: 0.15, giant: 0.15 };
+const RING = [0, 1, 2, 3, 4, 5].map((k) => [Math.cos((k * Math.PI) / 3), Math.sin((k * Math.PI) / 3)] as const);
 
-export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache, clearing?: Clearing | null): PlantList {
+/** Per archetype index, each ÷ the archetype's native size: its contact-ring radius and its drawn height. */
+export interface PlantShapes { foot: ArrayLike<number>; height: ArrayLike<number> }
+
+/** With `shapes`, plants tilt and sink onto the drawn ground under their whole contact ring; without, they stand on it
+ * at their centre. */
+export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache, clearing?: Clearing | null, shapes?: PlantShapes): PlantList {
   out.n = 0;
   const cell = patch / FLORA_GRID;
   const cells = Math.min(inputs.flora.length / 2, FLORA_GRID * FLORA_GRID);
@@ -110,35 +146,80 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   const rise = inputs.terrain.rise;
   const cap = out.arch.length;
   const R = inputs.buildProgress < 1 ? 4 : 8;
-  const turn = cache ? cache.gen++ % R : 0;
-  const yAt = (slot: number, x: number, z: number) => {
+  const gen = cache ? cache.gen++ : 0, turn = gen % R, prog = inputs.buildProgress;
+  if (cache && !(Math.abs(inputs.heatSolvent - cache.hs) <= 0.01)) { cache.n.fill(0); cache.hs = inputs.heatSolvent; }
+  const SEG = TERRAIN_SEGMENTS, e = patch / SEG, half = patch / 2;
+  /** Height of terrain-mesh vertex (i, j). */
+  const vh = (i: number, j: number): number => {
+    const x = i * e - half, z = j * e - half;
     if (!cache || rise < 1e-3) return H(x, z);
-    if (cache.ok[slot] && slot % R !== turn) return cache.unit[slot] * rise;
-    const y = H(x, z);
-    cache.unit[slot] = y / rise; cache.ok[slot] = 1;
-    return y;
+    const v = j * (SEG + 1) + i, k = cache.n[v];
+    if (cache.stamp[v] !== gen && (k === 0 || v % R === turn)) {
+      const u = H(x, z) / rise;
+      if (k && Math.abs(prog - cache.pb[v]) > 1e-4) { cache.a[v] = cache.b[v]; cache.pa[v] = cache.pb[v]; cache.n[v] = 2; }
+      else if (!k) cache.n[v] = 1;
+      cache.b[v] = u; cache.pb[v] = prog; cache.stamp[v] = gen;
+      return u * rise;
+    }
+    const u = k === 2 ? cache.b[v] + ((prog - cache.pb[v]) * (cache.b[v] - cache.a[v])) / (cache.pb[v] - cache.pa[v]) : cache.b[v];
+    return u * rise;
+  };
+  /** Drawn ground height at (x, z), on the mesh triangle under it (PlaneGeometry splits each quad along b–d). */
+  const yAt = (x: number, z: number): number => {
+    const fi = (x + half) / e, fj = (z + half) / e;
+    const i = Math.min(SEG - 1, Math.max(0, Math.floor(fi))), j = Math.min(SEG - 1, Math.max(0, Math.floor(fj)));
+    const fx = fi - i, fz = fj - j;
+    if (fx + fz <= 1) {
+      const ha = vh(i, j);
+      return ha + fx * (vh(i + 1, j) - ha) + fz * (vh(i, j + 1) - ha);
+    }
+    const hc = vh(i + 1, j + 1);
+    return hc + (1 - fx) * (vh(i, j + 1) - hc) + (1 - fz) * (vh(i + 1, j) - hc);
   };
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
   const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number) => {
     if (!key || out.n >= cap) return;
+    const ai = ARCHETYPE_INDEX.get(key)!;
+    let tx = 0, tz = 0, sink = 0;
+    const r = shapes ? shapes.foot[ai] * h : 0;
+    if (r > 0.02) {
+      // the ground under the contact ring (a hexagon), its mean slope, and the deepest drop below the drawn plane
+      const hk = RING.map(([c, s]) => yAt(x + c * r, z + s * r));
+      const sx = hk.reduce((a, v, k) => a + v * RING[k][0], 0) / (3 * r), sz = hk.reduce((a, v, k) => a + v * RING[k][1], 0) / (3 * r);
+      if (role === 'ground') {
+        const g = Math.hypot(sx, sz), k = g > TILT_MAX ? TILT_MAX / g : 1;
+        tx = sx * k; tz = sz * k;
+      }
+      for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING[k][0] + tz * RING[k][1]) * r - hk[k]);
+      if (sink > SINK_MAX[role] * shapes!.height[ai] * h) return;
+    }
     const i = out.n++;
-    out.arch[i] = ARCHETYPE_INDEX.get(key)!;
+    out.arch[i] = ai;
     out.x[i] = x; out.y[i] = y; out.z[i] = z; out.h[i] = h; out.yaw[i] = yaw;
     // Mid and giant plants always split at their LOD radius: it is also the focus cut-out's boundary. Ground cover has
     // no cut-out, so it takes the far LOD only where that is lighter (carbon; silicon's far LOD is its near one).
     out.lod[i] = d < LOD_NEAR[role] || (role === 'ground' && !ARCHETYPE_META[out.arch[i]].farLod) ? 0 : 1;
     out.dark[i] = dark ? 1 : 0;
     out.glow[i] = glow;
+    out.gx[i] = tx; out.gz[i] = tz; out.sink[i] = sink;
   };
-  // One lookup per cell: its form (ground cover) and bin (light, mix) for the tall forms.
+  // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
+  // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the
+  // water and land cover on the dry side, whichever side its centre is on.
   const forms: (FloraForm | null)[] = new Array(cells);
   const bins: (FloraBin | null)[] = new Array(cells);
+  const seaForms: (FloraForm | undefined)[] = new Array(cells);
+  const seaForm = (c: number): FloraForm => {
+    let f = seaForms[c];
+    if (!f) f = seaForms[c] = formForBin(Object.assign({}, bins[c], { sub: true }));
+    return f;
+  };
   for (let c = 0; c < cells; c++) {
     const mat = inputs.flora[c * 2] ?? 0, canopy = inputs.flora[c * 2 + 1] ?? 0;
-    const f = mat + canopy > FLORA_EPS ? floraForm(c, inputs) : null;
-    forms[c] = f;
-    bins[c] = f ? floraBin(mat, canopy, inputs) : null;
+    const b = mat + canopy > FLORA_EPS ? floraBin(mat, canopy, inputs) : null;
+    bins[c] = b;
+    forms[c] = b ? formForBin(b) : null;
   }
   // Giants first (fewest, most important to the silhouette), then mid groves, then ground cover, so a full list drops
   // ground cover rather than the landmarks.
@@ -165,7 +246,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const tall = formForBin(withMix(bin, 2));
         const x = cc.x + (hash01(c, 0, 12) - 0.5) * cell * 0.6, z = cc.z + (hash01(c, 0, 13) - 0.5) * cell * 0.6;
         if (cleared(x, z, GIANT_OVERHANG)) continue;
-        const y = yAt(c * SLOTS, x, z);
+        const y = yAt(x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
         push(pickArchetype(tall, 'giant', bright, hash01(c, 0, 14)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y);
@@ -180,7 +261,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const d = Math.hypot(x - cam.x, z - cam.z);
           // far groves thin to 30% (stable per plant): they read as masses in the haze, and it caps the budget
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
-          const y = yAt(c * SLOTS + MID_SLOT + k, x, z);
+          const y = yAt(x, z);
           if (y < sea) continue;
           push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y);
         }
@@ -198,9 +279,11 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           // (stable per-plant threshold)
           const keep = fg ? 1 - smooth(FOREGROUND_R - 10, FOREGROUND_R, d) : (1 - smooth(THIN_START, THIN_END, d)) * clumpAt(col, row);
           if (hash01(c, k, 33) >= keep) continue;
-          const y = yAt(c * SLOTS + GROUND_SLOT + k, x, z);
-          if (y >= sea && !inputs.lifeOnLand) continue;
-          push(pickArchetype(form, 'ground', bright, hash01(c, k, 34)), x, z, plantHeight('ground', form, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, form.glow, y);
+          const y = yAt(x, z);
+          const under = y < sea;
+          if (!under && !inputs.lifeOnLand) continue;
+          const f = under ? seaForm(c) : form;
+          push(pickArchetype(f, 'ground', bright, hash01(c, k, 34)), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y);
         }
       }
     }

@@ -124,12 +124,14 @@ export function createFlora(app: App): FloraPart {
 
   const radiusPerHeight = lib.archetypes.map((a) => a.radius / a.size);
   const list = makePlantList();
+  /** Contact-ring radius and drawn height ÷ native size per archetype: place.ts tilts and sinks plants onto the ground. */
+  const shapes = { foot: Float32Array.from(lib.archetypes, (a) => a.foot / a.size), height: Float32Array.from(lib.archetypes, (a) => a.height / a.size) };
   const heights = makeHeightCache();
   const lookIds = new Int32Array(list.arch.length);
   const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
   const lookGlow = new Float32Array(BUCKET_IDS);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), qt = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), nrm = new THREE.Vector3();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
   let clearing: Clearing | null = null, clearingSet = false, clearingDirty = false;
@@ -177,7 +179,7 @@ export function createFlora(app: App): FloraPart {
       clearingDirty = false;
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
 
-      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing);
+      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes);
       const pal = PALETTES[lookKind(inputs.world.composition)];
       counts.fill(0); lookGlow.fill(0);
       for (let i = 0; i < list.n; i++) {
@@ -212,7 +214,9 @@ export function createFlora(app: App): FloraPart {
         const a = lib.archetypes[list.arch[i]];
         const s = list.h[i] / a.size;
         q.setFromAxisAngle(UP, list.yaw[i]);
-        p.set(list.x[i], list.y[i] - 0.03 * list.h[i], list.z[i]);
+        // place.ts tilts ground cover onto the drawn slope and sinks every base until its contact ring meets the ground
+        if (list.gx[i] || list.gz[i]) q.premultiply(qt.setFromUnitVectors(UP, nrm.set(-list.gx[i], 1, -list.gz[i]).normalize()));
+        p.set(list.x[i], list.y[i] - 0.03 * list.h[i] - list.sink[i], list.z[i]);
         sc.set(s, s, s);
         m4.compose(p, q, sc);
         let ma = arr.get(id);

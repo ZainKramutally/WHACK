@@ -88,6 +88,8 @@ export interface Archetype {
   /** Native size (m): max(height, 0.9 × radius). Instances scale by target size / this, so flat crusts don't balloon. */
   size: number;
   radius: number;
+  /** Native contact radius of the near LOD (sloping ground: tilt or sink by slope × foot × scale). */
+  foot: number;
   lod: [BuiltPlant, BuiltPlant];
 }
 
@@ -109,7 +111,7 @@ export function buildFloraLibrary(seed: number): FloraLibrary {
       setDetail(1);
       archetypes.push({
         index: archetypes.length, key: `${sp.id}#${v}`, species: sp.id, variant: v, chem: sp.chem, role: sp.role,
-        height: lods[0].height, radius: lods[0].radius, size: Math.max(lods[0].height, 0.9 * lods[0].radius), lod: [lods[0], lods[1]],
+        height: lods[0].height, radius: lods[0].radius, foot: lods[0].foot, size: Math.max(lods[0].height, 0.9 * lods[0].radius), lod: [lods[0], lods[1]],
       });
     }
   });
