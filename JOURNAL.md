@@ -183,3 +183,4 @@
 - 04:33: MAIN PUSH (pre-approved): crust-map gates main 8784d75 (after racing 16's e64058e/46fc8d2; re-gated 723/43). 16 pinged. Stage == main. Remaining in flight: flora-unique WP-A crust uptake.
 - 05:00 perf: rock chips regressed the landing (every chip toggle re-planned + recompiled Generate). perf-chips: primedBy per world|chip slot, LRU 6, never evicts the running plan. Owner OK'd main. Gate: tsc 0, build OK.
 - 04:38 16: merged #85 (flight rare at defaults: specificPower 150→75 W/kg; demo seed 40%→0%; low g + thick air still 27–37%).
+- 05:25: 2c fixed a rock-chips perf bug on main (5499f33): generate.ts cached one plan per world, so each chip toggle re-planned and recompiled the Generate transition; now keyed world|crust with an LRU of 6. All crust sandboxes removed.
