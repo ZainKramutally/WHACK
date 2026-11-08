@@ -228,3 +228,4 @@
 - 09:05 owner: landing lag pass 3 merged: frame() tag DOM writes only on change; app suspends the inputs source + frame hooks too (opt-in whileSuspended); generate.ts reuses ghost/grain GPU objects across re-plans in a slot (no new NodeMaterials or compile on a slider release; planSteps 215-265 ms in idle slices). Owner OK'd main.
 - 08:31 16: merged halfSaturation 2→8 (low O₂ bites; owner via 2c A/B); hunters hold on seeds 1–2.
 - 08:30: MAIN PUSH (pre-approved): d641af3 radial tile fix (review clean). Open: skinGroundShift offset HIGH (art-fauna).
+- 08:31: Caden: more plant size variation (levels + macro life mixed with small plants), condition-dependent; research then implement -> new agent flora-size (sandbox from main d641af3): §2d research (power-law size-frequency Enquist&Niklas, Moles 2009 height vs temp/precip, Koch 2004 hydraulics, fertility), per-plant power-law size class, condition-dependent emergents, defaults +-15%. Hard stop 09:20.
