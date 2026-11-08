@@ -66,14 +66,16 @@ function terrainFor(worldId: WorldId, crust?: CrustPickId): TerrainSampler | Ter
 /** The sim worker and the world's terrain mesh are set up while the selection screen is up, so Generate does not stall on them. */
 let simStarted = false;
 function ensureSim() { if (!simStarted) { simStarted = true; startSim(bus); } }
-/** Each world's terrain mesh is built once per page load and swapped in on demand; returns true only when it was newly built (so it needs compiling). */
+/** Each world's terrain mesh is built once per page load and swapped in on demand; reports whether the selected mesh is new. */
 const meshes = new Map<string, { mesh: ReturnType<typeof createTerrainMesh>; uniforms: ReturnType<typeof createTerrainUniforms> }>();
 let meshFor: string | null = null;
-function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId, crust?: CrustPickId): boolean {
+function ensureTerrainMesh(
+  view: ReturnType<typeof createWorldView>, worldId: WorldId, crust?: CrustPickId,
+): { mesh: ReturnType<typeof createTerrainMesh> | null; needsCompile: boolean } {
   const t = terrainFor(worldId, crust);
   const key = keyOf(worldId, crust);
-  if (!('relics' in t)) return false;
-  if (meshFor === key) return false;
+  if (!('relics' in t)) return { mesh: null, needsCompile: false };
+  if (meshFor === key) return { mesh: meshes.get(key)?.mesh ?? null, needsCompile: false };
   let entry = meshes.get(key);
   const isNew = !entry;
   if (!entry) {
@@ -84,7 +86,7 @@ function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: Wo
   view.setTerrain(entry.mesh, entry.uniforms);
   view.setPatchSize(t.patchSize);
   meshFor = key;
-  return isNew;
+  return { mesh: entry.mesh, needsCompile: isNew };
 }
 
 // ---- boot ----
@@ -272,7 +274,11 @@ async function boot() {
       ensureSim();
       const t = terrainFor(worldId, crust);
       if (!('relics' in t)) return;
-      if (ensureTerrainMesh(view, worldId, crust)) await app.compile();   // the world's terrain shader, compiled before Generate
+      const preparedTerrain = ensureTerrainMesh(view, worldId, crust);
+      if (preparedTerrain.needsCompile && preparedTerrain.mesh) {
+        // The other world materials were compiled at startup; warm only this new terrain variant, not the whole scene.
+        await app.compile(preparedTerrain.mesh);
+      }
       gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle, crust);
     }).catch(() => {});
   };
