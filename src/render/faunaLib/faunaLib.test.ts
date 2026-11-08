@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { develop, type DevelopInputs } from '../../sim/develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from '../../sim/genome';
 import { OrganismField, geneField } from '../../sim/organismLayout';
-import { BEAD_EYE, beadLayout } from '../creatureLayout';
+import { BEAD_EYE, BEAD_PLATE, beadLayout } from '../creatureLayout';
 import { PART, bellSphere, describe as describeFauna, pickBounds } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
@@ -181,6 +181,29 @@ describe('loft writer', () => {
 });
 
 describe('fauna adapter', () => {
+  it('silicon walkers build angular: faceted hex segments, silicon parts only, shell tiles by shellCover; carbon unchanged', () => {
+    const plan = develop(genome({ size: 0.4, segments: 0.7, limbPairs: 0.3, limbLen: 0.5, plates: 0.6, horns: 0.6, eyes: 0.5 }, true), day, water);
+    expect([plan.chemistry, plan.architecture, plan.limbKind]).toEqual(['silicon', 'axial', 'leg']);
+    expect(plan.legPairs).toBeGreaterThanOrEqual(1);
+    expect(plan.shellCover).toBeGreaterThan(0);
+    const CARBON = [PART.plateC, PART.hornC, PART.knob, PART.ring, PART.frill, PART.thighC, PART.rodC];
+    const tiles = (p: typeof plan) => {
+      const lay = beadLayout(p), d = describeFauna(p, lay);
+      if (d.kind !== 'axial') throw new Error('axial expected');
+      expect(d.faceted).toBe(true);
+      for (const q of d.parts) expect(CARBON, `part ${q.type}`).not.toContain(q.type);
+      return d.parts.filter((q) => q.type === PART.plateSi && lay.beads[q.a].tone === BEAD_PLATE).length;
+    };
+    const n = plan.segmentCount;
+    expect(tiles(plan)).toBe(Math.min(n, Math.round(plan.shellCover * n)));
+    expect(tiles({ ...plan, shellCover: 0.25 })).toBe(Math.round(0.25 * n));
+    expect(tiles({ ...plan, shellCover: 1 })).toBe(n);
+    const carbon = develop(hunter, day, water), dc = describeFauna(carbon, beadLayout(carbon));
+    if (dc.kind !== 'axial') throw new Error('axial expected');
+    expect(dc.faceted).toBe(false);
+    for (const q of dc.parts) expect([PART.plateSi, PART.hornSi, PART.knobSi, PART.thighSi, PART.rodSi]).not.toContain(q.type);
+  });
+
   it('swimmers carry no pads on any tier: no flapping beads, an upright fluke drawn as two rooted fin lobes', () => {
     const plan = { ...develop(grazer, day, water), finSpan: 0.8, tailKind: 'fluke' as const, tailSegments: 1 };
     const lay = beadLayout(plan); // the far proxies, the bestiary sprite and the card's bead fallback all draw these beads

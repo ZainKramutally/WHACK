@@ -81,6 +81,7 @@ const HEAD_F = [0.45, 0.8, 1.0], HEAD_K = [0.9, 0.62, 0.08];
 // Gas bell egg profile: height from the rim (× bell height) and radius factor, closed underneath.
 const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0];
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
+const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
 
 /**
@@ -186,8 +187,9 @@ function bake(layout: BeadLayout, silicon: boolean, look: SpeciesLook, glow: num
 
 /** One creature's near-LOD geometry at rest pose in body space (layout units), copied out of the live batches. */
 export interface BakedCreature {
-  /** Loft slots (body, gas bell or crystal hub): rings × sides vertices each; index with faunaLib/loft gridIndex. */
-  lofts: { pos: Float32Array; nor: Float32Array; col: Float32Array; rings: number; sides: number }[];
+  /** Loft slots (body, gas bell or crystal hub): rings × sides vertices each; index with faunaLib/loft gridIndex.
+   *  `flat`: drawn flat-shaded (a silicon walker's faceted segments). */
+  lofts: { pos: Float32Array; nor: Float32Array; col: Float32Array; rings: number; sides: number; flat: boolean }[];
   /** Sculpted parts by PART type: instance matrices (16 floats each) and linear colours (3 each). */
   parts: { type: number; m: Float32Array; col: Float32Array; n: number }[];
 }
@@ -306,7 +308,8 @@ export function createFauna(app: App): FaunaPart {
   const loftC = worldMaterial({ kind: 'fauna', vertexColors: true, glowAttr: 'aGlow' });
   const loftSi = worldMaterial({ kind: 'fauna', vertexColors: true, glowAttr: 'aGlow', rim: RIM_SI });
   const loftBell = worldMaterial({ kind: 'fauna', vertexColors: true, glowAttr: 'aGlow', rim: RIM_BELL });
-  const MATS = [matC, proxySi, partSi, loftC, loftSi, loftBell];
+  const loftSiFlat = worldMaterial({ kind: 'fauna', vertexColors: true, glowAttr: 'aGlow', flat: true, rim: RIM_SI }); // silicon walkers
+  const MATS = [matC, proxySi, partSi, loftC, loftSi, loftBell, loftSiFlat];
 
   // Far and mid proxies: carbon beads and limb bones; silicon faceted beads, hub prisms per symmetry, hex prisms.
   const round = makeMesh(new THREE.SphereGeometry(1, 8, 6), matC);
@@ -325,14 +328,17 @@ export function createFauna(app: App): FaunaPart {
   const axLoft = new LoftBatch(AX_RINGS, AX_SIDES, LOFT_MAX + 3 * SWIM_MAX + 4, loftC, 4);
   const bellLoft = new LoftBatch(BELL_RINGS, BELL_SIDES, LOFT_MAX + 1, loftBell, 1);
   const hubLoft = new LoftBatch(RAD_RINGS, RAD_SIDES, LOFT_MAX + 5 * SWIM_MAX + 6, loftSi, 6);
+  // silicon bilateral walkers: hexagonal segments (12 samples, 2 per hex face), flat-shaded
+  const siLoft = new LoftBatch(AX_RINGS, SI_SIDES, LOFT_MAX + 1, loftSiFlat, 1);
   let baking = false;
   /** A free slot for a near-LOD loft (bake() may also use the reserve). */
   const room = (b: LoftBatch) => b.n < b.slots - (baking ? 0 : b.reserve);
-  const LOFTS = [axLoft, bellLoft, hubLoft];
+  const LOFTS = [axLoft, bellLoft, hubLoft, siLoft];
   const parts: PartBatch[] = partBatches((t) => (t.endsWith('Si') ? partSi : matC), PART_CAPS, PART_CAP);
   app.scene.add(...MESHES, ...LOFTS.map((l) => l.mesh), ...parts.map((p) => p.mesh));
 
   const AX_SEC = circleSection(AX_SIDES), BELL_SEC = circleSection(BELL_SIDES);
+  const SI_SEC = ngonSection(SI_SIDES, 6, 1, 0); // a true hexagon: corners at the flanks, flat top and belly
   const HUB_SEC = new Map<number, Section>();
   const hubSection = (n: number) => {
     let s = HUB_SEC.get(n);
@@ -618,7 +624,8 @@ export function createFauna(app: App): FaunaPart {
   }
 
   function drawAxialNear(e: Entry, d: AxialDesc, t: number, mode: number): boolean {
-    if (!room(axLoft)) return false;
+    const lb = d.faceted ? siLoft : axLoft;
+    if (!room(lb)) return false;
     const beads = scratch, sh = e.shape;
     // ---- loft rings through the posed spine, tail cap → head dome ----------------------------------------------
     const sp = d.spine, ns = sp.length;
@@ -643,7 +650,13 @@ export function createFauna(app: App): FaunaPart {
         }
       }
       setRing(ringBuf, nr++, SPW[o], SPW[o + 1], SPW[o + 2], tx, ty, tz, 0, 1, 0, SPW[o + 3], SPW[o + 4], sp[k].slot);
-      if (d.mids && k < ns - 1) {
+      if (d.faceted && d.mids && k < ns - 1) {
+        // stepped (when the ring budget allows; else straight hex segments): a narrower waist ring halfway to the next segment, straight between (each segment reads as a unit)
+        const q1 = (k + 1) * 5;
+        setRing(ringBuf, nr++, (SPW[o] + SPW[q1]) / 2, (SPW[o + 1] + SPW[q1 + 1]) / 2, (SPW[o + 2] + SPW[q1 + 2]) / 2,
+          SPW[q1] - SPW[o], SPW[q1 + 1] - SPW[o + 1], SPW[q1 + 2] - SPW[o + 2], 0, 1, 0,
+          0.4 * (SPW[o + 3] + SPW[q1 + 3]), 0.4 * (SPW[o + 4] + SPW[q1 + 4]), sp[k + 1].slot);
+      } else if (d.mids && k < ns - 1) {
         // Catmull–Rom midpoint between k and k+1
         const q2 = (k + 2 < ns ? k + 2 : ns - 1) * 5, q1 = (k + 1) * 5;
         const mx = (-SPW[p1] + 9 * SPW[o] + 9 * SPW[q1] - SPW[q2]) / 16;
@@ -662,8 +675,8 @@ export function createFauna(app: App): FaunaPart {
         }
       }
     }
-    writeRings(ringBuf, nr, AX_RINGS, AX_SEC, axLoft.pos, axLoft.nor, axLoft.col, axLoft.glow, axLoft.n * axLoft.per, e.slotRgb, e.slotGlow);
-    axLoft.n++;
+    writeRings(ringBuf, nr, AX_RINGS, d.faceted ? SI_SEC : AX_SEC, lb.pos, lb.nor, lb.col, lb.glow, lb.n * lb.per, e.slotRgb, e.slotGlow);
+    lb.n++;
 
     // ---- static parts on the posed beads ------------------------------------------------------------------------
     for (const p of d.parts) emitDescPart(p, beads, rodScratch);
@@ -675,7 +688,14 @@ export function createFauna(app: App): FaunaPart {
       toW(rodScratch[rk], rodScratch[rk + 1], rodScratch[rk + 2]); const hx = W[0], hy = W[1], hz = W[2];
       toW(rodScratch[rk + 3], rodScratch[rk + 4], rodScratch[rk + 5]); const kx = W[0], ky = W[1], kz = W[2];
       toW(rodScratch[rk + 12], rodScratch[rk + 13], rodScratch[rk + 14]); const fx = W[0], fy = W[1], fz = W[2];
-      if (L.jointed) {
+      if (e.silicon) {
+        // straight hexagonal rods meeting at a faceted knee, a flat hex foot plate (the same planted-foot IK gait)
+        span(parts[PART.thighSi], hx, hy, hz, kx, ky, kz, r0 * 1.2, 1, SLOT.body, 0, CH, 0, SH);
+        knob(kx, ky, kz, r0 * 0.7, SLOT.accent, 0);
+        span(parts[PART.rodSi], kx, ky, kz, fx, fy, fz, r0 * 0.62, 1, SLOT.body, 0, CH, 0, SH);
+        const c = colOf(SLOT.accent), rgb = e.slotRgb, pr = r0 * 1.2;
+        parts[PART.plateSi].push(fx, fy - r0 * 0.45, fz, CH * pr, 0, SH * pr, 0, r0 * 0.4, 0, -SH * pr, 0, CH * pr, rgb[c], rgb[c + 1], rgb[c + 2], 0);
+      } else if (L.jointed) {
         span(parts[PART.thighC], hx, hy, hz, kx, ky, kz, r0 * 1.35, 1, SLOT.body, 0, CH, 0, SH);
         knob(kx, ky, kz, r0 * 0.62, SLOT.body, 0);
         span(parts[PART.rodC], kx, ky, kz, fx, fy, fz, r0 * 0.62, 1, SLOT.body, 0, CH, 0, SH);
@@ -852,6 +872,7 @@ export function createFauna(app: App): FaunaPart {
   function swimmerOf(e: Entry): Swimmer | null {
     if (e.sw || e.swTried || !e.plan) return e.sw;
     e.swTried = true;
+    if (e.plan.chemistry === 'silicon' && e.plan.architecture === 'axial') return null; // an armoured walker that swims keeps its faceted body
     try {
       const params = swimmerParamsFromPlan(e.plan, { sociality: e.soc });
       params.length = drawnLength(e.scale, 1); // the display-size rule, as for walkers (aquatic-life.md §6.3)
@@ -984,7 +1005,7 @@ export function createFauna(app: App): FaunaPart {
       LOFTS.forEach((l, i) => {
         for (let slot = L1[i]; slot < l.n; slot++) {
           const v0 = slot * l.per, v1 = v0 + l.per;
-          out.lofts.push({ pos: l.pos.slice(v0 * 3, v1 * 3), nor: l.nor.slice(v0 * 3, v1 * 3), col: l.col.slice(v0 * 3, v1 * 3), rings: l.rings, sides: l.sides });
+          out.lofts.push({ pos: l.pos.slice(v0 * 3, v1 * 3), nor: l.nor.slice(v0 * 3, v1 * 3), col: l.col.slice(v0 * 3, v1 * 3), rings: l.rings, sides: l.sides, flat: l === siLoft });
         }
       });
       parts.forEach((b, i) => {
@@ -1089,8 +1110,10 @@ export function createFauna(app: App): FaunaPart {
     const glow = e.glow > GLOW_MIN ? e.glow : 0;
     const lr = lay.limbRods;
     if (lr && lr.length > 0) {
-      if (counts[BONES] + lr.length > BONE_CAP) return;
-      for (let i = 0; i < lr.length; i++) emitRod(bones, GLOWS[BONES], counts[BONES]++, rods, i, s, e.x, y0, e.z, cosH, sinH, e.rgb, e.rodTone[i], 0);
+      // limb bones: round on carbon, hex prisms on silicon walkers
+      const bm = e.silicon ? HEX : BONES;
+      if (counts[bm] + lr.length > (e.silicon ? HEX_CAP : BONE_CAP)) return;
+      for (let i = 0; i < lr.length; i++) emitRod(MESHES[bm], GLOWS[bm], counts[bm]++, rods, i, s, e.x, y0, e.z, cosH, sinH, e.rgb, e.rodTone[i], 0);
     }
     if (rad) {
       for (let i = 0; i < rad.rods.length; i++) {

@@ -50,6 +50,8 @@ export interface AxialDesc {
   spine: LoftRing[];
   /** Mid rings between consecutive spine beads (1 when the ring budget allows, else 0). */
   mids: number;
+  /** Silicon bilateral walkers: hexagonal flat-shaded segments, stepped (a waist ring between segments), Si parts. */
+  faceted: boolean;
   /** Head and tail cap lengths in units of the end bead's radius. */
   headCap: number; tailCap: number;
   parts: PartDesc[];
@@ -97,6 +99,11 @@ export const GLOW_MIN = 0.1;
 function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   const N = spineCount(plan), beads = lay.beads, head = N - 1;
   const parts: PartDesc[] = [];
+  // Silicon's axial grammar (armoured walkers, plan v4): the same body plan as carbon's, built angular. Hex segments,
+  // silicon-nitride shell tiles where carbon has domed shields (the layout's plates follow plateCover = shellCover),
+  // straight spikes for horns and crest, faceted dot eyes, and the silicon part material (pale rim).
+  const si = plan.chemistry === 'silicon';
+  const KNOB = si ? PART.knobSi : PART.knob, PLATE = si ? PART.plateSi : PART.plateC, HORN = si ? PART.hornSi : PART.hornC;
   const glowing = plan.glow > GLOW_MIN;
   // Loft beads: the whole spine, except a fluke or club at the tail tip (drawn as parts).
   const skipTip = plan.tailKind === 'fluke' || plan.tailKind === 'club';
@@ -105,7 +112,7 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   // fluke: an upright two-lobed caudal fin of fin parts rooted on the tail tip and swept back, as the near LOD's lunate
   // tail (no flat pad). Chord back, span up or down, thickness flipped to keep each basis right-handed.
   if (plan.tailKind === 'fluke') for (const up of [1, -1]) parts.push(part({ type: PART.fin, a: 0, slot: SLOT.accent, ox: 0.35, sx: -1.1, sy: 1.6 * up, sz: -0.4 * up }));
-  if (plan.tailKind === 'club') parts.push(part({ type: PART.knob, a: 0, slot: SLOT.accent, sx: 1.05, sy: 0.95, sz: 1.05 }));
+  if (plan.tailKind === 'club') parts.push(part({ type: KNOB, a: 0, slot: SLOT.accent, sx: 1.05, sy: 0.95, sz: 1.05 }));
   const mids = 2 * spine.length - 1 + 6 <= AX_RINGS ? 1 : 0;
 
   // Extras, in the order axialLayout emits them; classified by tone and shape.
@@ -115,17 +122,26 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   for (let i = N; i < nBody; i++) {
     const b = beads[i];
     if (b.tone === BEAD_PLATE) {
-      // shield: a domed plate shingled over the back
-      parts.push(part({ type: PART.plateC, a: i, sx: 0.95 * (b.sx ?? 1), sy: 0.55 * (b.sy ?? 1), sz: 0.95 * (b.sz ?? 1), oy: -0.3 }));
+      // shield: a domed plate shingled over the back (silicon: a flat hexagonal ceramic shell tile)
+      if (si) parts.push(part({ type: PART.plateSi, a: i, sx: 1.0 * (b.sx ?? 1), sy: 0.42 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1), oy: -0.25 }));
+      else parts.push(part({ type: PART.plateC, a: i, sx: 0.95 * (b.sx ?? 1), sy: 0.55 * (b.sy ?? 1), sz: 0.95 * (b.sz ?? 1), oy: -0.3 }));
     } else if (b.tone === BEAD_SPOT) {
-      parts.push(part({ type: PART.knob, a: i, slot: glowing ? SLOT.glow : SLOT.accent, glow: glowing ? plan.glow : 0, sx: 0.9, sy: 0.9, sz: 0.5 }));
+      parts.push(part({ type: KNOB, a: i, slot: glowing ? SLOT.glow : SLOT.accent, glow: glowing ? plan.glow : 0, sx: 0.9, sy: 0.9, sz: 0.5 }));
     } else if (b.tone === BEAD_ACCENT && (b.flap ?? 0) > 0) {
       // membrane wings on hoverers (flap 1): thin discs, accent. Swimmers have no flapping beads (creatureLayout: their
       // fins are the near LOD's, faunaLib/aquatic), so no pad is ever drawn on a swimmer.
-      if ((b.flap ?? 0) >= 0.9) parts.push(part({ type: PART.plateC, a: i, slot: SLOT.accent, sx: 0.95 * (b.sx ?? 1), sy: 0.9 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1) }));
+      if ((b.flap ?? 0) >= 0.9) parts.push(part({ type: PLATE, a: i, slot: SLOT.accent, sx: 0.95 * (b.sx ?? 1), sy: 0.9 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1) }));
+    } else if (b.tone === BEAD_ACCENT && si) {
+      // dorsal crest → a straight spike rod standing on the back (silicon's dorsal is rods), from the back surface up
+      const h = b.sy ?? 1;
+      parts.push(part({ type: PART.hornSi, a: i, slot: SLOT.accent, oy: -0.9 * h, sx: 0.28, sy: 1.9 * h, sz: 0.28 }));
     } else if (b.tone === BEAD_ACCENT) {
       // dorsal crest blade → a scalloped frill standing on the back (x backward along the body, y up)
       parts.push(part({ type: PART.frill, a: i, slot: SLOT.accent, ox: 0.9, oy: -0.45 * (b.sy ?? 1), sx: -1.9, sy: 1.0 * (b.sy ?? 1), sz: 0.7 }));
+    } else if (b.tone === BEAD_EYE && si) {
+      // silicon dot eyes: a faceted bead in the eye slot (cyan), no ring or catchlight
+      eyes.push(i);
+      parts.push(part({ type: PART.knobSi, a: i, slot: SLOT.eye, sx: 0.8, sy: 0.8, sz: 0.8 }));
     } else if (b.tone === BEAD_EYE) {
       eyes.push(i);
       // eyeball (ink), a bone ring rim around it, and a bone catchlight up-forward-out
@@ -135,7 +151,7 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
       parts.push(part({ type: PART.knob, a: i, slot: SLOT.bone, ox: 0.35, oy: 0.45, oz: side * 0.6, sx: 0.3, sy: 0.3, sz: 0.3 }));
     } else if (b.tone === BEAD_HORN && b.sx !== undefined) {
       // jaw: a flattened plate under the snout
-      parts.push(part({ type: PART.plateC, a: i, sx: 1.3 * b.sx, sy: 1.1 * (b.sy ?? 1), sz: (b.sz ?? 1) }));
+      parts.push(part({ type: PLATE, a: i, sx: 1.3 * b.sx, sy: 1.1 * (b.sy ?? 1), sz: (b.sz ?? 1) }));
     } else if (b.tone === BEAD_HORN) {
       horns.push(i);
     }
@@ -151,8 +167,8 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   while (horns.length) take(per);
   for (const c of chains) {
     const a = c[0], z = c[c.length - 1];
-    if (c.length === 1) parts.push(part({ type: PART.hornC, slot: SLOT.accent, a: head, b: a, t0: 0.55, t1: 1.25, r: 1.2, rRef: a }));
-    else parts.push(part({ type: PART.hornC, slot: SLOT.accent, a, b: z, t0: -0.45, t1: 1.15, r: 1.35, rRef: a }));
+    if (c.length === 1) parts.push(part({ type: HORN, slot: SLOT.accent, a: head, b: a, t0: 0.55, t1: 1.25, r: 1.2, rRef: a }));
+    else parts.push(part({ type: HORN, slot: SLOT.accent, a, b: z, t0: -0.45, t1: 1.15, r: 1.35, rRef: a }));
   }
   // Glow from darkness: photophores along the flanks when the plan glows and has no spots to carry it.
   if (glowing && !parts.some((p) => p.slot === SLOT.glow)) {
@@ -160,14 +176,14 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
     for (let q = 0; q < k; q++) {
       const j = spine[Math.min(spine.length - 1, Math.floor(((q >> 1) + 0.5) * spine.length / (k / 2)))].bead;
       const side = q & 1 ? 1 : -1;
-      parts.push(part({ type: PART.knob, a: j, slot: SLOT.glow, glow: plan.glow, oy: 0.35, oz: side * 0.85, sx: 0.16, sy: 0.16, sz: 0.16 }));
+      parts.push(part({ type: KNOB, a: j, slot: SLOT.glow, glow: plan.glow, oy: 0.35, oz: side * 0.85, sx: 0.16, sy: 0.16, sz: 0.16 }));
     }
   }
   const legs = lay.limbs.map((rig, k) => ({ rig: k, side: rig.side, pair: rig.pair, jointed: plan.limbKind === 'leg' }));
   let rMax = 0, over = head;
   for (const s of spine) if (beads[s.bead].r > rMax) { rMax = beads[s.bead].r; over = s.bead; }
   return {
-    kind: 'axial', spine, mids, headCap: 1.05, tailCap: plan.tailKind === 'whip' ? 1.6 : 1.1,
+    kind: 'axial', spine, mids, faceted: si, headCap: si ? 0.8 : 1.05, tailCap: plan.tailKind === 'whip' ? 1.6 : 1.1,
     parts: parts.slice(0, MAX_STATIC_PARTS), legs, eyes, head,
     bell: { r: rMax * (2.2 + 0.8 * plan.wingSpan), h: rMax * (3.2 + 1.0 * plan.wingSpan), over },
   };

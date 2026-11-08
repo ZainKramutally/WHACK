@@ -119,6 +119,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   // The world's look for creatures: the near-LOD loft (vertex colours) and sculpted parts (instance colours), in this
   // view's own standard materials (the world material's fog, bounce and foreground push are tuned for the world camera).
   const loftMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 0.55 });
+  const loftMatFlat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 0.55, flatShading: true }); // silicon walkers' facets
   const partMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
   let partGeo: ReturnType<typeof partGeometries> | null = null;
   const partGeoOf = (type: number) => (partGeo ??= partGeometries())[PART_TYPES[type]];
@@ -244,7 +245,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       g.setAttribute('normal', new THREE.BufferAttribute(l.nor, 3));
       g.setAttribute('color', new THREE.BufferAttribute(l.col, 3));
       g.setIndex(new THREE.BufferAttribute(gridIndex(l.rings, l.sides, 1), 1));
-      const mesh = new THREE.Mesh(g, loftMat);
+      const mesh = new THREE.Mesh(g, l.flat ? loftMatFlat : loftMat);
       mesh.frustumCulled = false;
       group.add(mesh);
       for (let i = 0; i < l.pos.length; i += 3) grow(l.pos[i], l.pos[i + 1], l.pos[i + 2], 0);
@@ -442,7 +443,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     // the creature live view's loft and part pipelines (one tiny ring pair; one instance of every part geometry)
     const ring = (y: number) => [0, y, 0.1, 0.1, y, -0.1, -0.1, y, 0];
     loftContent({
-      lofts: [{ pos: Float32Array.from([...ring(0), ...ring(0.2)]), nor: new Float32Array(18).fill(0.577), col: new Float32Array(18).fill(0.5), rings: 2, sides: 3 }],
+      lofts: [false, true].map((flat) => ({ pos: Float32Array.from([...ring(0), ...ring(0.2)]), nor: new Float32Array(18).fill(0.577), col: new Float32Array(18).fill(0.5), rings: 2, sides: 3, flat })),
       parts: PART_TYPES.map((_, type) => ({ type, m: Float32Array.from([0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 1]), col: new Float32Array(3).fill(0.5), n: 1 })),
     }, 2);
     const all = [...backdrops.values()];
@@ -499,7 +500,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       for (const b of backdrops.values()) { b.geometry.dispose(); (b.material as THREE.Material).dispose(); }
       for (const m of Object.values(beadMat)) m.dispose();
       for (const g of Object.values(beadGeo)) g.dispose();
-      loftMat.dispose(); partMat.dispose(); plantMat.dispose();
+      loftMat.dispose(); loftMatFlat.dispose(); partMat.dispose(); plantMat.dispose();
       // the plant looks' geometries share the world's library buffers (position, normal, sway, index), so they are left
       // to the renderer: disposing one would free the world's buffers too
       if (partGeo) for (const g of Object.values(partGeo)) g.dispose();

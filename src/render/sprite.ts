@@ -1,6 +1,7 @@
 // Bestiary pixel sprite: a creature's body plan drawn as a tiny pixel-art picture (art layer, read-only, pure).
 // It reuses the 3D layout (creatureLayout.beadLayout) and colours (palette.creatureColour), so the picture is the same
-// body the world draws: ellipsoid beads and limb rods for carbon, prism tiers, tiles and arm rods for silicon.
+// body the world draws: ellipsoid beads and limb rods for carbon, hexagonal beads for silicon walkers, prism tiers, tiles
+// and arm rods for radial silicon.
 // Oblique view from the front-left and a little above, painter's order far to near, flat tone colours, far parts
 // shaded, and a one-pixel ink outline, as in the pixel style. Every pixel is either fully opaque or empty.
 import type { BodyPlan } from '../sim/develop';
@@ -30,6 +31,15 @@ function ellipse(cu: number, cv: number, ru: number, rv: number, depth: number, 
   };
 }
 
+/** A flat-topped hexagon in the same box as the ellipse (a silicon walker's faceted bead). */
+function hexagon(cu: number, cv: number, ru: number, rv: number, depth: number, colour: number): Prim {
+  const iu = 1 / Math.max(ru, 1e-6), iv = 1 / Math.max(rv, 1e-6);
+  return {
+    depth, colour, u0: cu - ru, u1: cu + ru, v0: cv - rv, v1: cv + rv,
+    inside: (u, v) => { const a = Math.abs((u - cu) * iu), b = Math.abs((v - cv) * iv); return b <= 1 && b <= 2 * (1 - a); },
+  };
+}
+
 function capsule(au: number, av: number, bu: number, bv: number, r: number, depth: number, colour: number): Prim {
   const du = bu - au, dv = bv - av, len2 = du * du + dv * dv || 1e-12, r2 = r * r;
   return {
@@ -56,12 +66,13 @@ function primitives(raw: BodyPlan): Prim[] {
     return z > 0.02 * plan.scale ? scaleHex(c, FAR_SHADE) : c;
   };
   const prims: Prim[] = [];
+  const shape = silicon && !lay.radial ? hexagon : ellipse; // silicon walkers are faceted, carbon round
   for (const b of lay.beads) {
     const yaw = b.yaw ?? 0, sx = b.sx ?? 1, sy = b.sy ?? 1, sz = b.sz ?? 1;
     const ru = b.r * (sx * Math.abs(Math.cos(yaw)) + sz * Math.abs(Math.sin(yaw)) * (0.4 + KU));
     const rv = b.r * (sy + 0.15 * sz * KV);
     const [u, v] = project(b.x, b.y, b.z);
-    prims.push(ellipse(u, v, ru, rv, b.z, colour(b.tone, b.z)));
+    prims.push(shape(u, v, ru, rv, b.z, colour(b.tone, b.z)));
   }
   const rods = [...(lay.limbRods ?? []), ...(lay.radial?.rods ?? [])];
   for (const r of rods) {

@@ -209,8 +209,9 @@ function axialLayout(plan: BodyPlan): BeadLayout {
   const t0 = tailBeads.length;
   const head = spine[N - 1];
 
-  // Shields: flat plates draped over the back, head end first; they grow into a carapace as it deepens.
-  const nPlates = Math.min(n, Math.round(plan.plateCover * n));
+  // Shields: flat plates draped over the back, head end first; they grow into a carapace as it deepens. A silicon walker's
+  // ceramic shell covers its shellCover share of the segments (plan v4; equal to plateCover in develop()).
+  const nPlates = Math.min(n, Math.round((plan.shellCover > 0 ? plan.shellCover : plan.plateCover) * n));
   const shield = 0.5 + 0.55 * plan.carapace;
   for (let k = 0; k < nPlates; k++) {
     const p = spine[N - 1 - k];
