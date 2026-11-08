@@ -20,7 +20,7 @@ import { createPicker, type PickResult } from './pick';
 import { createCounterpart } from './counterpart';
 import { createLandmarksPart } from './landmarks';
 import type { LandmarkSet } from '../gen/landmarks';
-import { PAL, updateLook, worldMaterial } from './material';
+import { LOOK, PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
 import { createTerrainMesh, createTerrainUniforms, updateGround } from './terrainNode';
 import type { Terrain } from '../gen/terrain';
@@ -56,6 +56,11 @@ export interface WorldView {
   pick(at: { x: number; y: number } | 'reticle'): PickResult;
   /** Visual scale multiplier for creature bodies (default 3; readability only). */
   setCreatureScale(k: number): void;
+  /** Where the player is (world metres): plants on the camera→focus line dither out. Call every frame; until it is
+   *  called (or if it stops for 0.5 s) the focus falls back to 5.5 m in front of the camera. */
+  setFocus(x: number, y: number, z: number): void;
+  /** Spawn point: the flora keeps a clearing there. */
+  setSpawn(x: number, z: number): void;
   /** Resolves when every material in the scene (including the card swatches) is compiled. Await this instead of calling compileAsync yourself. Never rejects. */
   readonly ready: Promise<void>;
   /** World position and pick radius of a drawn creature by id (debugging / tests). */
@@ -129,11 +134,18 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   /** Accumulated ms per part (profiling aid; reset by the caller). */
   const prof = { frames: 0, total: 0, terrain: 0, sky: 0, sea: 0, fauna: 0, flora: 0, landmarks: 0, counterpart: 0 };
   let lastMs = performance.now();
+  let focusAt = -Infinity;
+  const fwd = new THREE.Vector3();
   function step(dt: number, t: number, inputs: VisualInputs) {
     const tStart = performance.now();
     latest = inputs;
     if (patchOverride === undefined) patch = worldFor(inputs.world.id).terrain.patchSize;
     updateLook(inputs, app.camera, dt, patch);
+    if (performance.now() - focusAt > 500) {
+      // fallback focus: the follow distance in front of the camera
+      app.camera.getWorldDirection(fwd);
+      (LOOK.focus.value as THREE.Vector3).copy(app.camera.position).addScaledVector(fwd, 5.5);
+    }
     updateGround(inputs, dt);   // after updateLook, before sky.update (sky overrides LOOK fog underwater)
 
     if (terrain) {
@@ -173,6 +185,14 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const unhook = opts.autoHook === false ? () => {} : app.registerFrameHook(step);
 
   return {
+    setFocus(x, y, z) {
+      (LOOK.focus.value as THREE.Vector3).set(x, y, z);
+      focusAt = performance.now();
+    },
+    setSpawn(x, z) {
+      // setClearing is art-flora's (optional until its branch lands)
+      (flora as typeof flora & { setClearing?: (x: number, z: number) => void }).setClearing?.(x, z);
+    },
     update(inputs) {
       const now = performance.now();
       const dt = Math.min((now - lastMs) / 1000, 0.1);

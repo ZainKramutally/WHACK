@@ -48,3 +48,16 @@ describe('lookPalette', () => {
     expect(lookPalette(inputs(0.9, 0.02, 'G-type', 3.6, -183))).toEqual(lookPalette(inputs(0.9, 0.02, 'G-type', 3.6, -183)));
   });
 });
+
+describe('creatureColour (silicon, #50)', () => {
+  it('silicon bodies are deep violet against the pale ground, hunters darker, rims pale, eyes glow', async () => {
+    const { creatureColour } = await import('./palette');
+    const s = LOOK_PALETTES.silicon;
+    const grazer = creatureColour(true, 0, 0), hunter = creatureColour(true, 1, 0);
+    expect(lum(s.red) - lum(grazer)).toBeGreaterThan(80);
+    expect(lum(hunter)).toBeLessThan(lum(grazer));
+    expect(lum(creatureColour(true, 0.5, 5, 0.5, 1))).toBeGreaterThan(lum(creatureColour(true, 0.5, 0)) + 60);
+    expect(creatureColour(true, 0.5, 1)).toBe(s.glow);
+    expect(creatureColour(true, 0.3, 0, 0.2)).not.toBe(creatureColour(true, 0.3, 0, 0.8)); // lineage hue still layers
+  });
+});

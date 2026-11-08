@@ -12,7 +12,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, mix, max, min, normalWorld, positionWorld, positionLocal, attribute, uniform, cameraPosition,
-  sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor,
+  sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
 import { LOOK_PALETTES, lookPalette, type LookKey, type LookPalette } from './palette';
@@ -36,6 +36,11 @@ export interface WorldMaterialOpts {
   /** Faceted normals. */
   flat?: boolean;
   side?: number;
+  /** Dither cut-out around the camera→LOOK.focus line (default: true for 'flora'). It adds a discard, which costs
+   *  early-z on every fragment of the material, so turn it off on buckets that can't hide the player (far LOD, ground cover). */
+  cutout?: boolean;
+  /** Fresnel rim toward PAL.bone, 0..1 strength (fauna). */
+  rim?: number;
 }
 
 /** Pixel mode (the default look). `?style=smooth` is the comparison view. post.ts reads the same flag. */
@@ -93,6 +98,9 @@ export const LOOK: Record<string, N> = {
   wind: uniform(0.6),
   time: uniform(0),
   camPos: uniform(new THREE.Vector3()),
+  // flora cut-out around the camera→focus line (the player), so plants never hide the character. Far away = off.
+  focus: uniform(new THREE.Vector3(1e6, 1e6, 1e6)),
+  focusR: uniform(2.5),
   patch: uniform(400),
   brightness: uniform(1),
 };
@@ -149,6 +157,17 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
   }
 
   m.outputNode = Fn(() => {
+    if (opts.cutout ?? kind === 'flora') {
+      // dither cut-out in a cylinder from the camera to the focus, widening toward the focus
+      const C = cameraPosition, F = vec3(LOOK.focus), P = positionWorld;
+      const CF = F.sub(C);
+      const len2 = dot(CF, CF).max(1e-4);
+      const t = dot(P.sub(C), CF).div(len2);
+      const d = P.sub(C.add(CF.mul(t))).length();
+      const inside = t.greaterThan(0).and(t.lessThan(1)).and(len2.lessThan(1e6));
+      const fade = float(1).sub(smoothstep(LOOK.focusR.mul(0.6), LOOK.focusR, d.div(t.mul(0.65).add(0.35))));
+      If(inside.and(bayer4().lessThan(fade)), () => { Discard(); });
+    }
     // diffuseColor = colorNode (or material colour) × vertex colour × instance colour, with opacity in .a
     const base = vec3(diffuseColor.rgb).toVar();
     const N = normalWorld;
@@ -186,6 +205,12 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
       // foreground value push: the nearest plane goes darker and more saturated (ink/crimson family)
       const fg = float(1).sub(smoothstep(LOOK.fgNear, LOOK.fgFar, dist)).mul(LOOK.fgPush);
       out.assign(mix(out, out.mul(vec3(LOOK.fgTint)), fg));
+    }
+
+    if (opts.rim) {
+      const V = normalize(cameraPosition.sub(positionWorld));
+      const fres = pow(float(1).sub(abs(dot(N, V))), 3).mul(opts.rim);
+      out.assign(mix(out, vec3(PAL.bone), fres));
     }
 
     const f = fogAt(positionWorld);
