@@ -38,6 +38,7 @@ const SWIMMERS = {
   'carbon eel': swimmerParamsFromPlan(plan({ segments: 0.9, limbPairs: 0, size: 0.4, buoy: 0.5 })),
   'carbon plated': swimmerParamsFromPlan(plan({ segments: 0.4, plates: 0.8, limbPairs: 0.5, horns: 0.5, diet: 0.8 })),
   'silicon rower': swimmerParamsFromPlan(plan({ limbPairs: 0.5, limbLen: 0.6, size: 0.4 }, true)),
+  'carbon plesiosaur': swimmerParamsFromPlan(plan({ limbPairs: 0.6, limbLen: 0.8, segments: 0.4, size: 0.4 })),
   'silicon bell': normaliseParams(mergeParams(DEFAULT_PARAMS, { chemistry: 'silicon', plan: 'bell', radial: { chain: 3 } as never })),
 };
 
@@ -74,6 +75,27 @@ describe('aquatic swimmers (port)', () => {
     const k = kinematics(normaliseParams({ ...DEFAULT_PARAMS, length: 1.5 }));
     expect(k.speed).toBeCloseTo(k.slip * k.waveSpeed, 9);
     expect(k.speed).toBeLessThan(k.waveSpeed);
+  });
+
+  it('two or more long limb pairs make a plesiosaur: four flippers rooted inside the flank, flapping, fore and hind out of phase', () => {
+    const p = SWIMMERS['carbon plesiosaur'];
+    expect(p.plan).toBe('plesiosaur');
+    expect(swimmerParamsFromPlan(plan({ limbPairs: 0.6, limbLen: 0.1, segments: 0.4, size: 0.4 })).plan).not.toBe('plesiosaur'); // short limbs
+    expect(swimmerParamsFromPlan(plan({ limbPairs: 0.2, limbLen: 0.8, segments: 0.4, size: 0.4 })).plan).not.toBe('plesiosaur'); // one pair
+    const sw = buildSwimmer(p, 7), k = sw.kin;
+    const tips = (t: number) => {
+      const blades = record(sw, t).parts.filter((q) => q.type === 'blade');
+      expect(blades.length).toBe(4);
+      return blades;
+    };
+    // the tips' height above the root, per flipper (order: fore left, fore right, hind left, hind right)
+    const lift = (t: number) => tips(t).map((q) => q.y[1]);
+    const a = lift(0.25 * k.cycle), b = lift(0.75 * k.cycle);
+    for (let i = 0; i < 4; i++) expect(Math.abs(a[i] - b[i]), `flipper ${i} flaps`).toBeGreaterThan(0.05 * p.fins.lateralSize * sw.L);
+    expect(Math.sign(a[0] - b[0])).toBe(Math.sign(a[1] - b[1])); // left and right beat together
+    let differs = false;
+    for (const t of [0, 0.2, 0.4, 0.6, 0.8].map((x) => x * k.cycle)) { const l = lift(t); if (Math.abs(l[0] - l[2]) > 0.02 * sw.L) differs = true; }
+    expect(differs, 'hind pair lags the fore pair').toBe(true);
   });
 
   it('silicon rowers beat in stepped 15° strokes', () => {

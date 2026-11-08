@@ -91,6 +91,19 @@ function blade(sink: SwimSink, type: SwimPart, o: V3, dir: V3, length: number, c
   sink.part(type, o, scl(x, chord), scl(y, length), scl(z, Math.max(chord, length) * 0.04), ca, cb, glow, tr);
 }
 
+/** Plesiosaur flipper: the fin part as a hydrofoil (thickness and camber scale with the chord, not squashed flat like a
+ *  fish fin). The left one runs its chord forward from the trailing edge so z = x × y points up on both sides: both
+ *  arch the same way with a right-handed basis. */
+function flipper(sink: SwimSink, root: V3, spanDir: V3, span: number, chordDir: V3, chord: number, sd: number, ca: PaletteKey, cb: PaletteKey) {
+  const y = norm(spanDir);
+  let x = sub(chordDir, scl(y, dot(chordDir, y)));
+  if (len(x) < 1e-6) x = cross(y, UP);
+  x = norm(x);
+  const o = sd > 0 ? root : add(root, scl(x, chord));
+  if (sd < 0) x = scl(x, -1);
+  sink.part('blade', o, scl(x, chord), scl(y, span), scl(cross(x, y), chord), ca, cb, 0, false);
+}
+
 function dotPart(sink: SwimSink, o: V3, r: number, glow: number, key: PaletteKey = 'glow') {
   sink.part('dot', o, [r, 0, 0], [0, r, 0], [0, 0, r], key, key, glow, false);
 }
@@ -127,10 +140,25 @@ function spineAt(sp: SpineS, u: number): { p: V3; T: V3; U: V3; R: V3 } {
   return { p, T, U, R: cross(T, U) };
 }
 
+/** Plesiosaur landmarks along the body (u): skull end, front girdle (neck end) and hind girdle (tail start). */
+export function plesioMarks(p: SwimmerParams): { head: number; fore: number; hind: number } {
+  const head = 0.07, fore = Math.min(0.6, head + p.neck), hind = Math.max(fore + 0.3, 1 - p.tailLen);
+  return { head, fore, hind };
+}
+
 /** Body radius profile 0..1 at u (0 nose, 1 tail). */
 function profile(p: SwimmerParams, u: number): number {
   const pk = p.peak;
   let r: number;
+  if (p.plan === 'plesiosaur') {
+    // snout → skull, a slim neck thickening into the shoulders, a barrel torso between the girdles, a tapering tail
+    const { head: hd, fore: nE, hind: tS } = plesioMarks(p);
+    if (u <= hd) return 0.42 * Math.sin((Math.PI / 2) * Math.min(1, u / (0.6 * hd))) ** 0.7;
+    if (u <= nE) { const x = (u - hd) / Math.max(1e-6, nE - hd); return 0.42 - 0.12 * ss(0, 0.25, x) + 0.25 * ss(0.65, 1, x); }
+    if (u <= tS) { const x = (u - nE) / Math.max(1e-6, tS - nE); return 0.55 + 0.45 * Math.sin(Math.PI * x) ** 0.6; }
+    const x = (u - tS) / Math.max(1e-6, 1 - tS);
+    return 0.52 * (1 - x) ** 1.1 + 0.03;
+  }
   if (p.plan === 'ribbon') r = Math.sin((Math.PI / 2) * cl(u / 0.07, 0, 1)) ** 0.7 * (1 - 0.72 * ss(0.5, 1, u));
   else if (u < pk) r = Math.sin((Math.PI / 2) * (u / pk)) ** (p.plan === 'fusiform' ? 0.8 : 0.55);
   else r = Math.cos((Math.PI / 2) * ((u - pk) / (1 - pk))) ** (p.plan === 'segmented' ? 0.55 : p.plan === 'fusiform' ? 1.25 : 0.85) * 0.93 + 0.07 * (1 - u);
@@ -144,7 +172,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
   const aspect = p.aspect * (1 + 0.08 * (jit() - 0.5));
   const P = { ...p, length: L, aspect };
   const kin = kinematics(P);
-  const ribbon = p.plan === 'ribbon';
+  const ribbon = p.plan === 'ribbon', plesio = p.plan === 'plesiosaur';
   const whip = p.tail === 'whip' ? 0.35 : 0;
   const NJ = ribbon ? 40 : 22, uMax = 1 + whip;
   const NR = ribbon ? 56 : 30;
@@ -172,6 +200,16 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
     const x = p.fins.lateral === 1 ? 0.5 : i / (p.fins.lateral - 1);
     return p.fins.lateral >= 3 ? 0.55 + 0.45 * Math.sin(Math.PI * (0.15 + 0.7 * x)) : 1;
   });
+  // plesiosaur flippers (static layout): the fore root chord starts at the front girdle, the hind one ends at the hind
+  // girdle, so both roots lie along the torso; inset inside the flank along the whole root chord, so no root shows a gap
+  const flippers = plesio ? (() => {
+    const mk = plesioMarks(P), torso = mk.hind - mk.fore, span = p.fins.lateralSize * L;
+    const cF = Math.min(0.17, 0.42 * torso), cH = Math.min(0.15, 0.42 * torso);
+    return [
+      { u: mk.fore + 0.02, chord: cF, span, lag: 0 },
+      { u: mk.hind - 0.02 - cH, chord: cH, span: 0.85 * span, lag: 0.3 },
+    ].map((f) => ({ u: f.u, chord: f.chord * L, span: f.span, lag: f.lag, inset: 0.8 * Math.min(rw(f.u), rw(f.u + f.chord)) }));
+  })() : [];
   const extent = L * (0.6 + p.head.feelerLen * (p.head.feelers > 0 ? 0.5 : 0)) + whip * L;
   const glowK = p.glow;
 
@@ -265,7 +303,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
         blade(sink, 'blade', at, dir, 0.035 * L, f.U, 0.02 * L, p.colour.accent, p.colour.body, glowK * 0.6, finTr);
       }
     }
-    for (let i = 0; i < (ribbon ? 0 : nl); i++) {
+    for (let i = 0; i < (ribbon || plesio ? 0 : nl); i++) {
       const lobes = nl >= 3;
       const u = lobes ? 0.16 + 0.66 * (nl === 1 ? 0.5 : i / (nl - 1)) : 0.2 + 0.25 * i;
       const f = spineAt(sp, u);
@@ -277,6 +315,21 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
         const dir = norm(add(add(scl(out, Math.cos(th)), scl(f.U, Math.sin(th))), scl(f.T, lobes ? -0.35 : -0.55)));
         const root = add(f.p, add(scl(f.R, sd * rw(u) * 0.85), scl(f.U, lobes ? -rh(u) * 0.2 : -rh(u) * 0.35)));
         blade(sink, 'blade', root, dir, size, scl(f.T, -1), lobes ? Math.max(spacing * 1.9, size * 0.8) : size * 0.6, p.colour.accent, p.colour.body, 0, finTr);
+      }
+    }
+    // plesiosaur flippers: four long hydrofoils rooted flush on the flanks at the girdles, flying underwater: each flaps
+    // up and down with a pitch twist a quarter cycle ahead of the flap, and the hind pair lags the fore pair
+    // (one stroke per stroke cycle, so the stroke rate follows the travel speed fauna.ts drives the phase with)
+    const stroke = 2 * Math.PI * kin.freq * t + ph * 2 * Math.PI;
+    for (const fl of flippers) {
+      const f = spineAt(sp, fl.u);
+      const a = stroke - 2 * Math.PI * fl.lag;
+      const flap = 0.6 * Math.sin(a) - 0.12, pitch = 0.45 * Math.cos(a); // leading edge down on the downstroke
+      for (const sd of [-1, 1]) {
+        const spanDir = norm(add(add(scl(f.R, sd * Math.cos(flap)), scl(f.U, Math.sin(flap))), scl(f.T, -0.3)));
+        const chordDir = rotate(scl(f.T, -1), spanDir, sd * pitch); // twist about the span axis
+        const root = add(f.p, add(scl(f.R, sd * fl.inset), scl(f.U, -rh(fl.u) * 0.15)));
+        flipper(sink, root, spanDir, fl.span, chordDir, fl.chord, sd, p.colour.accent, p.colour.body);
       }
     }
     // tail fins

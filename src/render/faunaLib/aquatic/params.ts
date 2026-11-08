@@ -8,8 +8,9 @@ import type { LookKey as PaletteKey } from '../../palette';
 
 export type Chemistry = 'carbon' | 'silicon';
 /** Axial (carbon): fusiform | ribbon | disc | segmented. Radial (silicon): radial (hub rower) | bell (one bell or a chain). */
-export type BodyPlanKind = 'fusiform' | 'ribbon' | 'disc' | 'segmented' | 'radial' | 'bell';
-export const AXIAL_PLANS: BodyPlanKind[] = ['fusiform', 'ribbon', 'disc', 'segmented'];
+export type BodyPlanKind = 'fusiform' | 'ribbon' | 'disc' | 'segmented' | 'plesiosaur' | 'radial' | 'bell';
+/** plesiosaur (app addition): a small head on a neck, a barrel torso flying on four long hydrofoil flippers, a short tail. */
+export const AXIAL_PLANS: BodyPlanKind[] = ['fusiform', 'ribbon', 'disc', 'segmented', 'plesiosaur'];
 export const RADIAL_PLANS: BodyPlanKind[] = ['radial', 'bell'];
 /** fork / lunate: two vertical blades; fan: three horizontal blade pairs (anomalocarid); whip: a long filament. */
 export type TailKind = 'none' | 'taper' | 'fork' | 'lunate' | 'fan' | 'whip';
@@ -30,6 +31,9 @@ export interface SwimmerParams {
   peak: number;
   /** 0 carangiform (rear-third tail beat) … 1 anguilliform (the whole body waves). Axial only. */
   undulation: number;
+  /** Plesiosaur: head-to-front-girdle length (the neck) and hind-girdle-to-tip length (the tail), each ÷ body length. */
+  neck: number;
+  tailLen: number;
   fins: {
     /** Pairs of lateral fins: 1–2 = pectoral paddles, ≥ 3 = a lobed fringe that ripples metachronally (anomalocarid). */
     lateral: number;
@@ -91,7 +95,7 @@ export interface SwimmerParams {
 }
 
 export const DEFAULT_PARAMS: SwimmerParams = {
-  chemistry: 'carbon', plan: 'fusiform', length: 1, aspect: 0.2, depth: 1.3, peak: 0.35, undulation: 0.4,
+  chemistry: 'carbon', plan: 'fusiform', length: 1, aspect: 0.2, depth: 1.3, peak: 0.35, undulation: 0.4, neck: 0.22, tailLen: 0.22,
   fins: { lateral: 1, lateralSize: 0.18, dorsal: 0.08, ventral: 0, fringe: 0 },
   tail: 'fork', tailSize: 0.3,
   head: { eyes: 2, eyeSize: 0.035, stalks: 0, feelers: 0, feelerLen: 0.4, mouth: 'none', crest: 0 },
@@ -130,6 +134,8 @@ export function normaliseParams(p: SwimmerParams): SwimmerParams {
   q.depth = cl(q.depth, 0.25, 4);
   q.peak = cl(q.peak, 0.1, 0.8);
   q.undulation = cl(q.undulation, 0, 1);
+  q.neck = cl(q.neck ?? DEFAULT_PARAMS.neck, 0.06, 0.45);
+  q.tailLen = cl(q.tailLen ?? DEFAULT_PARAMS.tailLen, 0.1, 0.4);
   q.fins.lateral = Math.round(cl(q.fins.lateral, 0, 14));
   q.fins.lateralSize = cl(q.fins.lateralSize, 0, 0.6);
   q.fins.dorsal = cl(q.fins.dorsal, 0, 0.4);

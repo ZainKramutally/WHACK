@@ -17,6 +17,7 @@ export interface AppBodyPlan {
   hubRadius: number;
   arms: { azimuthDeg: number; length: number }[];
   legPairs: number;
+  limbLength: number; // metres (0 without limbs)
   plateCover: number;
   hornCount: number;
   hornLength: number;
@@ -28,6 +29,9 @@ export interface AppBodyPlan {
   carapace: number;
   crest: number;
   jaw: number;
+  headScale: number; // axial: head size ÷ trunk, 0.75 … 2
+  gapeSize: number; // metres of mouth reach
+  tailSegments: number; // axial: beads behind the trunk
   tailKind: 'none' | 'taper' | 'whip' | 'fluke' | 'club';
   finSpan: number;
   flare: number;
@@ -50,6 +54,8 @@ const cl = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v
 
 /** Axial body plan kind from the plan's form traits (first match wins). */
 export function axialKind(p: AppBodyPlan): BodyPlanKind {
+  // two or more limb pairs with long limbs (or wide fins) fly underwater on four flippers
+  if (p.legPairs >= 2 && (p.limbLength >= p.scale || p.finSpan >= 0.7)) return 'plesiosaur';
   if (p.segmentCount >= 11 && p.girth < 0.6) return 'ribbon';
   if (p.plateCover >= 0.6 || p.carapace >= 0.6) return 'segmented'; // heavy armour rows on lobes; everything else swims like a fish
   if (p.flatten < 0.65 && p.girth >= 0.9) return 'disc';
@@ -135,7 +141,16 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
   p.undulation = cl((n - 4) / 10, 0, 1);
   // Fish-like by default (owner feedback): very small fins, all rooted on the body: a small dorsal, one small pectoral
   // pair just behind the head (none on eel ribbons), and a caudal fin from the tail kind. Heavy armour rows on small lobes.
-  p.fins = {
+  if (kind === 'plesiosaur') {
+    // a broad barrel on four long flippers that do the swimming (fringe: the body barely waves); no dorsal, a short tail
+    const limbRel = plan.limbLength / Math.max(1e-6, plan.scale);
+    p.aspect = cl(1.6 * section, 0.16, 0.3);
+    p.depth = cl(0.75 * plan.flatten, 0.55, 0.95);
+    p.undulation = 0.1;
+    p.fins = { lateral: 2, lateralSize: cl(0.22 + 0.1 * (limbRel - 1) + 0.08 * plan.finSpan, 0.22, 0.42), dorsal: 0, ventral: 0, fringe: 0.85 };
+    p.tail = 'taper';
+    p.tailSize = 0;
+  } else p.fins = {
     lateral: kind === 'segmented' ? cl(n - 2, 4, 13) : kind === 'ribbon' ? 0 : 1,
     lateralSize: kind === 'segmented' ? 0.06 + 0.06 * plan.finSpan : 0.05 + 0.05 * plan.finSpan,
     dorsal: (kind === 'ribbon' ? 0.03 + 0.06 * plan.crest : 0.04 + 0.05 * plan.crest) + (plan.dorsal === 'frills' ? 0.01 : 0),
@@ -143,8 +158,10 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
     fringe: kind === 'segmented' ? 0.85 : kind === 'ribbon' ? cl(0.2 + 0.6 * plan.crest, 0, 1) : 0,
   };
   const tails: Record<AppBodyPlan['tailKind'], TailKind> = { none: 'fork', taper: 'fork', whip: 'whip', fluke: 'lunate', club: 'fan' };
-  p.tail = kind === 'segmented' ? 'fan' : tails[plan.tailKind];
-  p.tailSize = 0.1 + 0.12 * plan.finSpan;
+  if (kind !== 'plesiosaur') {
+    p.tail = kind === 'segmented' ? 'fan' : tails[plan.tailKind];
+    p.tailSize = 0.1 + 0.12 * plan.finSpan;
+  }
   const grasp = plan.diet > 0.55 && plan.hornCount > 0;
   p.head = {
     eyes: plan.eyeKind === 'none' ? 0 : cl(plan.eyeCount, 0, 6),
