@@ -265,6 +265,18 @@ const list: Source[] = [
     doi: '10.1007/BF00002772',
     note: 'Crossref. Fixed nitrogen limits primary production in most ecosystems.',
   },
+  {
+    id: 'kiang2007',
+    citation: 'Kiang NY, Segura A, Tinetti G, Govindjee, Blankenship RE, Cohen M, Siefert J, Crisp D, Meadows VS (2007). Spectral signatures of photosynthesis. II. Coevolution with other stars and the atmosphere on extrasolar worlds. Astrobiology 7:252-274.',
+    doi: '10.1089/ast.2006.0108',
+    note: 'Abstract read: pigment colour follows the star\'s light (blue-peaking around F stars, red-orange around K, near-infrared around M). Nothing direct about G stars.',
+  },
+  {
+    id: 'dassarma2018',
+    citation: 'DasSarma S, Schwieterman EW (2018). Early evolution of purple retinal pigments on Earth and implications for exoplanet biosignatures. International Journal of Astrobiology 20:241-250.',
+    doi: '10.1017/S1473550418000423',
+    note: 'Abstract read: retinal pigments absorb green light (568 nm) where chlorophyll is weak, and may have come before chlorophyll ("Purple Earth" hypothesis).',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));
