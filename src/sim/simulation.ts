@@ -26,6 +26,8 @@ import { makeRng } from './rng';
 export const TICK_HZ = 20;
 export const TICK_DT = 1 / TICK_HZ;
 
+const ANNOUNCE_MEMBERS = 20; // implementation constant (DECISIONS §G.2 exempt): animals a cluster needs before it is announced as a species
+const ANNOUNCE_SEC = 20; // implementation constant (DECISIONS §G.2 exempt): ecology seconds it must hold that size
 const BAND_EVERY = 10; // implementation constant (DECISIONS §G.2 exempt): ticks between band refreshes used for edge stress (0.5 ecology s)
 const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): ticks before the same control may report "blocked" again while pinned at an edge
 const EPS = 1e-6; // implementation constant (DECISIONS §G.2 exempt): slack so float sums of frame times never lose a tick
@@ -117,8 +119,7 @@ export class WorldSimulation {
   private readonly seaLimited: boolean;
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
-  private readonly tracker = new FormTracker();
-  private readonly announcedForms = new Set<string>();
+  private readonly tracker = new FormTracker({ minMembers: ANNOUNCE_MEMBERS, persistSec: ANNOUNCE_SEC, distinctNames: true });
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
@@ -251,11 +252,9 @@ export class WorldSimulation {
     const summary = this.life.summary();
     const b = w.build;
 
-    // A field-guide bin is a functional type (its generated name), so a form is announced once per name for the whole
-    // run. The tracker alone also reports every new gene-space cluster of the same type as the population drifts.
-    for (const f of this.tracker.update(this.life.guideAnimals())) {
-      if (this.announcedForms.has(f.name)) continue;
-      this.announcedForms.add(f.name);
+    // A species is announced when a cluster of at least ANNOUNCE_MEMBERS animals has held for ANNOUNCE_SEC ecology seconds and
+    // matches no announced species' centroid (owner ruling 2026-11-08); every species gets its own name.
+    for (const f of this.tracker.update(this.life.guideAnimals(), this.ticks / TICK_HZ)) {
       this.events.push({ type: 'guide:newForm', ...f });
     }
 

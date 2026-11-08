@@ -199,14 +199,33 @@ interface Bin { id: number; centroid: Float64Array }
  * Clusters are matched to known bins by nearest stored centroid within FORM_RADIUS, so slow drift keeps the
  * same bin, and a form that dips below MIN_MEMBERS and returns does not fire again.
  */
+export interface TrackerOptions {
+  minMembers?: number;   // live animals a cluster needs before it can be announced (default MIN_MEMBERS)
+  persistSec?: number;   // and how long it must have held that size, in ecology seconds (default 0: announce at once)
+  distinctNames?: boolean; // give every announced form its own name (a qualifier word on collision)
+}
+
 export class FormTracker {
   private bins: Bin[] = [];
   private nextId = 1;
+  private pending: { centroid: Float64Array; since: number }[] = [];
+  private readonly used = new Set<string>();
+  private readonly minMembers: number;
+  private readonly persistSec: number;
+  private readonly distinct: boolean;
 
-  update(animals: readonly GuideAnimal[]): NewForm[] {
+  constructor(opts: TrackerOptions = {}) {
+    this.minMembers = opts.minMembers ?? MIN_MEMBERS;
+    this.persistSec = opts.persistSec ?? 0;
+    this.distinct = opts.distinctNames ?? false;
+  }
+
+  /** `nowSec` is the ecology clock; only needed when persistSec > 0. */
+  update(animals: readonly GuideAnimal[], nowSec = 0): NewForm[] {
     const out: NewForm[] = [];
     const byId = new Map(animals.map((a) => [a.id, a]));
-    const clusters = clusterForms(animals).filter((c) => c.members.length >= MIN_MEMBERS);
+    const clusters = clusterForms(animals).filter((c) => c.members.length >= this.minMembers);
+    const stillPending: { centroid: Float64Array; since: number }[] = [];
     for (const cl of clusters) { // ascending key → deterministic bin ids
       const v = fromCentroid(cl.centroid);
       let best: Bin | undefined;
@@ -216,11 +235,40 @@ export class FormTracker {
         if (d <= bestD && (!best || d < bestD)) { best = b; bestD = d; }
       }
       if (best) { best.centroid = v; continue; } // known form: follow its drift
+      let since = nowSec;
+      if (this.persistSec > 0) {
+        const prev = this.pending.find((q) => dist(v, q.centroid) <= FORM_RADIUS);
+        if (prev) since = prev.since;
+        if (nowSec - since < this.persistSec) { stillPending.push({ centroid: v, since }); continue; }
+      }
       const bin: Bin = { id: this.nextId++, centroid: v };
       this.bins.push(bin);
-      out.push({ binId: bin.id, name: nameForm(cl.centroid, cl.hint), organismId: representative(cl, v, byId) });
+      const base = nameForm(cl.centroid, cl.hint);
+      const name = this.distinct ? this.unique(base, cl.centroid) : base;
+      this.used.add(name);
+      out.push({ binId: bin.id, name, organismId: representative(cl, v, byId) });
     }
+    this.pending = stillPending;
     return out;
+  }
+
+  /** A name nobody has: the base name, else a trait qualifier ("Keen Glass Spoke"), else a numeral. */
+  private unique(base: string, c: FormCentroid): string {
+    if (!this.used.has(base)) return base;
+    const b = c.body;
+    const quals: string[] = [];
+    quals.push(b.size >= 0.5 ? 'Greater' : 'Lesser');
+    quals.push(b.sociality >= 0.5 ? 'Herd' : 'Lone');
+    quals.push(b.eyes >= 0.5 ? 'Keen' : 'Blind');
+    quals.push(b.limbLen >= 0.5 ? 'Long' : 'Short');
+    quals.push(b.diet >= 0.35 ? 'Stalking' : 'Grazing');
+    quals.push(b.gape >= 0.5 ? 'Gaping' : 'Narrow');
+    for (const q of quals) if (!this.used.has(`${q} ${base}`)) return `${q} ${base}`;
+    for (let i = 0; i < quals.length; i++) for (let j = i + 1; j < quals.length; j++) {
+      const n = `${quals[i]} ${quals[j]} ${base}`;
+      if (!this.used.has(n)) return n;
+    }
+    for (let k = 2; ; k++) if (!this.used.has(`${base} ${k}`)) return `${base} ${k}`;
   }
 
   /** Number of forms announced so far. */

@@ -40,6 +40,36 @@ describe('clusterForms', () => {
   });
 });
 
+describe('FormTracker discovery (owner ruling 2026-11-08)', () => {
+  const opts = { minMembers: 20, persistSec: 20, distinctNames: true };
+  it('announces a cluster only after it has held 20 members for 20 s', () => {
+    const t = new FormTracker(opts);
+    const all = group(1, 25, carbonWorm);
+    expect(t.update(all.slice(0, 10), 0)).toEqual([]);
+    expect(t.update(all, 5)).toEqual([]);
+    expect(t.update(all, 24)).toEqual([]);
+    expect(t.update(all, 25)).toHaveLength(1);
+    expect(t.update(all, 60)).toEqual([]);
+  });
+  it('restarts the clock when the cluster falls below the size', () => {
+    const t = new FormTracker(opts);
+    const all = group(1, 25, carbonWorm);
+    t.update(all, 0);
+    t.update(all.slice(0, 5), 10);
+    expect(t.update(all, 25)).toEqual([]);
+    expect(t.update(all, 45)).toHaveLength(1);
+  });
+  it('gives two forms of the same type different names', () => {
+    const t = new FormTracker(opts);
+    const a = group(1, 25, carbonWorm);
+    const b = group(100, 25, genome({ size: 0.5, sociality: 0.1, eyes: 0.9, limbLen: 0.9 }));
+    t.update([...a, ...b], 0);
+    const out = t.update([...a, ...b], 30);
+    expect(out).toHaveLength(2);
+    expect(new Set(out.map((f) => f.name)).size).toBe(2);
+  });
+});
+
 describe('FormTracker', () => {
   it('fires once when a cluster reaches 4, not before, not on re-entry', () => {
     const t = new FormTracker();
