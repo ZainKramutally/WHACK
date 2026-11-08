@@ -59,6 +59,7 @@ Each world is procedurally generated from its seed. The three sliders set the st
 | Nitrogen | 1 × Earth's by default | 1 × | Set by the Nitrogen slider. Life needs it for proteins and DNA. |
 | Main gas | Nitrogen | Nitrogen | Unreactive bulk gas that persists over billions of years. |
 | Carbon dioxide | Starts about 0.25%, rises slightly during the build, then holds steady | about 0.04% | Drawn down by photosynthesis, returned by consumers and by plant respiration and decay, which nearly cancel once life settles (`assumption: true`). |
+| Sea cover | About 74% by default (ironstone, 15 °C); 25–97% by rock pick and temperature | about 71% | A seeded base, plus basalt freeboard: no granite continents gives an ocean world of islands, up to 97% on basalt. Plus an ice term from the Temperature setpoint (−15 points at −50 °C, +5 at 60 °C), eased at 3 points/s (`seaFreeboard` model, `assumption: true`, #82). |
 | Solvent | Water | Water | Liquid over a wide temperature range and dissolves many carbon compounds. |
 | Star | Sun-like | The Sun | The reference. |
 | Pace of chemistry | 1 × Earth | 1 | The reference. |
