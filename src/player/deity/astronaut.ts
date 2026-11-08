@@ -41,7 +41,7 @@ function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 /** A ring (torus) of major radius r about `axis`, centred at c. */
 function ring(c: THREE.Vector3, axis: THREE.Vector3, r: number, hex: number): THREE.BufferGeometry {
-  const g = new THREE.TorusGeometry(r, K.ringT * S * 0.75, 8, 24);
+  const g = new THREE.TorusGeometry(r, K.ringT * S * 0.75, 12, 36);
   g.applyMatrix4(new THREE.Matrix4().compose(c, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis.clone().normalize()), new THREE.Vector3(1, 1, 1)));
   return paint(g, hex);
 }
@@ -68,11 +68,11 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
 
   // ---- body: torso, shoulder and hip collars, neck seal, backpack (pelvis space, merged) ----
   const bp: THREE.BufferGeometry[] = [];
-  const torso = new RoundedBoxGeometry(tw * 2, th * 2, td * 2, 4, K.torsoCorner * Math.min(tw, th, td));
+  const torso = new RoundedBoxGeometry(tw * 2, th * 2, td * 2, 7, Math.min(tw, th, td) * 0.97); // nearly a pill
   torso.translate(0, th, 0);
   bp.push(paint(torso, SUIT));
   const packC = new THREE.Vector3(0, th * 1.1, td + 0.75 * K.packD * S);
-  const pack = new RoundedBoxGeometry(K.packW * S * 2, K.packH * S * 2, K.packD * S * 2, 4, K.packRound * Math.min(K.packW, K.packH, K.packD) * S);
+  const pack = new RoundedBoxGeometry(K.packW * S * 2, K.packH * S * 2, K.packD * S * 2, 6, 0.9 * Math.min(K.packW, K.packH, K.packD) * S);
   pack.translate(packC.x, packC.y, packC.z);
   bp.push(paint(pack, PACK));
   for (const s of [-1, 1]) {
@@ -100,20 +100,32 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
     return o;
   });
 
-  // ---- legs: one bone each, hanging along -y; tube, hip/ankle cuffs, boot toes toward -z ----
+  // ---- legs: thigh (hip → knee) and shin + boot (knee → sole); the knee pivot sits a little below halfway ----
   const legs: THREE.Group[] = [];
+  const knees: THREE.Group[] = [];
+  const L = hipHeight, kneeY = -0.55 * L, bootRy = 0.07;
+  const sphereAt = (r: number, y: number, hex: number) => paint(new THREE.SphereGeometry(r, 20, 14).translate(0, y, 0), hex);
   for (const s of [-1, 1]) {
     const leg = new THREE.Group();
     leg.position.set(s * hipHalfWidth, 0, 0);
-    const L = hipHeight, bootH = 1.75 * K.bootH * S;
-    const tube = new THREE.CylinderGeometry(legR, legR * K.legTaper, L - bootH * 0.6, 14, 1);
-    tube.translate(0, -(L - bootH * 0.6) / 2, 0);
-    const boot = new RoundedBoxGeometry(K.bootW * S * 2.2, bootH, K.bootL * S * 2.6, 3, bootH * 0.4);
-    boot.translate(0, -L + bootH / 2, -K.bootL * S * 0.35);
-    const cuff = ring(new THREE.Vector3(0, -L + bootH + 0.01, 0), new THREE.Vector3(0, 1, 0), legR * K.legTaper * 1.2, GEAR);
-    leg.add(new THREE.Mesh(keepG(merge([paint(tube, SUIT), paint(boot, INK), cuff])), suitMat));
+    const kneeR = legR * 0.96;
+    const thigh = new THREE.CylinderGeometry(legR, kneeR, -kneeY, 16, 1);
+    thigh.translate(0, kneeY / 2, 0);
+    leg.add(new THREE.Mesh(keepG(merge([paint(thigh, SUIT), sphereAt(kneeR, kneeY, SUIT)])), suitMat));
+    const knee = new THREE.Group();
+    knee.position.set(0, kneeY, 0);
+    leg.add(knee);
+    const shinLen = L + kneeY - bootRy * 0.8; // knee → ankle
+    const shin = new THREE.CylinderGeometry(kneeR, legR * K.legTaper, shinLen, 16, 1);
+    shin.translate(0, -shinLen / 2, 0);
+    const boot = new THREE.SphereGeometry(1, 24, 16);
+    boot.scale(legR * 1.4, bootRy, K.bootL * S * 1.55);
+    boot.translate(0, -(L + kneeY) + bootRy, -K.bootL * S * 0.55);
+    const cuff = ring(new THREE.Vector3(0, -shinLen, 0), new THREE.Vector3(0, 1, 0), legR * K.legTaper * 1.12, GEAR);
+    knee.add(new THREE.Mesh(keepG(merge([paint(shin, SUIT), paint(boot, INK), cuff])), suitMat));
     pelvis.add(leg);
     legs.push(leg);
+    knees.push(knee);
   }
 
   // ---- head: helmet sphere + ink visor, child of pose (attached to the body by the animator) ----
@@ -121,17 +133,17 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   head.position.set(0, headRestY, 0);
   pose.add(head);
   const visorRx = headR * 0.8, visorRy = headR * 0.6, visorRz = headR * 0.62, visorCz = -headR * 0.46;
-  const visor = new THREE.SphereGeometry(1, 28, 20);
+  const visor = new THREE.SphereGeometry(1, 40, 28);
   visor.scale(visorRx, visorRy, visorRz);
   visor.translate(0, headR * 0.02, visorCz);
-  head.add(new THREE.Mesh(keepG(merge([paint(new THREE.SphereGeometry(headR, 40, 28), SUIT), paint(visor, INK)])), suitMat));
+  head.add(new THREE.Mesh(keepG(merge([paint(new THREE.SphereGeometry(headR, 56, 40), SUIT), paint(visor, INK)])), suitMat));
 
   const eyes: THREE.Object3D[] = [];
   const eyeX = headR * 0.24, eyeY = headR * 0.04;
   const eyeZ = visorCz - visorRz * Math.sqrt(Math.max(0.01, 1 - (eyeX / visorRx) ** 2 - ((eyeY - headR * 0.02) / visorRy) ** 2));
   for (const s of [-1, 1]) {
-    const g = keepG(new THREE.CapsuleGeometry(headR * 0.085, headR * 0.2, 4, 10));
-    g.scale(1, 1, 0.4);
+    const g = keepG(new THREE.SphereGeometry(headR * 0.115, 24, 16));
+    g.scale(1, 1, 0.3); // a round disc on the visor curve
     const e = new THREE.Mesh(g, eyeMat);
     e.position.set(s * eyeX, eyeY, eyeZ + 0.002);
     head.add(e);
@@ -144,7 +156,7 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   for (const s of [-1, 1]) {
     const h = new THREE.Group();
     h.position.set(s * handRest[0], handRest[1], handRest[2]);
-    const mitt = new THREE.SphereGeometry(mittR, 20, 14);
+    const mitt = new THREE.SphereGeometry(mittR, 32, 22);
     const cuff = ring(new THREE.Vector3(0, mittR * 0.72, 0), new THREE.Vector3(0, 1, 0), mittR * 0.82, GEAR);
     h.add(new THREE.Mesh(keepG(merge([paint(mitt, SUIT), cuff])), suitMat));
     pose.add(h);
@@ -153,10 +165,10 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
 
   // ---- arms: two tubes per side (shoulder → elbow → mitt), refit by update() ----
   const armGeo = keepG(paint(new THREE.CylinderGeometry(1, 1, 1, 12, 1).translate(0, 0.5, 0), SUIT));
-  const L1 = (K.armLen * S) * 0.51, L2 = (K.armLen * S) * 0.49;
+  const L1 = (K.armLen * S) * 0.51, L2 = (K.armLen * S) * 0.49, reach = L1 + L2;
   const tubes = [0, 1].map(() => [new THREE.Mesh(armGeo, suitMat), new THREE.Mesh(armGeo, suitMat)] as const);
   for (const [a, b] of tubes) { a.scale.set(armR, 1, armR); b.scale.set(armR * 0.93, 1, armR * 0.93); pose.add(a, b); }
-  const sh = new THREE.Vector3(), hd = new THREE.Vector3(), el = new THREE.Vector3(), d = new THREE.Vector3(), pole = new THREE.Vector3();
+  const sh = new THREE.Vector3(), hd = new THREE.Vector3(), el = new THREE.Vector3(), end = new THREE.Vector3(), d = new THREE.Vector3(), pole = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
   const fit = (m: THREE.Mesh, from: THREE.Vector3, to: THREE.Vector3, r: number) => {
     d.subVectors(to, from);
@@ -174,27 +186,30 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
       d.subVectors(hd, sh);
       const dist = d.length();
       d.multiplyScalar(1 / Math.max(dist, 1e-4));
-      // elbow: back (+z) and a little outward, perpendicular to the shoulder-mitt line; reach scales with K's elbowBend
-      pole.set(s * 0.35, 0, 1); pole.addScaledVector(d, -pole.dot(d));
+      // two-bone IK with fixed bone lengths: past reach the tube end is clamped (the mitt detaches), never stretched
+      const dc = Math.min(Math.max(dist, 0.02), reach);
+      const a = (L1 * L1 - L2 * L2 + dc * dc) / (2 * dc);
+      const h = Math.sqrt(Math.max(L1 * L1 - a * a, 0));
+      pole.set(s * 0.35, 0, 1); pole.addScaledVector(d, -pole.dot(d)); // elbow back and a little outward
       if (pole.lengthSq() < 1e-6) pole.set(0, 0, 1);
       pole.normalize();
-      const reach = L1 + L2, half = Math.min(dist, reach) / 2;
-      const h = Math.sqrt(Math.max((reach / 2) ** 2 - half * half, 0)) * (0.5 + K.elbowBend);
-      el.copy(sh).addScaledVector(d, dist / 2).addScaledVector(pole, h);
+      el.copy(sh).addScaledVector(d, a).addScaledVector(pole, h);
+      end.copy(sh).addScaledVector(d, dc);
       fit(tubes[i][0], sh, el, armR);
-      fit(tubes[i][1], el, hd, armR * 0.93);
+      fit(tubes[i][1], el, end, armR * 0.93);
     });
   };
 
   const dims: DeityDims = {
     height: S, hipHeight, hipHalfWidth, legLength: hipHeight, bodyHeight, bodyRadius: tw, headRadius: headR,
     headGap: headRestY - headR - bodyTop, headRestY, handRest, handRadius: mittR, eyeLook: 0.04,
+    shoulder: [shoulderX, hipHeight + shoulderY, 0], armReach: reach,
   };
   update();
 
   return {
     root, pose, pelvis, body,
-    legs: [legs[0], legs[1]], head, eyes: [eyes[0], eyes[1]], hands: [hands[0], hands[1]],
+    legs: [legs[0], legs[1]], knees: [knees[0], knees[1]], head, eyes: [eyes[0], eyes[1]], hands: [hands[0], hands[1]],
     extras: [], dims, headAttached: true, update,
     dispose() {
       for (const g of geos) g.dispose();

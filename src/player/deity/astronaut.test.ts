@@ -27,8 +27,8 @@ describe('astronaut rig', () => {
   });
 
   it('update() fits the arm tubes between shoulder and mitt', () => {
-    rig.hands[1].position.set(0.5, 0.9, -0.4); // an animated, far-reaching mitt
-    rig.hands[0].position.set(-0.3, 0.3, 0.1);
+    rig.hands[1].position.set(0.4, 0.75, -0.15); // animated mitts, within reach
+    rig.hands[0].position.set(-0.3, 0.45, 0.1);
     rig.update!();
     rig.root.updateMatrixWorld(true);
     const tubes = rig.pose.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.parent === rig.pose && c !== undefined && !rig.hands.includes(c as never) && (c as THREE.Mesh).scale.y !== 1 || false);
@@ -43,6 +43,34 @@ describe('astronaut rig', () => {
       expect(end(fore).distanceTo(rig.hands[h].position)).toBeLessThan(0.01);
       expect(end(upper).distanceTo(fore.position)).toBeLessThan(0.01);
     }
+  });
+
+  it('has knees under the legs, and the shin carries the boot to y = 0', () => {
+    expect(rig.knees).toBeDefined();
+    rig.knees!.forEach((k, i) => {
+      expect(k.parent).toBe(rig.legs[i]);
+      expect(k.position.y).toBeLessThan(-rig.dims.legLength / 2);
+    });
+    rig.root.updateMatrixWorld(true);
+    for (const k of rig.knees!) expect(new THREE.Box3().setFromObject(k).min.y).toBeCloseTo(0, 2);
+  });
+
+  it('shoulder and armReach match the geometry; past reach the tube end clamps', () => {
+    const { shoulder, armReach } = rig.dims;
+    const sh = new THREE.Vector3(...shoulder!);
+    const w = rig.body.children[1].getWorldPosition(new THREE.Vector3());
+    rig.pose.worldToLocal(w);
+    expect(w.distanceTo(sh)).toBeLessThan(0.01);
+    rig.hands[1].position.copy(sh).add(new THREE.Vector3(0, -armReach!, 0)); // fully stretched, straight down
+    rig.update!();
+    rig.root.updateMatrixWorld(true);
+    const tubes = rig.pose.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.scale.y !== 1);
+    const fore = tubes[3];
+    const tip = new THREE.Vector3(0, 1, 0).applyMatrix4(fore.matrix);
+    expect(tip.distanceTo(rig.hands[1].position)).toBeLessThan(0.01);
+    rig.hands[1].position.y -= 0.5; // beyond reach
+    rig.update!();
+    expect(new THREE.Vector3(0, 1, 0).applyMatrix4(fore.matrix).distanceTo(sh)).toBeCloseTo(armReach!, 2);
   });
 
   it('disposes without throwing', () => {
