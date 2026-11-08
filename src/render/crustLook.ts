@@ -172,9 +172,11 @@ export function blendFamilies(crust: CrustMix, weights: number[], rust: number):
   const fw = norm(fams.map((f, i) => (w[i] * f.floraWeight) ** 2));
   const minElev = Math.min(...crust.elevation);
   const sw = norm(crust.elevation.map((e, i) => w[i] * Math.max(0, 1 - (e - minElev) / 0.4)));
+  // squared, like the flora: the dominant rock sets the palette (a 70% iron crust reads as the Red World, not a 70/30 blend)
+  const rw = norm(w.map((x) => x * x));
   const family = { floraWeight: 1 } as Family;
   for (const k of FAM_KEYS) {
-    const ws = k.startsWith('flora') ? fw : k === 'sea' ? sw : w;
+    const ws = k.startsWith('flora') ? fw : k === 'sea' ? sw : rw;
     family[k] = labMean(fams.map((f, i) => ({ hex: f[k], w: ws[i] })));
   }
   return { family, weights: w, seaWeights: sw };

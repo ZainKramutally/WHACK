@@ -162,6 +162,12 @@ describe('iron-rich and volcanic worlds', () => {
     for (const c of [rock.red, rock.shadow, rock.haze, rock.skyHorizon, crustFloraTint(i as never)!.crimson]) expect(redHue(c), c.toString(16)).toBe(true);
     expect(LOOK_PALETTES.carbon.red).toBe(MINERAL_LOOK.ironstone[1]!.red);
   });
+  it('Iron-rich at rust 1 is the Red World: rock red near e8331f, shadow near 5a1040', () => {
+    const rock = crustRock(inputsFor(ironW, 40), 0, 0, 1)!;
+    const d = (a: number, b: number) => { const x = hexToLab(a), y = hexToLab(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+    expect(d(rock.red, 0xe8331f)).toBeLessThan(0.08);
+    expect(d(rock.shadow, 0x5a1040)).toBeLessThan(0.08);
+  });
   it('ironstone flora stays red through the pigment ratchet, never green', () => {
     const t = crustFloraTint(inputsFor(ironW, 40) as never)!;
     const c = floraPigment(LOOK_PALETTES.carbon, false, 1, t).crimson;
