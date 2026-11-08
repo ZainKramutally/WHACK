@@ -294,8 +294,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     total: (c) => (inputs.flora[c * 2] ?? 0) + (inputs.flora[c * 2 + 1] ?? 0),
   };
   /** The gated archetype for a plant at its own ground height (its base pick when no gate holds). */
-  const gated = (key: string | null, role: FloraRole, c: number, y: number) =>
-    key && gates[role].length ? gateKey(key, gates[role], c, y, sea, probe) : key;
+  const gated = (key: string | null, role: FloraRole, c: number, y: number, h: number) =>
+    key && gates[role].length ? gateKey(key, gates[role], c, y, sea, probe, h) : key;
   const seaForms: (FloraForm | undefined)[] = new Array(cells);
   const seaForm = (c: number): FloraForm => {
     let f = seaForms[c];
@@ -336,7 +336,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const y = yAt(x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
-        push(gated(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), 'giant', c, y), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
+        push(gated(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), 'giant', c, y, hash01(c, 0, 18)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
       } else if (pass === 1) {
         // the aquatic mid slot (A5 kelp, A8 whisker reef): one per lush submerged cell in the grove field, inside its
         // depth window and sized to the water; before land life too (life starts in the shallows)
@@ -345,7 +345,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const d = Math.hypot(x - cam.x, z - cam.z);
           if (!cleared(x, z, 0) && hash01(c, 7, 46) < 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) {
             const y = yAt(x, z), depth = sea - y;
-            if (depth >= aquatic.depth[0] && depth <= aquatic.depth[1]) push(aquatic.key, x, z, depth, hash01(c, 7, 45) * 6.283, 'mid', d, false, seaForm(c).glow, y, c, GROUND_SLOT - MID_SLOT, sea + aquatic.top);
+            const aq = depth <= aquatic.depth[1] || !aquatic.deep ? aquatic : aquatic.deep;
+            if (depth >= aq.depth[0] && depth <= aq.depth[1]) push(aq.key, x, z, depth, hash01(c, 7, 45) * 6.283, 'mid', d, false, seaForm(c).glow, y, c, GROUND_SLOT - MID_SLOT, sea + aq.top);
           }
         }
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
@@ -360,7 +361,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
           const y = yAt(x, z);
           if (y < sea) continue;
-          push(gated(pickPlant(tall, 'mid', bright, hash01(c, k, 23), hb, hash01(c, k, 27), env.dense), 'mid', c, y), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
+          push(gated(pickPlant(tall, 'mid', bright, hash01(c, k, 23), hb, hash01(c, k, 27), env.dense), 'mid', c, y, hash01(c, k, 28)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
         }
       } else {
         const dc = Math.hypot(ccx - cam.x, ccz - cam.z);
@@ -380,7 +381,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const under = y < sea;
           if (!under && !inputs.lifeOnLand) continue;
           const f = under ? seaForm(c) : form;
-          push(gated(pickPlant(f, 'ground', bright, hash01(c, k, 34), hb, 0.5, env.dense), 'ground', c, y), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
+          push(gated(pickPlant(f, 'ground', bright, hash01(c, k, 34), hb, 0.5, env.dense), 'ground', c, y, hash01(c, k, 37)), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
         }
       }
     }

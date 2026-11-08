@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { makeStubVisualInputs } from '../visualInputs';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_INDEX, ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, type FloraLibrary } from './index';
-import { AIR_EARTH, GATES, SHORE_BAND, activeGates, aquaticFor, supplySi, worldEnv } from './gates';
+import { AIR_EARTH, GATES, MARGIN_BAND, SHORE_BAND, activeGates, aquaticFor, supplySi, worldEnv } from './gates';
 import { makePlantList, placePlants, type PlantShapes } from './place';
 import { countDraws } from './buckets';
 import { createTerrain, seaLevelForCover, spawnPoint } from '../../gen/terrain';
@@ -93,13 +93,14 @@ describe('gated archetypes', () => {
     expect(on({ temperature: -1 })).toContain('cushion');
   });
 
-  it('A5 kelp tops float at the sea surface and A8 reef tops stay under it; no other mid stands in the sea', () => {
+  it('A5 kelp tops float at the sea surface; A8 reef and S4 glass-kelp tops stay under it; no other mid stands in the sea', () => {
     const sh = shapesOf();
-    for (const [inp, key, lo, hi] of [[shore({}), 'bladderKelp#0', -0.5, 0.5], [siShore(), 'whiskerReef#0', -Infinity, 0]] as const) {
-      const l = placed(inp, sh);
+    for (const [inp, key, lo, hi] of [[shore({}), 'bladderKelp#0', -0.5, 0.5], [siShore(), 'whiskerReef#0', -Infinity, 0], [siShore(), 'glassKelp#0', -Infinity, 0]] as const) {
+      const l = placed(inp, sh), aquatic = new Set(['bladderKelp#0', 'whiskerReef#0', 'glassKelp#0']);
       let n = 0;
       for (let i = 0; i < l.n; i++) {
         const k = keyOf(l, i), a = lib.archetypes[l.arch[i]];
+        if (aquatic.has(k) && k !== key) continue;
         if (k === key) {
           n++;
           const top = l.y[i] - 0.03 * l.h[i] - l.sink[i] + (a.height / a.size) * l.h[i];
@@ -125,6 +126,51 @@ describe('gated archetypes', () => {
     expect(thin.w).toBeGreaterThan(0);
     expect(thick.k).toBeGreaterThan(0);
     expect(thick.w).toBe(0);
+  });
+
+  it('S1 nitride crowns replace druse clusters only on the dry sea margin (0–2.5 m above the sea, shoreline cells)', () => {
+    const l = placed(siShore());
+    let n = 0;
+    for (let i = 0; i < l.n; i++) {
+      const k = keyOf(l, i);
+      if (k === 'nitrideCrown#0') { n++; expect(l.y[i]).toBeGreaterThanOrEqual(MARGIN_BAND[0]); expect(l.y[i]).toBeLessThanOrEqual(MARGIN_BAND[1]); }
+    }
+    expect(n).toBeGreaterThan(0);
+    const c = placed(shore({}));
+    for (let i = 0; i < c.n; i++) expect(keyOf(c, i)).not.toBe('nitrideCrown#0');   // silicon only
+  });
+
+  it('S5 lantern bulbs take half the land tile crusts only in the dark (light < DARK_BELOW)', () => {
+    const count = (inp: VisualInputs) => { const l = placed(inp); let lan = 0, tile = 0; for (let i = 0; i < l.n; i++) { const k = keyOf(l, i); if (k === 'lanternBulb#0') { lan++; expect(l.y[i]).toBeGreaterThanOrEqual(inp.seaLevel); } if (k === 'crystalGround#1' && l.y[i] >= inp.seaLevel) tile++; } return { lan, tile }; };
+    const dark = count(siShore()), lit = count(siShore({ light: 0.2 }));
+    expect(dark.lan).toBeGreaterThan(0);
+    expect(dark.tile).toBeGreaterThan(0);                // the share leaves the crusts beside them
+    expect(lit.lan).toBe(0);
+  });
+
+  it('S2 lace fans and S3 air-plankton rafts take the shard mids only in air ≥ 5 × Earth density', () => {
+    const mids = (air: number) => { const l = placed(siShore({ airDensity: air * AIR_EARTH, seaLevel: -9 })); const k: Record<string, number> = {}; for (let i = 0; i < l.n; i++) k[keyOf(l, i)] = (k[keyOf(l, i)] ?? 0) + 1; return k; };
+    const thick = mids(10.8), thin = mids(4);
+    expect(thick['laceFan#0']).toBeGreaterThan(0);
+    expect(thick['airPlankton#0']).toBeGreaterThan(0);
+    expect(thick['shardTree#2']).toBeUndefined();        // lace takes every basalt column
+    expect(thick['shardTree#1']).toBeGreaterThan(0);     // plankton takes only half the pod shards
+    expect(thin['laceFan#0']).toBeUndefined();
+    expect(thin['airPlankton#0']).toBeUndefined();
+  });
+
+  it('S4 glass kelp grows only in silicon water 4–12 m deep; whisker reefs keep the 1–4 m shallows', () => {
+    const l = placed(siShore());
+    let g = 0, r = 0;
+    for (let i = 0; i < l.n; i++) {
+      const k = keyOf(l, i), d = -l.y[i];
+      if (k === 'glassKelp#0') { g++; expect(d).toBeGreaterThanOrEqual(4); expect(d).toBeLessThanOrEqual(12.5); }
+      if (k === 'whiskerReef#0') { r++; expect(d).toBeLessThanOrEqual(4.5); }
+    }
+    expect(g).toBeGreaterThan(0);
+    expect(r).toBeGreaterThan(0);
+    const frozen = placed(siShore({ frozen: true }));
+    for (let i = 0; i < frozen.n; i++) expect(keyOf(frozen, i)).not.toBe('glassKelp#0');
   });
 
   // The doc's worst cases (flora-traits §9.2) on a uniform canopy-rich shore (capped/cup forms everywhere, sea and land)
@@ -203,12 +249,12 @@ describe('gated archetypes', () => {
     }
   });
 
-  it('draw budget: silicon thick air + submerged reefs + supply ferns ≤ 33 draws, < 4.5M tris, nothing dropped', () => {
+  it('draw budget: silicon thick air + reefs + glass kelp + supply ferns + every §2b archetype ≤ 33 draws, < 4.5M tris, nothing dropped', () => {
     const inp = siShore({ seaLevel: -3 }), f = inp.flora;
     for (let c = 0; c < 4096; c++) { f[c * 2] = 0.6; f[c * 2 + 1] = 1; }
     const l = placed(inp, shapesOf());
     const keys = new Set(Array.from(l.arch.subarray(0, l.n), (a) => ARCHETYPE_KEYS[a]));
-    for (const k of ['airKelpFloat#0', 'whiskerReef#0', 'frostFern#0']) expect(keys.has(k), k).toBe(true);
+    for (const k of ['airKelpFloat#0', 'whiskerReef#0', 'frostFern#0', ...SI_ONLY]) expect(keys.has(k), k).toBe(true);
     const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
     expect(d.draws).toBeLessThanOrEqual(33);
     expect(d.triangles).toBeLessThan(4.5e6);
@@ -221,28 +267,45 @@ describe('gated archetypes', () => {
   it.each([
     ['carbon (defaults: mangrove, kelp)', carbon, 1, 0.06, 0.38, {}],
     ['carbon, cold and nitrogen-poor (pitcher, rosette, cushion, kelp)', carbon, 1, 0.06, 0.26, { temperature: -5, nitrogen: 0.2 }],
-    ['silicon (defaults: reef, fern, air float)', silicon, 0.016, 0.65, 0.6, {}],
+    ['silicon (defaults: reef, glass kelp, fern, crown, lantern, lace, plankton, air float)', silicon, 0.016, 0.65, 0.6, {}],
   ] as [string, WorldConfig, number, number, number, Record<string, number>][])('draw ceiling: a mixed %s world on its demo terrain ≤ 45 draws, < 4.5M tris, nothing dropped', (_id, world, light, air, heatBand, over) => {
-    const terrain = createTerrain(world.terrain, world.demoSeed);
-    const T = over.temperature ?? world.startDefaults.temperature;
-    const hs = Math.min(1, Math.max(0, 0.5 + (T - world.solvent.freezeC) / world.terrain.heatSolventSpan));
-    const st = { rise: 1, heatSolvent: hs, progress: Object.fromEntries(world.terrain.machines.map((m) => [m.id, 1])) };
-    const sea = seaLevelForCover(terrain, st, (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200);
-    const flora = new Float32Array(64 * 64 * 2);
-    for (let c = 0; c < 4096; c++) { const mixed = ((c % 64) + Math.floor(c / 64)) % 2 === 0; flora[c * 2] = mixed ? 0.7 : 1; flora[c * 2 + 1] = mixed ? 0.5 : 0.05; }
-    const stub = makeStubVisualInputs();
-    const inp: VisualInputs = {
-      ...stub, flora, lifeOnLand: true, light, airDensity: air, heatBand, heatSolvent: hs, seaLevel: sea,
-      world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition },
-      stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
-      terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH },
-    };
-    const sp = spawnPoint(terrain, st, sea);
-    const l = placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf());
+    const l = demoWorld(world, light, air, heatBand, over);
     const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
     console.log(`${_id} mixed world: ${d.draws} draws`, JSON.stringify(Object.fromEntries(Object.entries(d.byRole).map(([r, v]) => [r, v.draws]))), `${(d.triangles / 1e6).toFixed(2)}M tris`);
     expect(d.draws).toBeLessThanOrEqual(45);
     expect(d.triangles).toBeLessThan(4.5e6);
     expect(d.dropped).toBe(0);
   });
+
+  it('§2b: at least 2 silicon-only archetypes grow on the default silicon demo seed (−183 °C, default N, thick air, dim)', () => {
+    const l = demoWorld(silicon, 0.016, 0.65, 0.6, {});
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < l.n; i++) { const k = keyOf(l, i); if (SI_ONLY.includes(k)) counts[k] = (counts[k] ?? 0) + 1; }
+    console.log('silicon demo seed, §2b archetypes:', JSON.stringify(counts));
+    expect(Object.keys(counts).length).toBeGreaterThanOrEqual(2);
+  });
 });
+
+const SI_ONLY = ['nitrideCrown#0', 'lanternBulb#0', 'laceFan#0', 'airPlankton#0', 'glassKelp#0'];
+
+// A realistic mixed world (team-lead ruling): the demo terrain with its sea, a checkerboard of mat-dominant and mixed
+// cells (tufts, domes and crusts beside groves and giants, on land, on the shore and under the sea), default stats.
+// Three pick lists meet in one carbon world, so its ground cover alone takes 18 draws: the ceiling is 45, not 33.
+function demoWorld(world: WorldConfig, light: number, air: number, heatBand: number, over: Record<string, number>) {
+  const terrain = createTerrain(world.terrain, world.demoSeed);
+  const T = over.temperature ?? world.startDefaults.temperature;
+  const hs = Math.min(1, Math.max(0, 0.5 + (T - world.solvent.freezeC) / world.terrain.heatSolventSpan));
+  const st = { rise: 1, heatSolvent: hs, progress: Object.fromEntries(world.terrain.machines.map((m) => [m.id, 1])) };
+  const sea = seaLevelForCover(terrain, st, (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200);
+  const flora = new Float32Array(64 * 64 * 2);
+  for (let c = 0; c < 4096; c++) { const mixed = ((c % 64) + Math.floor(c / 64)) % 2 === 0; flora[c * 2] = mixed ? 0.7 : 1; flora[c * 2 + 1] = mixed ? 0.5 : 0.05; }
+  const stub = makeStubVisualInputs();
+  const inp: VisualInputs = {
+    ...stub, flora, lifeOnLand: true, light, airDensity: air, heatBand, heatSolvent: hs, seaLevel: sea,
+    world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition },
+    stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
+    terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH },
+  };
+  const sp = spawnPoint(terrain, st, sea);
+  return placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf());
+}

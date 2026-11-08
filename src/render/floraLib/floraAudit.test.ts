@@ -266,7 +266,7 @@ function fakeApp(x: number, y: number, z: number): App {
 }
 
 /** Mids built for the sea (flora-traits A5, A8): the only ones allowed below it. */
-const AQUATIC = new Set(['bladderKelp#0', 'whiskerReef#0']);
+const AQUATIC = new Set(['bladderKelp#0', 'whiskerReef#0', 'glassKelp#0']);   // the aquatic slot's species (gates.ts aquaticFor)
 const caseMemo = new Map<string, WorldCase>();
 const caseOf = (world: WorldConfig) => { let c = caseMemo.get(world.id); if (!c) caseMemo.set(world.id, (c = worldCase(world))); return c; };
 const WORLDS = [carbon, silicon].map((w) => [w.id, w] as const);

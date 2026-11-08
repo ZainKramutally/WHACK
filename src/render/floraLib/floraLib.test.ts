@@ -203,8 +203,9 @@ describe('placePlants', () => {
     const cases: [string, VisualInputs, number][] = [
       // carbon, bright: capped ground (3 kinds × near, dark near and far), 6 mid and 6 giant kinds × 2 LODs
       ['carbon worst case', inputs(() => [0.6, 1]), 33],
-      // silicon, dim: crystal ground (4 × 2), shard trees (3 × 2), prism titans (2 × 2)
-      ['silicon worst case', inputs(() => [0.6, 1], si), 18],
+      // silicon, dim: crystal ground (4 × 2), shard trees (3 × 2), prism titans (2 × 2), plus the dark-gated lantern
+      // bulbs (flora-traits §2b S5: one more ground kind, near + dark)
+      ['silicon worst case', inputs(() => [0.6, 1], si), 20],
       // every cell under the sea: ground cover crowded into the low crust row (the fullest bucket), plus the aquatic
       // whisker reef (flora-traits A8: its near and far LOD)
       ['silicon submerged', inputs(() => [1, 0.2], { ...si, seaLevel: 5, terrain: { rise: 1, progress: {}, height: () => 0, patchSize: PATCH } }), 6],

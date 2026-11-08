@@ -8,6 +8,7 @@
 // are exclusive by their thresholds (pitcher N < 0.3 vs mangrove N ≥ 0.3; rosette T < 8 °C vs mangrove T ≥ 10 °C).
 // Thresholds are Earth patterns used as look gates ([sci] niche, [analogue] on these plants); sources in the doc.
 import type { VisualInputs } from '../../worlds/types';
+import { DARK_BELOW } from '../floraForm';
 
 /** Air density of Earth's air in VisualInputs units: 1.2 kg/m³ × the shared `airDensity.scale` 0.05 (CLAUDE.md). */
 export const AIR_EARTH = 0.06;
@@ -48,16 +49,25 @@ export function supplySi(rank: number): number {
 export const AIR_FLOAT = 5;
 /** The aquatic mid slot (A5 water, A8): at most one per cell with biomass B ≥ AQUATIC_B, inside a depth window. */
 export const AQUATIC_B = 0.3;
-export interface Aquatic { key: string; depth: readonly [number, number]; /** drawn top relative to the sea (m) */ top: number }
-/** This world's aquatic mid, or null (frozen seas grow none). Kelp tops float at the surface; reefs stay under it. */
+export interface Aquatic {
+  key: string; depth: readonly [number, number]; /** drawn top relative to the sea (m) */ top: number;
+  /** A second species for deeper water (its own window), when the plant's depth is past this one's. */
+  deep?: Aquatic;
+}
+/** This world's aquatic mid, or null (frozen seas grow none). Kelp tops float at the surface; reefs and glass kelp stay
+ * under it. Silicon: whisker reefs in the shallows, S4 glass kelp in deeper water (the clear liquid nitrogen lets light
+ * down, so tall crystal blades can reach up [speculative]). */
 export function aquaticFor(e: WorldEnv): Aquatic | null {
   if (e.frozen) return null;
   if (e.carbon) return e.water ? { key: 'bladderKelp#0', depth: [2, 15], top: 0.3 } : null;
-  return { key: 'whiskerReef#0', depth: [1, 12], top: -0.5 };
+  return { key: 'whiskerReef#0', depth: [1, 4], top: -0.5, deep: { key: 'glassKelp#0', depth: [4, 12], top: -0.5 } };
 }
 
 /** Shore plants (A1, A3) stand on dry ground beside the water: their own ground this far above the sea (m). */
 export const SHORE_BAND: readonly [number, number] = [0.2, 3];
+/** S1's sea margin: dry ground from the waterline to this height above it (m), where evaporating liquid nitrogen
+ * leaves the nitride crust bands (the M2 rims) [speculative]. */
+export const MARGIN_BAND: readonly [number, number] = [0, 2.5];
 
 /** What a gate may ask about a cell; place.ts answers lazily (each cell at most once per rebuild). */
 export interface CellProbe {
@@ -69,7 +79,7 @@ export interface CellProbe {
   total(c: number): number;
 }
 
-export type GateId = 'pitcher' | 'mangrove' | 'cushion' | 'kelpAir' | 'rosette' | 'fern' | 'airFloat';
+export type GateId = 'pitcher' | 'mangrove' | 'cushion' | 'kelpAir' | 'rosette' | 'fern' | 'airFloat' | 'crown' | 'lantern' | 'lace' | 'plankton';
 
 export interface GateSpec {
   id: GateId;
@@ -82,6 +92,10 @@ export interface GateSpec {
   world: (e: WorldEnv) => boolean;
   /** The plant's own ground lies in SHORE_BAND above the sea, in a cell the shoreline passes. */
   shore?: boolean;
+  /** Like `shore`, with its own band above the sea (m). */
+  band?: readonly [number, number];
+  /** Only this share of the matching plants (by a per-plant hash), so the base kind stays beside the new one. */
+  share?: number;
   /** Only on land at the plant (y ≥ sea). */
   land?: boolean;
   /** Per-cell half of the gate. */
@@ -110,6 +124,16 @@ export const GATES: readonly GateSpec[] = [
   // A6 air-kelp float: gas floats in air ≥ 5 × Earth's density (silicon ≈ 11 ×). World-wide, so it replaces the
   // candelabra patch-wide (net 0 draws). A tethered float: upright, giant sink rule.
   { id: 'airFloat', chem: 'silicon', role: 'giant', replaces: /^prismTitan#2$/, by: 'airKelpFloat#0', world: (e) => e.air >= AIR_FLOAT },
+  // §2b silicon-only, all [speculative] (species/silicon.ts):
+  // S1 nitride crown: on the dry sea margin, where evaporating liquid N₂ leaves the nitride crust bands (M2)
+  { id: 'crown', chem: 'silicon', role: 'ground', replaces: /^crystalGround#0$/, by: 'nitrideCrown#0', world: () => true, band: MARGIN_BAND },
+  // S5 lantern bulbs: glow pays as a lure only where light is scarce (glow from darkness, CLAUDE.md); half the land
+  // tile crusts in the dark, so the crusts stay
+  { id: 'lantern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#1$/, by: 'lanternBulb#0', world: (e) => e.L < DARK_BELOW, land: true, share: 0.5 },
+  // S2 lace fan: a 60° lattice that filters the dense air, on the sea-fan analogy; it takes the basalt columns' place
+  { id: 'lace', chem: 'silicon', role: 'mid', replaces: /^shardTree#2$/, by: 'laceFan#0', world: (e) => e.air >= AIR_FLOAT },
+  // S3 air-plankton raft: gas bladders lift in air ≥ 5 × Earth's density; half the pod shards, so the pods stay
+  { id: 'plankton', chem: 'silicon', role: 'mid', replaces: /^shardTree#1$/, by: 'airPlankton#0', world: (e) => e.air >= AIR_FLOAT, share: 0.5 },
   // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
   { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
 ];
@@ -124,11 +148,13 @@ export function activeGates(e: WorldEnv): Record<GateSpec['role'], GateSpec[]> {
 
 /** The archetype a plant draws: its base pick, or the first active gate's archetype if every part of that gate holds
  * for this plant (own ground `y`, the sea level, its cell). Otherwise the base pick, so counts never change. */
-export function gateKey(key: string, gates: readonly GateSpec[], c: number, y: number, sea: number, probe: CellProbe): string {
+export function gateKey(key: string, gates: readonly GateSpec[], c: number, y: number, sea: number, probe: CellProbe, h = 0): string {
   for (const g of gates) {
     if (!g.replaces.test(key)) continue;
+    if (g.share !== undefined && h >= g.share) continue;
     if (g.land && y < sea) continue;
     if (g.shore && (y < sea + SHORE_BAND[0] || y > sea + SHORE_BAND[1] || !probe.shore(c))) continue;
+    if (g.band && (y < sea + g.band[0] || y > sea + g.band[1] || !probe.shore(c))) continue;
     if (g.cell && !g.cell(c, probe)) continue;
     return g.by;
   }
