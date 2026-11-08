@@ -192,6 +192,14 @@ Other world quantities: the solvent's liquid band already feeds the sim, through
 
 Its tests show the comfort band following a warming climate, oxygen-rich air evolving bigger aerobic consumers, silicon life surviving slow warming, and fewer generations in the cold. Each step it takes an `Environment` (temperature, oxygen, light, habitat share, edge stress) and returns producer and consumer biomass as the drivers for the feedbacks.
 
+**The intended experience of life (owner ruling, 2026-11-08). Evolution is tuned backwards from this.**
+- **At spawn (end of the build):** the player sees **4–5 species**, each clearly a different kind of animal, with many members each. Herbivores move in **packs or herds**. An **apex predator** is rare, large and **solitary**.
+- **Over the next few minutes:** the player **discovers about 5 more species**, one every ~30–40 s, as new forms split off live and are announced in the field guide. That makes about **8–10 species in total**, never a cloud of dozens.
+- **Each species looks really distinct and unique.** Members of a species look alike, while different species look nothing like each other.
+- **Founders start small.** Size and complexity are earned, with big bodies (megafauna) and the apex predator arriving as evolution goes on.
+- **Mutation is gentle** enough that species stay recognisable for minutes. New species come from niche splits (habitat: land, sea or air; diet: grazer or hunter; size), not from noise.
+- Targets the sim is tuned and tested against: 4–5 forms with ≥ 40 members each at build end; 8–10 forms by about +3 min; never more than ~10 at once; grazer packs of ~5–20 that move together; ≤ 3 apex hunters, each solitary.
+
 **The ecology clock.** Caden measured that about 340 sim-seconds of ecology produce legs, plates, horns and hunters. So during the build the worker fast-forwards the ecology: it runs many fixed 20 Hz ticks per frame, on a fixed tick schedule that depends only on build time, never on frame rate, so the run stays deterministic. On carbon the schedule reaches about 340 ecology-seconds (`build.ecologySec`) by the end of the build. After the build, the ecology drops to the live `timeScale` in config, the same for both worlds, and keeps evolving. If CPU is tight during the fast-forward, reduce render detail, not the tick schedule. Silicon still gets fewer generations through its pace rule, so in the default run its creatures stay simpler: capsule worms, and perhaps legs and floaters. We accept that as honest: slow chemistry means slow evolution. The only help is silicon's lower activation energy (about 1.6× more generations; see "Metabolism"). There is no silicon-only clock, and no silicon founders seeded further along.
 
 **Presentation, under the clean-screen rule.**
