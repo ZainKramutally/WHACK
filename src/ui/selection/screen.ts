@@ -46,6 +46,7 @@ export interface SelectionScreen {
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const minus = (s: string) => s.replace('-', '−');
 const SYM: Record<ControlId, string> = { temperature: 'T', nitrogen: 'N', oxygen: 'x<sub>O₂</sub>' };
+const worldIds = Object.keys(worlds) as WorldConfig['id'][];
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -86,6 +87,27 @@ function boundHTML(world: WorldConfig, l: LethalLimit, failing: boolean): string
   return `<span class="${failing ? 'bad' : ''}">${sym} ${op} ${rhs}</span>`;
 }
 
+/**
+ * A text slot whose text differs per world. Every world's variant sits in the same grid cell and only the selected one is
+ * visible, so the slot is always as tall as its tallest variant at the current width (no line counts to guess).
+ */
+function makeStack(el: HTMLElement): (html: Record<string, string>, active: string) => void {
+  const kids = new Map<string, HTMLElement>();
+  for (const id of worldIds) {
+    const k = document.createElement('span');
+    el.append(k);
+    kids.set(id, k);
+  }
+  return (html, active) => {
+    for (const [id, k] of kids) {
+      if (k.dataset.h !== html[id]) { k.innerHTML = html[id]; k.dataset.h = html[id]; }
+      const on = id === active;
+      k.classList.toggle('on', on);
+      if (on) k.removeAttribute('aria-hidden'); else k.setAttribute('aria-hidden', 'true');
+    }
+  };
+}
+
 export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: SelectionOptions): SelectionScreen {
   const root = document.createElement('div');
   root.className = 'selscreen';
@@ -98,7 +120,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         <h1>Life Is <span class="slot" aria-live="polite"><span data-r="sym"></span></span> Based</h1>
         <p class="byline">Choosing a chemistry for a new world · WHACK 26 Team · Marshall Wace “New Worlds” challenge · 8 November 2026</p>
       </div>
-      <section class="abstract" aria-labelledby="absTitle"><p><b id="absTitle">Abstract.</b> <span data-r="abstract"></span></p></section>
+      <section class="abstract" aria-labelledby="absTitle"><p class="stack" data-r="abstract"></p></section>
     </header>
     <div class="page">
       <div class="colL">
@@ -130,11 +152,11 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
               <span class="tag" style="top:8px">gas</span>
               <span class="tag" data-r="tagLiq" hidden></span>
             </div>
-            <figcaption data-r="boxCaption"></figcaption>
+            <figcaption class="stack" data-r="boxCaption"></figcaption>
             <p class="fail" data-r="boxFail"></p>
           </figure>
         </section>
-        <div class="eq" aria-live="polite"><div class="body" data-r="eqBody"></div><div class="no">(1)</div></div>
+        <div class="eq" aria-live="polite"><div class="body stack" data-r="eqBody"></div><div class="no">(1)</div></div>
         <p class="eqnote" data-r="eqNote"></p>
         <p class="note" data-r="notice"></p>
         <div class="actions">
@@ -143,7 +165,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         </div>
       </div>
     </div>
-    <div class="footnotes"><p data-r="footnote"></p></div>
+    <div class="footnotes"><p class="stack" data-r="footnote"></p></div>
     <details class="more">
       <summary>Read more: method notes and references</summary>
       <div class="morebody">
@@ -176,6 +198,15 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   const r = (name: string) => root.querySelector<HTMLElement>(`[data-r="${name}"]`)!;
   const announce = (msg: string) => { const a = r('announce'); a.textContent = ''; requestAnimationFrame(() => { a.textContent = msg; }); };
+
+  const stacks = {
+    abstract: makeStack(r('abstract')),
+    eqBody: makeStack(r('eqBody')),
+    boxCaption: makeStack(r('boxCaption')),
+    footnote: makeStack(r('footnote')),
+  };
+  // The Appendix link lives in every footnote variant: one delegated listener.
+  r('footnote').addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('.linkbtn')) openAppendix(); });
 
   let state: SelectionState = initialSelection();
   let busy = false;      // gliding or launching: input is ignored
@@ -378,8 +409,9 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     root.dataset.world = world.id;
     showSlot();
 
-    const solvent = world.solvent.name.toLowerCase();
-    r('abstract').innerHTML = `Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(world.displayName.toLowerCase())}, is <i>${world.status}</i>: ${world.status === 'known' ? `life as we know it, in ${esc(solvent)}.` : `a world of ${esc(solvent)} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
+    const specWorld = Object.values(worlds).find((w) => w.status === 'speculative');
+    const abstractFor = (w: WorldConfig) => `<b${w.id === world.id ? ' id="absTitle"' : ''}>Abstract.</b> Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(w.displayName.toLowerCase())}, is <i>${w.status}</i>: ${w.status === 'known' ? `life as we know it, in ${esc(w.solvent.name.toLowerCase())}.` : `a world of ${esc(w.solvent.name.toLowerCase())} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
+    stacks.abstract(Object.fromEntries(worldIds.map((id) => [id, abstractFor(worlds[id])])), world.id);
 
     for (const c of cards) {
       if (!c.worldId) continue;
@@ -418,7 +450,9 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       ax.querySelector<HTMLElement>('.marker')!.style.left = `${valueToFrac(cond[id], def) * 100}%`;
       const why = redReason(world, band, cond[id]);
       ax.classList.toggle('in-red', !!why);
-      root.querySelector<HTMLElement>(`[data-re="${id}"]`)!.textContent = why ? `${why}.` : '';
+      const reasonEl = root.querySelector<HTMLElement>(`[data-re="${id}"]`)!;
+      reasonEl.textContent = why ? `${why}.` : '';
+      reasonEl.title = why ? `${why}.` : '';
       root.querySelector<HTMLElement>(`[data-o="${id}"]`)!.innerHTML = `${SYM[id]} = ${fmt(id, cond[id])}`;
       ax.setAttribute('aria-valuemin', String(def.min));
       ax.setAttribute('aria-valuemax', String(def.max));
@@ -428,7 +462,12 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
     // Eq. (1): the selected world's limit list, as bounds.
     const failId = live.ok ? undefined : live.limitId;
-    r('eqBody').innerHTML = world.limits.map((l) => boundHTML(world, l, l.id === failId)).join(',&nbsp; ');
+    stacks.eqBody(Object.fromEntries(worldIds.map((id) => {
+      const w = worlds[id];
+      const v = id === world.id ? live : viability(w, cond);
+      const fid = v.ok ? undefined : v.limitId;
+      return [id, w.limits.map((l) => boundHTML(w, l, l.id === fid)).join(',&nbsp; ')];
+    })), world.id);
     let note = live.ok ? 'At present every bound holds.' : `At present a bound fails: ${esc(live.reason.toLowerCase())}.`;
     if (world.limits.some((l) => l.model === 'seasEmpty')) {
       const nb = bands.nitrogen;
@@ -443,15 +482,16 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       ? `Note: ${esc(world.displayName)} life cannot persist here yet. Generating will set ${moves.map((m) => `${SYM[m.controlId]} to ${fmt(m.controlId, m.to)}`).join(' and ')}.`
       : '';
 
-    const spec = world.status === 'speculative';
-    r('boxCaption').innerHTML = `<b>Figure 2:</b> ${esc(world.displayName)} atoms in ${esc(solvent)}${spec ? '<span class="dagger">†</span>' : ''}. Illustration, not to scale.`;
+    stacks.boxCaption(Object.fromEntries(worldIds.map((id) => {
+      const w = worlds[id];
+      return [id, `<b>Figure 2:</b> ${esc(w.displayName)} atoms in ${esc(w.solvent.name.toLowerCase())}${w.status === 'speculative' ? '<span class="dagger">†</span>' : ''}. Illustration, not to scale.`];
+    })), world.id);
     r('boxFail').textContent = live.ok ? '' : `Life cannot persist: ${live.reason.toLowerCase()}.`;
 
-    const specWorld = Object.values(worlds).find((w) => w.status === 'speculative');
-    r('footnote').innerHTML = spec
-      ? `<span class="dagger">†</span> Speculative. ${esc(world.caveat ?? '')} See <button type="button" class="linkbtn" data-r="appLink">Appendix A</button>.`
-      : specWorld ? `<span class="dagger">†</span> ${esc(specWorld.displayName)} is speculative; select it in Table 1 for the reasoning and its caveat (<button type="button" class="linkbtn" data-r="appLink">Appendix A</button>).` : '';
-    root.querySelector('[data-r="appLink"]')?.addEventListener('click', openAppendix);
+    const footFor = (w: WorldConfig) => w.status === 'speculative'
+      ? `<span class="dagger">†</span> Speculative. ${esc(w.caveat ?? '')} See <button type="button" class="linkbtn">Appendix A</button>.`
+      : specWorld ? `<span class="dagger">†</span> ${esc(specWorld.displayName)} is speculative; select it in Table 1 for the reasoning and its caveat (<button type="button" class="linkbtn">Appendix A</button>).` : '';
+    stacks.footnote(Object.fromEntries(worldIds.map((id) => [id, footFor(worlds[id])])), world.id);
 
     renderRefs(world, specWorld);
     bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond } });
