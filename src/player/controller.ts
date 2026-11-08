@@ -36,8 +36,8 @@ export interface PlayerTuning {
 
 export const DEFAULT_PLAYER_TUNING: PlayerTuning = {
   walkSpeed: 5,
-  swimSpeed: 7,
-  riseSpeed: 4,
+  swimSpeed: 8.5,
+  riseSpeed: 5,
   waterDrag: 0.35,
   walkAccelTime: 0.09,
   swimAccelTime: 0.22,
@@ -46,7 +46,7 @@ export const DEFAULT_PLAYER_TUNING: PlayerTuning = {
   swimSurfaceOffset: 1.3,
   swimClearance: 0.3,
   sprintMul: 1.8,
-  maxSpeed: 8,
+  maxSpeed: 9.5,
   sprintMaxSpeed: 9.5,
   jumpSpeed: 4.85,
   airAccelTime: 0.45,

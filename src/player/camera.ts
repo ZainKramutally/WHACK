@@ -7,6 +7,7 @@ export interface CameraTuning {
   swimDistance: number;
   targetHeight: number;  // m above the feet that the camera looks at
   smoothTime: number;    // s, position spring
+  swimSmoothTime: number; // s, tighter spring while swimming at speed
   lookSmoothTime: number;
   walkPitch: [number, number];
   swimPitch: [number, number];
@@ -18,6 +19,7 @@ export const DEFAULT_CAMERA_TUNING: CameraTuning = {
   swimDistance: 6.5,
   targetHeight: 1.4,
   smoothTime: 0.12,
+  swimSmoothTime: 0.09,
   lookSmoothTime: 0.06,
   walkPitch: [-0.25, 1.25],
   swimPitch: [-1.3, 1.3],
@@ -76,10 +78,11 @@ export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning>
       cam.pitch = clamp(cam.pitch, lo, hi);
       [dist, distVel] = smoothDamp(dist, swimming ? t.swimDistance : t.distance, distVel, 0.4, dt);
       const d = desired(target, dist);
+      const st = swimming ? t.swimSmoothTime : t.smoothTime;
       const p = cam.position;
-      [p.x, vel.x] = smoothDamp(p.x, d.pos.x, vel.x, t.smoothTime, dt);
-      [p.y, vel.y] = smoothDamp(p.y, d.pos.y, vel.y, t.smoothTime, dt);
-      [p.z, vel.z] = smoothDamp(p.z, d.pos.z, vel.z, t.smoothTime, dt);
+      [p.x, vel.x] = smoothDamp(p.x, d.pos.x, vel.x, st, dt);
+      [p.y, vel.y] = smoothDamp(p.y, d.pos.y, vel.y, st, dt);
+      [p.z, vel.z] = smoothDamp(p.z, d.pos.z, vel.z, st, dt);
       const l = cam.lookAt;
       [l.x, lookVel.x] = smoothDamp(l.x, d.look.x, lookVel.x, t.lookSmoothTime, dt);
       [l.y, lookVel.y] = smoothDamp(l.y, d.look.y, lookVel.y, t.lookSmoothTime, dt);
