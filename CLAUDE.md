@@ -165,6 +165,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
   - **Rare big jumps (owner ruling, punctuated equilibrium; Gould and Eldredge 1972):** about 1.2% of births (`life.rules.mutation.jumpRate` 0.012, world config, `assumption: true`) take a large step (`jumpScale` 0.4) on 1–3 random body genes, so new forms can appear suddenly while species stay stable in between.
   - **Juveniles grow (R3, R8):** a newborn is never larger than its parent. It turns surplus energy into body at ledger `growRate` (0.05, `assumption: true`) until it reaches its adult mass, and it buds only at 90% of adult mass. Without this, a parent paying for a bigger child's whole body capped size growth at about 0.05 on the gene per generation, so giants could never arise. Matter is conserved.
   - **Opportunistic predation and pleiotropic jaws** (#48): see "Hunters now establish" below. In config: `dietBoost` 8 (the diet gene steps 8× further), `catchRate` 1.0, `meatAssim` 0.6. In develop(): `G.jawPleiotropy` 0.6 (designed, `assumption: true`).
+  - **Walkers obey a Froude speed limit** (owner request, 2026-11-08, #87): walking speed ≤ √(Fr·g·leg), with Fr 0.5, the walk-to-run transition (Alexander 1989), and the world's gravity. The leg length is taken on the body as drawn, so motion reads at the drawn scale and fast walkers become clickable. Carbon walkers went from a p90 of 9 to 4.9 m/s, about 1.2 drawn body lengths/s. Swimmers and fliers keep their speed: fish stay quick. Ledger: `walkFroude`, `cellMetres`, plus `displayCap` and `displayFounder`, which mirror the render's display rule.
   - **R8 displacement per M^0.75**: in a full world, the weakest animal is judged by energy per M^0.75, not per M.
   - **Lifespan follows adult mass** (#49): a growing juvenile ages on its adult clock (lifespan ∝ adult M^0.25), so a jump-born giant can live long enough to mature.
   - **Gentler diet payoff:** plant gain = (1 − diet)^p and meat gain = diet^p with `DIET_EXP` p = 1.15 (owner ruling #48; it was 2), so part-carnivores already gain from meat.
@@ -745,6 +746,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - Hunger as plant scarcity
   - grazing that takes only a share
   - consumer interference
+  - the walker speed limit reads the DRAWN leg length, a render rule mirrored in config, so that movement reads well on screen (#87)
   - the diet gene's 8× mutation step (`dietBoost`) and jaws that grow with diet (`jawPleiotropy` 0.6), so hunters can arise within minutes (#48)
   - flight muscle power at 75 W/kg, below the bird range, so flight is rare at defaults (#85)
   - the announcement pacing: only clusters with at least 8% of animals during the build, then one new species per 25 ecology seconds. The kinds are real; only when they are listed is paced.
