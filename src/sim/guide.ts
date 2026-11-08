@@ -55,6 +55,17 @@ function fromCentroid(c: FormCentroid): Float64Array {
   return v;
 }
 
+/** Distance between two points in the clustering space (12 genes + c + si). Species matching uses it with FORM_RADIUS. */
+export function centroidDistance(a: FormCentroid, b: FormCentroid): number { return dist(fromCentroid(a), fromCentroid(b)); }
+/** A genome's point in the clustering space. */
+export function genomeCentroid(g: AnimalGenome): FormCentroid { return toCentroid(vectorOf(g)); }
+/** Mean of several centroids. */
+export function meanCentroid(cs: readonly FormCentroid[]): FormCentroid {
+  const m = new Float64Array(DIM);
+  for (const c of cs) { const v = fromCentroid(c); for (let i = 0; i < DIM; i++) m[i] += v[i] / cs.length; }
+  return toCentroid(m);
+}
+
 function dist(a: Float64Array, b: Float64Array): number {
   let s = 0;
   for (let i = 0; i < DIM; i++) { const d = a[i] - b[i]; s += d * d; }

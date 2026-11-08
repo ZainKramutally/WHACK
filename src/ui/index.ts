@@ -1,7 +1,7 @@
 // In-world DOM UI. Mount once the world is generated; call dispose() to tear everything down.
 //
 // Consumes bus events: sim:snapshot, world:selected, build:life, control:blocked, inspect:open, inspect:close.
-// (guide:newForm is no longer shown: kinds enter the bestiary when the player finds them.)
+// (Species enter the bestiary when the sim announces them (guide:newForm); the player then finds them by clicking one.)
 // Emits: control:set, inspect:window (card rect, or null), inspect:close.
 import './ui.css';
 import { mountCaptions } from './captions';

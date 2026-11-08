@@ -64,7 +64,7 @@ export function mountInspectCard(
   let last: SimSnapshot | null = null;
   let lastRec: OrganismRecord | null = null; // last known organism record, kept after death
   let lastPlan: BodyPlan | undefined;
-  let lastForm: { name: string; recognised: boolean } | undefined;
+  let lastForm: { name?: string; recognised: boolean } | undefined;
   let lastRect = '';
 
   const otherName = other ? `A ${other.id} world` : '';
@@ -83,7 +83,7 @@ export function mountInspectCard(
         lastPlan = registry.planOf(t.organismId) ?? lastPlan;
         lastForm = registry.formOf(t.organismId) ?? lastForm;
       } else dead = true;
-      if (lastForm?.recognised) name = lastForm.name;
+      if (lastForm?.recognised && lastForm.name) name = lastForm.name;
       if (lastRec) {
         rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', form: lastForm, alive: !dead }));
       }

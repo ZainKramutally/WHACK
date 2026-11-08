@@ -1,12 +1,11 @@
 // Bestiary state (replaces the field guide; owner ruling 2026-11-08). Pure and deterministic: no DOM, no clock of its own.
 //
-// A kind is a field-guide form (sim/guide.ts naming): it joins the bestiary when a cluster under its name reaches
-// MIN_MEMBERS live animals (DECISIONS §A), or when the player clicks one of its animals, whichever comes first.
+// A kind is a species the sim announced (`guide:newForm`: a cluster of ≥ 20 that held for 20 ecology seconds and matched
+// no earlier species). The bestiary only files announced species (announce()); it never invents kinds of its own.
 //   - Living kinds stay locked ("?") until the player clicks one of their animals: discovery is the player's job.
 //   - A kind with no live animals for EXTINCT_AFTER_SEC is filed as extinct automatically, found or not, so the history
 //     of what evolved and died out fills in by itself. If the name comes back, the kind returns to the living.
 // The body plan kept for a kind is the clicked specimen's (if found) or the latest representative's, for its picture.
-import { MIN_MEMBERS } from '../sim/guide';
 import type { BodyPlan } from '../sim/develop';
 
 /** Seconds (snapshot clock) a kind must have no live animals before it is filed as extinct, so a brief dip to zero doesn't flicker. */
@@ -15,8 +14,6 @@ export const EXTINCT_AFTER_SEC = 5;
 export interface KindSighting {
   /** Live animals carrying this name. */
   alive: number;
-  /** Size of the largest single cluster under this name (a kind needs one of at least MIN_MEMBERS). */
-  largest: number;
   /** Functional type label, e.g. "grazer · walker". */
   type: string;
   /** A representative's body plan, when known. */
@@ -48,18 +45,11 @@ export class Bestiary {
   get(name: string): BestiaryEntry | undefined { return this.kinds.get(name); }
 
   /**
-   * Fold in one analysis of the live animals (name → sighting). Adds kinds that reached MIN_MEMBERS, refreshes counts and
-   * pictures, and files kinds with no live animals for EXTINCT_AFTER_SEC as extinct (or revives them). Returns whether
+   * Fold in one analysis of the live animals (name → sighting). Refreshes counts and pictures of announced species, and files kinds with no live animals for EXTINCT_AFTER_SEC as extinct (or revives them). Returns whether
    * anything visible changed.
    */
   update(sightings: ReadonlyMap<string, KindSighting>, now: number): boolean {
     let changed = false;
-    for (const [name, s] of sightings) {
-      if (!this.kinds.has(name) && s.largest >= MIN_MEMBERS) {
-        this.kinds.set(name, { name, type: s.type, found: false, firstSeenSec: now, alive: 0, peak: 0, extinct: false, lastAliveSec: now, plan: s.plan });
-        changed = true;
-      }
-    }
     for (const e of this.kinds.values()) {
       const s = sightings.get(e.name);
       const alive = s?.alive ?? 0;
@@ -79,17 +69,20 @@ export class Bestiary {
     return changed;
   }
 
+  /** The sim announced a species. Files it locked; a repeat announcement of the same name is ignored. */
+  announce(name: string, type: string, now: number, plan?: BodyPlan): boolean {
+    if (this.kinds.has(name)) return false;
+    this.kinds.set(name, { name, type, found: false, firstSeenSec: now, alive: 0, peak: 0, extinct: false, lastAliveSec: now, plan });
+    return true;
+  }
+
   /**
-   * The player clicked a live animal of this kind. Adds the kind if it wasn't in the bestiary yet (rare kinds count too).
+   * The player clicked a live animal of this species. Only announced species can be found.
    * Returns true only for a new find, so the caller can announce it once.
    */
   discover(name: string, now: number, specimen: { type?: string; plan?: BodyPlan; generation?: number } = {}): boolean {
-    let e = this.kinds.get(name);
-    if (!e) {
-      e = { name, type: specimen.type ?? '', found: false, firstSeenSec: now, alive: 1, peak: 1, extinct: false, lastAliveSec: now };
-      this.kinds.set(name, e);
-    }
-    if (e.found) return false;
+    const e = this.kinds.get(name);
+    if (!e || e.found) return false;
     e.found = true;
     e.foundAtSec = now;
     e.generation = specimen.generation;

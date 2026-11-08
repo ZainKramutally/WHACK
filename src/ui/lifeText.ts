@@ -73,15 +73,15 @@ export function geneRows(b: BodyGenes): Rows {
 
 export interface OrganismContext {
   chemistry: 'carbon' | 'silicon';
-  /** Field-guide form this animal belongs to, with whether the guide has recognised it as a common form. */
-  form?: { name: string; recognised: boolean };
+  /** Species this animal belongs to (the sim's announced name), and whether the player has found it. No name: it matches no announced species. */
+  form?: { name?: string; recognised: boolean };
   /** Include live-only rows (energy). */
   alive: boolean;
 }
 
 export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ctx: OrganismContext): Rows {
   const rows: Rows = [];
-  if (ctx.form) rows.push(['Form', ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
+  if (ctx.form) rows.push(['Form', ctx.form.name === undefined ? '(not yet a recognised species)' : ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
   rows.push(['Role', roleWords(roleOf(plan ? plan.diet : rec.body.diet))]);
   rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode)]);
   rows.push(...(plan ? planRows(plan) : geneRows(rec.body)));
