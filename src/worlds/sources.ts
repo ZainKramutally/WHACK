@@ -187,6 +187,12 @@ const list: Source[] = [
     citation: 'Marden JH (1994). From damselflies to pterosaurs: how burst and sustainable flight performance scale with size. Am J Physiol 266:R1077.',
     note: 'TO VERIFY (recalled). Muscle power available for flight falls relative to the power required as bodies get bigger; sets the mass limit of fliers.',
   },
+  {
+    id: 'hollo2015',
+    doi: '10.1098/rsfs.2015.0032', // TO VERIFY: recalled, not checked
+    citation: 'Holló G (2015). A new paradigm for animal symmetry. Interface Focus 5:20150032.',
+    note: 'TO VERIFY (recalled, no DOI checked). Bilateral symmetry goes with directed locomotion, since a body that moves front-first meets the world front-first and concentrates its senses there (cephalisation). Basis for silicon bodies that walk becoming bilateral (assumption: true).',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));

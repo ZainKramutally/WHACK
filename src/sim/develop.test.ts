@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { develop, LOCOMOTION, type DevelopConditions, type DevelopInputs } from './develop';
+import { develop, isSiliconWalkerGenes, LOCOMOTION, type DevelopConditions, type DevelopInputs } from './develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from './genome';
 import { makeRng } from './rng';
 
@@ -142,9 +142,10 @@ describe('develop', () => {
     const at = (g: AnimalGenome, seg: number) => develop({ ...g, body: { ...g.body, segments: seg } }, day, water);
     expect(at(carbon, 1).segmentCount).toBeGreaterThan(at(carbon, 0).segmentCount);
     expect(at(carbon, 1).tiers).toBe(0);
-    expect(at(silicon, 1).tiers).toBeGreaterThan(at(silicon, 0).tiers);
-    expect(at(silicon, 1).segmentCount).toBe(0);
-    expect(at(silicon, 1).tiers).toBeLessThanOrEqual(5);
+    const radialSi = { ...silicon, body: { ...silicon.body, limbPairs: 0 } };   // legless: outside the bilateral-walker gate
+    expect(at(radialSi, 1).tiers).toBeGreaterThan(at(radialSi, 0).tiers);
+    expect(at(radialSi, 1).segmentCount).toBe(0);
+    expect(at(radialSi, 1).tiers).toBeLessThanOrEqual(5);
   });
 
   it('the same genes build structurally different plans in each chemistry', () => {
@@ -159,6 +160,35 @@ describe('develop', () => {
     expect(c.sides).not.toBe(si.sides);
     expect(c.limbKind).not.toBe(si.limbKind);
     expect(c.eyeKind).not.toBe(si.eyeKind);
+  });
+
+  describe('silicon: bilateral armoured walkers and radial forms (owner, 2026-11-08)', () => {
+    const walker: AnimalGenome = { ...silicon, body: { ...silicon.body, segments: 0.8, limbPairs: 0.3, plates: 0.7, horns: 0.5, limbLen: 0.5 } };
+    it('an elongated body with one or two leg pairs is axial: front-first, rod legs at 15° joints, a ceramic shell, no radial arms', () => {
+      const p = develop(walker, day, water);
+      expect(p.chemistry).toBe('silicon');
+      expect(p.architecture).toBe('axial');
+      expect(p.symmetry).toBe(2);
+      expect(p.legPairs).toBe(1);
+      expect(p.limbKind).toBe('leg');
+      expect(p.arms).toEqual([]);
+      expect(p.shellCover).toBeGreaterThan(0.5);
+      expect(p.shellCover).toBe(p.plateCover);
+      expect(p.jointSnapDeg).toBe(15);
+      for (const a of p.limbJointAngles) expect(Math.abs(a) % 15).toBe(0);
+      expect(p.segmentCount).toBeGreaterThanOrEqual(3);
+    });
+    it('the same chemistry stays radial when short, legless or many-armed, and carbon never has a shell field', () => {
+      for (const b of [{ segments: 0.2 }, { limbPairs: 0 }, { limbPairs: 0.9 }]) {
+        const p = develop({ ...walker, body: { ...walker.body, ...b } }, day, water);
+        expect(p.architecture).toBe('radial');
+        expect(p.shellCover).toBe(0);
+      }
+      expect(develop({ ...carbon, body: { ...carbon.body, plates: 0.9 } }, day, water).shellCover).toBe(0);
+    });
+    it('is pure', () => {
+      expect(develop(walker, day, water)).toEqual(develop(structuredClone(walker), { ...day }, structuredClone(water)));
+    });
   });
 
   describe('for any genome', () => {
@@ -183,7 +213,9 @@ describe('develop', () => {
         expect(c.tiers).toBe(0);
         expect(c.segmentCount).toBeGreaterThanOrEqual(3);
         expect([2, 4, 6]).toContain(c.eyeCount === 0 ? 2 : c.eyeCount);
-        const s = develop(randomGenome(siliconComp()), cond, inputs);
+        const sg = randomGenome(siliconComp());
+        if (isSiliconWalkerGenes(sg.body)) continue;   // elongated one-or-two-leg-pair silicon is a bilateral walker (tested above)
+        const s = develop(sg, cond, inputs);
         expect(s.architecture).toBe('radial');
         expect([3, 4, 5, 6, 8]).toContain(s.symmetry);
         expect(s.arms).toHaveLength(s.symmetry);

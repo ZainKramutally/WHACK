@@ -3,7 +3,7 @@
 // when a form first reaches MIN_MEMBERS live animals (the `guide:newForm` payload), and a trait-based
 // name generator. No authored species list; every word is chosen from gene thresholds.
 // The look attractor (third part of DECISIONS §A's functional type) is render-only and lives in the art layer.
-import { LOCOMOTION, type LocomotionMode } from './develop';
+import { LOCOMOTION, isSiliconWalkerGenes, type LocomotionMode } from './develop';
 import { BODY_GENES, type AnimalGenome, type BodyGenes } from './genome';
 
 // DECISIONS §A: a species is a cluster at radius 0.25 with at least 4 live animals.
@@ -191,6 +191,7 @@ function moveWord(chem: Chem, b: BodyGenes, mode: LocomotionMode, amphibious: bo
     return b.eyes >= 0.5 ? 'Soarer' : 'Flier';
   }
   if (mode === LOCOMOTION.sessile) return si ? 'Spire' : b.limbLen >= 0.5 ? 'Frond' : 'Anchor';
+  if (si && isSiliconWalkerGenes(b)) return b.plates >= 0.5 ? 'Bastion' : b.limbLen >= LIMBS_LONG ? 'Strider' : b.eyes >= 0.5 ? 'Sentry' : 'Plodder';   // bilateral armoured walkers
   if (b.limbPairs < LIMBS_PRESENT) return si ? 'Lattice' : 'Crawler';
   if (si) return b.limbLen >= LIMBS_LONG ? 'Spoke' : 'Tripod';
   if (b.limbLen >= LIMBS_LONG) return 'Strider';

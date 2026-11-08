@@ -16,9 +16,13 @@ export function lengthWords(m: number): string {
   return m >= 1 ? `${m.toFixed(1)} m` : `${Math.max(1, Math.round(m * 100))} cm`;
 }
 
-export function movesWords(mode: LocomotionMode, radial = false): string {
+export function movesWords(mode: LocomotionMode, radial = false, plan?: Pick<BodyPlan, 'chemistry' | 'architecture' | 'legPairs' | 'shellCover'>): string {
   switch (mode) {
-    case 0: return 'Walks on the ground';
+    case 0:
+      if (plan && plan.chemistry === 'silicon' && plan.architecture === 'axial' && plan.legPairs > 0) {
+        return `Walks on ${plan.legPairs === 1 ? 'two' : 'four'} jointed rod legs${plan.shellCover >= 0.05 ? ' under a ceramic shell' : ''}`;
+      }
+      return 'Walks on the ground';
     case 1: return radial ? 'Rolls and tumbles through the liquid on its faceted hub' : 'Swims';
     case 2: return 'Floats and hovers in the air';
     default: return 'Stays rooted in one place';
@@ -44,18 +48,20 @@ export function planRows(plan: BodyPlan): Rows {
   const rows: Rows = [
     radial
       ? ['Body', `Radial crystal: ${plan.symmetry}-fold symmetry, ${plural(plan.tiers, 'facet tier')}, ${plan.flare > 0.3 ? 'flared' : plan.flare < -0.3 ? 'tapered' : 'straight-sided'}, no head or tail`]
-      : ['Body', `${plural(plan.segmentCount, 'segment')}, ${plan.curl > 0.05 ? 'curling' : 'rounded'}`],
+      : si
+        ? ['Body', `Front-first body of ${plural(plan.segmentCount, 'angular segment')}${plan.shellCover >= 0.05 ? ' under a ceramic shell' : ''}`]
+        : ['Body', `${plural(plan.segmentCount, 'segment')}, ${plan.curl > 0.05 ? 'curling' : 'rounded'}`],
     ['Length', lengthWords(plan.scale)],
     radial
       ? ['Arms', `${plan.symmetry} ${ARM_WORDS[plan.armKind]} arms${plan.legPairs === 0 ? ' (short spikes)' : ''}`]
-      : ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of ${plan.limbKind === 'leg' ? 'jointed legs' : 'tentacles'}`],
-    ['Plates', plan.plateCover < 0.05 ? 'None' : `${si ? 'Silicon-nitride ceramic tiles' : 'Shell'} over ${pct(plan.plateCover)} of the ${radial ? 'facets' : 'back'}`],
-    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, HORN_WORDS[plan.hornKind])],
+      : ['Legs', plan.legPairs === 0 ? 'None' : `${plural(plan.legPairs, 'pair')} of ${plan.limbKind === 'leg' ? (si ? 'angular jointed rod legs' : 'jointed legs') : 'tentacles'}`],
+    ['Plates', plan.plateCover < 0.05 ? 'None' : `${si ? (radial ? 'Silicon-nitride ceramic tiles' : 'Silicon-nitride ceramic shell') : 'Shell'} over ${pct(plan.plateCover)} of the ${radial ? 'facets' : si ? 'segments' : 'back'}`],
+    ['Horns', plan.hornCount === 0 ? 'None' : plural(plan.hornCount, !radial && si ? 'ceramic spike' : HORN_WORDS[plan.hornKind])],
     ['Eyes', plan.eyeKind === 'none' || plan.eyeCount === 0
       ? 'None'
       : radial
         ? `${plural(plan.eyeCount / plan.symmetry, 'dot eye')} at each arm tip`
-        : plural(plan.eyeCount, 'ring eye')],
+        : plural(plan.eyeCount, si ? 'dot eye at the front' : 'ring eye')],
   ];
   if (!radial && plan.tailKind !== 'none') rows.push(['Tail', TAIL_WORDS[plan.tailKind]]);
   if (plan.finSpan > 0.05) rows.push(['Fins', 'Paddle fins for swimming']);
@@ -83,7 +89,7 @@ export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ct
   const rows: Rows = [];
   if (ctx.form) rows.push(['Form', ctx.form.name === undefined ? '(not yet a recognised species)' : ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
   rows.push(['Role', roleWords(roleOf(plan ? plan.diet : rec.body.diet))]);
-  rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode, plan ? plan.architecture === 'radial' : ctx.chemistry === 'silicon')]);
+  rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode, plan ? plan.architecture === 'radial' : ctx.chemistry === 'silicon', plan)]);
   rows.push(...(plan ? planRows(plan) : geneRows(rec.body)));
   rows.push(['Size', `${rec.size.toFixed(2)} × typical`]);
   rows.push(['Preferred temperature', `${formatValue(rec.prefTemp, '°C')} ± ${rec.tolerance.toFixed(1)} °C`]);
@@ -122,6 +128,6 @@ export interface DominantInfo { name: string; alive: number; type: FunctionalTyp
 
 export function dominantRows(d: DominantInfo, plan: BodyPlan | undefined): Rows {
   const rows: Rows = [['Form', d.name], ['Alive now', String(d.alive)], ['Type', d.type.label]];
-  if (plan) rows.push(['Moves', movesWords(plan.mode, plan.architecture === 'radial')], ...planRows(plan));
+  if (plan) rows.push(['Moves', movesWords(plan.mode, plan.architecture === 'radial', plan)], ...planRows(plan));
   return rows;
 }

@@ -14,7 +14,7 @@ function plan(over: Partial<BodyPlan> = {}): BodyPlan {
     eyeCount: 2, eyeArea: 1, eyeUpkeep: 0.1, glow: 0, defence: 0.2, diet: 0.1, plantGain: 0.8, meatGain: 0.01,
     mode: LOCOMOTION.walk, modeCosts: { walk: 1, swim: 2, hover: 3, sessile: 4 },
     hornKind: 'pair', girth: 0.8, flatten: 1, headScale: 1, gradient: 0, carapace: 0, crest: 0, jaw: 0, tailKind: 'taper', tailSegments: 2,
-    finSpan: 0, wingSpan: 0, flare: 0, armKind: 'none', tileLength: 0, hue: 0.5, accent: 0.5, bands: 0, spots: 0, ...over,
+    finSpan: 0, wingSpan: 0, flare: 0, armKind: 'none', tileLength: 0, shellCover: 0, hue: 0.5, accent: 0.5, bands: 0, spots: 0, ...over,
   };
 }
 const rec = (over: Partial<OrganismRecord> = {}): OrganismRecord => ({

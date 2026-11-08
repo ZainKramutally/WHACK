@@ -67,6 +67,7 @@ export interface BodyPlan {
   limbSegments: number; // rods: 2; tentacles: 2 + round(4·c·limbLen)
   limbJointAngles: number[]; // degrees, per limb segment; multiples of 15 for silicon
   // armour, weapons, head
+  shellCover: number; // silicon bilateral walkers only: share of the segments under a silicon-nitride ceramic shell (the plates gene sets it); 0 otherwise
   plateCover: number; // 0..1 dorsal fraction
   hornCount: number;
   hornLength: number; // metres
@@ -141,6 +142,12 @@ const SYMMETRIES = [3, 4, 5, 6, 8] as const;
  */
 const FORM_SPAN = 0.55;
 const stretch = (g: number) => Math.min(1, g / FORM_SPAN);
+/** Gene gate between radial and bilateral silicon: elongated bodies (segments at least this) with one or two leg pairs walk front-first. assumption: true. */
+const SILICON_AXIAL_SEGMENTS = 0.55;
+export const isSiliconWalkerGenes = (b: { segments: number; limbPairs: number }): boolean => {
+  const legs = Math.round(4 * b.limbPairs);
+  return b.segments >= SILICON_AXIAL_SEGMENTS && legs >= 1 && legs <= 2;
+};
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const snap = (deg: number, step: number) => (step > 0 ? Math.round(deg / step) * step : deg);
 
@@ -157,7 +164,11 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
 
   // --- chemistry grammar: the architecture -------------------------------------
   const silicon = comp.si > 0.5;
-  const radial = silicon;
+  // Silicon is radial (a faceted hub with arms) unless it is elongated with one or two leg pairs: then it is a bilateral, front-first
+  // armoured walker. Bilateral symmetry goes with directed locomotion (cephalisation; Holló 2015, Interface Focus, TO VERIFY). The split is
+  // heritable: the segments and limbPairs genes decide it, so selection can move a lineage across it (assumption: true).
+  const armouredWalker = silicon && isSiliconWalkerGenes(body);
+  const radial = silicon && !armouredWalker;
   const jointSnapDeg = silicon ? 15 : 0;
 
   // --- tissue density and size --------------------------------------------
@@ -183,7 +194,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const legLenEff = (radial ? 0.6 : 1) * limbLenRel * budGrowth;
   // Axial limbs: stiff, long, hunting or plated bodies grow jointed legs; the rest keep soft tentacles.
   const legScore = 0.7 * f.limbLen + 0.5 * f.plates + 0.6 * f.diet;
-  const jointed = legScore >= 0.8;
+  const jointed = legScore >= 0.8 || armouredWalker;   // an armoured silicon walker always has stiff rod legs
   const limbKind: BodyPlan['limbKind'] = radial ? 'rod' : legPairs === 0 ? 'none' : jointed ? 'leg' : 'tentacle';
   const limbSegments = radial ? 2 : legPairs === 0 ? 0 : jointed ? 2 : 2 + Math.round(4 * comp.c * body.limbLen);
   const limbJointAngles: number[] = [];
@@ -191,10 +202,10 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     const hip = 20 + 50 * body.limbLen;
     limbJointAngles.push(snap(hip, 15), snap(-1.5 * hip, 15)); // straight rods, one knee
   } else if (legPairs > 0 && jointed) {
-    limbJointAngles.push(35 + 25 * body.limbLen, -(70 + 40 * body.limbLen)); // a stiff knee
+    limbJointAngles.push(snap(35 + 25 * body.limbLen, jointSnapDeg), snap(-(70 + 40 * body.limbLen), jointSnapDeg)); // a stiff knee (angular on silicon)
   } else if (legPairs > 0) {
     const bend = 12 + 20 * body.limbLen;
-    for (let j = 0; j < limbSegments; j++) limbJointAngles.push(bend * (j % 2 === 0 ? 1 : -1));
+    for (let j = 0; j < limbSegments; j++) limbJointAngles.push(snap(bend, jointSnapDeg) * (j % 2 === 0 ? 1 : -1));
   }
 
   // --- segments (axial: spine length) / tiers (radial: facet tiers accreting as it grows) ----------------
@@ -364,6 +375,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     limbSegments,
     limbJointAngles,
     plateCover: clamp(f.plates + 0.35 * giant, 0, 1),
+    shellCover: armouredWalker ? clamp(f.plates + 0.35 * giant, 0, 1) : 0,
     hornCount,
     hornLength: hornCount === 0 ? 0 : f.horns * (radial ? 0.6 : hornCount > 2 ? 0.35 : 0.6) * scale,
     gapeSize: 2 * body.gape * scale,
