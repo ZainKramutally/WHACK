@@ -196,3 +196,4 @@
 - 04:45 16: owner: no gravity slider; #84 started (flight); apex hunters + giants retry with structural levers (sim-worker, 90 min).
 - 05:08 16: merged hunters (#48): opportunistic predation, pleiotropic jaws, dietBoost 8, R8 per M^0.75; carbon hunters 39/7/2/0 over seeds 1–4. Giants still not.
 - 06:23 16: merged solitary hunters (cohesion × plant gain; apex ≤ 3 on 4/4 carbon seeds) + SLOW test. Giants unmet (plant competition at cap).
+- 06:10: OWNER: same rock chips on both worlds → same-chips agent (CRUST_PICKS Volcanic/Continental/Iron-rich shared; silicon gets reducedLava (aubrite-like) for Volcanic with M7 columns; nitride Continental; silicide Iron-rich; pick persists across element switch). OWNER asked why silicon is purple → not backed (inherited art palette). silicon-look agent: Rayleigh-blue skies on both worlds (carbon no longer white), de-purple silicon roles, ring, fgTint and crustLook retention; reducedLava look + hex grains for M7 minerals.
