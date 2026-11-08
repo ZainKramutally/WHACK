@@ -28,6 +28,9 @@
   --f0: #1E2C66; --f1: #34549E; --f2: #5C86CF; --f3: #8FB6EC; --f4: #CFE6FF; --f5: #FFFFFF;
   --fam2: var(--s2); --fam3: var(--s3); --fam4: var(--s4);
 }
+&[data-world="lead"] {
+  --fam2: var(--ink); --fam3: #3A3340; --fam4: var(--bone2);
+}
 & {
   margin: 0;
   background: var(--f1);
@@ -248,6 +251,7 @@ figcaption b { font-weight: 700; }
 .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
 .btn.primary { background: var(--fam2); color: var(--ink); }
 .btn.primary:hover { background: var(--fam3); }
+&[data-world="lead"] .btn.primary { color: var(--bone4); }
 .btn:focus-visible, .axis:focus-visible, .linkbtn:focus-visible {
   outline: 4px solid var(--s2); outline-offset: 4px;
 }

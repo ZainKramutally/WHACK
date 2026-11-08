@@ -468,7 +468,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const via = {} as Record<WorldConfig['id'], Viability>;
     for (const id of worldIds) via[id] = viability(worldFor(id), cond);
     const live = via[world.id];
-    putAttr(root, 'data-world', world.id);
+    putAttr(root, 'data-world', eggOn ? 'lead' : world.id);
     showSlot();
 
     stacks.abstract(abstractBy[world.id], world.id);
