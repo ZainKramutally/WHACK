@@ -10,12 +10,10 @@ Then follow the steps below in order.
   - It's rebased on main f9320a9. Head is `265b234`, or later if a journal commit landed.
 - **Main merge is APPROVED by Caden** (and owner priority #53). It's blocked only by one failing test:
   - `src/render/floraLib/floraLib.test.ts:183`: the worst case gives `n.mid` 1613, but the test needs < 1600. Fix the code, not the test (art-flora's job).
-- **Merge gate:**
-  1. `npx tsc --noEmit`
-  2. `npx vitest related --run --maxWorkers=2 <changed src/render files>` (`npm test` is BANNED; no vitest until a task's final step)
-  3. `npm run build`
-  4. `PLAYWRIGHT_PATH=/Users/ylcheong/.npm/_npx/4f01597ae588112d/node_modules/playwright/index.mjs npm run smoke`
-  5. `python3 scripts/art_capture.py --tag <x>` for stills and fps
+- **Merge gate:** `npx tsc --noEmit`, then `npx vitest related --run --maxWorkers=2 <changed src/render files>`, then `npm run build`.
+  - **OWNER RULING (2026-11-08, in CLAUDE.md): NO browser tests.** That means no Playwright, smoke, headless Chrome, screenshots, fps captures or art_capture.py. They burned ~150% CPU.
+  - `npm test` is banned too.
+  - Caden checks visuals himself, so tell every agent the same.
 - **Then merge:** `git fetch && git rebase origin/main`, rerun the gate, `git push origin session/art-layer:main`. That fast-forward only; if it's rejected, rebase again.
 - **After merging:**
   - Ping whack-2026-a1 (logic) and whack-2026-56 (transition; it wants the sha to switch to `app.post.setPixelScale` + `app.compile`).
