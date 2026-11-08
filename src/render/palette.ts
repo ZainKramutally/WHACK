@@ -3,7 +3,8 @@
 import type { VisualInputs } from '../worlds/types';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+/** Clamp to 0..1; NaN → 0, so a bad gene degrades to a colour instead of an out-of-range table index. */
+const clamp01 = (v: number) => (v > 0 ? (v < 1 ? v : 1) : 0);
 
 export function mixHex(a: number, b: number, t: number): number {
   const r = Math.round(lerp((a >> 16) & 255, (b >> 16) & 255, t));

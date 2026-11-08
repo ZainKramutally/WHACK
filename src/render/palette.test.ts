@@ -120,6 +120,14 @@ describe('creatureColour (#57: colour is a strong species axis)', () => {
     }
   });
 
+  it('degrades to a valid colour on NaN inputs (a bad gene never throws)', async () => {
+    const { creatureColour } = await import('./palette');
+    for (const si of [false, true]) for (const tone of [0, 1, 2, 3, 4, 5, 6] as const) {
+      const c = creatureColour(si, NaN, tone, NaN, NaN);
+      expect(Number.isInteger(c) && c >= 0 && c <= 0xffffff).toBe(true);
+    }
+  });
+
   it('is a pure function of its inputs', async () => {
     const { creatureColour } = await import('./palette');
     expect(creatureColour(false, 0.4, 0, 0.3, 0.7)).toBe(creatureColour(false, 0.4, 0, 0.3, 0.7));
