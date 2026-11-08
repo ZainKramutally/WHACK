@@ -299,6 +299,7 @@ On the selection screen, a box beside the periodic table and sliders shows the s
 | Solvent | Water molecules forming the liquid layer | Nitrogen molecules forming the liquid layer; its depth follows the sea-volume model |
 | Nitrogen gas | N₂ molecules above the liquid; their count follows the Nitrogen slider (log scale) | N₂ molecules above the pool, at the seas' vapour pressure |
 | Oxygen | O₂ molecules; their count follows the Oxygen slider. Harmless to carbon. | Any O₂ that touches silicon turns it into grey rock that sinks |
+| Mineral bed | A floor of basalt, ironstone and granite grains in the world's crust shares. Oxygen rusts basalt red, and grains release carbon atoms into the water while life could live | Silicide, nitride and ice grains. Oxygen turns silicide to silica; silicide and nitride release silicon atoms; ice releases none |
 
 | Change | What the box shows |
 |---|---|
@@ -440,7 +441,8 @@ interface FeatureDef extends Sourced {   // what an inspect card says about a ki
 type InspectTarget =
   | { kind: 'organism'; organismId: number }   // OrganismField.id
   | { kind: 'producer'; cell: number }         // index into the 64² world grid
-  | { kind: 'sea' | 'ground' | 'sky' };
+  | { kind: 'ground'; point?: { x: number; z: number } }   // world metres of the clicked spot; the card names the mineral there
+  | { kind: 'sea' | 'sky' };
 
 interface BuildConfig extends Sourced {
   durationSec: number;        // about 20: Generate → living world
@@ -589,6 +591,7 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on eve
 - Typed `life.rules` as `LifeRules` (from `src/sim/population.ts`), and named the `traitAverages` keys.
 - Added click-to-inspect: `FeatureDef`, `InspectTarget`, `WorldConfig.features`, the stable `id` and `generation` fields in the organism buffer, and the `inspect:open`, `inspect:window` and `inspect:close` bus events.
 - Added Caden's creatures (design F): `life.composition`, `life.ledger`, `life.templates` and `life.inputs` on `WorldConfig`, `births` on `SimSnapshot`, and the `guide:newForm` bus event.
+- 2026-11-08 crust (Caden): `TerrainConfig.crust` (`CrustConfig`, `MineralDef`), `machines[].minerals`, `relics[].minerals`, machines M7–M9, the ground `point` on `InspectTarget`, and `VisualInputs.world.rustOxygen`.
 - 2026-11-07 logic pass (agreed with Caden):
   - Removed `life.templates`: the developmental pull leaves the sim.
   - Replaced `visuals` with `starType` plus the new `terrain: TerrainConfig`.
@@ -630,17 +633,27 @@ The terrain is logic: the player, the sea level and the flora grid all read it. 
 - **Sea level from sea cover.** The patch stands in for the planet. `seaLevel` is the height at which the fraction of the patch below it equals `seaCover`. The worker finds it numerically from the CPU sampler each snapshot.
 - **A shore near spawn.** The spawn point is on land, within `spawn.shoreDistance` metres of the shoreline once the seas have filled. The height function carves a gentle shore ramp there, so it holds for every slider setting inside the living bands. This is tested for both worlds.
 - **Landforms grow in the build.** Terrain `rise` and every landform machine's progress go from 0 to 1 over the build, then follow live state. For example, carbon shell stone tracks producer biomass, and silicon crust bands track sea level. Where a gate below reads age, it reads `buildProgress`.
+- **Crust and minerals** (`docs/features/crust.md`). Each world's `terrain.crust` lists its minerals:
+  - carbon: basalt in the lowlands, banded ironstone on mid-slopes, granite in the highlands
+  - silicon: silicide at the shore, nitride (nierite) mid-ground, water ice in the highlands
+  - **One mineral map.** A closed-form weight function (base height plus seeded noise, with quantile thresholds baked per seed) gives each mineral's local weight. It is used by `heightCore`, by the TSL node (`crustWeightsNode`) and by `crustMap` (argmax at cell centres), so the sim's cell mineral always matches what the look shows.
+  - **Fertility.** Each cell's starting nutrient supply is the ledger base × its mineral's `supply`, renormalised so the patch mean stays at base: the crust redistributes and adds nothing. Fertile basalt grows more flora; water ice grows none. A headless A/B (8 seeds) passed the §G gate: on carbon, links rose from 37 to 51 and the longest chain from 3.0 to 3.75.
+  - **Rust.** Oxidising minerals rust as `rust(world, maxOxygenSeen)`. Rock doesn't un-rust, so the art layer ratchets the maximum.
+  - **Landforms.** Landform machines can be gated by mineral through `machines[].minerals`; there are no mineral ids in code. The player makes no new choice: the crust is seeded, and the Oxygen slider rusts it.
 - **Landform heat.** Landform gates read `heatSolvent`, which is temperature normalised so that 0.5 sits at the solvent's freezing point (span in config). F's `Heat` input keeps the living-band normalisation ("How F's inputs come from our worlds").
 
 **Landforms per world** (machines and gates from `research/world-forms/`, rules 1–6):
 
 | World | Landform | Machine | Gate (all from state, no preset code) | Tag |
 |---|---|---|---|---|
-| Both | Strata and banded walls | M5 stack-and-strip | age | [sci] |
+| Both | Strata and banded walls | M5 stack-and-strip | age. On carbon it is full strength on ironstone and 35% elsewhere (`offMineral`); ironstone walls carry red jasper and black hematite bands (`bekker2010`) | [sci] |
 | Both | Canyons | M4 abrade | depth ∝ age × past liquid. Steepness rises with dry heat (fixes the inverted heat→wall rule) | [sci] mechanism, [game] rule |
 | Carbon | Hoodoos, frost fins, and the arches they become | M3 crack-and-pry | Water only, with `heatSolvent` near 0.5 (freeze–thaw). Water is the only solvent that expands on freezing | [sci] |
 | Carbon | Shell stone: reefs, stromatolites, limestone pillars | M6 life-built | water + producer biomass in the shallows + age. The R2 exception: "carbon rusts to air, unless life in water makes shell". Say "shell" on slides: real carbonate needs calcium, which isn't modelled | [sci] analogue |
-| Silicon | Relic water-ice bedrock arches and spires | none: seeded | part of the seeded starting terrain, rising with `rise`. No process grows them | `assumption: true` |
+| Carbon | Basalt columns on coastal platforms | M7 columns | basalt weight, coastal band. Held to 15% on the spawn ramp so the sea stays reachable | [sci] mechanism (`goehring2009`), stylised size |
+| Carbon | Granite domes and stacked-boulder tors | M8 tors | granite weight, highlands | [sci] mechanism (`linton1955`), stylised size |
+| Silicon | Hexagonal nitride crystal spikes | M9 crystals | nitride weight, sparse | speculative, stylised size |
+| Silicon | Relic water-ice bedrock arches and spires | none: seeded | part of the seeded starting terrain, rising with `rise`. No process grows them. They stand on water-ice ground where the seeded search finds it (`relics[].minerals`), and otherwise on the best clear spot near spawn | `assumption: true` |
 | Silicon | Silicon-nitride crystal crusts and dead crust bands | M2 precipitate | producer biomass at the sea margin. Crusts left above a falling sea level become dead bands | speculative |
 | Silicon | none of: frost wedging, dissolving, builder spires | n/a | N₂ contracts on freezing, liquid N₂ dissolves almost nothing, and builders need oxygen | [sci] |
 
@@ -650,9 +663,20 @@ interface TerrainConfig extends Sourced {
   base: Record<string, number>;      // fBm amplitude, octaves, warp and so on
   spawn: { shoreDistance: number };  // metres from spawn to the shoreline once the seas have filled
   heatSolventSpan: number;           // °C span mapped onto heatSolvent 0..1
-  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];   // progress goes 0 → 1 over the build; rate is how fast it then follows live state, per ecology second
-  relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
+  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'; rate: number; params: Record<string, number>; minerals?: string[] }[];   // progress goes 0 → 1 over the build; rate is how fast it then follows live state, per ecology second; minerals gate it by their local weight
+  relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number>; minerals?: string[] }[];   // silicon only; seeded
+  crust: CrustConfig;
 }
+
+interface MineralDef extends Sourced {   // colours are art-layer decisions, keyed by id
+  id: string; label: string; description: string;   // description: one line for the ground inspect card
+  share: [number, number];                           // bounds on its share of the patch; sampled from the seed
+  elevation: number;                                 // 0..1 by height rank: 0 = lowest ground
+  supply: { c: number; si: number; o: number };      // nutrient multiplier per cell (renormalised to the base mean)
+  oxidises: boolean;
+}
+
+interface CrustConfig extends Sourced { minerals: MineralDef[]; patchCells: number; rustOxygen: number }   // rustOxygen: oxygen % at which oxidising rock is fully rusted
 ```
 
 ## Logic → art interface
@@ -660,10 +684,10 @@ interface TerrainConfig extends Sourced {
 The art layer sits on top of this logic and only reads it. It never writes sim state, and nothing visual is read back (DECISIONS §G.9). This file doesn't choose a look or name a mockup. The active art-direction doc is set by Caden.
 
 **What the art layer reads (`VisualInputs`, assembled each frame from the latest `SimSnapshot` and the `WorldConfig`):**
-- **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`.
+- **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`, and `rustOxygen` (from `terrain.crust`).
 - **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
 - **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `buildProgress` (0..1 across the build).
-- **Terrain:** the TSL height node and the CPU sampler, the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
+- **Terrain:** the TSL height node and the CPU sampler, the crust weights (`crustWeightsNode(terrain)` in TSL, with `terrain.crustWeights(x, z)` as its CPU twin), the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
 - **Life:** the `organisms` buffer (layout v3, stride 30: `altitude` is physical metres above the ground for fliers, and `grown` is current ÷ adult mass, so juveniles can draw smaller), the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
 
 **Rules for the art layer:**
@@ -675,17 +699,22 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - `heatBand` sets maximum height (cold makes tall, as for creatures).
   - Mat against canopy biomass picks ground cover or a tall species, and sets size and density.
   - Shapes are cached per quantised input bin and rebuilt when a bin changes.
+- **Ground and plant colour follow the crust** (`src/render/crustLook.ts`):
+  - Ground blends each mineral's colour by its crust weight, and oxidising minerals rust on the ratchet.
+  - Carbon flora goes from purple (retinal pigments, the "Purple Earth" hypothesis, `dassarma2018`) to green (chlorophyll; pigment colour follows the star, `kiang2007`) on that same ratchet, because both follow oxygenic photosynthesis.
+  - Silicon flora is unchanged.
 - The only messages from art back to logic are the `inspect:*` bus events.
 
 ## Honesty box (say it if asked)
 
 - **Emergent:** which body plans appear and which traits spread, population sizes, and how the air and seas change as life feeds back on them. On carbon, hunters rise and crash in predator–prey cycles; that is real and emergent (Huffaker 1958), so no rule steadies them. Which body shapes the oxygen, temperature, gravity and nitrogen terms select is also emergent; the terms are small and the signal across seeds is modest.
-- **Seeded:** the founders (at least 24 capsule worms when life appears, with standing variation, and a per-run starting lean in their latent genes), the species' genus names, the RNG seed, and the starting terrain, including silicon's relic ice arches and spires.
+- **Seeded:** the founders (at least 24 capsule worms when life appears, with standing variation, and a per-run starting lean in their latent genes), the species' genus names, the RNG seed, and the starting terrain, including silicon's relic ice arches and spires and each world's crust map (mineral shares and placement).
 - **Designed, not emergent:**
   - `develop()` and its chemistry rules, the 12-gene layout, the trait-ledger coefficients and the locomotion costs
   - the 12 rules and the shared utility loop's structure
   - the form definition (DECISIONS §A) and the name generator
   - every feedback rate
+  - the mineral list, the mineral-to-landform mapping, and the crust's renormalisation (it redistributes nutrients and adds none)
   - the build timings, and the years counter, which is illustrative
 - **Tuning cheats:**
   - scheduled mutation (`SIGMA_BUILD` 0.02 → `SIGMA` 0.015, size gene ×2), rare big jumps (`jumpRate` 0.012, `jumpScale` 0.4), juvenile growth (`growRate` 0.05), the gentler diet payoff (`DIET_EXP` 1.15), the megafauna intake exponent (`intakeExp` 0.9) and kin cohesion
@@ -706,7 +735,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
     - the forms of these terms (aerobic scope, skin area per M^0.75, square-cube load, saturating N limit, stranding drain) are designed
     - crests and frills are not selected as radiators: limbs and body length carry the heat balance
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
-- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, the moons in the sky (decoration only; no stat models them), plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, **flight altitude display**: altitude is physical (power balance, thinning air, gravity) but is drawn at 150 m · tanh(h ÷ 1.5 km), because the patch is a few hundred metres across. All flight coefficients are typical-bird orders of magnitude, `assumption: true`. And **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
+- **Illustrations (render-only):** the particle box (including its mineral bed), the sizes of basalt columns, granite tors and nitride crystals (at least 6 m, because the mesh is about 2 m per vertex), the purple-to-green plant pigment (a hypothesis, keyed to oxygen), the live view in inspect cards, sky and fog, the moons in the sky (decoration only; no stat models them), plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, **flight altitude display**: altitude is physical (power balance, thinning air, gravity) but is drawn at 150 m · tanh(h ÷ 1.5 km), because the patch is a few hundred metres across. All flight coefficients are typical-bird orders of magnitude, `assumption: true`. And **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
 
 ## Demo script (to be rewritten)
 
