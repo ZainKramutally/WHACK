@@ -45,14 +45,20 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   const registry = mountLifeRegistry(bus);
   const captions = mountCaptions(host, bus, world, opts.controls ?? controlList);
   const summary = mountSummaryCard(host, world, registry);
-  const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
+  // One card at a time: the summary, an inspect card and a specimen page replace each other (inspect and specimen already
+  // close each other; the summary joins them here).
+  const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => {
+    if (!summary.isOpen()) { inspect.close(); bestiary.closePage(); }
+    summary.toggle();
+  });
   const bestiaryBadge = el('span', 'wu-badge'); // declared before mountBestiary, which reports counts as it mounts
   bestiaryBadge.hidden = true;
   const bestiary = mountBestiary(host, bus, world, registry, (found, total) => {
     bestiaryBadge.textContent = `${found}/${total}`;
     bestiaryBadge.hidden = total === 0;
-  });
+  }, () => summary.close());
   const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged);
+  const offInspect = listen(bus, 'inspect:open', () => summary.close());
   const offFind = registry.onDiscover((name) => captions.show(`New entry: ${name}`));
 
   // Tabs: closed by default.
@@ -93,6 +99,11 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     if (p === 'conditions') { if (latest) conditions.update(latest); conditions.focusSelected(); }
     bestiaryTab.classList.toggle('wu-active', p === 'bestiary');
     if (p !== 'conditions' && conditions.el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
+    // The open drawer owns the right-hand column (its width + 12 px margin + 12 px gap, as .wu-specimen's right: 396px):
+    // the inspect card is placed left of it and the summary centres in the space that is left (ui.css .wu-summary).
+    const drawer = p === 'conditions' ? conditions.el : p === 'bestiary' ? bestiary.el : null;
+    host.style.setProperty('--wu-reserve', drawer ? `${drawer.offsetWidth + 24}px` : '0px');
+    inspect.reflow();
   }
   const toggle = (p: Panel) => show(open === p ? null : p);
 
@@ -161,6 +172,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
       captions.dispose();
       conditions.dispose();
       offFind();
+      offInspect();
       bestiary.dispose();
       inspect.dispose();
       summary.dispose();

@@ -9,7 +9,8 @@ import type { Bus } from '../bus';
 import type { BusEvents, InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
 import type { DevelopInputs } from '../sim/develop';
 import { gasDensity } from '../sim/models';
-import { beadLayout } from './layout';
+import { FLORA_EPS, beadLayout } from './layout';
+import { DARK_BELOW, DIM_BELOW, cellSubmerged, floraBin, floraForm, formForBin, type FloraForm } from './floraForm';
 import { creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle, type Tone } from './palette';
 
 export interface CounterpartPart {
@@ -70,11 +71,11 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   // Materials are cached for the life of the view (building a node material is the slow part of opening a card).
   const matCache = new Map<string, THREE.Material>();
-  const mat = (hex: number, o: { flat?: boolean; rough?: number; opacity?: number } = {}) => {
-    const key = `${hex}|${o.flat ? 1 : 0}|${o.rough ?? 0.6}|${o.opacity ?? 1}`;
+  const mat = (hex: number, o: { flat?: boolean; rough?: number; opacity?: number; double?: boolean } = {}) => {
+    const key = `${hex}|${o.flat ? 1 : 0}|${o.rough ?? 0.6}|${o.opacity ?? 1}|${o.double ? 1 : 0}`;
     let m = matCache.get(key) as THREE.MeshStandardNodeMaterial | undefined;
     if (!m) {
-      m = new THREE.MeshStandardNodeMaterial({ color: hex, roughness: o.rough ?? 0.6, flatShading: !!o.flat });
+      m = new THREE.MeshStandardNodeMaterial({ color: hex, roughness: o.rough ?? 0.6, flatShading: !!o.flat, side: o.double ? THREE.DoubleSide : THREE.FrontSide });
       if (o.opacity !== undefined && o.opacity < 1) { m.transparent = true; m.opacity = o.opacity; m.depthWrite = false; }
       matCache.set(key, m);
     }
@@ -234,12 +235,32 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     }
   }
 
-  function producerContent(other: WorldConfig) {
+  /**
+   * The plant form a producer swatch draws. This world: the clicked cell's own form, exactly as the world draws it
+   * (floraForm, including submerged cells). The other world: the same patch (biomass mix, depth) under that world's
+   * chemistry, solvent and light. Null when nothing grows in the cell.
+   */
+  function producerForm(cell: number, inputs: VisualInputs, other: WorldConfig): FloraForm | null {
+    if (other.id === inputs.world.id) return floraForm(cell, inputs);
+    const matB = inputs.flora[cell * 2] ?? 0, canopyB = inputs.flora[cell * 2 + 1] ?? 0;
+    if (matB + canopyB <= FLORA_EPS) return null;
+    const light = mid(other, 'light', 1);
+    return formForBin({
+      ...floraBin(matB, canopyB, inputs, cellSubmerged(cell, inputs)),
+      silicon: other.life.composition.si > 0.5,
+      water: /water/i.test(other.solvent.name),
+      light: light < DARK_BELOW ? 0 : light < DIM_BELOW ? 1 : 2,
+    });
+  }
+
+  /** Three plants of `form` on a ground plate, with the same species shapes and proportions as render/flora.ts. */
+  function producerContent(other: WorldConfig, form: FloraForm | null) {
     const silicon = other.life.composition.si > 0.5;
     const cols = floraColours(silicon, 0.4);
     const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1, 1, 0.2, 20)), mat(groundColour(other.life.composition, 1)));
     plate.position.y = -0.1;
     turntable.add(plate);
+    if (!form) return; // nothing grows here now: bare ground, as the card says
     const up = new THREE.Vector3(0, 1, 0);
     const place = (parent: THREE.Object3D, g: THREE.BufferGeometry, m: THREE.Material, from: THREE.Vector3, dir: THREE.Vector3, len: number, rad: number) => {
       const mesh = new THREE.Mesh(g, m);
@@ -248,36 +269,73 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       mesh.position.copy(from);
       parent.add(mesh);
     };
-    if (silicon) {
-      const cone = geo(new THREE.ConeGeometry(1, 1, 4).translate(0, 0.5, 0));
-      const m1 = mat(cols.stem, { flat: true, rough: 0.25 }), m2 = mat(cols.tip, { flat: true, rough: 0.25 });
-      for (let p = 0; p < 3; p++) {
-        const base = new THREE.Vector3(Math.cos(p * 2.1) * 0.5, 0, Math.sin(p * 2.1) * 0.5);
-        const d = new THREE.Vector3(0.1, 1, 0.05);
-        place(turntable, cone, m1, base, d, 1.2, 0.09);
-        const at = base.clone().addScaledVector(d.clone().normalize(), 0.55);
-        for (let b = 0; b < 2; b++) {
-          const a = p + b * Math.PI;
-          place(turntable, cone, m2, at, new THREE.Vector3(Math.sin(Math.PI / 3) * Math.cos(a), Math.cos(Math.PI / 3), Math.sin(Math.PI / 3) * Math.sin(a)), 0.65, 0.06);
+    const ball = (m: THREE.Material, g: THREE.BufferGeometry, at: THREE.Vector3, rad: number, squash = 1) => {
+      const mesh = new THREE.Mesh(g, m);
+      mesh.scale.set(rad, rad * squash, rad);
+      mesh.position.copy(at);
+      turntable.add(mesh);
+    };
+    const lampMat = basicMat(silicon ? 0xbfe8ff : 0xfff2a0);
+    const lampGeo = geo(new THREE.IcosahedronGeometry(1, 1));
+    const lamp = (at: THREE.Vector3, rad: number) => { if (form.glow > 0) ball(lampMat, lampGeo, at, rad); };
+    const dirAt = (tilt: number, az: number) => new THREE.Vector3(Math.sin(tilt) * Math.cos(az), Math.cos(tilt), Math.sin(tilt) * Math.sin(az));
+    const cone = geo(new THREE.ConeGeometry(1, 1, 4).translate(0, 0.5, 0));
+    const cyl = geo(new THREE.CylinderGeometry(0.55, 1, 1, 6).translate(0, 0.5, 0));
+    const sphere = geo(new THREE.SphereGeometry(1, 10, 8));
+    const cupGeo = geo(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
+    const domeGeo = geo(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2));
+    const facet = { flat: true, rough: 0.25 };
+    for (let p = 0; p < 3; p++) {
+      const az = p * 2.1;
+      const base = new THREE.Vector3(Math.cos(az) * 0.5, 0, Math.sin(az) * 0.5);
+      const h = 0.9 * form.heightScale * (0.85 + 0.15 * p);
+      switch (form.species) {
+        case 'spire': {
+          // Straight trunk; branches leave it at form.branchDeg; glowing tips from darkness.
+          const trunk = dirAt(0.12, az);
+          place(turntable, cone, mat(cols.stem, facet), base, trunk, h, 0.07 * h + 0.02);
+          const at = base.clone().addScaledVector(trunk, h * 0.45);
+          const tilt = (form.branchDeg * Math.PI) / 180;
+          for (let b = 0; b < form.branches; b++) {
+            const d = dirAt(tilt, az + (b * 2 * Math.PI) / form.branches);
+            place(turntable, cone, mat(cols.tip, facet), at, d, h * 0.55, 0.05 * h + 0.015);
+            lamp(at.clone().addScaledVector(d, h * 0.55), 0.04 * h + 0.03);
+          }
+          lamp(at.clone().addScaledVector(trunk, h * 0.55), 0.05 * h + 0.03);
+          break;
         }
-      }
-    } else {
-      const cyl = geo(new THREE.CylinderGeometry(0.55, 1, 1, 6).translate(0, 0.5, 0));
-      const ball = geo(new THREE.SphereGeometry(1, 10, 8));
-      const m1 = mat(cols.stem), m2 = mat(cols.tip);
-      for (let p = 0; p < 3; p++) {
-        const cur = new THREE.Vector3(Math.cos(p * 2.1) * 0.5, 0, Math.sin(p * 2.1) * 0.5);
-        let phi = 0.05;
-        for (let j = 0; j < 3; j++) {
-          const d = new THREE.Vector3(Math.sin(phi) * Math.cos(p), Math.cos(phi), Math.sin(phi) * Math.sin(p));
-          place(turntable, cyl, m1, cur, d, 0.45, 0.07 * (1 - 0.25 * j));
-          cur.addScaledVector(d.normalize(), 0.45);
-          phi += 0.4;
+        case 'crust': {
+          // Low faceted fans lying close to the ground.
+          for (let b = 0; b < 3; b++) place(turntable, cone, mat(b === 0 ? cols.stem : cols.tip, facet), base, dirAt(1.0, az + (b * 2 * Math.PI) / 3), h * 0.5, 0.09 * h + 0.03);
+          lamp(base.clone().setY(0.1 * h), 0.04 * h + 0.03);
+          break;
         }
-        const b = new THREE.Mesh(ball, m2);
-        b.position.copy(cur);
-        b.scale.setScalar(0.17);
-        turntable.add(b);
+        case 'dome': {
+          // Submerged mat on a water world: a translucent jellyshroom dome on the ground.
+          const rd = 0.6 * form.capScale * h + 0.12;
+          ball(mat(cols.tip, { rough: 0.15, opacity: 0.55, double: true }), domeGeo, base, rd, 0.8);
+          lamp(base.clone().setY(0.25 * rd), 0.3 * rd);
+          break;
+        }
+        default: {
+          // Carbon stems curl by form.curl per segment; tufts are short and capless, caps are balls, cups are open bowls.
+          const stemH = form.species === 'tuft' ? h * 0.6 : h;
+          const seg = stemH / 3;
+          const cur = base.clone();
+          let phi = 0.05;
+          for (let j = 0; j < 3; j++) {
+            const d = dirAt(phi, az);
+            place(turntable, cyl, mat(cols.stem), cur, d, seg, 0.06 * stemH * (1 - 0.25 * j) + 0.015);
+            cur.addScaledVector(d, seg);
+            phi += form.curl;
+          }
+          const rc = form.capScale * stemH + 0.08;
+          if (form.species === 'capped') ball(mat(cols.tip), sphere, cur, rc);
+          else if (form.species === 'cup') {
+            ball(mat(cols.tip, { rough: 0.5, double: true }), cupGeo, cur, rc * 1.3);
+            lamp(cur.clone().setY(cur.y + 0.15 * rc), 0.45 * rc);
+          }
+        }
       }
     }
   }
@@ -293,21 +351,23 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function build(inputs: VisualInputs) {
-    const key2 = `${inputs.world.id}|${mode}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}`;
+    // 'self' shows this world's version of the thing; 'other' the opposite chemistry's.
+    const other = deps.worldFor(mode === 'self' ? inputs.world.id : inputs.world.id === 'carbon' ? 'silicon' : 'carbon');
+    // A producer follows its cell's live form: the swatch rebuilds if the sea rises over it or its biomass mix shifts.
+    const form = target?.kind === 'producer' ? producerForm(target.cell, inputs, other) : null;
+    const key2 = `${inputs.world.id}|${mode}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}|${target?.kind === 'producer' ? `${target.cell}:${form?.key ?? '-'}` : ''}`;
     if (key2 === builtFor) return;
     builtFor = key2;
     clearContent();
     cam.position.set(0, 1.1, 3.4);
     cam.lookAt(0, 0.45, 0);
     if (!target) return;
-    // 'self' shows this world's version of the thing; 'other' the opposite chemistry's.
-    const other = deps.worldFor(mode === 'self' ? inputs.world.id : inputs.world.id === 'carbon' ? 'silicon' : 'carbon');
     setBackdrop(other);
     switch (target.kind) {
       case 'organism': organismContent(target.organismId); break;
       case 'sea': seaContent(other, mode === 'self' && inputs.frozen); break;
       case 'ground': groundContent(other); break;
-      case 'producer': producerContent(other); break;
+      case 'producer': producerContent(other, form); break;
       case 'sky': skyContent(other); break;
     }
     r.compileAsync(scene, cam).catch(console.error);
@@ -318,7 +378,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   function warmUp(): Promise<void> {
     for (const id of ['carbon', 'silicon'] as const) {
       const other = deps.worldFor(id);
-      seaContent(other); groundContent(other); producerContent(other); skyContent(other);
+      seaContent(other); groundContent(other); skyContent(other);
+      // Every plant species this world can draw (tuft/dome/capped/cup, or crust/spire, lit and glowing), so any producer card is compiled.
+      const si = other.life.composition.si > 0.5, water = /water/i.test(other.solvent.name);
+      for (const [mix, sub, light] of [[0, false, 2], [0, true, 0], [1, false, 2], [2, false, 1]] as const) {
+        producerContent(other, formForBin({ silicon: si, water, sub, lush: 1, light, heat: 2, mix }));
+      }
       beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], nBody: 2, limbs: [], stride: 0, radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
       backdropFor(other);
     }

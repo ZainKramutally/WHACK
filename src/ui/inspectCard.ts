@@ -190,8 +190,11 @@ export function mountInspectCard(
 
   function place() {
     const h = card.offsetHeight;
+    // Stay out of the open drawer's column (--wu-reserve, set by ui/index.ts): a card never covers Conditions or the Bestiary.
+    const right = window.innerWidth - 8 - (parseFloat(root.style.getPropertyValue('--wu-reserve')) || 0);
     let x = anchor.x + GAP;
-    if (x + CARD_W > window.innerWidth - 8) x = Math.max(8, anchor.x - GAP - CARD_W);
+    if (x + CARD_W > right) x = anchor.x - GAP - CARD_W;
+    x = Math.max(8, Math.min(x, right - CARD_W));
     const y = Math.max(TOP, Math.min(anchor.y - 20, window.innerHeight - h - 8)); // below the tab row
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
@@ -288,6 +291,8 @@ export function mountInspectCard(
     el: card,
     isOpen: () => !card.hidden,
     close: () => close(),
+    /** Re-place an open card (a drawer opened or closed beside it). */
+    reflow: onResize,
     update(s: SimSnapshot) {
       last = s;
       if (!card.hidden) render();

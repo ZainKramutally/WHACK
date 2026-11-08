@@ -19,7 +19,11 @@ export function clock(sec: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export function mountBestiary(root: HTMLElement, bus: UiBus, world: WorldConfig, registry: LifeRegistry, onCounts: (found: number, total: number) => void) {
+export function mountBestiary(
+  root: HTMLElement, bus: UiBus, world: WorldConfig, registry: LifeRegistry, onCounts: (found: number, total: number) => void,
+  /** A specimen page opened (the host closes its other cards: one card at a time). */
+  onPageOpen?: () => void,
+) {
   const speculative = world.status === 'speculative';
   const drawer = el('aside', 'wu-drawer wu-bestiary');
   drawer.setAttribute('aria-label', 'Bestiary');
@@ -141,6 +145,7 @@ export function mountBestiary(root: HTMLElement, bus: UiBus, world: WorldConfig,
   function showPage(name: string) {
     if (pageName === name && !page.hidden) { closePage(); return; }
     bus.emit('inspect:close', {}); // one card at a time
+    onPageOpen?.();
     pageName = name;
     drawnPlan = undefined;
     page.hidden = false;
