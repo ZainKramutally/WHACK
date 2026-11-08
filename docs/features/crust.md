@@ -1,6 +1,6 @@
 # Crust and minerals
 
-Status: in build on `session/crust` (2026-11-08). Owner: Caden (asked for it). The contract change is in `src/worlds/types.ts` (`MineralDef`, `CrustConfig`, `TerrainConfig.crust`).
+Status: built on `session/crust` (2026-11-08). Unverified values and citations are tracked in GitHub issue #82. Owner: Caden (asked for it). The contract change is in `src/worlds/types.ts` (`MineralDef`, `CrustConfig`, `TerrainConfig.crust`).
 
 ## Why
 
