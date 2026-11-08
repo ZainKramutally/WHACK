@@ -222,6 +222,13 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   }
 
   let focusIdx = 0;
+  /** The title's ▢ shows the focused element, so scrolling to a locked one previews it greyed. */
+  function showSlot() {
+    const f = group14[focusIdx];
+    const slot = r('sym');
+    if (slot.textContent !== f.symbol) slot.textContent = f.symbol;
+    slot.parentElement!.classList.toggle('locked', !f.worldId);
+  }
   let aim: number | null = null;   // set while we scroll to a card ourselves, so the scroll handler doesn't fight us
   let aimTimer = 0;
   let suppressClick = false;
@@ -249,7 +256,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     (r('next') as HTMLButtonElement).disabled = i === cards.length - 1;
     const c = cards[i];
     if (c.worldId && c.worldId !== state.worldId) choose(c.z);
-    else if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
+    showSlot();
+    if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
   }
   /** Bring card i to the centre (smoothly) and, if it can be chosen, choose it now. */
   function goTo(i: number) {
@@ -368,9 +376,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const cond = state.conditions;
     const live = viability(world, cond);
     root.dataset.world = world.id;
-    const sym = group14.find((e) => e.worldId === world.id)!.symbol;
-    const slot = r('sym');
-    if (slot.textContent !== sym) slot.textContent = sym;
+    showSlot();
 
     const solvent = world.solvent.name.toLowerCase();
     r('abstract').innerHTML = `Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(world.displayName.toLowerCase())}, is <i>${world.status}</i>: ${world.status === 'known' ? `life as we know it, in ${esc(solvent)}.` : `a world of ${esc(solvent)} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
@@ -556,6 +562,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   function generate() {
     if (busy) return;
+    const wi = cards.findIndex((c) => c.worldId === state.worldId);
+    if (focusIdx !== wi) goTo(wi);   // a locked card in focus: bring the chosen element back before launching
     const world = worldFor(state.worldId);
     const { start, moves } = plannedMoves(state);
     const payload = generatePayload(state);   // the settings at the click: the sim moves them itself and reports why
