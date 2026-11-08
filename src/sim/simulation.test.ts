@@ -499,7 +499,7 @@ describe('WorldSimulation', () => {
 
   describe('life persists anywhere inside the living band (CLAUDE.md "Condition sliders")', () => {
     // Held for 30 s after the build: stressed near the edges, but not dead. Death is only at or beyond the edge.
-    const FAST = new Set(['carbon 55', 'carbon -35', 'silicon -163']);
+    const FAST = new Set(['carbon 55', 'carbon -35', 'carbon 110', 'silicon -163']);
     const points: [WorldConfig, number][] = [
       ...[-35, 40, 55, 70, 110].map((t): [WorldConfig, number] => [carbon, t]),
       ...[-205, -175, -165, -163].map((t): [WorldConfig, number] => [silicon, t]),
@@ -532,6 +532,20 @@ describe('WorldSimulation', () => {
         expect(sim.snapshot().population.consumers, `${w.id} ${t} °C after ${(i + 1) * 15} s`).toBeGreaterThan(0);
       }
     });
+  });
+
+  it('shows visible die-off at the silicon warm wall without wiping out the full population', { timeout: 60000 }, () => {
+    const sim = new WorldSimulation(silicon, EARTH);
+    sim.advance(silicon.build.durationSec);
+    const before = sim.snapshot().population.consumers;
+    expect(before).toBeGreaterThanOrEqual(900);
+
+    sim.setControl('temperature', -100); // clamped to the current warm edge
+    sim.advance(10);
+
+    const after = sim.snapshot().population.consumers;
+    expect(after).toBeGreaterThan(0);
+    expect(after).toBeLessThan(before * 0.7);
   });
 
   describe('producers feel the lethal edge too', () => {

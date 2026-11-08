@@ -62,10 +62,10 @@ export const CONSTANTS = deepFreeze({
   SPORE_BELOW: c(24, 'game'),
   /** Founders start in this many shallow cells nearest the player's spawn. */
   FOUNDER_CELLS: c(24, 'game'),
-  /** Share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1. */
-  EDGE_ZONE: c(0.1, 'game'),
-  /** Edge stress ramps as (1 − distance/EDGE_ZONE)^EDGE_POWER: negligible until the last few per cent of the band, then a cliff at the edge. */
-  EDGE_POWER: c(3, 'game'),
+  /** Share of a living band, next to a lethal limit, over which edge stress ramps 0 → 1. Swept jointly with EDGE_POWER. */
+  EDGE_ZONE: c(0.25, 'game'),
+  /** Seventh-power ramp over the last quarter keeps the inner band safe but makes silicon warm-edge die-off visible. On demo seed 2611, 571/1,024 consumers remain after 10 s at the silicon warm wall; carbon at 110 °C and silicon at −163 °C retain the full population after 30 s. */
+  EDGE_POWER: c(7, 'game'),
   /** population.ts: how far from its parent a child appears, as a share of the patch. */
   SPAWN_SPREAD: c(0.03, 'game'),
   /** population.ts: how far a consumer drifts per reference-time unit, as a share of the patch. */
