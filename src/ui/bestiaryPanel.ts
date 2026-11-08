@@ -1,6 +1,8 @@
 // Bestiary tab (replaces the field guide): living kinds the player has found (and "?" tiles for those still out
 // there), then kinds that died out, filed automatically. Clicking a found or extinct tile opens its specimen page, a
 // paper card beside the drawer. State lives in the life registry (ui/bestiary.ts); this module only draws it.
+// The page shows the kind in 3D: a transparent window whose rect and the specimen's plan go to the render layer on
+// bestiary:window (render/counterpart.ts draws it turning slowly from the plan, so extinct kinds work too).
 import { el } from './dom';
 import { planRows } from './lifeText';
 import { listen, type UiBus } from './uiBus';
@@ -139,7 +141,7 @@ export function mountBestiary(
     if (pageName !== lastPageName || e.plan !== lastPagePlan) {
       lastPageName = pageName;
       lastPagePlan = e.plan;
-      bus.emit('bestiary:specimen', e.plan ? { plan: e.plan } : null);
+      lastWindow = ''; // a new specimen: report the window again with its plan
     }
     reportWindow();
   }
@@ -178,7 +180,8 @@ export function mountBestiary(
     }
     if (key === lastWindow) return;
     lastWindow = key;
-    bus.emit('bestiary:window', visible ? { x: left, y: top, width: right - left, height: bottom - top } : null);
+    // one event carries both (render/counterpart.ts): the window and the plan to draw in it, so they never disagree
+    bus.emit('bestiary:window', visible ? { rect: { x: left, y: top, width: right - left, height: bottom - top }, plan: e.plan } : null);
   }
 
   function showPage(name: string) {
@@ -200,7 +203,6 @@ export function mountBestiary(
     page.style.removeProperty('-webkit-mask-image');
     lastWindow = '';
     bus.emit('bestiary:window', null);
-    bus.emit('bestiary:specimen', null);
     render();
   }
   pageX.addEventListener('click', closePage);
