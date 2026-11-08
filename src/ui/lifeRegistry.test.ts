@@ -27,7 +27,7 @@ const worms = founders.map((g, i) => ({ ...g, body: { ...founders[0]!.body, size
 // A second body plan far from the worms in gene space (well beyond FORM_RADIUS).
 const far = worms.map((g) => ({ ...g, body: { ...g.body, size: 0.95, plates: 0.95, horns: 0.95, limbPairs: 0.9, limbLen: 0.9, eyes: 0.95 } }));
 const speciesOf = (binId: number, name: string, g: AnimalGenome): Species => ({ binId, name, centroid: genomeCentroid(g) });
-const newForm = (binId: number, name: string, organismId: number) => ({ binId, name, organismId });
+const newForm = (binId: number, name: string, organismId: number) => ({ binId, name, scientific: `Carbonema sp${binId}`, organismId });
 const snap = (t: number, buf: Float32Array, births: SimSnapshot['births'] = []) => ({ timeSec: t, organisms: buf, births } as SimSnapshot);
 const click = (bus: ReturnType<typeof createBus>, id: number) => bus.emit('inspect:open', { target: { kind: 'organism', organismId: id }, at: { x: 0, y: 0 } });
 

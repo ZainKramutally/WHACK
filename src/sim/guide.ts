@@ -29,7 +29,7 @@ export interface FormCluster {
 /** The members' majority role and locomotion mode, which override the centroid's genes when naming or classifying a form. */
 export interface FormHint { role?: Role; mode?: LocomotionMode; /** members both swim and hover (at least a quarter each) */ amphibious?: boolean }
 
-export interface NewForm { binId: number; name: string; organismId: number }
+export interface NewForm { binId: number; name: string; scientific: string; organismId: number }
 
 const DIM = BODY_GENES.length + 2; // 12 genes + c + si
 
@@ -235,24 +235,73 @@ function modeFromGenes(b: BodyGenes): LocomotionMode {
   return l === 'swimmer' ? LOCOMOTION.swim : l === 'floater' ? LOCOMOTION.hover : LOCOMOTION.walk;
 }
 
-// ---- Genus words ----
+// ---- Binomial names ----
 
-// A pronounceable made-up genus per species, keyed on the run seed and the species, so two runs essentially never share names.
-// Carbon words are soft and open; silicon words are hard and crystalline.
-const SYLLABLES: Record<Chem, { on: string[]; v: string[]; end: string[] }> = {
-  c: { on: ['v', 'l', 'm', 'n', 'r', 's', 'b', 'd', 'f', 'h', 'j', 'k', 't', 'w', 'y', 'br', 'fl', 'gl', 'pr', 'sh'], v: ['a', 'e', 'i', 'o', 'u', 'ae', 'ia', 'ou'], end: ['', '', 'n', 'r', 'l', 'm', 's', 'th'] },
-  si: { on: ['k', 'x', 'z', 'q', 'th', 'sk', 'gr', 'dr', 'kr', 'tz', 'vr', 'zh', 'ch', 'st', 'tr'], v: ['a', 'e', 'i', 'o', 'u', 'y'], end: ['', 'x', 'k', 'th', 'z', 'rn', 'sk', 'q'] },
-};
+// Scientific name = Genus epithet, from Greek/Latin roots that encode real traits (a designed generator, not emergent).
+//   Genus = chemistry root + body-plan root, so species of one chemistry and body layout share a genus.
+//   Epithet = the species' most distinctive trait (and the common name's modifier is the same trait in plain English).
+// The run seed only picks between synonyms of the same meaning, so names are deterministic per seed.
+export interface Scientific { genus: string; epithet: string }
 
-/** Deterministic genus word from (run seed, species key, salt). Salt lets the caller redraw on a collision. */
-export function genusWord(seed: number, key: number, chem: Chem, salt = 0): string {
-  let h = (Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(key + 1, 0xc2b2ae35) ^ Math.imul(salt + 1, 0x27d4eb2f)) >>> 0;
-  const next = (n: number) => { h = (Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) + 0x297a2d39) >>> 0; h ^= h >>> 13; return (h >>> 0) % n; };
-  const set = SYLLABLES[chem];
-  const syl = next(3) === 0 ? 3 : 2;
-  let w = '';
-  for (let i = 0; i < syl; i++) w += set.on[next(set.on.length)] + set.v[next(set.v.length)] + (i === syl - 1 ? set.end[next(set.end.length)] : '');
-  return w[0].toUpperCase() + w.slice(1);
+export type BodyRoot = 'nema' | 'pus' | 'ptera' | 'stoma' | 'phora' | 'ella' | 'saurus' | 'petra' | 'rhiza';
+
+/** Body-plan root: sessile → petra (rock) / rhiza (root); hovering → phora (bell/float) or ptera (winged); gaping hunters → stoma; giants → saurus; tiny → ella; legged walkers → pus; the rest → nema (worm). */
+export function bodyRoot(chem: Chem, b: BodyGenes, mode: LocomotionMode): BodyRoot {
+  if (mode === LOCOMOTION.sessile) return chem === 'si' ? 'petra' : 'rhiza';
+  if (mode === LOCOMOTION.hover) return b.buoy >= BUOY_FLOATER ? 'phora' : 'ptera';
+  if (b.gape >= 0.5 && b.diet > DIET_HUNTER_MIN) return 'stoma';
+  if (b.size >= 0.7) return 'saurus';
+  if (b.size <= 0.25) return 'ella';
+  if (mode === LOCOMOTION.walk && b.limbPairs >= LIMBS_PRESENT) return 'pus';
+  return 'nema';
+}
+
+/** Chemistry root: Carbo- (bilateral carbon), Phyto- (rooted carbon), Silico- (armoured axial silicon), Hyalo- ("glass": radial crystal silicon). */
+export function chemRoot(chem: Chem, b: BodyGenes, mode: LocomotionMode): string {
+  if (chem === 'c') return mode === LOCOMOTION.sessile ? 'Phyto' : 'Carbo';
+  return isSiliconWalkerGenes(b) && mode === LOCOMOTION.walk ? 'Silico' : 'Hyalo';
+}
+
+export function genusOf(chem: Chem, b: BodyGenes, mode: LocomotionMode): string {
+  const root = bodyRoot(chem, b, mode);
+  const prefix = chemRoot(chem, b, mode);
+  // join without doubled vowels: Carbo + nema = Carbonema, Hyalo + ella = Hyalella
+  return prefix.slice(0, /^[aeiou]/.test(root) ? -1 : undefined) + root;
+}
+
+interface Trait { id: string; score: number; epithets: string[]; modifier: string }
+
+/** Traits that can name a species, each with a strength 0..1 (0 = absent). Strongest first decides the epithet and the common modifier. */
+function traitsOf(chem: Chem, b: BodyGenes, mode: LocomotionMode): Trait[] {
+  const si = chem === 'si';
+  const t: Trait[] = [];
+  if (b.glow >= 0.6) t.push({ id: 'glow', score: b.glow, epithets: ['noctiluca', 'lucens'], modifier: 'Night-glow' });
+  if (b.size >= 0.7) t.push({ id: 'giant', score: b.size, epithets: ['megas', 'grandis'], modifier: 'Great' });
+  if (b.size <= 0.25) t.push({ id: 'tiny', score: 0.3 * (1 - b.size), epithets: ['minutus', 'parvus'], modifier: 'Mote' });
+  if (b.plates >= 0.5) t.push({ id: 'plated', score: b.plates, epithets: si ? ['nitridis', 'loricatus'] : ['armatus', 'loricatus'], modifier: si ? 'Ceramic' : 'Shell-backed' });
+  if (b.horns >= 0.5) t.push({ id: 'horned', score: b.horns, epithets: ['cornutus', 'spinosus'], modifier: 'Horned' });
+  if (mode === LOCOMOTION.walk && b.limbPairs >= LIMBS_PRESENT && b.limbLen >= LIMBS_LONG) t.push({ id: 'fast', score: b.limbLen, epithets: ['velox', 'celer'], modifier: 'Swift' });
+  if (mode === LOCOMOTION.swim && b.buoy < 0.3) t.push({ id: 'deep', score: 1 - b.buoy, epithets: ['abyssalis', 'profundus'], modifier: 'Deep' });
+  // habitat, a weak trait: names a species when no body trait stands out
+  if (mode === LOCOMOTION.swim && b.buoy >= 0.3) t.push({ id: 'shallows', score: 0.35, epithets: ['littoralis', 'aquaticus'], modifier: 'Shallows' });
+  if (mode === LOCOMOTION.walk) t.push({ id: 'ground', score: 0.35, epithets: ['terrestris', 'campestris'], modifier: 'Ground' });
+  if (mode === LOCOMOTION.hover) t.push({ id: 'sky', score: 0.35, epithets: ['aerius', 'volans'], modifier: 'Sky' });
+  if (mode === LOCOMOTION.sessile) t.push({ id: 'shore', score: 0.5, epithets: ['littoralis', 'maritimus'], modifier: 'Shore' });
+  if (b.eyes >= 0.7) t.push({ id: 'eyed', score: b.eyes, epithets: ['oculatus', 'ocellatus'], modifier: 'Keen-eyed' });
+  if (b.diet > DIET_HUNTER_MIN) t.push({ id: 'hunter', score: b.diet, epithets: ['rapax', 'praedator'], modifier: 'Fanged' });
+  if (b.sociality >= 0.7) t.push({ id: 'herd', score: b.sociality, epithets: ['gregarius', 'socialis'], modifier: 'Herd' });
+  t.sort((x, y) => y.score - x.score);
+  // the plain fallback: a species with no standout trait is named for its chemistry
+  t.push(si ? { id: 'plain', score: 0, epithets: ['vitreus', 'glacialis'], modifier: 'Glass' } : { id: 'plain', score: 0, epithets: ['vulgaris', 'communis'], modifier: 'Common' });
+  return t;
+}
+
+const ORDINALS = ['primus', 'secundus', 'tertius', 'quartus', 'quintus', 'sextus', 'septimus', 'octavus', 'nonus', 'decimus'];
+
+function seededPick(seed: number, key: number, n: number): number {
+  let h = (Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(key + 1, 0xc2b2ae35)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+  return ((h ^ (h >>> 13)) >>> 0) % n;
 }
 
 // ---- Tracker ----
@@ -269,7 +318,7 @@ export interface TrackerOptions {
   minMembers?: number;   // live animals a cluster needs before it can be announced (default MIN_MEMBERS)
   persistSec?: number;   // and how long it must have held that size, in ecology seconds (default 0: announce at once)
   distinctNames?: boolean; // give every announced form its own name (a qualifier word on collision)
-  nameSeed?: number;     // when set, a form is named "<seeded genus word> <movement word>" instead of "<feature word> <movement word>"
+  nameSeed?: number;     // when set, a form gets a trait-based common name ("<trait modifier> <movement word>") instead of "<feature word> <movement word>"; the scientific name is always binomial
 }
 
 export class FormTracker {
@@ -277,6 +326,7 @@ export class FormTracker {
   private nextId = 1;
   private pending: { centroid: Float64Array; since: number }[] = [];
   private readonly used = new Set<string>();
+  private readonly usedSci = new Set<string>();
   private minMembers: number;
   private gapSec = 0;
   private lastAnnounced = -Infinity;
@@ -321,18 +371,39 @@ export class FormTracker {
       this.bins.push(bin);
       this.lastAnnounced = nowSec;
       const base = nameForm(cl.centroid, cl.hint);
-      let name: string;
-      if (this.nameSeed !== undefined) {
-        const chem: Chem = cl.centroid.si > 0.5 ? 'si' : 'c';
-        const move = base.split(' ').pop()!;
-        let salt = 0;
-        do name = `${genusWord(this.nameSeed, bin.id, chem, salt++)} ${move}`; while (this.used.has(name) && salt < 50);
-      } else name = this.distinct ? this.unique(base, cl.centroid) : base;
+      const chem: Chem = cl.centroid.si > 0.5 ? 'si' : 'c';
+      const mode: LocomotionMode = cl.hint.mode ?? modeFromGenes(cl.centroid.body);
+      const { name, scientific } = this.nameSpecies(bin.id, cl.centroid, chem, mode, base);
       this.used.add(name);
-      out.push({ binId: bin.id, name, organismId: representative(cl, v, byId) });
+      this.usedSci.add(scientific);
+      out.push({ binId: bin.id, name, scientific, organismId: representative(cl, v, byId) });
     }
     this.pending = stillPending;
     return out;
+  }
+
+  /**
+   * Both names from the species' strongest traits. Walks the trait list (and each trait's synonyms) until the common name
+   * and the scientific name are both unused in this run; then falls back to a qualifier / ordinal.
+   */
+  private nameSpecies(binId: number, c: FormCentroid, chem: Chem, mode: LocomotionMode, base: string): { name: string; scientific: string } {
+    const seed = this.nameSeed ?? 0;
+    const genus = genusOf(chem, c.body, mode);
+    const move = base.split(' ').pop()!;
+    const traits = traitsOf(chem, c.body, mode);
+    const common = (t: Trait) => `${t.modifier} ${move}`;
+    for (const t of traits) {
+      const first = seededPick(seed, binId, t.epithets.length);
+      for (let k = 0; k < t.epithets.length; k++) {
+        const sci = `${genus} ${t.epithets[(first + k) % t.epithets.length]}`;
+        const name = this.nameSeed === undefined ? (this.distinct ? this.unique(base, c) : base) : common(t);
+        if (!this.usedSci.has(sci) && (this.nameSeed === undefined || !this.used.has(name))) return { name, scientific: sci };
+      }
+    }
+    const top = traits[0];   // every trait's epithets were taken: number the species within its genus
+    let scientific = '';
+    for (const o of ORDINALS) { scientific = `${genus} ${o}`; if (!this.usedSci.has(scientific)) break; }
+    return { name: this.nameSeed === undefined ? (this.distinct ? this.unique(base, c) : base) : this.unique(common(top), c), scientific };
   }
 
   /** A name nobody has: the base name, else a trait qualifier ("Keen Glass Spoke"), else a numeral. */

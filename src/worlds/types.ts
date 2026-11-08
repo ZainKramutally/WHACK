@@ -188,7 +188,9 @@ export interface SimSnapshot {          // 20 Hz
   bands: Record<ControlId, LivingBand>;
 }
 
-export interface NewFormEvent { binId: number; name: string; organismId: number }
+/** `name` is the common name (e.g. "Night-glow Strider"): unique in a run and the bestiary's key. `scientific` is the binomial
+ *  ("Carbopus noctiluca": Genus epithet, Greek/Latin roots for the body plan and the most distinctive trait); unique in a run too. */
+export interface NewFormEvent { binId: number; name: string; scientific: string; organismId: number }
 
 /** Typed bus events (CLAUDE.md "Bus events"). */
 export interface BusEvents {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimalGenome, BodyGenes } from './genome';
 import { LOCOMOTION, type LocomotionMode } from './develop';
-import { genusWord, FormTracker, clusterForms, functionalType, nameForm, type GuideAnimal } from './guide';
+import { genusOf, FormTracker, clusterForms, functionalType, nameForm, type GuideAnimal } from './guide';
 
 const flat: BodyGenes = {
   size: 0.5, segments: 0.3, limbPairs: 0, limbLen: 0.3, plates: 0, horns: 0,
@@ -77,23 +77,54 @@ describe('names say how a species moves (owner, #75)', () => {
   });
 });
 
-describe('genus words', () => {
-  it('are deterministic, pronounceable-looking, and differ across runs, species and chemistries', () => {
-    expect(genusWord(5, 1, 'c')).toBe(genusWord(5, 1, 'c'));
-    const names = new Set<string>();
-    for (let seed = 1; seed <= 40; seed++) for (let key = 1; key <= 6; key++) names.add(genusWord(seed * 977, key, 'c'));
-    expect(names.size).toBeGreaterThan(220);   // 240 draws, almost no repeats
-    expect(genusWord(5, 1, 'c')).not.toBe(genusWord(5, 1, 'si'));
-    expect(genusWord(5, 1, 'c')).toMatch(/^[A-Z][a-z]+$/);
+describe('binomial names', () => {
+  const SCI = /^[A-Z][a-z]+ [a-z]+$/;
+  const run = (seed: number, groups: [number, AnimalGenome, LocomotionMode?][]) => {
+    const t = new FormTracker({ minMembers: 4, nameSeed: seed, distinctNames: true });
+    const animals = groups.flatMap(([id, g, mode]) => group(id, 5, g).map((a) => ({ ...a, mode })));
+    return t.update(animals);
+  };
+  const glower = genome({ glow: 0.9 });
+  const giant = genome({ size: 0.9, sociality: 0.05 });
+  const walker = genome({ limbPairs: 0.6, limbLen: 0.8, size: 0.4 });
+
+  it('scientific names look like "Genus epithet" and are deterministic per seed', () => {
+    const g: [number, AnimalGenome, LocomotionMode?][] = [[1, carbonWorm], [100, giant], [200, walker, LOCOMOTION.walk], [300, glower]];
+    const a = run(7, g);
+    expect(a.length).toBe(4);
+    for (const f of a) expect(f.scientific).toMatch(SCI);
+    expect(run(7, g)).toEqual(a);
   });
-  it('names tracked forms "<genus> <movement>" when given a seed, never repeating within a run', () => {
-    const t = new FormTracker({ minMembers: 4, nameSeed: 99, distinctNames: true });
-    const out = t.update([...group(1, 5, carbonWorm), ...group(100, 5, genome({ size: 0.9, sociality: 0.05 }))]);
-    expect(out).toHaveLength(2);
-    expect(out[0].name).toMatch(/^[A-Z][a-z]+ \w+$/);
-    expect(out[0].name).not.toBe(out[1].name);
-    const other = new FormTracker({ minMembers: 4, nameSeed: 100, distinctNames: true }).update(group(1, 5, carbonWorm));
-    expect(other[0].name.split(' ')[0]).not.toBe(out[0].name.split(' ')[0]);
+  it('are unique within a run, scientific and common', () => {
+    const g: [number, AnimalGenome][] = [[1, genome({ glow: 0.9, size: 0.45 })], [100, genome({ glow: 0.85, size: 0.5, sociality: 0.05, segments: 0.9, limbLen: 0.9 })], [200, genome({ glow: 0.8, size: 0.4, diet: 0.5, eyes: 0.9, horns: 0.2 })]];
+    const out = run(3, g);
+    expect(out.length).toBe(3);
+    expect(new Set(out.map((f) => f.scientific)).size).toBe(3);
+    expect(new Set(out.map((f) => f.name)).size).toBe(3);
+  });
+  it('the genus is shared by one chemistry and body plan, and differs across them', () => {
+    const out = run(1, [[1, genome({ glow: 0.9 })], [100, genome({ plates: 0.8 })], [200, genome({ size: 0.9 })]]);
+    const genus = out.map((f) => f.scientific.split(' ')[0]);
+    expect(genus[0]).toBe(genus[1]);
+    expect(genus[0]).toBe('Carbonema');
+    expect(genus[2]).toBe('Carbosaurus');
+    expect(genusOf('si', { ...flat, limbPairs: 0.7 }, LOCOMOTION.walk)).toBe('Hyalopus');
+    expect(genusOf('si', { ...flat, buoy: 0.9 }, LOCOMOTION.hover)).toBe('Hyalophora');
+    expect(genusOf('c', { ...flat, buoy: 0.1 }, LOCOMOTION.hover)).toBe('Carboptera');
+    expect(genusOf('c', { ...flat, gape: 0.9, diet: 0.9 }, LOCOMOTION.walk)).toBe('Carbostoma');
+  });
+  it('the epithet and the common modifier follow the most distinctive trait', () => {
+    const [g] = run(5, [[1, genome({ glow: 0.95 })]]);
+    expect(['noctiluca', 'lucens']).toContain(g.scientific.split(' ')[1]);
+    expect(g.name).toMatch(/^Night-glow /);
+    const [p] = run(5, [[1, genome({ plates: 0.9 })]]);
+    expect(['armatus', 'loricatus']).toContain(p.scientific.split(' ')[1]);
+    const [s] = run(5, [[1, genome({ plates: 0.9 }, 0.05, 0.9), LOCOMOTION.walk]]);
+    expect(['nitridis', 'loricatus']).toContain(s.scientific.split(' ')[1]);
+  });
+  it('keeps the movement word as the last word of the common name', () => {
+    const [w] = run(5, [[1, walker, LOCOMOTION.walk]]);
+    expect(w.name.split(' ').pop()).toBe(nameForm(clusterForms(group(1, 5, walker))[0].centroid, { mode: LOCOMOTION.walk }).split(' ').pop());
   });
 });
 

@@ -104,6 +104,6 @@ function toWorkerEvent(e: SimEvent, worldId: 'carbon' | 'silicon'): WorkerEvent 
     case 'control:blocked':
       return { name: e.type, payload: e.start ? { controlId: e.controlId, limitId: e.limitId, start: true } : { controlId: e.controlId, limitId: e.limitId } };
     case 'guide:newForm':
-      return { name: e.type, payload: { binId: e.binId, name: e.name, organismId: e.organismId } };
+      return { name: e.type, payload: { binId: e.binId, name: e.name, scientific: e.scientific, organismId: e.organismId } };
   }
 }
