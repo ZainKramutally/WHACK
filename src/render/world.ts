@@ -185,14 +185,14 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     const t1 = performance.now();
     sea.update(dt, t, inputs, patch);
     underFx.update(dt, t, inputs, patch);
-    if (!currentEgg()) backdrop.update(dt, t, inputs, patch);   // lead egg: no far giants
+    // lead egg: life-built forms (shell stone, lichen) see a barren world; the sim's flora is untouched
+    const barren = currentEgg() ? { ...inputs, flora: (zeroFlora.length === inputs.flora.length ? zeroFlora : (zeroFlora = new Float32Array(inputs.flora.length))), lifeOnLand: false } : inputs;
+    backdrop.update(dt, t, barren, patch);   // lead egg: horizon builds, but no far giants
     const t2 = performance.now();
     fauna.update(dt, t, inputs, patch);
     const t3 = performance.now();
     if (!currentEgg()) flora.update(dt, t, inputs, patch);   // lead egg: no plants (sim biomass untouched)
     const t4 = performance.now();
-    // lead egg: life-built forms (shell stone, lichen) see a barren world; the sim's flora is untouched
-    const barren = currentEgg() ? { ...inputs, flora: (zeroFlora.length === inputs.flora.length ? zeroFlora : (zeroFlora = new Float32Array(inputs.flora.length))), lifeOnLand: false } : inputs;
     landmarks.update(dt, t, barren, patch);
     rockForms.update(dt, t, barren, patch);
     pillars.update(dt, inputs);
