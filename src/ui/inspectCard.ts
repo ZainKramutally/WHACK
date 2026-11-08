@@ -41,6 +41,7 @@ export function mountInspectCard(
   const card = el('aside', 'wu-card wu-inspect');
   card.hidden = true;
   const title = el('h2', 'wu-h');
+  const sci = el('p', 'wu-sci'); // binomial under the common name, shown once the kind is scanned
   const closeBtn = el('button', 'wu-x', '×');
   closeBtn.type = 'button';
   closeBtn.setAttribute('aria-label', 'Close');
@@ -57,7 +58,7 @@ export function mountInspectCard(
   const win = el('div', 'wu-window');
   const winLabel = el('p', 'wu-window-label');
   // The counterpart window sits near the top so it is visible without scrolling on a short screen.
-  card.append(title, closeBtn, tags, kind, status, win, winLabel, details, whyP, whyTitle, whyList, whyNote, cmpTitle, table);
+  card.append(title, sci, closeBtn, tags, kind, status, win, winLabel, details, whyP, whyTitle, whyList, whyNote, cmpTitle, table);
   root.append(card);
 
   let target: InspectTarget | null = null;
@@ -65,7 +66,7 @@ export function mountInspectCard(
   let last: SimSnapshot | null = null;
   let lastRec: OrganismRecord | null = null; // last known organism record, kept after death
   let lastPlan: BodyPlan | undefined;
-  let lastForm: { name?: string; recognised: boolean } | undefined;
+  let lastForm: { name?: string; scientific?: string; recognised: boolean } | undefined;
   let lastRect = '';
   let lastSig = '';
 
@@ -74,9 +75,10 @@ export function mountInspectCard(
   const otherName = other ? `A ${other.id} world` : '';
   const otherStart = other ? statsAtStart(other) : undefined;
 
-  function describe(t: InspectTarget, s: SimSnapshot): { rows: Rows; dead: boolean; name: string; why?: string; blurb?: string } {
+  function describe(t: InspectTarget, s: SimSnapshot): { rows: Rows; dead: boolean; name: string; scientific?: string; why?: string; blurb?: string } {
     const feat = world.features[t.kind];
     let name = feat.name;
+    let scientific: string | undefined;
     let why: string | undefined, blurb: string | undefined;
     let dead = false;
     const rows: Rows = [];
@@ -88,7 +90,7 @@ export function mountInspectCard(
         lastPlan = registry.planOf(t.organismId) ?? lastPlan;
         lastForm = registry.formOf(t.organismId) ?? lastForm;
       } else dead = true;
-      if (lastForm?.recognised && lastForm.name) name = lastForm.name;
+      if (lastForm?.recognised && lastForm.name) { name = lastForm.name; scientific = lastForm.scientific; }
       if (lastRec) {
         rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', chemTrait: world.life.rules.chemTrait, ledger: world.life.ledger, form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
       }
@@ -120,7 +122,7 @@ export function mountInspectCard(
       const gas = world.facts.find((f) => f.id === 'mainGas');
       if (gas) rows.push(['Main gas', gas.value]);
     }
-    return { rows, dead, name, why, blurb };
+    return { rows, dead, name, scientific, why, blurb };
   }
 
   function compareRows(t: InspectTarget, s: SimSnapshot): string[][] {
@@ -150,7 +152,7 @@ export function mountInspectCard(
   function render() {
     if (!target || !last) return;
     const feat = world.features[target.kind];
-    const { rows, dead, name, why, blurb } = describe(target, last);
+    const { rows, dead, name, scientific, why, blurb } = describe(target, last);
     const isOrg = target.kind === 'organism';
     const hasModelExplanation = isOrg && !!lastRec && !!lastPlan;
     const description = hasModelExplanation
@@ -166,10 +168,12 @@ export function mountInspectCard(
     const cmp = compareRows(target, last);
     const tag = isOrg && lastRec ? organismTags(lastRec, lastPlan) : null;
     const tagSig = tag ? `${tag.role}/${tag.habitat}` : '';
-    const sig = [tagSig, name, description, dead ? 'D' : '', reason, target.kind, rows.join('|'), cmp.join('|'), explanations.map((x) => `${x.label}:${x.text}`).join('|')].join('\n');
+    const sig = [tagSig, name, scientific ?? '', description, dead ? 'D' : '', reason, target.kind, rows.join('|'), cmp.join('|'), explanations.map((x) => `${x.label}:${x.text}`).join('|')].join('\n');
     if (sig === lastSig) return;
     lastSig = sig;
     title.textContent = name;
+    sci.textContent = scientific ?? '';
+    sci.hidden = !scientific;
     tags.hidden = !tag;
     tags.replaceChildren(...(tag ? [
       iconChip(tag.role, ROLE_LABEL[tag.role], ROLE_TITLE[tag.role]),
