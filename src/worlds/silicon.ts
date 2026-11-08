@@ -424,6 +424,7 @@ export const silicon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 2,
+      defaultPick: 'silicide',   // silicon's own iron-bearing rock (owner request, 2026-11-08)
       favour: 0.9,   // assumption: as on carbon
       why: 'Four rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
       sources: [],

@@ -115,6 +115,7 @@ export interface CrustConfig extends Sourced {
   minerals: MineralDef[];                        // at least one; ids unique
   patchCells: number;                            // typical mineral patch size, in grid cells (noise scale of the map)
   rustOxygen: number;                            // oxygen % at which oxidising rock is fully oxidised at the surface
+  defaultPick?: CrustPickId;                     // rock chip selected on the selection screen until the player touches a chip
   favour: number;                               // share of the patch a picked rock takes (the other minerals share the rest by their midpoints)
 }
 

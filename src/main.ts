@@ -293,7 +293,7 @@ async function boot() {
     }).catch(() => {});
   };
   bus.on('selection:changed', ({ worldId, conditions, crust }) => prime(worldId, conditions, crust));
-  prime('carbon', Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions);
+  prime('carbon', Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions, worldFor('carbon').terrain.crust.defaultPick);
 }
 
 function fail(e: unknown) {

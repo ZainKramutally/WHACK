@@ -10,6 +10,13 @@ export interface SelectionState {
   conditions: Conditions;
   /** Picked rock chip (chip id); absent = the natural seeded mix. Kept across element switches: every world has the same chips. */
   crust?: CrustPickId;
+  /** True once the player has clicked a chip: then `crust` (even undefined = natural mix) rules; until then the world's `defaultPick` does. */
+  touched?: boolean;
+}
+
+/** The rock pick in effect: the player's choice once they have touched a chip, else the selected world's default. */
+export function effectiveCrust(s: SelectionState): CrustPickId | undefined {
+  return s.touched ? s.crust : worldFor(s.worldId).terrain.crust.defaultPick;
 }
 
 /** Carbon selected, sliders at the control defaults (15 °C, 1 × Earth, 21 % oxygen). */
@@ -24,14 +31,14 @@ export function initialSelection(): SelectionState {
 export function selectElement(s: SelectionState, z: number): SelectionState {
   const row = group14.find((r) => r.z === z);
   if (!row?.worldId || row.worldId === s.worldId) return s;
-  return { worldId: row.worldId, conditions: s.conditions, ...(s.crust ? { crust: s.crust } : {}) };
+  return { worldId: row.worldId, conditions: s.conditions, ...(s.crust ? { crust: s.crust } : {}), ...(s.touched ? { touched: true } : {}) };
 }
 
 /** Pick a rock chip; picking the picked one again, or an id the world cannot pick, clears it. */
 export function toggleCrust(s: SelectionState, id: CrustPickId): SelectionState {
   const ok = CRUST_PICKS.some((c) => c.id === id);
-  const crust = ok && s.crust !== id ? id : undefined;
-  return { worldId: s.worldId, conditions: s.conditions, ...(crust ? { crust } : {}) };
+  const crust = ok && effectiveCrust(s) !== id ? id : undefined;
+  return { worldId: s.worldId, conditions: s.conditions, touched: true, ...(crust ? { crust } : {}) };
 }
 
 /** Move one slider anywhere in its full range: on this screen there is no world yet, so nothing is protected. */
@@ -43,7 +50,8 @@ export function setCondition(s: SelectionState, id: ControlId, value: number): S
 
 /** The `world:selected` payload for Generate. */
 export function generatePayload(s: SelectionState): { worldId: WorldId; requested: Conditions; crust?: CrustPickId } {
-  return { worldId: s.worldId, requested: { ...s.conditions }, ...(s.crust ? { crust: s.crust } : {}) };
+  const crust = effectiveCrust(s);
+  return { worldId: s.worldId, requested: { ...s.conditions }, ...(crust ? { crust } : {}) };
 }
 
 export type Viability = { ok: true } | { ok: false; reason: string; limitId: string };

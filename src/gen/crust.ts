@@ -89,7 +89,7 @@ export function withCrustChoice(world: WorldConfig, pickId?: CrustPickId): World
       return { ...m, share: t === 0 ? [0, 0] : [Math.max(0, t - HALF), t + HALF] };
     });
     // The Conditions panel's Ground row says which rock was picked.
-    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (picked)` } : f));
+    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()}` } : f));
     out = { ...world, facts, terrain: { ...world.terrain, crust: { ...crust, minerals } } };
     byId.set(pickId!, out);
   }

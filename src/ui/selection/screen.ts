@@ -13,7 +13,7 @@ import { createBox, N_ATOMS } from './box';
 import { group14 } from './elements';
 import { elementIcon } from './icons';
 import {
-  bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, toggleCrust, viability,
+  bandsFor, effectiveCrust, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, toggleCrust, viability,
   type SelectionState, type Viability,
 } from './state';
 
@@ -532,7 +532,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
     renderRefs(world, specWorld);
     renderRock(world);
-    bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond }, ...(state.crust ? { crust: state.crust } : {}) });
+    bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond }, ...(effectiveCrust(state) ? { crust: effectiveCrust(state) } : {}) });
   }
 
   // Rock chips (docs/features/crust.md): the same chips on every world, hints from the current world's mineral; none picked = the natural mix.
@@ -546,7 +546,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         .map((c) => `<button type="button" class="chip" data-m="${c.id}" title="${esc(pickHint(world, c.id))}" aria-pressed="false">${esc(c.label)}</button>`).join('');
     }
     el.querySelectorAll<HTMLButtonElement>('.chip').forEach((b) => {
-      const on = b.dataset.m === state.crust;
+      const on = b.dataset.m === effectiveCrust(state);
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', String(on));
     });
@@ -557,7 +557,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     state = toggleCrust(state, b.dataset.m as CrustPickId);
     render();
     const c = CRUST_PICKS.find((x) => x.id === b.dataset.m)!;
-    announce(state.crust ? `${c.label} rock: ${pickHint(worldFor(state.worldId), c.id)}.` : 'Natural rock mix.');
+    announce(effectiveCrust(state) ? `${c.label} rock: ${pickHint(worldFor(state.worldId), c.id)}.` : 'Natural rock mix.');
   });
 
   // References: every source cited by the selected world's limits and, for the appendix, the speculative world's reasoning.
@@ -686,7 +686,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const world = withCrustChoice(worldFor(state.worldId), state.crust);
+    const world = withCrustChoice(worldFor(state.worldId), effectiveCrust(state));
     // While launching, the box keeps living (slowed by the transition) until its dots hand over to the grains.
     box.frame(now, launching ? dt * boxSpeed : dt, world, state.conditions);
     if (!launching) {

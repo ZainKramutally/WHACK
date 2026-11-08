@@ -395,6 +395,7 @@ export const carbon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 10,
+      defaultPick: 'ironstone',   // the Red World by default (owner request, 2026-11-08)
       favour: 0.9,   // assumption: a picked rock takes about nine tenths of the patch, leaving only small accents of the others
       why: 'Rock is sorted by height, with the nutrient multipliers as placeholders; the crust redistributes the base nutrient supply and adds none. Rust begins with the first oxygen (paleosols keep their iron above roughly 0.2–0.4%, rye1998), and the world is drawn fully rusted by about 10%, half of today\'s level (a declared look choice).',
       sources: ['rye1998'],

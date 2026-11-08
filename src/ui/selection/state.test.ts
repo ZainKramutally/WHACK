@@ -30,7 +30,7 @@ describe('selection state', () => {
     let s = selectElement(initialSelection(), 14);
     s = setCondition(s, 'temperature', -183.4);
     s = setCondition(s, 'nitrogen', 5000);
-    expect(generatePayload(s)).toEqual({ worldId: 'silicon', requested: { temperature: -183, nitrogen: 1000, oxygen: 21 } });
+    expect(generatePayload(s)).toEqual({ worldId: 'silicon', requested: { temperature: -183, nitrogen: 1000, oxygen: 21 }, crust: 'silicide' });
   });
 
   it('carbon at defaults is viable and moves nothing; silicon at defaults moves its sliders to startDefaults', () => {
@@ -120,16 +120,30 @@ describe('boxState bed', () => {
 });
 
 describe('rock chip', () => {
-  it('toggles, persists across element switch, and rides the payload', async () => {
-    const { toggleCrust, selectElement, generatePayload, initialSelection } = await import('./state');
-    let s = toggleCrust(initialSelection(), 'granite');
+  it('defaults per world, persists once touched, un-picks to the natural mix', async () => {
+    const { toggleCrust, selectElement, generatePayload, initialSelection, effectiveCrust } = await import('./state');
+    const s0 = initialSelection();
+    expect(generatePayload(s0).crust).toBe('ironstone');
+    expect(generatePayload(selectElement(s0, 14)).crust).toBe('silicide');   // untouched: the new world's default
+    let s = toggleCrust(s0, 'granite');
     expect(generatePayload(s).crust).toBe('granite');
     expect(toggleCrust(s, 'granite').crust).toBeUndefined();
     expect(toggleCrust(s, 'nitride').crust).toBe('nitride');
-    expect(toggleCrust(initialSelection(), 'waterIce' as never).crust).toBeUndefined();
+    expect(toggleCrust(s0, 'waterIce' as never).crust).toBeUndefined();
     s = selectElement(s, 14);
     expect(s.worldId).toBe('silicon');
-    expect(s.crust).toBe('granite');
-    expect(generatePayload(initialSelection())).not.toHaveProperty('crust');
+    expect(effectiveCrust(s)).toBe('granite');
+    const un = toggleCrust(s0, 'ironstone');   // clicking the lit default un-picks it
+    expect(generatePayload(un)).not.toHaveProperty('crust');
+    expect(generatePayload(selectElement(un, 14))).not.toHaveProperty('crust');   // and that persists
+  });
+  it('each world default is a pickable mineral in its crust', async () => {
+    const { worldFor } = await import('../../worlds');
+    const { CRUST_PICKS } = await import('../../worlds/controls');
+    for (const id of ['carbon', 'silicon'] as const) {
+      const c = worldFor(id).terrain.crust;
+      expect(CRUST_PICKS.some((p) => p.id === c.defaultPick)).toBe(true);
+      expect(c.minerals.some((m) => m.id === c.defaultPick && m.pick)).toBe(true);
+    }
   });
 });

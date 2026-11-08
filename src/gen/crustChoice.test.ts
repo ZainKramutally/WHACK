@@ -47,7 +47,7 @@ describe('withCrustChoice', () => {
 describe('withCrustChoice ground fact', () => {
   it('names the pick in the Ground row', () => {
     const f = withCrustChoice(carbon, 'granite').facts.find((x) => x.id === 'rock')!;
-    expect(f.value).toBe('Mostly granite (picked)');
+    expect(f.value).toBe('Mostly granite');
     expect(carbon.facts.find((x) => x.id === 'rock')!.value).not.toContain('Mostly');
   });
 });
