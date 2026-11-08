@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  EXTRAPOLATE_CAP, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
+  EXTRAPOLATE_CAP, IDLE_BL, WALK_EASE, gaitStep, halfStride, slewAngle, turnRateMax, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
   STANCE, swayOffset, swimWave,
 } from './motion';
 
@@ -96,5 +96,32 @@ describe('radial motion', () => {
   it('rolling turns distance ÷ radius', () => {
     expect(rollAngle(Math.PI, 1)).toBeCloseTo(Math.PI);
     expect(rollAngle(2, 4)).toBeCloseTo(0.5);
+  });
+});
+
+describe('walking gait (distance-integrated)', () => {
+  it('halfStride grows with speed and is capped by the reach', () => {
+    expect(halfStride(1, 3, 2)).toBeGreaterThan(halfStride(1, 3, 1));
+    expect(halfStride(1, 3, 100)).toBeCloseTo(0.4 * 3, 9);
+  });
+  it('gaitStep: phase follows distance, eases the walk weight, and freezes when idle', () => {
+    const g = { gait: 0, walkW: 0 };
+    const dt = 1 / 60, L = 5;
+    for (let i = 0; i < 30; i++) gaitStep(g, 1 * dt, 1, L, 1, 3, dt);
+    expect(g.walkW).toBe(1); // eased in within WALK_EASE
+    const before = g.gait, hW = gaitStep(g, 0.02, 1, L, 1, 3, dt);
+    expect(g.gait - before).toBeCloseTo((STANCE * 0.02) / (2 * hW), 9); // one cycle per 2·hW/STANCE metres
+    const idle = { gait: 0.3, walkW: 1 };
+    for (let i = 0; i < Math.ceil(WALK_EASE / dt) + 1; i++) gaitStep(idle, 0, 0.5 * IDLE_BL * L, L, 1, 3, dt);
+    expect(idle.walkW).toBe(0);
+    const frozen = idle.gait;
+    gaitStep(idle, 0.01, 0.5 * IDLE_BL * L, L, 1, 3, dt);
+    expect(idle.gait).toBe(frozen);
+  });
+  it('slewAngle turns the short way by at most the step; long bodies turn slower', () => {
+    expect(slewAngle(0, 1, 0.1)).toBeCloseTo(0.1, 9);
+    expect(slewAngle(3, -3, 0.1)).toBeCloseTo(3.1, 9); // across ±π, the short way
+    expect(slewAngle(0, 0.05, 0.1)).toBeCloseTo(0.05, 9);
+    expect(turnRateMax(20)).toBeLessThan(turnRateMax(5));
   });
 });

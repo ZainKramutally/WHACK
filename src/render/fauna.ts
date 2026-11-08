@@ -32,7 +32,8 @@ import {
   armRods, beadLayout, capsuleLayout, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
-  armStance, bellPulse, fadeScale, gaitFoot, interpPose, limbPhaseOffset, rollAngle, swayOffset, swimWave,
+  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, limbPhaseOffset, rollAngle, slewAngle, swayOffset, swimWave,
+  turnRateMax,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
 import { MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
@@ -141,8 +142,11 @@ interface Entry {
   snapT: number; dtSnap: number;
   /** Rendered pose this frame. */
   x: number; z: number; h: number;
-  /** Smoothed ground speed in m/s and the accumulated gait cycles. */
+  /** Smoothed ground speed in m/s and the accumulated gait cycles (distance-integrated: motion.ts gaitStep). */
   speed: number; gait: number;
+  /** Walk weight (0 standing … 1 walking, eased), half stride in drawn world metres, smoothed turn rate (rad/s), and the
+   *  plan's curl (rad per joint), which is motion only: lateral flexion while walking. */
+  walkW: number; hW: number; turn: number; curl: number;
   /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
   planned: boolean;
   /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
@@ -386,7 +390,7 @@ export function createFauna(app: App): FaunaPart {
       sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
-      speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
+      speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
     };
   }
 
@@ -424,6 +428,11 @@ export function createFauna(app: App): FaunaPart {
     const lay = e.layout, src = e.flat, nb = lay.beads.length, nBody = lay.nBody;
     const out = scratch;
     const moving = Math.min(1, e.speed / (0.12 * drawnLength(e.scale, e.g))); // 0 idle … 1 at 0.12 body lengths per second
+    // Walking bends into turns along the path's curvature κ = turn rate ÷ speed (layout units, ends ≤ 12% of the
+    // length off the chord), toward the side it turns to.
+    const kMax = 0.96 / Math.max(e.xspan, 1e-6);
+    const kap = mode === LOCOMOTION.walk ? Math.max(-kMax, Math.min(kMax, (e.turn * s) / Math.max(e.speed, 0.3))) : 0;
+    const xc = e.xmin + 0.5 * e.xspan;
     // Body beads: copy, then bend by locomotion mode. (Hoverers ride under a bell: the body only breathes a little.)
     for (let i = 0; i < nBody; i++) {
       const f = i * 5;
@@ -438,6 +447,10 @@ export function createFauna(app: App): FaunaPart {
       } else if (mode === LOCOMOTION.sessile) {
         const hn = Math.min(1, y / e.ymax);
         z += swayOffset(hn, t, e.id, 0.08 * e.xspan);
+      } else if (mode === LOCOMOTION.walk) {
+        // carbon's curl as motion: lateral flexion with the stride, strongest at head and tail (rest stays straight)
+        const xn = (x - e.xmin) / e.xspan, c = 2 * xn - 1, dx = x - xc;
+        z += e.curl * 0.5 * e.xspan * e.walkW * c * c * Math.sin(2 * Math.PI * e.gait + Math.PI * xn) + 0.5 * kap * dx * dx;
       }
       const fl = e.flap[i];
       if (fl > 0) y += Math.abs(z) * 0.55 * fl * Math.sin(2 * Math.PI * 1.3 * t + e.id) * (mode === LOCOMOTION.hover ? 1 : 0.5 + moving);
@@ -446,11 +459,11 @@ export function createFauna(app: App): FaunaPart {
     // Limbs.
     if (lay.limbs.length > 0) {
       const walking = mode === LOCOMOTION.walk;
-      const amp = walking ? moving : 0;
+      const amp = walking ? e.walkW : 0, stride = (e.hW / Math.max(s, 1e-6)) * amp, pairs = lay.limbs.length >> 1;
       for (const rig of lay.limbs) {
         let fx = rig.hip.x, fy = rig.r, fz = rig.hip.z + rig.side * rig.restOut;
         if (walking) {
-          const g = gaitFoot(e.gait + limbPhaseOffset(rig.pair, rig.side), lay.stride * amp, 0.35 * rig.len1 * amp);
+          const g = gaitFoot(e.gait + limbPhaseOffset(rig.pair, rig.side, pairs), stride, 0.35 * rig.len1 * amp);
           fx += g.dx;
           // Plant the foot on the terrain under its world position.
           const wx = e.x + (fx * cosH - fz * sinH) * s, wz = e.z + (fx * sinH + fz * cosH) * s;
@@ -485,7 +498,6 @@ export function createFauna(app: App): FaunaPart {
   ): void {
     const lay = e.layout, R = lay.radial!;
     const src = e.rods, out = rodScratch, eyes = scratch;
-    const moving = Math.min(1, e.speed / (0.12 * drawnLength(e.scale, e.g)));
     const pulse = mode === LOCOMOTION.hover ? bellPulse(t, e.id) : 1;
     for (let i = 0; i < R.nHubRods * ROD_STRIDE; i++) out[i] = src[i];
     if (pulse !== 1) for (let i = 0; i < R.nTiers; i++) out[i * ROD_STRIDE + 6] *= pulse;
@@ -493,7 +505,7 @@ export function createFauna(app: App): FaunaPart {
     for (const rig of R.arms) {
       let fx: number, fy: number, fz: number;
       if (mode === LOCOMOTION.walk && e.legged) {
-        const g = gaitFoot(e.gait + rig.phase, lay.stride * moving, 0.35 * rig.len1 * moving);
+        const g = gaitFoot(e.gait + rig.phase, (e.hW / Math.max(s, 1e-6)) * e.walkW, 0.35 * rig.len1 * e.walkW);
         fx = rig.hip.x + rig.dirX * rig.restOut + g.dx;
         fz = rig.hip.z + rig.dirZ * rig.restOut;
         const wx = e.x + (fx * cosH - fz * sinH) * s, wz = e.z + (fx * sinH + fz * cosH) * s;
@@ -1026,6 +1038,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
+  let fGravity = 1;
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
   // Ground cache: about 1k height samples a frame (one per creature, plus posed feet) became a resample only after a
@@ -1220,7 +1233,7 @@ export function createFauna(app: App): FaunaPart {
       pn = 0;
       const boost = part.scaleBoost;
       ft = t; fBoost = boost; fSea = inputs.seaLevel; fSeaThere = (inputs.stats.seaCover ?? 1) > 0.005;
-      fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0;
+      fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0; fGravity = inputs.stats.gravity ?? 1;
       // the terrain changed enough to move the ground (formation rise, landform growth): resample every cached ground
       let form = 0;
       for (const k in inputs.terrain.progress) form += inputs.terrain.progress[k];
@@ -1278,16 +1291,26 @@ export function createFauna(app: App): FaunaPart {
         }
         P0.x = e.px; P0.z = e.pz; P0.h = e.ph; P1.x = e.cx; P1.z = e.cz; P1.h = e.ch;
         const pose = interpPose(P0, P1, (t - e.snapT) / e.dtSnap);
-        e.x = pose.x; e.z = pose.z; e.h = pose.h;
-        // Gait advances with distance: cadence follows speed relative to body length.
-        const rel = e.speed / drawnLength(e.scale, e.g);
-        e.gait += dt * Math.min(3, 1.2 + 6 * rel);
+        const ox = e.x, oz = e.z, oh = e.h, Lw = boost * drawnLength(e.scale, e.g);
+        e.x = pose.x; e.z = pose.z;
+        // The sim can turn ±1.2 rad in one 50 ms tick: the drawn body turns at most turnRateMax(L), so it never spins
+        // and its planted feet never skate.
+        e.h = slewAngle(oh, pose.h, turnRateMax(Lw) * dt);
+        const dh = Math.atan2(Math.sin(e.h - oh), Math.cos(e.h - oh));
+        if (dt > 0) e.turn += (dh / dt - e.turn) * Math.min(1, dt / 0.2);
+        // Gait from the distance the body is drawn moving (plus the sweep of a turn), so the feet stay planted.
+        const lay = e.layout, rig = lay.radial ? (e.legged ? lay.radial.arms[0] : undefined) : lay.limbs[0];
+        if (rig) {
+          const s0 = boost * drawnFactor(e.scale, e.g);
+          const dist = Math.hypot(e.x - ox, e.z - oz) + 0.5 * Lw * Math.abs(dh);
+          e.hW = gaitStep(e, dist, e.speed, Lw, rig.hip.y * s0, (rig.len1 + rig.len2) * s0, dt, fGravity);
+        }
         if (mode === LOCOMOTION.swim && e.layout.radial) {
           e.roll = (e.roll + rollAngle(e.speed * dt / (boost * drawnFactor(e.scale, e.g)), e.layout.radial.rollRadius)) % (2 * Math.PI);
         }
         const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
         if (d2 < R2) {
-          const sv = boost * drawnFactor(e.scale, e.g), lay = e.layout;
+          const sv = boost * drawnFactor(e.scale, e.g);
           const back = inView(e.x, e.yDrawn + lay.centreY * sv, e.z, lay.radius * sv * 1.3 + VIEW_PAD) ? 0 : R2;
           e.rank = back + d2 * (e.tier === 2 ? LOFT_STICK : 1);
           e.swRank = back + d2 * (e.swOn ? LOFT_STICK : 1);

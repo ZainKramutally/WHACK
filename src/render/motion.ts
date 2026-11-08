@@ -67,10 +67,57 @@ export function solveTwoBone(u: number, v: number, l1: number, l2: number, snap 
 // --- gait ---------------------------------------------------------------------------------------------------
 export const STANCE = 0.6; // fraction of the cycle a foot is on the ground
 
-/** Alternating pairs: the two sides are half a cycle apart, and successive pairs alternate again. */
-export function limbPhaseOffset(pair: number, side: 1 | -1): number {
+/**
+ * Step timing per leg. Quadrupeds (legPairs 2, pair 0 hind) walk a lateral sequence: left hind, left fore, right hind,
+ * right fore, a quarter cycle apart. Others alternate: the two sides half a cycle apart, successive pairs alternating
+ * again (a hexapod's tripod, a biped's left-right).
+ */
+export function limbPhaseOffset(pair: number, side: 1 | -1, legPairs = 0): number {
+  if (legPairs === 2) return (side < 0 ? 0.5 : 0) + 0.25 * pair;
   return (((pair & 1) + (side > 0 ? 0 : 1)) & 1) * 0.5;
 }
+
+/** Below this many drawn body lengths per second the feet stop stepping and ease to neutral. */
+export const IDLE_BL = 0.03;
+/** Seconds for the walk weight to ease between standing (0) and walking (1). */
+export const WALK_EASE = 0.25;
+const G0 = 9.81;
+
+/**
+ * Half stride (drawn world metres) at world speed v, for a leg with drawn hip height `hip` and reach `reach`: stride
+ * length λ = 2.3·h·Fr^0.3 with Fr = v²/(g·h) (Alexander's dynamic-similarity fit), of which a foot sweeps STANCE·λ/2
+ * each side of neutral; capped at 0.4 of the reach. Grows with speed, so faster walkers take longer steps.
+ */
+export function halfStride(hip: number, reach: number, v: number, gravity = 1): number {
+  const h = Math.max(hip, 1e-3);
+  const fr = (v * v) / (G0 * gravity * h);
+  return Math.min(0.5 * STANCE * 2.3 * h * Math.pow(fr, 0.3), 0.4 * reach);
+}
+
+/**
+ * One frame of the walking gait. The phase is integrated from the distance the body was drawn moving this frame
+ * (`dist`, plus any turn sweep), one cycle per 2·halfStride/STANCE metres, so planted feet never slide; the walk weight
+ * eases to 0 when the speed drops under IDLE_BL body lengths a second, and the phase then stops (feet ease to neutral).
+ * Cadence is capped at 4 Hz. Returns the half stride used (drawn world metres).
+ */
+export function gaitStep(
+  g: { gait: number; walkW: number }, dist: number, speed: number, L: number, hip: number, reach: number, dt: number, gravity = 1,
+): number {
+  const k = dt / WALK_EASE;
+  g.walkW = speed / Math.max(L, 1e-6) >= IDLE_BL ? Math.min(1, g.walkW + k) : Math.max(0, g.walkW - k);
+  const hW = halfStride(hip, reach, speed, gravity);
+  if (g.walkW > 0 && hW > 1e-6) g.gait += Math.min(4 * dt, (STANCE * dist) / (2 * hW));
+  return hW;
+}
+
+/** Turn `cur` toward `target` (radians, shortest arc) by at most `maxStep`. */
+export function slewAngle(cur: number, target: number, maxStep: number): number {
+  const d = Math.atan2(Math.sin(target - cur), Math.cos(target - cur));
+  return cur + (d > maxStep ? maxStep : d < -maxStep ? -maxStep : d);
+}
+
+/** Heading slew limit (rad/s) for a body `L` drawn metres long: long bodies turn slower. */
+export const turnRateMax = (L: number) => 2.5 / Math.sqrt(Math.max(L, 0.5) / 5);
 
 /**
  * Foot offset in the body frame at gait phase `phase` (any real number; only the fraction counts). During stance the

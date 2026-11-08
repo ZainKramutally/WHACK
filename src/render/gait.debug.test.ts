@@ -1,17 +1,15 @@
 // Headless gait harness (debug/gait). Drives the pure gait pieces exactly as fauna.ts uses them today and measures what
 // the eye sees: rest-spine curvature, world-space foot slip during stance, cadence against speed, duty factor and step
-// pattern. The "today" helpers mirror fauna.ts (they live inside a closure there, so they cannot be imported):
-//   cadence  fauna.ts:1199-1201   e.gait += dt · min(3, 1.2 + 6·speed/drawnLength)
-//   amp      fauna.ts:412/435     moving = min(1, speed / (0.12·drawnLength)); stride = lay.stride·amp, lift = 0.35·len1·amp
-//   speed    fauna.ts:1189-1190   e.speed += (sp − e.speed)·0.5 per 20 Hz snapshot
-//   foot     fauna.ts:438-443     fx = hip.x + gaitFoot(gait + limbPhaseOffset(pair, side)).dx, world = body + fx·s0
+// pattern. "today" is the shipped gait: motion.ts gaitStep and halfStride, called exactly as fauna.ts calls them
+// (the drawn displacement per frame, the hip height and reach in drawn metres; feet from gaitFoot with stride
+// hW/s0·walkW and lift 0.35·len1·walkW; speed smoothed e.speed += (sp − e.speed)·0.5 per 20 Hz snapshot).
 // The "recipe" helpers are the proposed fix, kept here as a reference so the fix agent can lift them.
 // Tests marked BUG fail today on purpose.
 import { describe, expect, it } from 'vitest';
 import { develop, type DevelopInputs } from '../sim/develop';
 import { makeFounders, type AnimalGenome, type BodyGenes } from '../sim/genome';
 import { beadLayout, type BeadLayout } from './creatureLayout';
-import { STANCE, gaitFoot, limbPhaseOffset } from './motion';
+import { STANCE, gaitFoot, gaitStep, halfStride, limbPhaseOffset } from './motion';
 import { drawnFactor, drawnLength } from './faunaLib/growth';
 
 const water: DevelopInputs = {
@@ -34,9 +32,6 @@ const WALKERS = {
 };
 const siWalker = genome({ size: 0.4, segments: 0.7, limbPairs: 0.25, limbLen: 0.6, plates: 0.5 }, true);
 
-// --- today's model (mirrors fauna.ts) ---------------------------------------------------------------------------------
-const todayRate = (speed: number, L: number) => Math.min(3, 1.2 + 6 * (speed / L));
-const todayAmp = (speed: number, L: number) => Math.min(1, speed / (0.12 * L));
 
 // --- proposed recipe -----------------------------------------------------------------------------------------------------
 const G0 = 9.81;
@@ -71,7 +66,8 @@ function walk(lay: BeadLayout, scale: number, bl: number, model: 'today' | 'reci
   const dt = 1 / 60;
   let speed = 0, gait = 0, x = 0;
   const rig = lay.limbs[0]!;
-  const off = limbPhaseOffset(rig.pair, rig.side);
+  const off = limbPhaseOffset(rig.pair, rig.side, lay.limbs.length >> 1);
+  const st = { gait: 0, walkW: 0 };
   let slipSum = 0, slipN = 0, stanceN = 0, totalN = 0, prevFoot = NaN, cycles = 0;
   const frames = 180;
   for (let f = 0; f < frames; f++) {
@@ -80,10 +76,11 @@ function walk(lay: BeadLayout, scale: number, bl: number, model: 'today' | 'reci
     x += v * dt;
     let dx: number, dy: number, dPhase: number;
     if (model === 'today') {
-      dPhase = dt * todayRate(speed, L);
-      gait += dPhase;
-      const amp = todayAmp(speed, L);
-      ({ dx, dy } = gaitFoot(gait + off, lay.stride * amp, 0.35 * rig.len1 * amp));
+      const before = st.gait;
+      const hW = gaitStep(st, x - xPrev, speed, L, rig.hip.y * s0, (rig.len1 + rig.len2) * s0, dt);
+      dPhase = st.gait - before;
+      gait = st.gait;
+      ({ dx, dy } = gaitFoot(gait + off, (hW / s0) * st.walkW, 0.35 * rig.len1 * st.walkW));
       dx *= s0; dy *= s0;
     } else {
       const h = recipeHalfStride(lay, s0, speed);
@@ -121,7 +118,7 @@ describe('gait harness (debug/gait)', () => {
       rows.push(`${name}: scale ${p.scale.toFixed(2)} m, drawn ${drawnLength(p.scale, 1).toFixed(1)} m, legs ${p.legPairs} pairs (${p.limbKind}), curl ${p.curl.toFixed(3)} rad/joint × ${N - 1} = ${turn.toFixed(0)}° arc, lateral sag ${(100 * lat).toFixed(0)}% of length`);
       if (!lay.limbs.length) continue;
       const s0 = drawnFactor(p.scale, 1);
-      rows.push(`   half stride today ${(lay.stride * s0).toFixed(2)} m drawn; hip ${(lay.limbs[0].hip.y * s0).toFixed(2)} m; steps [${lay.limbs.map((r) => `p${r.pair}${r.side > 0 ? 'L' : 'R'}=${limbPhaseOffset(r.pair, r.side)}`).join(' ')}]`);
+      rows.push(`   half stride today ${(lay.stride * s0).toFixed(2)} m drawn; hip ${(lay.limbs[0].hip.y * s0).toFixed(2)} m; steps [${lay.limbs.map((r) => `p${r.pair}${r.side > 0 ? 'L' : 'R'}=${limbPhaseOffset(r.pair, r.side, lay.limbs.length >> 1)}`).join(' ')}]`);
       for (const bl of [0.02, 0.05, 0.1, 0.25, 0.5, 1, 2]) {
         const a = walk(lay, p.scale, bl, 'today'), b = walk(lay, p.scale, bl, 'recipe');
         rows.push(`   ${bl.toFixed(2)} BL/s (${(bl * drawnLength(p.scale, 1)).toFixed(1)} m/s): today ${a.cadenceHz.toFixed(2)} Hz slip ${(100 * a.slip).toFixed(0)}% duty ${a.duty.toFixed(2)} | recipe ${b.cadenceHz.toFixed(2)} Hz slip ${(100 * b.slip).toFixed(0)}% half-stride ${recipeHalfStride(lay, s0, bl * drawnLength(p.scale, 1)).toFixed(2)} m`);
@@ -162,8 +159,10 @@ describe('gait harness (debug/gait)', () => {
 
   it('BUG: cadence matches the no-slip cadence STANCE·v/(2·halfStride) at walking and fast speeds', () => {
     const p = planOf(WALKERS.biped), lay = beadLayout(p), L = drawnLength(p.scale, 1), s0 = drawnFactor(p.scale, 1);
+    const rig = lay.limbs[0]!;
     for (const bl of [0.25, 2]) {
-      const need = (STANCE * bl * L) / (2 * lay.stride * s0); // amp is saturated (1) above 0.12 BL/s
+      // the no-slip cadence for the stride the gait uses (it grows with speed: halfStride), not the old fixed lay.stride
+      const need = (STANCE * bl * L) / (2 * halfStride(rig.hip.y * s0, (rig.len1 + rig.len2) * s0, bl * L));
       const got = walk(lay, p.scale, bl, 'today').cadenceHz;
       expect.soft(got / need, `at ${bl} BL/s today ${got.toFixed(2)} Hz, planted feet need ${need.toFixed(2)} Hz`).toBeCloseTo(1, 1);
     }
@@ -178,12 +177,12 @@ describe('gait harness (debug/gait)', () => {
     }
   });
 
-  it('report: duty factor and step pattern (trot couplets today)', () => {
+  it('report: duty factor and step pattern (a lateral-sequence walk for quadrupeds)', () => {
     const p = planOf(WALKERS.quadruped), lay = beadLayout(p);
-    // pair 0 sits near the tail (hind), pair 1 near the head (fore). Today: LH=0, RH=.5, LF=.5, RF=0 → diagonal couplets
-    // (a trot) at every speed, duty factor fixed at STANCE = 0.6.
-    const pat = lay.limbs.map((r) => [r.pair, r.side, limbPhaseOffset(r.pair, r.side)]);
-    expect(pat).toEqual([[0, 1, 0], [0, -1, 0.5], [1, 1, 0.5], [1, -1, 0]]);
+    // pair 0 sits near the tail (hind), pair 1 near the head (fore). Lateral sequence: LH=0, LF=.25, RH=.5, RF=.75
+    // (it was a trot, LH=0 RH=.5 LF=.5 RF=0); duty factor STANCE = 0.6.
+    const pat = lay.limbs.map((r) => [r.pair, r.side, limbPhaseOffset(r.pair, r.side, lay.limbs.length >> 1)]);
+    expect(pat).toEqual([[0, 1, 0], [0, -1, 0.5], [1, 1, 0.25], [1, -1, 0.75]]);
     expect(walk(lay, p.scale, 0.5, 'today').duty).toBeCloseTo(STANCE, 1);
   });
 });
