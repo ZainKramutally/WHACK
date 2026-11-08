@@ -39,6 +39,7 @@ import { ribFan } from './species/ribfan';
 import { groundCover } from './species/ground';
 import { jellyDome } from './species/dome';
 import { crystalGround, prismTitan, shardTree } from './species/crystal';
+import { pitcherUrn } from './species/pitcher';
 
 export type { FloraKey } from './mesh';
 export type FloraRole = 'ground' | 'mid' | 'giant';
@@ -49,7 +50,7 @@ type Gen = (rng: Rng, variant: number) => BuiltPlant;
 /** `seedAs`: draw the jitter of that species, so a T9 dense build is the same plant with denser ribs. */
 interface SpeciesDef { id: string; chem: 'carbon' | 'silicon'; role: FloraRole; gen: Gen; variants: number[]; seedAs?: string }
 const SPECIES: SpeciesDef[] = [
-  { id: 'groundCover', chem: 'carbon', role: 'ground', gen: groundCover, variants: [0, 1, 2, 3] },
+  { id: 'groundCover', chem: 'carbon', role: 'ground', gen: groundCover, variants: [0, 1, 2, 3, 4] }, // 4: gated (cushion)
   { id: 'jellyDome', chem: 'carbon', role: 'ground', gen: jellyDome, variants: [0, 1] },
   { id: 'weeper', chem: 'carbon', role: 'mid', gen: weeper, variants: [0, 1, 3] },
   { id: 'ribFan', chem: 'carbon', role: 'mid', gen: ribFan, variants: [0, 1, 2, 3] },
@@ -64,6 +65,8 @@ const SPECIES: SpeciesDef[] = [
   // T9 (flora-traits): high-photorespiration builds, a hard switch at P = 0.45 (gates.ts denseBuild)
   { id: 'parasolTitanDense', chem: 'carbon', role: 'giant', gen: (r, v) => parasolTitan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'parasolTitan' },
   { id: 'ribFanDense', chem: 'carbon', role: 'mid', gen: (r, v) => ribFan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'ribFan' },
+  // gated archetypes (flora-traits §2, gates.ts): drawn only where a gate substitutes them into a pick list
+  { id: 'pitcherUrn', chem: 'carbon', role: 'mid', gen: pitcherUrn, variants: [0] },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */

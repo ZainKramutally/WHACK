@@ -6,6 +6,8 @@
 //  1 polyp nubs: flared, ribbed tubes with dark cupped mouths
 //  2 bristle tuft: fountain of curved crimson blades
 //  3 spike crowns: 2-4 m stalks topped with thistle-like bristle crowns (crops well along the frame bottom)
+//  4 cushion mound (flora-traits A4, gated: world T < 0 °C): a domed hummock with five dimples and two small ones beside
+//    it. Cushion forms keep close to the warm ground and out of the wind in cold places (alpine growth form). ~110 tris.
 import { MeshBuilder, add, clamp01, detail, norm, revolve, scl, sweep, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
@@ -79,6 +81,25 @@ export function groundCover(rng: Rng, variant: number) {
         pts.push(add(scl(d, 0.05 + out * s * s), [0, h * Math.sin(s * Math.PI * 0.5) - 0.05, 0]));
       }
       sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : (far ? 0.08 : 0.062) * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s, cap: (s) => s });
+    }
+  } else if (variant === 4) {
+    const R = 0.55 * rng.range(0.9, 1.1), H = R * 0.62;
+    // five dimples round the crown (cos 5θ alternates on 10 sides; the far LOD maps back to the same parity)
+    const dimple = (_j: number, th: number) => -0.05 * R * Math.max(0, Math.cos(5 * th));
+    revolve(b, [0, -0.05, 0], [0, 1, 0], [
+      { r: R * 1.05, y: 0, key: 'ink', sway: 0 },
+      { r: R, y: H * 0.3, key: 'maroon', sway: 0.03 },
+      { r: R * 0.8, y: H * 0.75, key: 'crimson', sway: 0.05, lift: dimple },
+      { r: R * 0.42, y: H * 0.97, key: 'blush', sway: 0.06, lift: dimple },
+      { r: 0, y: H, key: 'bone', sway: 0.06 },
+    ], 10, rng.range(0, 1));
+    for (let k = 0; k < 2; k++) {
+      const a = k * Math.PI + rng.range(-0.6, 0.6), r = R * rng.range(0.4, 0.55), off = R * 1.15;
+      revolve(b, [Math.cos(a) * off, -0.05, Math.sin(a) * off], [0, 1, 0], [
+        { r: r * 1.05, y: 0, key: 'maroon', sway: 0 },
+        { r: r * 0.75, y: r * 0.45, key: 'crimson', sway: 0.04 },
+        { r: 0, y: r * 0.62, key: 'blush', sway: 0.05 },
+      ], 6, rng.range(0, 1));
     }
   } else {
     // spike crowns: 2-3 tall stalks, each a thistle crown of radiating bristles around a dark knob

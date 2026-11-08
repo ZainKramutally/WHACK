@@ -33,3 +33,66 @@ export function worldEnv(i: VisualInputs): WorldEnv {
     P, dense: i.world.composition.si <= 0.5 && P >= DENSE_P,
   };
 }
+
+/** Shore plants (A1, A3) stand on dry ground beside the water: their own ground this far above the sea (m). */
+export const SHORE_BAND: readonly [number, number] = [0.2, 3];
+
+/** What a gate may ask about a cell; place.ts answers lazily (each cell at most once per rebuild). */
+export interface CellProbe {
+  /** The shoreline passes through the cell's 3 × 3 neighbourhood (cell-centre heights on both sides of the sea). */
+  shore(c: number): boolean;
+  /** Height rank of the cell in the patch, 0 (lowest) .. 1. */
+  rank(c: number): number;
+  /** Cell biomass B = mat + canopy. */
+  total(c: number): number;
+}
+
+export type GateId = 'pitcher' | 'cushion';
+
+export interface GateSpec {
+  id: GateId;
+  chem: 'carbon' | 'silicon';
+  role: 'ground' | 'mid' | 'giant';
+  /** Entries of the base pick list this archetype takes the place of. */
+  replaces: RegExp;
+  by: string;
+  /** World-wide half of the gate (once per rebuild). */
+  world: (e: WorldEnv) => boolean;
+  /** The plant's own ground lies in SHORE_BAND above the sea, in a cell the shoreline passes. */
+  shore?: boolean;
+  /** Only on land at the plant (y ≥ sea). */
+  land?: boolean;
+  /** Per-cell half of the gate. */
+  cell?: (c: number, p: CellProbe) => boolean;
+}
+
+/** Every gate, in priority order: the first whose parts all hold substitutes. Gates on the same entries are exclusive
+ * by threshold, so the order only matters for gates on different entries. */
+export const GATES: readonly GateSpec[] = [
+  // A1 pitcher urn: carnivory where light and water are plentiful and nitrogen scarce (Givnish et al. 1984; Ellison &
+  // Gotelli 2001). Exclusive with A3 by N (< 0.3 here, ≥ 0.3 there).
+  { id: 'pitcher', chem: 'carbon', role: 'mid', replaces: /^(ribFan|ribFanDense|lanternPods)#/, by: 'pitcherUrn#0', world: (e) => e.N < 0.3 && e.L >= 0.4, shore: true },
+  // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
+  { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
+];
+
+/** The gates whose world-wide half holds now, by role (once per rebuild). */
+export function activeGates(e: WorldEnv): Record<GateSpec['role'], GateSpec[]> {
+  const out: Record<GateSpec['role'], GateSpec[]> = { ground: [], mid: [], giant: [] };
+  const chem = e.carbon ? 'carbon' : 'silicon';
+  for (const g of GATES) if (g.chem === chem && g.world(e)) out[g.role].push(g);
+  return out;
+}
+
+/** The archetype a plant draws: its base pick, or the first active gate's archetype if every part of that gate holds
+ * for this plant (own ground `y`, the sea level, its cell). Otherwise the base pick, so counts never change. */
+export function gateKey(key: string, gates: readonly GateSpec[], c: number, y: number, sea: number, probe: CellProbe): string {
+  for (const g of gates) {
+    if (!g.replaces.test(key)) continue;
+    if (g.land && y < sea) continue;
+    if (g.shore && (y < sea + SHORE_BAND[0] || y > sea + SHORE_BAND[1] || !probe.shore(c))) continue;
+    if (g.cell && !g.cell(c, probe)) continue;
+    return g.by;
+  }
+  return key;
+}

@@ -15,7 +15,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickPlant, plantHeight, type FloraRole } from './index';
-import { worldEnv } from './gates';
+import { activeGates, gateKey, worldEnv, type CellProbe } from './gates';
 import { varyPlant, type PlantVary, type TraitContext } from './vary';
 
 export const MAX_PLANTS = 16000;
@@ -145,6 +145,10 @@ const SINK_MAX: Record<FloraRole, number> = { ground: 0.35, mid: 0.15, giant: 0.
 /** The contact ring: a hexagon of unit offsets, and a scratch for the ground heights under it (reused per plant, so a
  * rebuild allocates nothing per plant). */
 const RING_C = new Float32Array(6), RING_S = new Float32Array(6), RING_H = new Float32Array(6);
+/** Gate probes' scratch (gates.ts CellProbe): cell-centre ground heights stamped per call, and a 32² rank sample. */
+const CELL_Y = new Float32Array(FLORA_GRID * FLORA_GRID), CELL_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);
+const RANK_N = 32, RANK_SAMPLE = new Float32Array(RANK_N * RANK_N);
+let placeCall = 0;
 for (let k = 0; k < 6; k++) { RING_C[k] = Math.cos((k * Math.PI) / 3); RING_S[k] = Math.sin((k * Math.PI) / 3); }
 
 /** Per archetype index, each ÷ the archetype's native size: its contact-ring radius and its drawn height. */
@@ -243,6 +247,45 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   const bins: (FloraBin | null)[] = new Array(cells);
   // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
   const env = worldEnv(inputs), hb = inputs.heatBand;
+  // gated archetypes (gates.ts): the world-wide halves once here; cells answer the rest lazily through the probe
+  const gates = activeGates(env);
+  const call = ++placeCall;
+  const cellY = (c: number) => {
+    if (CELL_AT[c] !== call) {
+      CELL_Y[c] = yAt(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
+      CELL_AT[c] = call;
+    }
+    return CELL_Y[c];
+  };
+  let ranked = false;
+  const probe: CellProbe = {
+    shore(c) {
+      const col = c % FLORA_GRID, row = Math.floor(c / FLORA_GRID);
+      let lo = Infinity, hi = -Infinity;
+      for (let j = Math.max(0, row - 1); j <= Math.min(FLORA_GRID - 1, row + 1); j++) for (let i = Math.max(0, col - 1); i <= Math.min(FLORA_GRID - 1, col + 1); i++) {
+        const y = cellY(j * FLORA_GRID + i);
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      }
+      return lo < sea && hi > sea;
+    },
+    rank(c) {
+      if (!ranked) {
+        const st = FLORA_GRID / RANK_N;
+        for (let j = 0; j < RANK_N; j++) for (let i = 0; i < RANK_N; i++) RANK_SAMPLE[j * RANK_N + i] = cellY(j * st * FLORA_GRID + i * st);
+        RANK_SAMPLE.sort();
+        ranked = true;
+      }
+      const y = cellY(c);
+      let a = 0, b = RANK_SAMPLE.length;
+      while (a < b) { const m = (a + b) >> 1; if (RANK_SAMPLE[m] < y) a = m + 1; else b = m; }
+      return a / RANK_SAMPLE.length;
+    },
+    total: (c) => (inputs.flora[c * 2] ?? 0) + (inputs.flora[c * 2 + 1] ?? 0),
+  };
+  /** The gated archetype for a plant at its own ground height (its base pick when no gate holds). */
+  const gated = (key: string | null, role: FloraRole, c: number, y: number) =>
+    key && gates[role].length ? gateKey(key, gates[role], c, y, sea, probe) : key;
   const seaForms: (FloraForm | undefined)[] = new Array(cells);
   const seaForm = (c: number): FloraForm => {
     let f = seaForms[c];
@@ -283,7 +326,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const y = yAt(x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
-        push(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
+        push(gated(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), 'giant', c, y), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
@@ -297,7 +340,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
           const y = yAt(x, z);
           if (y < sea) continue;
-          push(pickPlant(tall, 'mid', bright, hash01(c, k, 23), hb, hash01(c, k, 27), env.dense), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
+          push(gated(pickPlant(tall, 'mid', bright, hash01(c, k, 23), hb, hash01(c, k, 27), env.dense), 'mid', c, y), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
         }
       } else {
         const dc = Math.hypot(ccx - cam.x, ccz - cam.z);
@@ -317,7 +360,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const under = y < sea;
           if (!under && !inputs.lifeOnLand) continue;
           const f = under ? seaForm(c) : form;
-          push(pickPlant(f, 'ground', bright, hash01(c, k, 34), hb, 0.5, env.dense), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
+          push(gated(pickPlant(f, 'ground', bright, hash01(c, k, 34), hb, 0.5, env.dense), 'ground', c, y), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
         }
       }
     }
