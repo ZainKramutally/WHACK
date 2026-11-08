@@ -259,7 +259,9 @@ export const carbon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
-      intakeExp: 0.9, // assumption: true. Food intake scales as M^0.9 against upkeep at M^0.75, so big bodies out-eat their upkeep (megafauna niche, owner ruling 2026-11-08). Real intake of large herbivores scales above Kleiber (grazing time and gut capacity), so this is a modelling choice
+      canopyReach: 0.6, // assumption: true. Metres of limb a body needs to reach canopy biomass: tall bodies open food small ones cannot get (megafauna niche, owner ruling 2026-11-08)
+      deepScale: 0.9, // assumption: true. Body length (m) a swimmer needs to feed below the shallows: only large swimmers use deep-water food
+      intakeExp: 1.0, // assumption: true. Food intake scales as M^0.9 against upkeep at M^0.75, so big bodies out-eat their upkeep (megafauna niche, owner ruling 2026-11-08). Real intake of large herbivores scales above Kleiber (grazing time and gut capacity), so this is a modelling choice
       intake: 2, // matter per second per M^0.75 at full appetite; raised from 1.2 so a collapsed population regrows in about 90 s at live speed
       speed: 1.5, // cells per ecology second
       moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost

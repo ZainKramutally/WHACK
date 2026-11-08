@@ -291,7 +291,9 @@ export const silicon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
-      intakeExp: 0.9, // assumption: true. Same megafauna rule as carbon (one exponent for both worlds, so the comparison is fair)
+      canopyReach: 0.6, // assumption: true. Metres of limb a body needs to reach canopy biomass: tall bodies open food small ones cannot get (megafauna niche, owner ruling 2026-11-08)
+      deepScale: 0.9, // assumption: true. Body length (m) a swimmer needs to feed below the shallows: only large swimmers use deep-water food
+      intakeExp: 1.0, // assumption: true. Same megafauna rule as carbon (one exponent for both worlds, so the comparison is fair)
       intake: 15, // assumption: raised so slow-pace silicon grazers still bud within their lifespan, and so a collapsed population regrows visibly (about 40 s) after a heat wall
       speed: 1.5, // cells per ecology second
       moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost

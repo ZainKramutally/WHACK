@@ -51,6 +51,8 @@ export interface EcologyLedger {
   sizeRef: number; // body length (m) that counts as size 1 for the oxygen cap
   hungerTime: number; // seconds of standing flora counted as one second of supply
   founders: number; // seeded capsule worms when life appears (≥ 24)
+  canopyReach: number; // metres of limb a body needs to reach canopy biomass (fliers always reach it); small bodies graze the mat only
+  deepScale: number; // body length (m) a swimmer needs to feed in water deeper than the shallows (shallowMax); smaller swimmers feed only in the shallows
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
@@ -59,7 +61,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, cohesion: 1, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, cohesion: 1, intakeExp: 0.75,
 };
 
 export interface EcologyOptions {
@@ -82,6 +84,9 @@ const SCAN = 12; // implementation constant (DECISIONS §G.2 exempt): an animal 
 const FLORA_SEED = 1e-3; // implementation constant (DECISIONS §G.2 exempt): mat that survives lethal stress, from which flora regrows
 const STRAND_SCAN = 6; // implementation constant (DECISIONS §G.2 exempt): cells a stranded animal looks around for ground that suits it
 const SPORE_ENERGY = 1.9; // implementation constant (DECISIONS §G.2 exempt): a germinating spore's energy as a share of its body mass (a bud needs 2)
+const SLOT_RADIUS = 2; // implementation constant (DECISIONS §G.2 exempt): cells within which a full world's ready parent can displace the weakest animal
+const SLOT_MARGIN = 0.25; // implementation constant (DECISIONS §G.2 exempt): a victim must have less than this share of the parent's energy per unit mass
+const DEEP_FLOOR = 0.3; // implementation constant (DECISIONS §G.2 exempt): the share of deep-water food the smallest swimmer can still use
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -419,6 +424,19 @@ export class Ecology {
 
   // ---- R10: the cheapest locomotion the medium allows -----------------------------------------------------------
   /** Habitat lock: a swimmer lives in the sea (any liquid), a walker or hoverer where it can stand or fly (liquid up to wadeDepth). */
+  /** R4 niche: canopy biomass is reachable only by bodies with long enough limbs (or fliers). */
+  private canopyAccess(p: BodyPlan): number {
+    if (p.mode === LOCOMOTION.hover) return 1;
+    if (p.legPairs === 0) return 0;
+    const r = this.L.canopyReach > 0 ? p.limbLength / this.L.canopyReach : 1;
+    return r >= 1 ? 1 : r;   // reach grows with limb length up to the full canopy height
+  }
+  /** R4 niche: food in deep water is reachable only by large bodies; the shallows feed everyone. */
+  private deepOk(p: BodyPlan, liquid: number): number {
+    if (liquid <= this.L.shallowMax || this.L.deepScale <= 0) return 1;
+    const r = p.scale / this.L.deepScale;
+    return r >= 1 ? 1 : DEEP_FLOOR + (1 - DEEP_FLOOR) * r;   // small swimmers get a floor share of deep-water food; it grows with length up to deepScale
+  }
   private habitable(p: Pick<BodyPlan, 'mode'>, liquid: number): boolean {
     if (p.mode === LOCOMOTION.swim) return liquid > 0;
     if (p.mode === LOCOMOTION.sessile) return true;
@@ -453,7 +471,7 @@ export class Ecology {
     const cy = (cell / GRID) | 0;
     const px = this.x[i];
     const py = this.y[i];
-    if (E > 2 * m && this.free.length > 0) { this.act[i] = ACT.bud; return; }   // with no free slot a satiated animal keeps roaming instead of waiting to bud
+    if (E > 2 * m) { this.act[i] = ACT.bud; return; }   // a satiated animal buds; with no free slot it displaces the weakest neighbour (bud())
     const hungerFrac = clamp01(1 - E / (2 * m));
     const drive = 0.1 + hungerFrac * (1 + this.hunger);
     const sense = Math.min(1.5, L.senseBase + L.senseGain * (p.eyeArea / 1.5) * this.env.light);
@@ -505,7 +523,7 @@ export class Ecology {
 
     // forage: best neighbouring cell by food + glow lure − risk·(1 − boldness)·(1 − shelter), diluted by kin
     let foodV = 0, fx = px, fy = py;
-    const access = p.legPairs > 0 || p.mode === LOCOMOTION.hover ? 1 : 0;
+    const access = this.canopyAccess(p);
     const dark = 1 - this.env.light;
     const strandedHere = !this.habitable(p, g.liquid[cell]);
     for (let yy = y0; yy <= y1; yy++) {
@@ -513,7 +531,7 @@ export class Ecology {
         const c = yy * GRID + xx;
         if (!this.habitable(p, g.liquid[c])) { if (!strandedHere) continue; }   // the habitat lock: not a place this body can go (unless it is stranded: then all cells count, and the habitable ones win below)
         const homeBonus = strandedHere && this.habitable(p, g.liquid[c]) ? 3 : 1;   // a stranded animal heads for ground that suits it
-        let food = p.plantGain * (g.mat[c] + access * g.canopy[c]);
+        let food = this.deepOk(p, g.liquid[c]) * p.plantGain * (g.mat[c] + access * g.canopy[c]);
         if (p.plantGain > 0.25 && dark > 0) {
           const k0 = this.cellStart[c];
           const nIn = Math.min(SCAN, this.cellStart[c + 1] - k0);
@@ -625,7 +643,7 @@ export class Ecology {
     // eat (R1/R4): graze the cell; ε = EPS0·(1 + 2·Hunger) of what is eaten becomes energy, the rest goes back
     const eps = Math.min(1, CONSTANTS.EPS0.value * (1 + 2 * this.hunger) * efficiency);
     if (act === ACT.forage && p.plantGain > 0 && this.energy[i] < 3 * m) {
-      const avail = g.mat[here] + ((p.legPairs > 0 || p.mode === LOCOMOTION.hover) ? g.canopy[here] : 0);
+      const avail = this.deepOk(p, g.liquid[here]) * (g.mat[here] + this.canopyAccess(p) * g.canopy[here]);
       const bite = Math.min(avail * rules.consumer.grazeShare, (L.intake * m ** L.intakeExp * p.plantGain * match * dt) / L.cellMass);
       if (bite > 0) {
         const fromMat = Math.min(bite, g.mat[here]);
@@ -703,9 +721,39 @@ export class Ecology {
 
   // ---- R8: bud with mutation; R6: newborn plates thicken by INDUCE·Hunger·Afraid ---------------------------------
   private bud(p: number): void {
-    if (!this.alive[p] || this.free.length === 0 || this.energy[p] <= 2 * this.struct[p]) return;
+    if (!this.alive[p] || this.energy[p] <= 2 * this.struct[p]) return;
+    if (this.free.length === 0 && !this.displace(p)) return;
     const child = mutate(this.genome[p], this.rnd, this.rules, this.env.mutationSigma);
     this.spawn(child, this.x[p] + 0.3 * gaussian(this.rnd), this.y[p] + 0.3 * gaussian(this.rnd), this.gen[p] + 1, p, this.env);
+  }
+
+  /**
+   * Slot competition (R8): when the world is full, a ready parent's offspring takes the place of the weakest animal within
+   * SLOT_RADIUS cells: the one with the least energy for its needs (energy ÷ mass), never a parent's kin if any other will do, and
+   * only one that is poorer than the parent and past its first moments. Better feeders win slots, so size and hunting get selected.
+   */
+  private displace(p: number): boolean {
+    const cx = Math.floor(this.x[p]), cy = Math.floor(this.y[p]);
+    const pr = this.energy[p] / this.struct[p];
+    let victim = -1, worst = Infinity;
+    for (let yy = Math.max(0, cy - SLOT_RADIUS); yy <= Math.min(GRID - 1, cy + SLOT_RADIUS); yy++) {
+      for (let xx = Math.max(0, cx - SLOT_RADIUS); xx <= Math.min(GRID - 1, cx + SLOT_RADIUS); xx++) {
+        const c = yy * GRID + xx;
+        for (let k = this.cellStart[c]; k < this.cellStart[c + 1]; k++) {
+          const j = this.cellItems[k];
+          if (j === p || !this.alive[j] || this.age[j] < 1 || cellOf(this.x[j], this.y[j]) !== c) continue;
+          const r = this.energy[j] / this.struct[j];
+          const score = r + (this.genome[j].lineage === this.genome[p].lineage ? 100 : 0);
+          if (score < worst && r < pr * SLOT_MARGIN) { worst = score; victim = j; }
+        }
+      }
+    }
+    if (victim < 0) return false;
+    const here = cellOf(this.x[victim], this.y[victim]);
+    const e = Math.max(0, this.energy[victim]);
+    this.kill(victim);
+    this.returnMatter(here, this.struct[victim] + e, clamp01(this.plan[victim].plateCover));
+    return true;
   }
 
   /** Creates an animal (develop() at birth, R9). A bud pays 1.5 × the child's body from the parent; a founder is injected. */
