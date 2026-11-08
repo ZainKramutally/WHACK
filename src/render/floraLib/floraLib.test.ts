@@ -8,6 +8,7 @@ import {
   type FloraLibrary, type FloraPalette, type FloraRole,
 } from './index';
 import { makePlantList, placePlants } from './place';
+import { countDraws } from './buckets';
 
 const PAL: FloraPalette = { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a };
 const lin = (hex: number) => { const c = new Color().setHex(hex); return [c.r, c.g, c.b]; };
@@ -182,6 +183,29 @@ describe('placePlants', () => {
     expect(n.giant).toBeLessThanOrEqual(13 * 13);
     expect(n.mid).toBeLessThan(1600);
     expect(tris).toBeLessThan(4.5e6); // before frustum culling (~half is behind the camera)
+  });
+
+  it('draw calls: one per archetype × LOD × value step in use (no chunks), and no plant dropped for capacity', () => {
+    const tri = (a: number, l: number) => lib.archetypes[a].lod[l].triangles;
+    const stub = makeStubVisualInputs();
+    const si: Partial<VisualInputs> = {
+      world: { ...stub.world, id: 'silicon', composition: { c: 0.1, si: 0.9, o: 0 }, solvent: { ...stub.world.solvent, name: 'Liquid nitrogen' } },
+      light: 0.016,
+    };
+    const cases: [string, VisualInputs, number][] = [
+      // carbon, bright: capped ground (3 kinds × 2 value steps), 6 mid and 6 giant kinds × 2 LODs
+      ['carbon worst case', inputs(() => [0.6, 1]), 30],
+      // silicon, dim: crystal ground (4 × 2), shard trees (3 × 2), prism titans (2 × 2)
+      ['silicon worst case', inputs(() => [0.6, 1], si), 18],
+      // every cell under the sea: ground cover only, crowded into the low crust row (the fullest bucket)
+      ['silicon submerged', inputs(() => [1, 0.2], { ...si, seaLevel: 5, terrain: { rise: 1, progress: {}, height: () => 0, patchSize: PATCH } }), 4],
+    ];
+    for (const [name, inp, budget] of cases) {
+      const d = countDraws(placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList()), tri);
+      expect(d.dropped, name).toBe(0);
+      expect(d.draws, name).toBeLessThanOrEqual(budget);
+      expect(d.draws, name).toBeGreaterThan(0);
+    }
   });
 
   it('keeps land plants off until lifeOnLand, and only ground cover under the sea', () => {

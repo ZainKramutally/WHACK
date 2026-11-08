@@ -1,8 +1,9 @@
 // Plants from the per-cell flora grid ([mat, canopy] per cell, 64² cells). A cell with no biomass draws nothing, so
 // nothing appears before life. Shapes come from the Red World archetype library (floraLib/, built once at startup);
 // which archetype, how big and how many is a pure function of floraForm(cell, inputs), the biomass and the camera
-// position (floraLib/place.ts). Drawn as one InstancedMesh per (archetype × LOD × value × 100 m chunk), so far chunks
-// frustum-cull. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
+// position (floraLib/place.ts). Drawn as one InstancedMesh per archetype × LOD × value step (floraLib/buckets.ts), not
+// chunked and not frustum-culled: from inside the patch every chunk is partly in view, so chunks only multiplied draw
+// calls. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
@@ -10,14 +11,12 @@ import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './f
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing } from './floraLib/place';
+import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 
 const LIB_SEED = 0x5eed_f10a;
 const REBUILD_EVERY = 0.25; // s while the world builds
 const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
-const CHUNKS = 4; // per side of the patch, for mid and giant plants (spread over the whole patch: culling pays)
-// Ground cover lives within ~150 m of the camera, so fine chunks would only multiply draw calls: 2 × 2 for ground.
-const CHUNKS_GROUND = 2;
 const UP = new THREE.Vector3(0, 1, 0);
 /** Radius (m) of the spawn clearing: ground cover only, so the spawn frame opens onto groves and giants. */
 const CLEARING_R = 25;
@@ -28,7 +27,7 @@ export interface FloraPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
   /** Number of plants drawn at the last rebuild. */
   plants: number;
-  /** Triangles submitted at the last rebuild (before frustum culling). */
+  /** Triangles submitted at the last rebuild (buckets are not culled: every one in use is drawn). */
   triangles: number;
   /** ms spent in the last rebuild. */
   rebuildMs: number;
@@ -65,10 +64,9 @@ export function createFlora(app: App): FloraPart {
   group.name = 'flora';
   app.scene.add(group);
 
-  const nA = lib.archetypes.length;
   const looks: Look[] = [];
   const lookOf = (arch: number, lod: number, dark: number): Look => {
-    const id = (arch * 2 + lod) * 2 + dark;
+    const id = bucketId(arch, lod, dark);
     let L = looks[id];
     if (!L) {
       const a = lib.archetypes[arch];
@@ -80,33 +78,20 @@ export function createFlora(app: App): FloraPart {
     return L;
   };
 
-  // Every bucket (archetype × LOD × value × chunk) is created here, once, with a fixed capacity by role, so a rebuild
-  // only writes instance buffers: it never creates a mesh or triggers a compile. Overflow is dropped (and counted).
-  // Ground cover is always near-LOD; only ground cover has the dark foreground step.
+  // Every bucket (archetype × LOD × value step, floraLib/buckets.ts) is created here, once, with a fixed capacity by
+  // role, so a rebuild only writes instance buffers: it never creates a mesh or triggers a compile. Overflow is dropped
+  // (and counted). A bucket is one draw call while it has plants; it is never culled (it spans the camera's surroundings).
   const buckets = new Map<number, Bucket>();
-  const CAP: Record<string, number> = { ground: 2048, groundDark: 768, mid: 160, giant: 16 };
-  for (let ai = 0; ai < nA; ai++) {
-    const role = lib.archetypes[ai].role;
-    for (let lod = 0; lod < 2; lod++) for (let dark = 0; dark < 2; dark++) {
-      if (role === 'ground' ? lod === 1 : dark === 1) continue;
-      const lookId = (ai * 2 + lod) * 2 + dark;
-      const L = lookOf(ai, lod, dark);
-      const cap = role === 'ground' ? (dark ? CAP.groundDark : CAP.ground) : CAP[role];
-      const nC = role === 'ground' ? CHUNKS_GROUND : CHUNKS;
-      for (let chunk = 0; chunk < nC * nC; chunk++) {
-        // per-mesh geometry that shares every vertex attribute (and the index) with the look
-        const g = new THREE.BufferGeometry();
-        for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
-        g.setIndex(L.geometry.index);
-        const mesh = new THREE.InstancedMesh(g, material, cap);
-        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        mesh.count = 0;
-        mesh.visible = false;
-        mesh.name = `${L.arch.key}/L${lod}${dark ? 'd' : ''}@${chunk}`;
-        group.add(mesh);
-        buckets.set(lookId * CHUNKS * CHUNKS + chunk, { mesh, cap });
-      }
-    }
+  for (const d of bucketDefs()) {
+    const L = lookOf(d.arch, d.lod, d.dark);
+    const mesh = new THREE.InstancedMesh(L.geometry, material, d.cap);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.count = 0;
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    mesh.name = `${L.arch.key}/L${d.lod}${d.dark ? 'd' : ''}`;
+    group.add(mesh);
+    buckets.set(d.id, { mesh, cap: d.cap });
   }
 
   // Warm-up: one carbon and one silicon mesh, a single invisible-sized instance far below ground, so world.ts's
@@ -130,11 +115,9 @@ export function createFlora(app: App): FloraPart {
   const list = makePlantList();
   const heights = makeHeightCache();
   const lookIds = new Int32Array(list.arch.length);
-  const chunkOf = new Uint8Array(list.arch.length);
-  const counts = new Int32Array(nA * 4 * CHUNKS * CHUNKS);
+  const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
-  const maxH = new Float32Array(counts.length);
-  const lookGlow = new Float32Array(nA * 4);
+  const lookGlow = new Float32Array(BUCKET_IDS);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
@@ -172,19 +155,11 @@ export function createFlora(app: App): FloraPart {
 
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing);
       const pal = PALETTES[lookKind(inputs.world.composition)];
-      counts.fill(0); maxH.fill(0); lookGlow.fill(0);
-      const half = patch / 2;
-      const groundRole = lib.archetypes.map((a) => a.role === 'ground');
+      counts.fill(0); lookGlow.fill(0);
       for (let i = 0; i < list.n; i++) {
-        const look = (list.arch[i] * 2 + list.lod[i]) * 2 + list.dark[i];
-        const nC = groundRole[list.arch[i]] ? CHUNKS_GROUND : CHUNKS, w = patch / nC;
-        const cx = Math.min(nC - 1, Math.max(0, Math.floor((list.x[i] + half) / w)));
-        const cz = Math.min(nC - 1, Math.max(0, Math.floor((list.z[i] + half) / w)));
-        const chunk = cz * nC + cx;
-        lookIds[i] = look; chunkOf[i] = chunk;
-        const id = look * CHUNKS * CHUNKS + chunk;
-        counts[id]++;
-        if (list.h[i] > maxH[id]) maxH[id] = list.h[i];
+        const look = bucketId(list.arch[i], list.lod[i], list.dark[i]);
+        lookIds[i] = look;
+        counts[look]++;
         if (list.glow[i] > lookGlow[look]) lookGlow[look] = list.glow[i];
       }
       // hide every mesh; the ones in use are shown below
@@ -193,27 +168,20 @@ export function createFlora(app: App): FloraPart {
       for (let id = 0; id < counts.length; id++) {
         fill[id] = 0;
         if (!counts[id]) continue;
-        const look = Math.floor(id / (CHUNKS * CHUNKS)), chunk = id % (CHUNKS * CHUNKS);
-        const L = lookOf(look >> 2, (look >> 1) & 1, look & 1);
-        if (L.painted.pal !== pal || Math.abs(L.painted.glow - lookGlow[look]) > 0.01) {
-          paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[look], L.dark);
-          L.painted = { pal, glow: lookGlow[look] };
-        }
         const b = buckets.get(id);
         if (!b) continue; // a look with no bucket (never placed by place.ts: ground is near-LOD, only ground is dark)
+        const L = lookOf(id >> 2, (id >> 1) & 1, id & 1);
+        if (L.painted.pal !== pal || Math.abs(L.painted.glow - lookGlow[id]) > 0.01) {
+          paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[id], L.dark);
+          L.painted = { pal, glow: lookGlow[id] };
+        }
         if (counts[id] > b.cap) { dropped += counts[id] - b.cap; counts[id] = b.cap; }
         b.mesh.visible = true;
-        b.mesh.frustumCulled = true;
-        // chunk bounds: the 100 m square plus the tallest plant (and a sway margin)
-        const nC = groundRole[look >> 2] ? CHUNKS_GROUND : CHUNKS, chunkW = patch / nC;
-        const ccx = -half + ((chunk % nC) + 0.5) * chunkW, ccz = -half + (Math.floor(chunk / nC) + 0.5) * chunkW;
-        const r = Math.hypot(chunkW / 2 + maxH[id] * 0.6, chunkW / 2 + maxH[id] * 0.6, maxH[id]);
-        b.mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(ccx, inputs.terrain.height(ccx, ccz) + maxH[id] * 0.5, ccz), r + 4);
         tris += counts[id] * L.arch.lod[L.lod].triangles;
       }
       const arr = new Map<number, Float32Array>();
       for (let i = 0; i < list.n; i++) {
-        const id = lookIds[i] * CHUNKS * CHUNKS + chunkOf[i];
+        const id = lookIds[i];
         const b = buckets.get(id);
         if (!b || fill[id] >= b.cap) continue;
         const k = fill[id]++;
@@ -243,7 +211,8 @@ export function createFlora(app: App): FloraPart {
     },
     dispose() {
       app.scene.remove(group);
-      for (const b of buckets.values()) { b.mesh.geometry.dispose(); b.mesh.dispose(); }
+      for (const b of buckets.values()) b.mesh.dispose(); // geometry is the look's, disposed below
+      for (const w of warm) { w.geometry.dispose(); w.dispose(); }
       for (const L of looks) L?.geometry.dispose();
       material.dispose();
     },
