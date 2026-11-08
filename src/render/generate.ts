@@ -219,6 +219,15 @@ export function createGenerate(app: App): Generate {
     const ghost = new THREE.Mesh(terrainMesh.geometry, ghostMat);
     ghost.frustumCulled = false;
     ghost.renderOrder = -1;
+    // The terrain's skirt (land out to ~3 patch widths, same height node) needs the ghost too, or a flat ring shows
+    // beyond the patch edge during the reveal (#58). revealTex clamps to its edge texels, so it dissolves with the edge.
+    const skirtGeo = (terrainMesh.getObjectByName('terrainSkirt') as THREE.Mesh | undefined)?.geometry;
+    if (skirtGeo) {
+      const ghostSkirt = new THREE.Mesh(skirtGeo, ghostMat);
+      ghostSkirt.frustumCulled = false;
+      ghostSkirt.renderOrder = -1;
+      ghost.add(ghostSkirt);
+    }
 
     // Grains.
     const quad = new THREE.PlaneGeometry(1, 1);
@@ -276,7 +285,7 @@ export function createGenerate(app: App): Generate {
       pxPerM0: H / (2 * D0 * Math.tan((camera.fov * Math.PI) / 360)), boxSize,
       dispose() {
         scene.remove(group);
-        geo.dispose(); ghostMat.dispose(); grainMat.dispose(); revealTex.dispose(); terrainMesh.geometry.dispose();
+        geo.dispose(); ghostMat.dispose(); grainMat.dispose(); revealTex.dispose(); terrainMesh.geometry.dispose(); skirtGeo?.dispose();
       },
     };
   }
