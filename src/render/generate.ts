@@ -480,11 +480,13 @@ export function createGenerate(app: App): Generate {
         const F = fin();
         const fp = F.pos, fh = Math.hypot(F.look.x - fp.x, F.look.z - fp.z);
         const finPitch = Math.atan2(fp.y - F.look.y, fh);
-        const times = [0, PUSH.t, 3.3, spawnSec];
+        // Arrive above and slightly behind the follow-camera pose, then settle into it over the last 1.8 s.
+        // The previous low waypoint (1.5 m below the target pose) made the camera rise sharply at the hand-off.
+        const times = [0, PUSH.t, spawnSec - 1.8, spawnSec];
         const px = [plan.spawn.x, plan.spawn.x, fp.x, fp.x];
-        const py = [YC, YC + 0.1, fp.y - 1.5, fp.y];
-        const pz = [plan.spawn.z + D0, plan.spawn.z + PUSH.d, fp.z + 1.3, fp.z];
-        const pitch = [0, 0, finPitch + 0.05, finPitch];
+        const py = [YC, YC + 0.1, fp.y + 0.8, fp.y];
+        const pz = [plan.spawn.z + D0, plan.spawn.z + PUSH.d, fp.z + 1.1, fp.z];
+        const pitch = [0, 0, finPitch + 0.12, finPitch];
         const tt = Math.min(T, spawnSec);
         const cx = hermite(px, times, tt), cy = hermite(py, times, tt), cz = hermite(pz, times, tt), cp = hermite(pitch, times, tt);
         let sw = 0; for (let g = 1; g <= plan.doublings; g++) sw += alpha(T - (PULSE0 + PULSE_DT * (g - 1)), 0.16);
