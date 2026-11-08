@@ -274,3 +274,5 @@ body.wu-cinematic .wu-root { visibility: hidden !important; }
   padding: 2px 10px; font: 14px/1.35 "Pixelify Sans", "Silkscreen", ui-monospace, monospace; color: #FFFAEE; background: #120D1C; border: 2px solid #EFE6D4; transition: opacity .4s steps(4, end); }
 .wu-cap-toast.wu-on { opacity: 1; }
 .wu-cap-rec { position: fixed; right: 12px; top: 12px; z-index: 31; pointer-events: none; padding: 1px 8px; font: 18px/1.2 "VT323", ui-monospace, monospace; color: #FFFAEE; background: #B3260F; border: 2px solid #120D1C; }
+/* Clean frames: no capture feedback while the cinematic UI is hidden */
+body.wu-cinematic .wu-cap-flash, body.wu-cinematic .wu-cap-toast, body.wu-cinematic .wu-cap-rec { display: none !important; }
