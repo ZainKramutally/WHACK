@@ -61,6 +61,9 @@ describe('basalt pillars', () => {
     const g = hexPrismGeometry(3);
     const pos = g.getAttribute('position'), nor = g.getAttribute('normal');
     expect(pos.count).toBe(54);
+    const sh = g.getAttribute('pshade');
+    const tops = Array.from({ length: 54 }, (_, i) => sh.getX(i)).filter((v) => v === 1).length;
+    expect(tops).toBe(18);   // 6 top triangles carry the light factor; sides are 17% darker
     for (let i = 0; i < pos.count; i += 3) {
       const cx = (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3, cy = (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3, cz = (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3;
       const out = nor.getX(i) * cx + nor.getZ(i) * cz + nor.getY(i) * (cy - 0.5);   // normal · (face centre − prism centre)
