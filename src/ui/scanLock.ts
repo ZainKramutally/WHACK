@@ -5,7 +5,7 @@ import { el } from './dom';
 import { listen, type UiBus } from './uiBus';
 import type { WorldConfig } from '../worlds/types';
 import type { LifeRegistry } from './lifeRegistry';
-import { scanLabel } from './scanLabel';
+import { scanState, type ScanState } from './scanLabel';
 
 export function mountScanLock(root: HTMLElement, bus: UiBus, world: WorldConfig, registry: LifeRegistry) {
   const lock = el('div', 'wu-scan');
@@ -18,18 +18,27 @@ export function mountScanLock(root: HTMLElement, bus: UiBus, world: WorldConfig,
   let lockedKey = '';
   let current: Parameters<Parameters<typeof listen<'inspect:hover'>>[2]>[0] = null;
 
-  const nameFor = (t: NonNullable<typeof current>['target']): string =>
-    t.kind === 'organism' ? scanLabel(registry.formOf(t.organismId)) : world.features.producer.name;
-  const setLabel = (text: string) => { if (label.textContent !== text) label.textContent = text; };
+  let shownState: ScanState | '' = '';
+  const nameFor = (t: NonNullable<typeof current>['target']): { state: ScanState; label: string } =>
+    t.kind === 'organism' ? scanState(registry.formOf(t.organismId)) : { state: 'plant', label: world.features.producer.name };
+  /** Apply state + label. Returns true if the state changed (the snap/ping animation restarts then). */
+  const apply = (t: NonNullable<typeof current>['target']): boolean => {
+    const { state, label: text } = nameFor(t);
+    if (label.textContent !== text) label.textContent = text;
+    if (state === shownState) return false;
+    shownState = state;
+    lock.dataset.state = state;
+    return true;
+  };
 
   const off = listen(bus, 'inspect:hover', (h) => {
     current = h;
-    if (!h) { lock.hidden = true; lockedKey = ''; return; }
+    if (!h) { lock.hidden = true; lockedKey = ''; shownState = ''; return; }
     const t = h.target;
     const key = t.kind === 'organism' ? `o${t.organismId}` : `p${t.cell}`;
     if (key !== lockedKey) {
       lockedKey = key;
-      setLabel(nameFor(t));
+      apply(t);
       lock.classList.remove('wu-scan-snap');
       void lock.offsetWidth; // restart the snap-in animation
       lock.classList.add('wu-scan-snap');
@@ -41,7 +50,10 @@ export function mountScanLock(root: HTMLElement, bus: UiBus, world: WorldConfig,
     lock.hidden = false;
   });
   // The label follows the bestiary live: clicking and filing a kind turns NEW SPECIES into its name.
-  const refresh = () => { if (current) setLabel(nameFor(current.target)); };
+  const refresh = () => {
+    if (!current) return;
+    if (apply(current.target)) { lock.classList.remove('wu-scan-snap'); void lock.offsetWidth; lock.classList.add('wu-scan-snap'); }
+  };
   const offChange = registry.onChange(refresh);
   const offFind = registry.onDiscover(refresh);
 

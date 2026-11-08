@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { scanLabel } from './scanLabel';
+import { scanState } from './scanLabel';
 
-describe('scanLabel', () => {
-  it('shows the name of a found kind', () => expect(scanLabel({ name: 'Glass Strider', recognised: true })).toBe('Glass Strider'));
-  it('hides the name of an undiscovered kind', () => expect(scanLabel({ name: 'Glass Strider', recognised: false })).toBe('NEW SPECIES'));
-  it('says NEW SPECIES with no announced species or no record', () => {
-    expect(scanLabel({ recognised: false })).toBe('NEW SPECIES');
-    expect(scanLabel(undefined)).toBe('NEW SPECIES');
+describe('scanState', () => {
+  it('known: shows the name of a filed kind', () =>
+    expect(scanState({ name: 'Glass Strider', recognised: true })).toEqual({ state: 'known', label: 'Glass Strider' }));
+  it('new: announced but not filed, and the name is hidden', () => {
+    const s = scanState({ name: 'Glass Strider', recognised: false });
+    expect(s.state).toBe('new');
+    expect(s.label).not.toContain('Glass');
+  });
+  it('unclassified: no announced species, or no record', () => {
+    expect(scanState({ recognised: false })).toEqual({ state: 'unclassified', label: 'UNCLASSIFIED' });
+    expect(scanState(undefined).state).toBe('unclassified');
   });
 });
