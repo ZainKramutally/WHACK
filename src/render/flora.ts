@@ -218,21 +218,27 @@ export function createFlora(app: App): FloraPart {
   let placedShares: GateShares = {};
   let lastStats: StatKeys | null = null;
 
+  /** Per frame: lowest and highest instance slot written in each bucket (reset after upload; no per-frame allocation). */
+  const lo = new Int32Array(BUCKET_IDS).fill(1 << 30), hi = new Int32Array(BUCKET_IDS).fill(-1);
+  const write = (l: PlantList, i: number, id: number, k: number, scale: number) => {
+    const b = buckets.get(id);
+    if (!b || k < 0) return;
+    plantMatrix(l, i, lib.archetypes[l.arch[i]], m4, false, scale).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
+    if (k < lo[id]) lo[id] = k;
+    if (k > hi[id]) hi[id] = k;
+    dirty.add(id);
+  };
+
   /** Per frame: ease growing and dying plants by rewriting only their instance matrices (no allocation). */
   const animate = (dt: number) => {
     pres.tick(dt);
     if (!pres.active && !dirty.size) return;
-    const write = (l: PlantList, i: number, id: number, k: number, scale: number) => {
-      const b = buckets.get(id);
-      if (!b || k < 0) return;
-      plantMatrix(l, i, lib.archetypes[l.arch[i]], m4, false, scale).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
-      dirty.add(id);
-    };
     for (let i = 0; i < list.n; i++) if (drawn[i] && pres.age[i] < GROW_SEC) write(list, i, lookIds[i], slotOf[i], pres.growScale(i));
     for (let j = 0; j < DYING_CAP; j++) if (pres.dAge[j] >= 0 && dLook[j] >= 0) write(dying, j, dLook[j], dSlot[j], pres.dieScale(j));
     for (const id of dirty) {
       const b = buckets.get(id)!, m = b.mesh.instanceMatrix;
-      m.clearUpdateRanges(); m.addUpdateRange(0, b.mesh.count * 16); m.needsUpdate = true;
+      m.clearUpdateRanges(); m.addUpdateRange(lo[id] * 16, (hi[id] - lo[id] + 1) * 16); m.needsUpdate = true;
+      lo[id] = 1 << 30; hi[id] = -1;
     }
     dirty.clear(); // write() re-adds the active buckets next frame
   };
