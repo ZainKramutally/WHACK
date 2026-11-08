@@ -132,12 +132,8 @@ export function crustWeightsNode(terrain: Terrain): (x: N, z: N) => N {
 export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z: N) => N {
   const P = terrain.params;
   const M = P.machines;
-  const m2 = M.M2!, m3 = M.M3!, m4 = M.M4!, m5 = M.M5!, m6 = M.M6!, m7 = M.M7!, m8 = M.M8!, m9 = M.M9!;
+  const on = P.active;   // machines absent from the config contribute exactly 0 (OFF params), so their subgraphs are not built
   const R = P.ramp;
-  const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
-  const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
-  const wf3 = 1 / (m3.finSpacing * 2.5);
-  const bf3 = 1 / (m3.finSpacing * 1.5);
   const gated = Object.keys(P.gates).length > 0;
 
   return Fn(([x, z]: N[]) => {
@@ -159,51 +155,83 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
     };
 
     // M5 strata terraces
-    const u5 = base.div(m5.bandH);
-    const stepped = floor(u5).add(smoothstep(0.5 - w5, 0.5 + w5, fract(u5))).mul(m5.bandH);
-    const s5: N = P.gates.M5 ? gateOf('M5').mul(1 - m5.offMineral).add(m5.offMineral).mul(m5.strength) : F(m5.strength);
-    const hb = base.add(p5.mul(s5).mul(stepped.sub(base)));
+    let hb: N = base;
+    if (on.M5) {
+      const m5 = M.M5!;
+      const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
+      const u5 = base.div(m5.bandH);
+      const stepped = floor(u5).add(smoothstep(0.5 - w5, 0.5 + w5, fract(u5))).mul(m5.bandH);
+      const s5: N = P.gates.M5 ? gateOf('M5').mul(1 - m5.offMineral).add(m5.offMineral).mul(m5.strength) : F(m5.strength);
+      hb = base.add(p5.mul(s5).mul(stepped.sub(base)));
+    }
 
     // M3 hoodoos / frost fins
-    const g3 = F(1).sub(smoothstep(0, m3.halfWidth, abs(hs.sub(0.5))));
-    const up3 = smoothstep(m3.uplandMin, m3.uplandMin + 0.3, bn);
-    const along = qx.mul(P.m3dir[0]).add(qz.mul(P.m3dir[1])).add(fbm(qx.mul(wf3), qz.mul(wf3), 2, P.lac, P.gain, P.sM3a).mul(m3.finWarp));
-    const fin = pow(max(cos(along.div(m3.finSpacing).mul(TWO_PI)).mul(0.5).add(0.5), 0), m3.finSharp);
-    const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx.mul(bf3), qz.mul(bf3), U(P.sM3b)));
-    const h3 = p3.mul(g3).mul(up3).mul(m3.finHeight).mul(fin).mul(brk3).mul(gateOf('M3'));
+    let h3: N | null = null;
+    if (on.M3) {
+      const m3 = M.M3!;
+      const wf3 = 1 / (m3.finSpacing * 2.5);
+      const bf3 = 1 / (m3.finSpacing * 1.5);
+      const g3 = F(1).sub(smoothstep(0, m3.halfWidth, abs(hs.sub(0.5))));
+      const up3 = smoothstep(m3.uplandMin, m3.uplandMin + 0.3, bn);
+      const along = qx.mul(P.m3dir[0]).add(qz.mul(P.m3dir[1])).add(fbm(qx.mul(wf3), qz.mul(wf3), 2, P.lac, P.gain, P.sM3a).mul(m3.finWarp));
+      const fin = pow(max(cos(along.div(m3.finSpacing).mul(TWO_PI)).mul(0.5).add(0.5), 0), m3.finSharp);
+      const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx.mul(bf3), qz.mul(bf3), U(P.sM3b)));
+      h3 = p3.mul(g3).mul(up3).mul(m3.finHeight).mul(fin).mul(brk3).mul(gateOf('M3'));
+    }
 
     // M6 shell-stone mounds
-    const band6 = bandOf(bn, m6.bandCenter, m6.bandWidth);
-    const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx.mul(m6.moundFreq), qz.mul(m6.moundFreq), U(P.sM6)));
-    const h6 = p6.mul(m6.moundHeight).mul(band6).mul(mound6).mul(gateOf('M6'));
+    let h6: N | null = null;
+    if (on.M6) {
+      const m6 = M.M6!;
+      const band6 = bandOf(bn, m6.bandCenter, m6.bandWidth);
+      const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx.mul(m6.moundFreq), qz.mul(m6.moundFreq), U(P.sM6)));
+      h6 = p6.mul(m6.moundHeight).mul(band6).mul(mound6).mul(gateOf('M6'));
+    }
 
     // M2 silicon crystal-crust rims
-    const band2 = bandOf(bn, m2.bandCenter, m2.bandWidth);
-    const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx.mul(m2.patchFreq), qz.mul(m2.patchFreq), U(P.sM2)));
-    const h2 = p2.mul(m2.rimHeight).mul(band2).mul(crust2).mul(gateOf('M2'));
+    let h2: N | null = null;
+    if (on.M2) {
+      const m2 = M.M2!;
+      const band2 = bandOf(bn, m2.bandCenter, m2.bandWidth);
+      const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx.mul(m2.patchFreq), qz.mul(m2.patchFreq), U(P.sM2)));
+      h2 = p2.mul(m2.rimHeight).mul(band2).mul(crust2).mul(gateOf('M2'));
+    }
 
     // M8 granite domes and tors
-    const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx.mul(m8.domeFreq), qz.mul(m8.domeFreq), U(P.sM8)));
-    const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
-    const dH = dome.mul(m8.domeHeight);
-    const u8 = dH.div(m8.stackStep);
-    const stack8 = floor(u8).add(smoothstep(0.5 - w8, 0.5 + w8, fract(u8))).mul(m8.stackStep);
-    const h8 = p8.mul(up8).mul(dH.add(stack8.sub(dH).mul(m8.stackShare))).mul(gateOf('M8'));
+    let h8: N | null = null;
+    if (on.M8) {
+      const m8 = M.M8!;
+      const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
+      const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx.mul(m8.domeFreq), qz.mul(m8.domeFreq), U(P.sM8)));
+      const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
+      const dH = dome.mul(m8.domeHeight);
+      const u8 = dH.div(m8.stackStep);
+      const stack8 = floor(u8).add(smoothstep(0.5 - w8, 0.5 + w8, fract(u8))).mul(m8.stackStep);
+      h8 = p8.mul(up8).mul(dH.add(stack8.sub(dH).mul(m8.stackShare))).mul(gateOf('M8'));
+    }
 
     // M9 nitride crystals
-    const hx9 = hexCell(x.div(m9.size), z.div(m9.size));
-    const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, U(P.sM9a)));
-    const tall9 = hash(hx9.ix, hx9.iz, U(P.sM9b)).mul(0.5).add(0.5);
-    const tip9 = pow(max(F(1).sub(hx9.hd.div(0.5 * m9.girth)), 0), m9.sharp);
-    const h9 = p9.mul(m9.spikeHeight).mul(here9).mul(tall9).mul(tip9).mul(gateOf('M9'));
+    let h9: N | null = null;
+    if (on.M9) {
+      const m9 = M.M9!;
+      const hx9 = hexCell(x.div(m9.size), z.div(m9.size));
+      const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, U(P.sM9a)));
+      const tall9 = hash(hx9.ix, hx9.iz, U(P.sM9b)).mul(0.5).add(0.5);
+      const tip9 = pow(max(F(1).sub(hx9.hd.div(0.5 * m9.girth)), 0), m9.sharp);
+      h9 = p9.mul(m9.spikeHeight).mul(here9).mul(tall9).mul(tip9).mul(gateOf('M9'));
+    }
 
     // M4 canyon
-    const cx = fbm(z.mul(m4.meanderFreq).add(7.3), F(0.5), 2, P.lac, P.gain, P.sM4).mul(m4.meanderAmp).add(P.m4x);
-    const dry = smoothstep(m4.dryStart, m4.dryEnd, hs);
-    const wC = mix(F(m4.widthWet), F(m4.widthDry), dry);
-    const stC = mix(F(m4.steepWet), F(m4.steepDry), dry);
-    const uu = min(abs(qx.sub(cx)).div(wC), 1);
-    const carve = p4.mul(m4.depth).mul(F(1).sub(smoothstep(0, 1, pow(uu, stC))));
+    let carve: N | null = null;
+    if (on.M4) {
+      const m4 = M.M4!;
+      const cx = fbm(z.mul(m4.meanderFreq).add(7.3), F(0.5), 2, P.lac, P.gain, P.sM4).mul(m4.meanderAmp).add(P.m4x);
+      const dry = smoothstep(m4.dryStart, m4.dryEnd, hs);
+      const wC = mix(F(m4.widthWet), F(m4.widthDry), dry);
+      const stC = mix(F(m4.steepWet), F(m4.steepDry), dry);
+      const uu = min(abs(qx.sub(cx)).div(wC), 1);
+      carve = p4.mul(m4.depth).mul(F(1).sub(smoothstep(0, 1, pow(uu, stC))));
+    }
 
     // relic footprints
     let relic: N = F(0);
@@ -213,7 +241,10 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
       relic = relic.add(s.mul(s).mul(pier.height));
     }
 
-    const hTerrain = hb.add(h3).add(h6).add(h2).add(h8).add(h9).sub(carve).add(relic);
+    let hTerrain: N = hb;
+    for (const h of [h3, h6, h2, h8, h9]) if (h) hTerrain = hTerrain.add(h);
+    if (carve) hTerrain = hTerrain.sub(carve);
+    hTerrain = hTerrain.add(relic);
 
     // shore ramp
     const rdx = x.sub(R.cx), rdz = z.sub(R.cz);
@@ -224,13 +255,17 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
     const hf = mix(hTerrain, rampH, mask);
 
     // M7 basalt columns
-    const hx7 = hexCell(x.div(m7.size), z.div(m7.size));
-    const band7 = bandOf(hf.div(0.5 * P.A), m7.bandCenter, m7.bandWidth);
-    const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
-    const col7 = floor(hash(hx7.ix, hx7.iz, U(P.sM7)).mul(m7.nSteps)).mul(m7.stepH).sub(rim7.mul(m7.groove));
-    const h7 = p7.mul(band7).mul(F(1).sub(mask.mul(1 - m7.rampKeep))).mul(col7).mul(gateOf('M7'));
+    let h7: N | null = null;
+    if (on.M7) {
+      const m7 = M.M7!;
+      const hx7 = hexCell(x.div(m7.size), z.div(m7.size));
+      const band7 = bandOf(hf.div(0.5 * P.A), m7.bandCenter, m7.bandWidth);
+      const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
+      const col7 = floor(hash(hx7.ix, hx7.iz, U(P.sM7)).mul(m7.nSteps)).mul(m7.stepH).sub(rim7.mul(m7.groove));
+      h7 = p7.mul(band7).mul(F(1).sub(mask.mul(1 - m7.rampKeep))).mul(col7).mul(gateOf('M7'));
+    }
 
-    return u.rise.mul(hf.add(h7));
+    return u.rise.mul(h7 ? hf.add(h7) : hf);
   }) as (x: N, z: N) => N;
 }
 

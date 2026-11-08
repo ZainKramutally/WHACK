@@ -214,4 +214,20 @@ describe('real world configs across seeds', () => {
       expect(ahead.length, `seed ${seed}`).toBeGreaterThanOrEqual(1);
     }
   });
+
+  it('skipping unlisted machines is bit-exact against evaluating all eight', () => {
+    const ids = ['M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9'] as const;
+    const states = [0, 0.3, 1].flatMap((rise) => [0.2, 0.5, 0.9].map((hs) => ({ rise, hs, p: rise })));
+    for (const [name, world] of [['carbon', carbon], ['silicon', silicon]] as const) {
+      const t = createTerrain(world.terrain, world.demoSeed);
+      const all = { ...t.params, active: Object.fromEntries(ids.map((id) => [id, true])) as typeof t.params.active };
+      expect(ids.filter((id) => !t.params.active[id]), name).toEqual(name === 'carbon' ? ['M2', 'M9'] : ['M3', 'M6', 'M7', 'M8']);
+      for (const { rise, hs, p } of states) for (const [x, z] of grid(9, 400)) {
+        // progress is nonzero for every machine, including the unlisted ones, to prove they still contribute exactly 0
+        const a = heightCore(t.params, rise, hs, p, p, p, p, p, x, z, kit64, p, p, p);
+        const b = heightCore(all, rise, hs, p, p, p, p, p, x, z, kit64, p, p, p);
+        expect(Object.is(a, b) || (a === 0 && b === 0), `${name} ${x},${z} rise ${rise}`).toBe(true);
+      }
+    }
+  });
 });

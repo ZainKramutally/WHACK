@@ -59,6 +59,8 @@ export interface TerrainParams {
   // shore ramp (spawn area)
   ramp: { cx: number; cz: number; ux: number; uz: number; rIn: number; rOut: number };
   machines: Partial<Record<MachineId, Record<string, number>>>;
+  /** true only for machines listed in the config. An unlisted machine runs on OFF params (every height coefficient 0), so its term is exactly 0 and both backends skip it. */
+  active: Record<MachineId, boolean>;
   m3dir: [number, number];
   m4x: number;                                    // canyon centre-line x offset (m)
   piers: { x: number; z: number; height: number; radius: number }[];   // relic footprints (spire = 1 pier, arch = 2)
@@ -187,6 +189,7 @@ export function heightCore(
 ): number {
   const { fract, mix, smoothstep, fbm, vnoise, hash, hexCell } = k;
   const M = P.machines;
+  const on = P.active;
 
   // domain warp + base relief: bn in [-1,1]
   const { qx, qz, bn, base } = warpBase(P, x, z, k);
@@ -196,62 +199,83 @@ export function heightCore(
   const gateOf = (id: MachineId) => { const g = P.gates[id]; return g ? g.reduce((a, c, j) => a + c * cw[j], 0) : 1; };
 
   // M5 strata terraces (smooth staircase blended in by progress)
-  const m5 = M.M5!;
-  const u5 = base / m5.bandH;
-  const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
-  const stepped = m5.bandH * (Math.floor(u5) + smoothstep(0.5 - w5, 0.5 + w5, fract(u5)));
-  const s5 = m5.strength * (P.gates.M5 ? m5.offMineral + (1 - m5.offMineral) * gateOf('M5') : 1);
-  const hb = base + p5 * s5 * (stepped - base);
+  let hb = base;
+  if (on.M5) {
+    const m5 = M.M5!;
+    const u5 = base / m5.bandH;
+    const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
+    const stepped = m5.bandH * (Math.floor(u5) + smoothstep(0.5 - w5, 0.5 + w5, fract(u5)));
+    const s5 = m5.strength * (P.gates.M5 ? m5.offMineral + (1 - m5.offMineral) * gateOf('M5') : 1);
+    hb = base + p5 * s5 * (stepped - base);
+  }
 
   // M3 hoodoos / frost fins: only near the freezing point (heatSolvent ≈ 0.5), uplands only
-  const m3 = M.M3!;
-  const g3 = 1 - smoothstep(0, m3.halfWidth, Math.abs(hs - 0.5));
-  const up3 = smoothstep(m3.uplandMin, m3.uplandMin + 0.3, bn);
-  const wf3 = 1 / (m3.finSpacing * 2.5);
-  const along = qx * P.m3dir[0] + qz * P.m3dir[1] + m3.finWarp * fbm(qx * wf3, qz * wf3, 2, P.lac, P.gain, P.sM3a);
-  const fin = Math.pow(Math.max(0.5 + 0.5 * Math.cos(TWO_PI * (along / m3.finSpacing)), 0), m3.finSharp);
-  const bf3 = 1 / (m3.finSpacing * 1.5);
-  const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx * bf3, qz * bf3, P.sM3b));
-  const h3 = p3 * g3 * up3 * m3.finHeight * fin * brk3 * gateOf('M3');
+  let h3 = 0;
+  if (on.M3) {
+    const m3 = M.M3!;
+    const g3 = 1 - smoothstep(0, m3.halfWidth, Math.abs(hs - 0.5));
+    const up3 = smoothstep(m3.uplandMin, m3.uplandMin + 0.3, bn);
+    const wf3 = 1 / (m3.finSpacing * 2.5);
+    const along = qx * P.m3dir[0] + qz * P.m3dir[1] + m3.finWarp * fbm(qx * wf3, qz * wf3, 2, P.lac, P.gain, P.sM3a);
+    const fin = Math.pow(Math.max(0.5 + 0.5 * Math.cos(TWO_PI * (along / m3.finSpacing)), 0), m3.finSharp);
+    const bf3 = 1 / (m3.finSpacing * 1.5);
+    const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx * bf3, qz * bf3, P.sM3b));
+    h3 = p3 * g3 * up3 * m3.finHeight * fin * brk3 * gateOf('M3');
+  }
 
   // M6 shell-stone mounds in the shallows (band of base elevation)
-  const m6 = M.M6!;
-  const band6 = 1 - smoothstep(0, 1, Math.abs(bn - m6.bandCenter) / m6.bandWidth);
-  const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx * m6.moundFreq, qz * m6.moundFreq, P.sM6));
-  const h6 = p6 * m6.moundHeight * band6 * mound6 * gateOf('M6');
+  let h6 = 0;
+  if (on.M6) {
+    const m6 = M.M6!;
+    const band6 = 1 - smoothstep(0, 1, Math.abs(bn - m6.bandCenter) / m6.bandWidth);
+    const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx * m6.moundFreq, qz * m6.moundFreq, P.sM6));
+    h6 = p6 * m6.moundHeight * band6 * mound6 * gateOf('M6');
+  }
 
   // M2 silicon crystal-crust rims at the sea margin (band of base elevation)
-  const m2 = M.M2!;
-  const band2 = 1 - smoothstep(0, 1, Math.abs(bn - m2.bandCenter) / m2.bandWidth);
-  const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx * m2.patchFreq, qz * m2.patchFreq, P.sM2));
-  const h2 = p2 * m2.rimHeight * band2 * crust2 * gateOf('M2');
+  let h2 = 0;
+  if (on.M2) {
+    const m2 = M.M2!;
+    const band2 = 1 - smoothstep(0, 1, Math.abs(bn - m2.bandCenter) / m2.bandWidth);
+    const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx * m2.patchFreq, qz * m2.patchFreq, P.sM2));
+    h2 = p2 * m2.rimHeight * band2 * crust2 * gateOf('M2');
+  }
 
   // M8 granite domes and stacked-boulder tors on highlands: smooth domes, partly quantised into rounded stacked steps
-  const m8 = M.M8!;
-  const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx * m8.domeFreq, qz * m8.domeFreq, P.sM8));
-  const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
-  const dH = m8.domeHeight * dome;
-  const u8 = dH / m8.stackStep;
-  const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
-  const stack8 = m8.stackStep * (Math.floor(u8) + smoothstep(0.5 - w8, 0.5 + w8, fract(u8)));
-  const h8 = p8 * up8 * (dH + m8.stackShare * (stack8 - dH)) * gateOf('M8');
+  let h8 = 0;
+  if (on.M8) {
+    const m8 = M.M8!;
+    const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx * m8.domeFreq, qz * m8.domeFreq, P.sM8));
+    const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
+    const dH = m8.domeHeight * dome;
+    const u8 = dH / m8.stackStep;
+    const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
+    const stack8 = m8.stackStep * (Math.floor(u8) + smoothstep(0.5 - w8, 0.5 + w8, fract(u8)));
+    h8 = p8 * up8 * (dH + m8.stackShare * (stack8 - dH)) * gateOf('M8');
+  }
 
   // M9 nitride crystals: sparse tall hexagonal spikes, one per chosen hex cell
-  const m9 = M.M9!;
-  const hx9 = hexCell(x / m9.size, z / m9.size);
-  const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, P.sM9a));
-  const tall9 = 0.5 + 0.5 * hash(hx9.ix, hx9.iz, P.sM9b);
-  const tip9 = Math.pow(Math.max(1 - hx9.hd / (0.5 * m9.girth), 0), m9.sharp);
-  const h9 = p9 * m9.spikeHeight * here9 * tall9 * tip9 * gateOf('M9');
+  let h9 = 0;
+  if (on.M9) {
+    const m9 = M.M9!;
+    const hx9 = hexCell(x / m9.size, z / m9.size);
+    const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, P.sM9a));
+    const tall9 = 0.5 + 0.5 * hash(hx9.ix, hx9.iz, P.sM9b);
+    const tip9 = Math.pow(Math.max(1 - hx9.hd / (0.5 * m9.girth), 0), m9.sharp);
+    h9 = p9 * m9.spikeHeight * here9 * tall9 * tip9 * gateOf('M9');
+  }
 
   // M4 canyon: depth ∝ progress; walls steepen with dry heat
-  const m4 = M.M4!;
-  const cx = P.m4x + m4.meanderAmp * fbm(z * m4.meanderFreq + 7.3, 0.5, 2, P.lac, P.gain, P.sM4);
-  const dry = smoothstep(m4.dryStart, m4.dryEnd, hs);
-  const wC = mix(m4.widthWet, m4.widthDry, dry);
-  const stC = mix(m4.steepWet, m4.steepDry, dry);
-  const uu = Math.min(Math.abs(qx - cx) / wC, 1);
-  const carve = p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC)));
+  let carve = 0;
+  if (on.M4) {
+    const m4 = M.M4!;
+    const cx = P.m4x + m4.meanderAmp * fbm(z * m4.meanderFreq + 7.3, 0.5, 2, P.lac, P.gain, P.sM4);
+    const dry = smoothstep(m4.dryStart, m4.dryEnd, hs);
+    const wC = mix(m4.widthWet, m4.widthDry, dry);
+    const stC = mix(m4.steepWet, m4.steepDry, dry);
+    const uu = Math.min(Math.abs(qx - cx) / wC, 1);
+    carve = p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC)));
+  }
 
   // relic footprints (silicon): fixed positions, scaled by rise like everything else
   let relic = 0;
@@ -273,13 +297,16 @@ export function heightCore(
   const hf = mix(hTerrain, rampH, mask);
 
   // M7 basalt columns: flat-topped hexagonal columns of hash-quantised height in the coastal band of the final surface, grooved at the joints.
-  // On the spawn ramp they keep only `rampKeep` of their size, so the walk to the sea stays gentle.
-  const m7 = M.M7!;
-  const hx7 = hexCell(x / m7.size, z / m7.size);
-  const band7 = 1 - smoothstep(0, 1, Math.abs(hf / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
-  const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
-  const col7 = m7.stepH * Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps) - m7.groove * rim7;
-  const h7 = p7 * band7 * (1 - mask * (1 - m7.rampKeep)) * col7 * gateOf('M7');
+  let h7 = 0;
+  if (on.M7) {
+    // On the spawn ramp they keep only `rampKeep` of their size, so the walk to the sea stays gentle.
+    const m7 = M.M7!;
+    const hx7 = hexCell(x / m7.size, z / m7.size);
+    const band7 = 1 - smoothstep(0, 1, Math.abs(hf / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
+    const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
+    const col7 = m7.stepH * Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps) - m7.groove * rim7;
+    h7 = p7 * band7 * (1 - mask * (1 - m7.rampKeep)) * col7 * gateOf('M7');
+  }
 
   return rise * (hf + h7);
 }
@@ -328,7 +355,10 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
 
   const machines: Partial<Record<MachineId, Record<string, number>>> = {};
   for (const id of MACHINE_IDS) machines[id] = OFF[id];
+  const active = {} as Record<MachineId, boolean>;
+  for (const id of MACHINE_IDS) active[id] = false;
   for (const m of config.machines) {
+    active[m.id] = true;
     need(`machines.${m.id}.params`, m.params, MACHINE_KEYS[m.id]);
     machines[m.id] = m.id === 'M5' ? { offMineral: 1, ...m.params } : m.params;
   }
@@ -368,7 +398,7 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
     sBase, sWx, sWz, sM2, sM3a, sM3b, sM4, sM6, sM7, sM8, sM9a, sM9b, sCrust,
     crust: { k: crustMinerals.length, thr: [], w: 0.03, nf: 1 / (Math.max(1, config.crust.patchCells) * (S / GRID)), order }, gates,
     oBaseX, oBaseZ, oWxX, oWxZ, oWzX, oWzZ,
-    ramp, machines, m3dir: [Math.cos(m3Ang), Math.sin(m3Ang)], m4x, piers,
+    ramp, machines, active, m3dir: [Math.cos(m3Ang), Math.sin(m3Ang)], m4x, piers,
   };
 
   // bake the crust thresholds: quantiles of the score at the 64² cell centres, so realised shares land on the sampled shares
