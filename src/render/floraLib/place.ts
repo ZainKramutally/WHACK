@@ -14,13 +14,16 @@
 import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
-import { ARCHETYPE_INDEX, ARCHETYPE_META, NEUTRAL_TINT, ROLE_BAND, pickPlant, plantHeight, type FloraRole } from './index';
+import { ARCHETYPE_INDEX, ARCHETYPE_META, NEUTRAL_TINT, pickPlant, plantHeight, type FloraRole } from './index';
 import { AQUATIC_B, activeGates, aquaticFor, gateKey, mineralByRank, supplySi, worldEnv, type CellProbe } from './gates';
 import { easedGates, type GateShares } from './succession';
 import { varyPlant, type PlantVary } from './vary';
 import { makeEnv, plantEnv, worldEnv as traitWorld } from './traits';
+import { emergentChance, inBand, sizeClass, sizeScore } from './size';
 
 export const MAX_PLANTS = 16000;
+/** Hash salt per role for the size class (size.ts). */
+const ROLE_SALT: Record<FloraRole, number> = { ground: 0, mid: 1, giant: 2 };
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
 const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 per cell
 const FOREGROUND_R = 30;
@@ -279,7 +282,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     // its own cell's mineral from the crust map (the same argmax the gates read); the height-rank proxy without crust
     plantEnv(tenv, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y, sea, probe.rank(c), role, crust ? crust.minerals[mineralIx(c)] : null);
     const v = varyPlant(ai, c, slot, dark, tenv, look);
-    if (topAt !== topAt) h = Math.min(h * v.size, ROLE_BAND[role][1]); // T10 (etiolation), never past the role's band
+    // T10 (etiolation) × the plant's seeded size class (size.ts, §2d: a truncated power law whose cap follows its
+    // ground's fertility, nitrogen, water, warmth and oxygen), inside the role's widened band
+    if (topAt !== topAt) h = inBand(role, h * v.size * sizeClass(hash01(c, slot + (dark ? 64 : 0), 190 + ROLE_SALT[role]), sizeScore(tenv)));
     let tx = 0, tz = 0, sink = 0;
     const r = shapes ? shapes.foot[ai] * h * v.girth : 0;
     let ringed = false;
@@ -331,9 +336,21 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     bins[c] = b;
     forms[c] = b ? formForBin(b) : null;
   }
+  // Emergent giants wait until every superblock giant stands, and stand only in a draw bucket (archetype × LOD) those
+  // already use: macro life adds instances, never draw calls.
+  const emergents: { key: string; x: number; z: number; y: number; d: number; c: number; h: number; glow: number }[] = [];
+  const placeEmergents = () => {
+    const used = new Set<number>();
+    for (let i = 0; i < out.n; i++) used.add(out.arch[i] * 2 + out.lod[i]);
+    for (const e of emergents) {
+      const ai = ARCHETYPE_INDEX.get(e.key)!;
+      if (used.has(ai * 2 + (e.d < LOD_NEAR.giant ? 0 : 1))) push(e.key, e.x, e.z, e.h, hash01(e.c, 0, 100) * 6.283, 'giant', e.d, false, e.glow, e.y, e.c, 0);
+    }
+  };
   // Giants first (fewest, most important to the silhouette), then mid groves, then ground cover, so a full list drops
   // ground cover rather than the landmarks.
   for (let pass = 0; pass < 3; pass++) {
+    if (pass === 1) placeEmergents();
     for (let c = 0; c < cells; c++) {
       const form = forms[c], bin = bins[c];
       if (!form || !bin) continue;
@@ -344,14 +361,31 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       const ccx = patchToWorld((col + 0.5) / FLORA_GRID, patch), ccz = patchToWorld((row + 0.5) / FLORA_GRID, patch); // cellCentre, unallocated
       if (pass === 0) {
         // the cell with the most canopy in each superblock may hold its one giant
-        if (canopy < GIANT_CANOPY || !inputs.lifeOnLand) continue;
+        if (!inputs.lifeOnLand) continue;
         const sc = Math.floor(col / SUPER) * SUPER, sr = Math.floor(row / SUPER) * SUPER;
         let best = -1, bestC = -1;
         for (let j = 0; j < SUPER && sr + j < FLORA_GRID; j++) for (let i = 0; i < SUPER && sc + i < FLORA_GRID; i++) {
           const cj = (sr + j) * FLORA_GRID + sc + i, v = inputs.flora[cj * 2 + 1] ?? 0;
           if (v > bestC) { bestC = v; best = cj; }
         }
-        if (best !== c) continue;
+        if (best !== c || canopy < GIANT_CANOPY) {
+          // emergent giants (§2d): one seeded cell per superblock may raise a giant over its groves or ground cover, at a
+          // rate its ground and the world's stats set (fertile, N-rich, wet, warm ground: more)
+          const ec = (sr + Math.floor(hash01(sc, sr, 91) * SUPER)) * FLORA_GRID + sc + Math.floor(hash01(sc, sr, 92) * SUPER);
+          if (ec !== c || ec === best || canopy < MID_CANOPY) continue;
+          const x = ccx + (hash01(c, 0, 93) - 0.5) * cell * 0.6, z = ccz + (hash01(c, 0, 94) - 0.5) * cell * 0.6;
+          if (cleared(x, z, GIANT_OVERHANG)) continue;
+          const y = yAt(x, z);
+          if (y < sea) continue;
+          plantEnv(tenv, mat, canopy, y, sea, probe.rank(c), 'giant', crust ? crust.minerals[mineralIx(c)] : null);
+          if (hash01(c, 0, 95) >= emergentChance(sizeScore(tenv))) continue;
+          // the superblock giant's own pick draws, so an emergent is that giant's species (its draw buckets already exist)
+          const tall = formForBin(withMix(bin, 2));
+          const d = Math.hypot(x - cam.x, z - cam.z);
+          const key = gated(pickPlant(tall, 'giant', bright, hash01(best, 0, 14), hb, hash01(best, 0, 17), env.dense), 'giant', c, y, hash01(best, 0, 18));
+          if (key) emergents.push({ key, x, z, y, d, c, h: plantHeight('giant', tall, Math.max(canopy * 2, mat), hash01(c, 0, 99)), glow: tall.glow });
+          continue;
+        }
         if (hash01(c, 0, 10) > 0.3 + (bin.mix === 2 ? 0.4 : 0) + 0.6 * canopy) continue;
         const tall = formForBin(withMix(bin, 2));
         const x = ccx + (hash01(c, 0, 12) - 0.5) * cell * 0.6, z = ccz + (hash01(c, 0, 13) - 0.5) * cell * 0.6;

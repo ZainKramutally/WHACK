@@ -8,7 +8,7 @@ import {
   type FloraLibrary, type FloraPalette, type FloraRole,
 } from './index';
 import { LOD_NEAR, makePlantList, placePlants } from './place';
-import { countDraws } from './buckets';
+import { BUCKET_CAP, countDraws } from './buckets';
 
 const PAL: FloraPalette = { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a };
 const lin = (hex: number) => { const c = new Color().setHex(hex); return [c.r, c.g, c.b]; };
@@ -179,7 +179,7 @@ describe('placePlants', () => {
     const can = roles(placePlants(inputs(() => [0.3, 0.9]), PATCH, { x: 0, z: 0 }, makePlantList()));
     expect(can.mid).toBeGreaterThan(100);
     expect(can.giant).toBeGreaterThan(50);
-    expect(can.giant).toBeLessThanOrEqual(13 * 13); // at most one per 5×5-cell superblock
+    expect(can.giant).toBeLessThanOrEqual(2 * 13 * 13); // at most two per 5×5-cell superblock: its giant and one emergent (§2d)
   });
 
   it('holds its budget when canopy covers the whole patch (worst case)', () => {
@@ -192,7 +192,8 @@ describe('placePlants', () => {
       tris += t; by[a.role] = (by[a.role] ?? 0) + t;
     }
     console.log('worst case', JSON.stringify(n), 'tris', tris, JSON.stringify(by));
-    expect(n.giant).toBeLessThanOrEqual(13 * 13);
+    expect(n.giant).toBeLessThanOrEqual(2 * 13 * 13); // a superblock giant and at most one emergent each (§2d)
+    expect(n.giant).toBeLessThanOrEqual(BUCKET_CAP.giant);
     expect(n.mid).toBeLessThan(1600);
     expect(tris).toBeLessThan(4.5e6); // before frustum culling (~half is behind the camera)
   });

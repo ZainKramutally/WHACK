@@ -3,7 +3,8 @@ import { Matrix4, Quaternion, Vector3 } from 'three/webgpu';
 import { makeStubVisualInputs } from '../visualInputs';
 import { FLORA_GRID } from '../layout';
 import type { VisualInputs } from '../../worlds/types';
-import { ARCHETYPE_META, ROLE_BAND, buildFloraLibrary } from './index';
+import { ARCHETYPE_META, buildFloraLibrary } from './index';
+import { SIZE_BAND } from './size';
 import { makePlantList, placePlants, type PlantList } from './place';
 import { makeEnv, plantEnv } from './traits';
 import { worldFor } from '../../worlds';
@@ -92,7 +93,7 @@ describe('per-plant variation (vary.ts)', () => {
         const sum = { ground: 0, mid: 0, giant: 0 }, n = { ground: 0, mid: 0, giant: 0 };
         const bad: string[] = [];
         for (let i = 0; i < l.n; i++) {
-          const meta = ARCHETYPE_META[l.arch[i]], [lo, hi] = ROLE_BAND[meta.role], v = lookOf(l, i), h = l.h[i];
+          const meta = ARCHETYPE_META[l.arch[i]], [lo, hi] = SIZE_BAND[meta.role], v = lookOf(l, i), h = l.h[i];
           if (!(h >= lo && h <= hi)) bad.push(`${meta.role} height ${h}`);
           sum[meta.role] += h; n[meta.role]++;
           // the tint never exceeds 1 (nothing new blooms) and never blacks a plant out

@@ -79,12 +79,13 @@ describe('gated archetypes', () => {
     for (let i = 0; i < warm.n; i++) expect(keyOf(warm, i)).not.toBe('groundCover#4');
   });
 
-  it('a gate only substitutes: plant counts and positions never change', () => {
+  // Emergent giants (size.ts, §2d) come and go with nitrogen and temperature by design, so this compares the rest.
+  it('a gate only substitutes: plant counts and positions never change (emergent giants aside)', () => {
+    const xs = (l: ReturnType<typeof placed>) => Array.from(l.x.subarray(0, l.n)).filter((_, i) => ARCHETYPE_META[l.arch[i]].role !== 'giant');
     const base = placed(shore({ nitrogen: 1, temperature: 15 }));
     for (const stats of [{ nitrogen: 0.2 }, { temperature: -5 }, { nitrogen: 0.2, temperature: -5 }]) {
       const g = placed(shore({ nitrogen: 1, temperature: 15, ...stats }));
-      expect(g.n).toBe(base.n);
-      expect(Array.from(g.x.subarray(0, g.n))).toEqual(Array.from(base.x.subarray(0, base.n)));
+      expect(xs(g)).toEqual(xs(base));
     }
   });
 
