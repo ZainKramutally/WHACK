@@ -181,3 +181,4 @@
 - 05:08: OWNER approved fast-forwarding main with palette + rock chips + blue water once sea-blue is green.
 - 05:20: sea-blue merged (water-blue ramp, Braun & Smirnov 1993; seabed tint in shallows only exp(-d/2 m); ≤12% open-sea nudge; blue underwater; half-float 64² seabed bake, throttled). Rebased on main f1f8244: resolved VisualInputs.terrain.crust (main's flora session) vs our crustWeights → kept both; CLAUDE.md bus line. 459 related + 131 dir tests, build green. OWNER-APPROVED ff: main = 6959901 (palette + rock chips + blue water).
 - 04:33: MAIN PUSH (pre-approved): crust-map gates main 8784d75 (after racing 16's e64058e/46fc8d2; re-gated 723/43). 16 pinged. Stage == main. Remaining in flight: flora-unique WP-A crust uptake.
+- 05:00 perf: rock chips regressed the landing (every chip toggle re-planned + recompiled Generate). perf-chips: primedBy per world|chip slot, LRU 6, never evicts the running plan. Owner OK'd main. Gate: tsc 0, build OK.
