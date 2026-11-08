@@ -90,3 +90,4 @@
 - 02:31: MAIN MERGE (Caden approved): main d0ba7c8 = d43e599 (scan-hover, jump) + 25 art commits (review fixes, underwater, #57, bell pick, loft live view, guards). Gate tsc 0, 203/203, build OK; main.ts conflict vs 56's fade-in resolved (setSpawn + appear). #57 closed, #50 updated, 16 pinged. flora-unique/flora-audit/art-fauna told to rebase on d0ba7c8 (floraHit inputs). art-fixes + art-water shutdown requested.
 - 02:31 16: art layer on main d0ba7c8 (6a, 25 render commits); session/logic ff; honesty box adds the moons.
 - 02:33 16: merged flight (#67): powered flight from (m·g)^1.5/√(2ρA), ceiling over scale height, altitude + grown in organism layout v3 (stride 30); CLAUDE.md updated.
+- 02:35 16: merged #51 (radial swimmers roll; nearest announced species within 1.8× form radius). Held back jumpRateBuild (no build-count gain; live discoveries 0–3). #39/#47 re-check: carbon 50–100% at 60 s, silicon seed 2 fails.
