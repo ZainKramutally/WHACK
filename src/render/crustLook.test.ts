@@ -98,7 +98,7 @@ describe('mineral look families', () => {
     expect(isRed(fresh.redLight)).toBe(false);
     const iron = { ...mixOf(carbon), shares: mixOf(carbon).ids.map((id) => (id === 'ironstone' ? 1 : 0)) };
     expect(isRed(blendFamilies(iron, iron.shares, 1).family.red)).toBe(true);
-    expect(isRed(mineralFamily('basalt', true, 1).red)).toBe(true);   // rusted basalt joins the reds
+    expect(isRed(mineralFamily('basalt', true, 1).red)).toBe(false);   // rusted basalt is a mild brown, not the Red World
   });
   it('local haze eases monotonically towards the target and never overshoots', () => {
     const l = new LocalCrust();
@@ -132,5 +132,37 @@ describe('mineral look families', () => {
     expect(bright.base.red).toBe(rock.red);
     expect(dim.red).not.toBe(bright.red);
     expect(skyStyle('G-type', 1, 1, 15, { haze: rock.haze, horizon: rock.skyHorizon }).horizon).not.toBe(skyStyle('G-type', 1, 1, 15).horizon);
+  });
+});
+
+// ---- iron = the Red World; basalt stays green (owner request 2026-11-08) ----------------------------------------------------
+import { withCrustChoice } from '../gen/crust';
+import { crustSeaStain } from './crustLook';
+const redHue = (hex: number) => { const { h } = hueOf(hex); return h >= 330 || h <= 40; };
+const ironW = withCrustChoice(carbon, 'ironstone'), basaltW = withCrustChoice(carbon, 'basalt');
+describe('iron-rich and volcanic worlds', () => {
+  it('rusted ironstone world: rock, shadow, haze and flora are all red-hued', () => {
+    const i = inputsFor(ironW, 40);
+    const rock = crustRock(i, 0, 0, 1)!;
+    for (const c of [rock.red, rock.shadow, rock.haze, rock.skyHorizon, crustFloraTint(i as never)!.crimson]) expect(redHue(c), c.toString(16)).toBe(true);
+    expect(LOOK_PALETTES.carbon.red).toBe(MINERAL_LOOK.ironstone[1]!.red);
+  });
+  it('ironstone flora stays red through the pigment ratchet, never green', () => {
+    const t = crustFloraTint(inputsFor(ironW, 40) as never)!;
+    const c = floraPigment(LOOK_PALETTES.carbon, false, 1, t).crimson;
+    expect((c >> 16) & 255).toBeGreaterThan((c >> 8) & 255);
+  });
+  it('rusted basalt world: flora crimson is green, rock is not a saturated red, air is cool', () => {
+    const i = inputsFor(basaltW, 40);
+    const g = crustFloraTint(i as never)!.crimson;
+    const h = hueOf(g).h;
+    expect(h).toBeGreaterThan(100); expect(h).toBeLessThan(200);
+    const rock = crustRock(i, 0, 0, 1)!;
+    expect(isRed(rock.red)).toBe(false);
+    expect(hexToLab(rock.haze)[2]).toBeLessThan(0.01);
+  });
+  it('iron stains the shallows; basalt does not', () => {
+    expect(crustSeaStain(inputsFor(ironW, 0) as never)).toBeGreaterThan(crustSeaStain(inputsFor(basaltW, 0) as never));
+    expect(redHue(MINERAL_LOOK.ironstone[1]!.sea)).toBe(true);
   });
 });

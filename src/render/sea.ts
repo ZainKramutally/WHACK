@@ -11,7 +11,7 @@ import { Fn, vec3, vec4, mix, pow, smoothstep, normalize, positionWorld, cameraP
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { seaStyle, waterAtDepth } from './palette';
-import { crustSeaTint, crustWaterNudge } from './crustLook';
+import { crustSeaStain, crustSeaTint, crustWaterNudge } from './crustLook';
 import { worldMaterial, LOOK, PAL } from './material';
 
 export interface SeaPart {
@@ -31,6 +31,7 @@ export function createSea(app: App): SeaPart {
   const uMid: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
   const uBed: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
   const uBedAmt = uniform(0);
+  const uBedDepth = uniform(2);       // metres over which the seabed tint fades; iron stain reaches deeper
   const uPatch = uniform(256);
   // half-float: filterable on every WebGPU/WebGL2 device (float32 linear filtering is an optional feature)
   const RES = 64;
@@ -56,7 +57,7 @@ export function createSea(app: App): SeaPart {
       // cyan at the waterline → ocean blue → uDeep (navy-leaning) with depth, then the seabed tint through thin water
       const ramp = mix(vec3(uShallow), vec3(uMid), float(1).sub(exp(depth.negate().div(5))));
       const deeper = mix(ramp, vec3(uDeep), float(1).sub(exp(depth.negate().div(14))));
-      body = mix(deeper, vec3(uBed), exp(depth.negate().div(2)).mul(uBedAmt));
+      body = mix(deeper, vec3(uBed), exp(depth.negate().div(uBedDepth)).mul(uBedAmt));
     }
     const col = mix(body, vec3(uSky), fres).toVar();
     if (ice) {
@@ -127,7 +128,9 @@ export function createSea(app: App): SeaPart {
         uShallow.value.setHex(waterAtDepth(0.5));
         uMid.value.setHex(waterAtDepth(14, undefined, nudge));
         uBed.value.setHex(shallows ?? 0);
-        uBedAmt.value = shallows !== undefined ? 0.8 : 0;
+        const stain = crustSeaStain(inputs);   // ironstone seabed: strong red-orange iron-oxide stain, ~90% at the shore, a few metres deep
+        uBedAmt.value = shallows !== undefined ? 0.8 + 0.1 * stain : 0;
+        uBedDepth.value = 2 + 1.5 * stain;
         uPatch.value = patch;
         bake(inputs, patch, t);
         sky.copy(PAL.haze.value).lerp(PAL.skyHorizon.value, 0.4);

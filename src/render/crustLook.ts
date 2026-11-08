@@ -88,15 +88,21 @@ const fam = (redLight: number, red: number, crimson: number, maroon: number, sha
   fl: [number, number, number], floraWeight = 1): Family =>
   ({ redLight, red, crimson, maroon, shadow, haze, horizon, sea, floraMaroon: fl[0], floraCrimson: fl[1], floraBlush: fl[2], floraWeight });
 
-const IRONSTONE_RED = fam(0xff5a36, 0xe8331f, 0xa8122a, 0x5c0a1e, 0x5a1040, 0xf0c9a0, 0xf8dcb4, 0x7a4a3a, [0x3a3410, 0x9a8a2a, 0xe6d890]);   // Red World reds; Mars's iron-oxide butterscotch haze; spinifex gold-olive
+// Ironstone = the Red World (owner request 2026-11-08, "iron should still make everything red"): rock ramp and oxblood shadow are
+// LOOK_PALETTES.carbon's; the air carries rose-red iron dust; the shallows are stained red-orange by iron oxide; and the plants are
+// red. Plant reason (recalled, NOT verified): iron oxides in the soil bind phosphate, and phosphate-starved plants build red
+// anthocyanin pigments. The ratchet still runs purple → this red tint, so an iron world's flora goes purple → red, never green.
+const IRONSTONE_RED = fam(0xff5a36, 0xe8331f, 0xa8122a, 0x5c0a1e, 0x5a1040, 0xf0c4bc, 0xf6d4cc, 0xd8502a, [0x5c0a1e, 0xa8122a, 0xf2a2a0]);
 export const MINERAL_LOOK: Record<string, readonly [Family] | readonly [Family, Family]> = {
   // charcoal teal-grey volcanic rock under cool blue-grey air (Iceland, the Faroes); emerald flora; teal over dark sand. Rusted: brown-red.
   basalt: [
     fam(0x86a0a0, 0x4a6466, 0x2c4448, 0x16282c, 0x1a3a4a, 0xc0d2dc, 0xd4e2ec, 0x1a6a78, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
-    fam(0xe0704a, 0xb83a22, 0x8a1e24, 0x4a1218, 0x4a1a30, 0xe4c4aa, 0xf0d6bc, 0x5a4a44, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
+    // mild brown oxidation (dark brown-grey, no Red World red); flora stays emerald and the air cool so 'Volcanic' stays green and Earth-like
+    fam(0x968a86, 0x645a58, 0x453c3c, 0x261f20, 0x1e2e3a, 0xc0d2dc, 0xd4e2ec, 0x2a5a60, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
   ],
   ironstone: [
-    fam(0xe8663c, 0xc02e1c, 0x8c1a26, 0x4c0e1a, 0x4e1238, 0xe8bf94, 0xf2d2a8, 0x6c4a3c, [0x3a3410, 0x9a8a2a, 0xe6d890]),
+    // jasper before full oxidation: same family, a little darker and less saturated
+    fam(0xd0664a, 0xa83c2e, 0x7a2430, 0x43121c, 0x4a1238, 0xe2c0b8, 0xecd0c8, 0xb04e30, [0x4a0e1c, 0x8c1a2c, 0xe09a98]),
     IRONSTONE_RED,
   ],
   // pale pink-grey and warm-white granite, pale warm haze, heath and bronze-green moorland, turquoise over quartz sand
@@ -141,7 +147,8 @@ function labMean(items: { hex: number; w: number }[]): number {
 export function blendFamilies(crust: CrustMix, weights: number[], rust: number): { family: Family; weights: number[]; seaWeights: number[] } {
   const w = norm(weights);
   const fams = crust.ids.map((id, i) => mineralFamily(id, crust.oxidises[i], rust));
-  const fw = norm(fams.map((f, i) => w[i] * f.floraWeight));
+  // squared: the soil that dominates sets the plants' colour (an iron-rich crust reads red, a mixed one stays mixed)
+  const fw = norm(fams.map((f, i) => (w[i] * f.floraWeight) ** 2));
   const minElev = Math.min(...crust.elevation);
   const sw = norm(crust.elevation.map((e, i) => w[i] * Math.max(0, 1 - (e - minElev) / 0.4)));
   const family = { floraWeight: 1 } as Family;
@@ -173,6 +180,14 @@ export function crustFloraTint(inputs: Pick<VisualInputs, 'world' | 'stats' | 'b
 /** Sea-shallows colour from the seabed rocks (the lowest-elevation minerals, by share). */
 export function crustSeaTint(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number | undefined {
   return crustGlobal(inputs)?.family.sea;
+}
+
+/** 0..1: how much of the seabed is ironstone (sea-weighted). Drives a stronger, deeper iron-oxide stain in the shallows. */
+export function crustSeaStain(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number {
+  const c = inputs.world.crust;
+  if (!c || !crustGlobal(inputs) || !memo.value) return 0;
+  const i = c.ids.indexOf('ironstone');
+  return i < 0 ? 0 : memo.value.seaWeights[i];
 }
 
 // Open-sea body nudge per seabed mineral (≤ WATER_NUDGE_MAX of the body colour, palette.waterBody): granite sand is clear and
