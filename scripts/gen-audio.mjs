@@ -123,7 +123,7 @@ function writeManifest() {
   out.sort((a, b) => a.id.localeCompare(b.id));
   fs.writeFileSync(mp, JSON.stringify(out, null, 1) + '\n');
   console.log(`manifest: ${out.length} entries`);
-  const third = out.filter((e) => e.source !== 'elevenlabs');
+  const third = out.filter((e) => e.source !== 'elevenlabs' && e.source !== 'elevenlabs-music');   // music entries are kept by the filter above, not regenerated here
   fs.writeFileSync(path.join(outDir, 'CREDITS.md'), '# Audio credits\n\n- Files with `source: elevenlabs` in `manifest.json` are generated offline by `scripts/gen-audio.mjs` from `scripts/audio-prompts.json` (ElevenLabs Sound Effects v3 (`eleven_text_to_sound_v3`), generated for this project).\n' + (third.length ? third.map((e) => `- ${e.file}: ${e.url || e.source}, ${e.licence}`).join('\n') + '\n' : '- Third-party CC0 files: none.\n'));
 }
 main().catch((e) => { console.error(String(e.message || e).replace(process.env.ELEVENLABS_API_KEY || '\0', '***')); process.exit(1); });

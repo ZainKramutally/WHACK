@@ -45,7 +45,8 @@ export function mountAudio(): AudioApi {
   let selWorld: WorldId = 'carbon';
 
   // ---- autoplay + mute ----
-  const unlock = () => { engine.resume(); };
+  let clicked = false;
+  const unlock = () => { engine.resume(); if (!clicked) { clicked = true; selMusic(); } };
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
   const btn = document.createElement('button');
@@ -72,6 +73,13 @@ export function mountAudio(): AudioApi {
   };
   place();
 
+  // Selection screen: the selected world's track, very quietly, after the first click; crossfades with the element.
+  function selMusic() {
+    const on = clicked && scene === 'select';
+    engine.music('music.carbon', on && selWorld === 'carbon' ? 0.4 : 0, 2);
+    engine.music('music.silicon', on && selWorld === 'silicon' ? 0.4 : 0, 2);
+  }
+
   // ---- ambience bed state shared by selection + world ----
   let worldBeds: (() => Record<string, number>) | null = null;
   function updateBeds() {
@@ -87,10 +95,20 @@ export function mountAudio(): AudioApi {
   bus.on('selection:changed', ({ worldId, conditions }) => {
     if (worldId !== selWorld) { selWorld = worldId; engine.preload(worldCues(worldId)); }
     const w = worldFor(worldId);
+    selMusic();
     try {
       const b = boxState(w, conditions);
-      engine.fizz(b.phase === 'frozen' || b.effect === 'freeze' ? 0 : 2 + 34 * b.heat * b.heat + (b.phase === 'gas' ? 6 : 0));
-    } catch { engine.fizz(6); }
+      const frozen = b.phase === 'frozen' || b.effect === 'freeze';
+      const gas = b.phase === 'gas';
+      let alive = false;
+      try { alive = canLive(w, conditions).ok; } catch { /* keep */ }
+      const rate = (2 + 34 * b.heat * b.heat + (gas ? 6 : 0)) * (worldId === 'silicon' ? 0.55 : 1);
+      engine.box({
+        rate: frozen ? 0 : rate, element: worldId, heat: b.heat, gas, frozen,
+        n2k: Math.min(1, Math.max(0, (Math.log10(Math.max(0.01, conditions.nitrogen)) + 2) / 4)),
+        rust: worldId === 'silicon' && b.effect === 'rust', o2k: Math.min(1, Math.max(0, conditions.oxygen / 40)), alive: alive && !frozen,
+      });
+    } catch { engine.box({ rate: 6, element: worldId, heat: 0.5, gas: false, frozen: false, n2k: 0.5, rust: false, o2k: 0, alive: false }); }
     const key = `${conditions.temperature}|${conditions.nitrogen}|${conditions.oxygen}`;
     if (key !== lastCond) { lastCond = key; sliderTick(); }   // not on a pure element or rock change
     // verdict flips on the element cells (carbon / silicon): a soft low tone for red, a brighter one for alive
@@ -157,7 +175,7 @@ export function mountAudio(): AudioApi {
   const loop = () => { const n = performance.now(); engine.tick(Math.min(0.1, (n - last) / 1000)); last = n; requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 
-  bus.on('world:selected', () => { scene = 'world'; engine.fizz(0); engine.preload(worldCues(selWorld)); });
+  bus.on('world:selected', () => { scene = 'world'; engine.box(null); selMusic(); engine.preload(worldCues(selWorld)); });
 
   function attachWorld(d: WorldAudioDeps): (dt: number) => void {
     const { world } = d;
@@ -167,7 +185,16 @@ export function mountAudio(): AudioApi {
     let lifeStarted = false, complete = false;
     bus.on('sim:snapshot', (s) => { latest = s; });
     bus.on('build:life', () => { lifeStarted = true; engine.once('build.life', { duck: true }); });
-    bus.on('build:complete', () => { complete = true; engine.once('build.complete', { duck: true }); });
+    bus.on('build:complete', () => { complete = true; engine.once('build.complete', { duck: true }); musicAt = tAcc; });
+    // music phrases: fade in 6 s, play 90–150 s, fade out 8 s, silent 45–90 s, repeat
+    const trackId = `music.${id}`;
+    let musicAt = -1, musicState: 'wait' | 'in' | 'out' | 'silent' = 'wait', musicNext = 0;
+    function musicStep(now: number) {
+      if (!complete || musicAt < 0) return;
+      if (musicState === 'wait') { musicState = 'in'; engine.music(trackId, 1, 6); musicNext = now + 6 + 90 + Math.random() * 60; }
+      else if (musicState === 'in' && now >= musicNext) { musicState = 'out'; engine.music(trackId, 0, 8); musicNext = now + 8 + 45 + Math.random() * 45; }
+      else if (musicState === 'out' && now >= musicNext) { musicState = 'wait'; }
+    }
     const fired = { push: false, multiply: false, land: false, seas: false };
     let underwater = false, stepDist = 0, lastJumpT = -1e9, swimT = 0, creatureT = 0, tAcc = 0, bedT = 0;
     let nextCallAt = 8 + Math.random() * 8, lastCallAt = -1e9, lastStingerAt = -1e9;
@@ -218,6 +245,7 @@ export function mountAudio(): AudioApi {
     return (dt) => {
       const s = latest; if (!s) return;
       tAcc += dt;
+      musicStep(tAcc);
       const p = d.playerState();
       seasFilled = s.timeSec >= seasStart;
       frozen = s.stats.temperature < world.solvent.freezeC;

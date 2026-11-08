@@ -15,6 +15,19 @@ const MAX_VOICES = 24;
 const MAX_CREATURE_VOICES = 6;
 const MANIFEST_URL = '/audio/manifest.json';
 
+/** Particle-box audio state, from boxState(world, conditions) plus the Nitrogen and Oxygen sliders. */
+export interface BoxAudio {
+  rate: number;                       // grains per second (0 = silent grains)
+  element: 'carbon' | 'silicon';
+  heat: number;                       // 0..1
+  gas: boolean;                       // boiling off: busy, hissy bursts
+  frozen: boolean;                    // silence + a faint low creak
+  n2k: number;                        // 0..1 from log10(nitrogen): airy hiss layer level
+  rust: boolean;                      // silicon oxidising: low crackle
+  o2k: number;                        // 0..1 oxygen (carbon: slight shimmer)
+  alive: boolean;                     // canLive passes: soft slow swell
+}
+
 export interface Engine {
   readonly ctx: AudioContext | null;
   resume(): void;
@@ -31,7 +44,10 @@ export interface Engine {
   duck(sec: number): void;
   listener(px: number, py: number, pz: number, fx: number, fy: number, fz: number): void;
   windSet(gain: number, cutoffHz: number): void;
-  fizz(density: number): void;      // grains per second (0 stops)
+  /** Selection-screen particle box sound; null silences it. */
+  box(b: BoxAudio | null): void;
+  /** Fade a looping music track toward `level` over `sec` seconds (0 fades it out and stops it). */
+  music(id: string, level: number, sec: number): void;
   tick(dt: number): void;           // advances the granular scheduler
   creatureVoices(): number;
   /** A rare distant one-off (call or creak), synthesised. */
@@ -49,7 +65,7 @@ export function createEngine(): Engine {
   try { ctx = Ctor ? new Ctor() : null; } catch { ctx = null; }
   if (!ctx) {
     return { ctx: null, resume: noop, setMuted: noop, muted: () => true, preload: noop, once: () => false, bed: noop, silenceBedsExcept: noop,
-      setUnderwater: noop, duck: noop, listener: noop, windSet: noop, fizz: noop, tick: noop, creatureVoices: () => 0, stinger: noop, lockOn: noop, dispose: noop };
+      setUnderwater: noop, duck: noop, listener: noop, windSet: noop, box: noop, music: noop, tick: noop, creatureVoices: () => 0, stinger: noop, lockOn: noop, dispose: noop };
   }
   const c = ctx;
   let isMuted = false;
@@ -71,6 +87,8 @@ export function createEngine(): Engine {
   const duckGain = c.createGain(); duckGain.connect(lp);
   const steps = c.createGain(); const stepsLp = c.createBiquadFilter(); stepsLp.type = 'lowpass'; stepsLp.frequency.value = 1600;   // footsteps: muffled, no reverb send
   steps.connect(stepsLp); stepsLp.connect(lp);
+  const musicG = c.createGain(); musicG.gain.value = 0.35; musicG.connect(lp);   // music: straight to the master low-pass, a little reverb
+  const musicSend = c.createGain(); musicSend.gain.value = 0.15; musicG.connect(musicSend); musicSend.connect(reverbIn);
   const groups: Record<Group, GainNode> = { ambience: c.createGain(), sfx: c.createGain(), ui: c.createGain(), creatures: c.createGain(), build: c.createGain() };
   groups.ambience.connect(duckGain); groups.sfx.connect(lp); groups.creatures.connect(lp); // ui skips the underwater filter but is capped below 5 kHz
   const uiLp = c.createBiquadFilter(); uiLp.type = 'lowpass'; uiLp.frequency.value = 5000; uiLp.Q.value = 0.7; groups.ui.connect(uiLp); uiLp.connect(master);
@@ -307,22 +325,115 @@ export function createEngine(): Engine {
     windG.gain.setTargetAtTime(isMuted ? 0 : gain, c.currentTime, 0.3);
     windF.frequency.setTargetAtTime(cutoff, c.currentTime, 0.3);
   }
-  let fizzRate = 0, fizzAcc = 0;
-  function grain() {
+  // ---- particle box: grains (element-specific), airy N2 hiss, frozen creak, rust crackle, alive swell ----
+  let bx: BoxAudio | null = null, grainAcc = 0, creakIn = 3, crackleIn = 1, pulseIn = 2, lastElement: 'carbon' | 'silicon' | null = null;
+  const elG = { carbon: c.createGain(), silicon: c.createGain() };
+  for (const k of ['carbon', 'silicon'] as const) { elG[k].gain.value = 0; elG[k].connect(groups.ui); }
+  const hissSrc = c.createBufferSource(); hissSrc.buffer = noiseBuf; hissSrc.loop = true;
+  const hissBp = c.createBiquadFilter(); hissBp.type = 'bandpass'; hissBp.frequency.value = 1400; hissBp.Q.value = 0.4;
+  const hissLp = c.createBiquadFilter(); hissLp.type = 'lowpass'; hissLp.frequency.value = 3200;
+  const hissG = c.createGain(); hissG.gain.value = 0;
+  hissSrc.connect(hissBp); hissBp.connect(hissLp); hissLp.connect(hissG); hissG.connect(groups.ui); hissSrc.start();
+  function box(b: BoxAudio | null) {
+    bx = b;
     const t = c.currentTime;
-    const s = c.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 1.6;
-    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500 + Math.random() * 2000; f.Q.value = 3;
-    const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.05, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.03 + Math.random() * 0.04);
-    s.connect(f); f.connect(g); g.connect(groups.ui);
-    s.onended = () => { try { g.disconnect(); } catch { /* gone */ } };
-    s.start(t, Math.random() * 1.5, 0.1);
+    hissG.gain.setTargetAtTime(b && !isMuted ? 0.004 + 0.016 * b.n2k : 0, t, 0.25);   // quiet at 0.01x, fuller at 100x+
+    if (b) {
+      hissBp.frequency.setTargetAtTime(1000 + 800 * b.n2k + (b.gas ? 500 : 0), t, 0.3);
+      if (b.element !== lastElement) {   // ~0.5 s crossfade
+        lastElement = b.element;
+        for (const k of ['carbon', 'silicon'] as const) { elG[k].gain.cancelScheduledValues(t); elG[k].gain.setValueAtTime(elG[k].gain.value, t); elG[k].gain.linearRampToValueAtTime(k === b.element ? 1 : 0, t + 0.5); }
+      }
+    }
+  }
+  function grain(b: BoxAudio) {
+    const t = c.currentTime;
+    const s = c.createBufferSource(); s.buffer = noiseBuf;
+    const f = c.createBiquadFilter(); f.type = 'bandpass';
+    const g = c.createGain();
+    const pitch = 1 + 0.35 * b.heat;   // warmer = slightly higher
+    let dur: number, peak: number;
+    if (b.element === 'carbon') {   // watery bubble: short, round, rising chirp
+      const f0 = (600 + Math.random() * 1200) * pitch * (1 + 0.2 * b.o2k);
+      f.Q.value = b.gas ? 1.5 : 4 + 2 * b.o2k;
+      f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.min(3800, f0 * (b.gas ? 1.2 : 1.6)), t + 0.03);
+      s.playbackRate.value = 0.7 + Math.random() * 0.6;
+      dur = b.gas ? 0.02 + Math.random() * 0.02 : 0.03 + Math.random() * 0.035; peak = (0.03 + Math.random() * 0.03) * (0.6 + 0.6 * b.heat);
+    } else {   // glassy cryogenic tick, sparse, with a faint metallic ring
+      const f0 = Math.min(3500, (1500 + Math.random() * 2000) * pitch);
+      f.Q.value = b.gas ? 2 : 9;
+      f.frequency.value = f0;
+      s.playbackRate.value = 1 + Math.random() * 0.5;
+      dur = b.gas ? 0.02 : 0.012 + Math.random() * 0.015; peak = (0.03 + Math.random() * 0.025) * (0.6 + 0.6 * b.heat);
+      if (!b.gas) {
+        const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = Math.min(3800, f0 * 1.51);
+        const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(peak * 0.18, t + 0.002); og.gain.exponentialRampToValueAtTime(0.0003, t + 0.12);
+        o.connect(og); og.connect(elG.silicon); o.onended = () => { try { og.disconnect(); } catch { /* gone */ } };
+        o.start(t); o.stop(t + 0.14);
+      }
+    }
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.003 + dur);
+    s.connect(f); f.connect(g); g.connect(elG[b.element]);
+    s.onended = () => { try { g.disconnect(); f.disconnect(); } catch { /* gone */ } };
+    s.start(t, Math.random() * 1.5, dur + 0.05);
+  }
+  function lowTone(f0: number, f1: number, dur: number, peak: number, attack: number, type: OscillatorType = 'sine') {
+    const t = c.currentTime;
+    const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f1, t + dur);
+    const lpf = c.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 400;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(lpf); lpf.connect(g); g.connect(groups.ui); o.onended = () => { try { g.disconnect(); } catch { /* gone */ } };
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function crackle() {
+    const t = c.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const tt = t + i * (0.03 + Math.random() * 0.05);
+      const s = c.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5;
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700 + Math.random() * 500;
+      const g = c.createGain(); g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.03, tt + 0.002); g.gain.exponentialRampToValueAtTime(0.0005, tt + 0.03);
+      s.connect(f); f.connect(g); g.connect(groups.ui); s.onended = () => { try { g.disconnect(); } catch { /* gone */ } };
+      s.start(tt, Math.random() * 1.5, 0.05);
+    }
   }
   function tick(dt: number) {
-    if (fizzRate <= 0 || isMuted || c.state !== 'running') { fizzAcc = 0; return; }
-    fizzAcc += fizzRate * dt;
-    let n = 0;
-    while (fizzAcc >= 1 && n < 4) { fizzAcc -= 1; n++; grain(); }
-    if (fizzAcc > 4) fizzAcc = 0;
+    if (!bx || isMuted || c.state !== 'running') { grainAcc = 0; return; }
+    const b = bx;
+    if (b.frozen) {   // silence + a very faint low creak every few seconds
+      grainAcc = 0; creakIn -= dt;
+      if (creakIn <= 0) { creakIn = 3 + Math.random() * 4; lowTone(70 + Math.random() * 30, 45 + Math.random() * 15, 0.9, 0.018, 0.25, 'sawtooth'); }
+      return;
+    }
+    if (b.rate > 0) {
+      grainAcc += b.rate * dt;
+      let n = 0;
+      while (grainAcc >= 1 && n < 4) { grainAcc -= 1; n++; grain(b); }
+      if (grainAcc > 4) grainAcc = 0;
+    }
+    if (b.rust) { crackleIn -= dt; if (crackleIn <= 0) { crackleIn = 0.5 + Math.random() * 1.5; crackle(); } }
+    if (b.alive) { pulseIn -= dt; if (pulseIn <= 0) { pulseIn = 3 + Math.random(); lowTone(62, 50, 1.1, 0.02, 0.45); } }
+  }
+
+  // ---- music: looping tracks with fading levels (phrases are scheduled by the caller) ----
+  interface Track { g: GainNode; src: AudioBufferSourceNode | null; level: number }
+  const tracks = new Map<string, Track>();
+  function music(id: string, level: number, sec: number) {
+    let t = tracks.get(id);
+    if (!t) { if (level <= 0) return; const g = c.createGain(); g.gain.value = 0; g.connect(musicG); t = { g, src: null, level: 0 }; tracks.set(id, t); }
+    const tr = t; tr.level = level;
+    void loadManifest().then(() => {
+      const e = variants(id)[0]; if (!e) return;
+      void ensure(e.id, e.file).then(() => {
+        const buf = bufOf(e.id); if (!buf || tr.level !== level) return;
+        const now = c.currentTime;
+        if (level > 0 && !tr.src) {
+          const src = c.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(tr.g); src.start(0, Math.random() * buf.duration); tr.src = src;
+        }
+        tr.g.gain.cancelScheduledValues(now); tr.g.gain.setValueAtTime(tr.g.gain.value, now);
+        tr.g.gain.linearRampToValueAtTime(level * (e.gain ?? 1), now + Math.max(0.05, sec));
+        if (level <= 0 && tr.src) { const s0 = tr.src; tr.src = null; try { s0.stop(now + sec + 0.1); } catch { /* ended */ } }
+      });
+    });
   }
 
   function duck(sec: number) {
@@ -340,6 +451,7 @@ export function createEngine(): Engine {
     for (const g of ['sfx', 'creatures', 'ambience'] as Group[]) sends[g].gain.setTargetAtTime(baseSend[g] * (on ? 2.2 : 1), t, 0.3);
     // the rebreather loop rides on the same switch
     bed('player.rebreather', on ? 0.8 : 0, 'sfx');
+    musicG.gain.setTargetAtTime(on ? 0.35 * 0.4 : 0.35, t, 0.4);   // −8 dB underwater
   }
 
   function listener(px: number, py: number, pz: number, fx: number, fy: number, fz: number) {
@@ -361,7 +473,7 @@ export function createEngine(): Engine {
     muted: () => isMuted,
     preload, once, bed, silenceBedsExcept, setUnderwater, duck, listener,
     windSet,
-    fizz(d) { fizzRate = d; },
+    box, music,
     tick,
     stinger, lockOn,
     creatureVoices: () => creatureVoices,
