@@ -3,7 +3,7 @@ import { develop, type DevelopInputs } from '../../sim/develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from '../../sim/genome';
 import { OrganismField, geneField } from '../../sim/organismLayout';
 import { BEAD_EYE, beadLayout } from '../creatureLayout';
-import { PART, describe as describeFauna } from './adapter';
+import { PART, bellSphere, describe as describeFauna, pickBounds } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
 import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
@@ -232,5 +232,26 @@ describe('faunaLook (the bestiary sprite draws what the world draws)', () => {
     const fb = faunaLook(stranger);
     expect(fb.plan).toBe(stranger);
     expect([fb.hue, fb.accent, fb.diet]).toEqual([stranger.hue, stranger.accent, stranger.diet]);
+  });
+});
+
+describe('picking a carbon floater', () => {
+  it('one bell sphere holds the drawn gas bell, and the broad-phase bounds hold both the body and the bell', () => {
+    const plan = develop(genome({ buoy: 1, size: 0.5, segments: 0.2, limbPairs: 0, diet: 0.1 }), day, water);
+    const lay = beadLayout(plan);
+    const d = describeFauna(plan, lay);
+    expect(d.kind).toBe('axial');
+    if (d.kind !== 'axial') return;
+    const b = bellSphere(d, lay);
+    const over = lay.beads[d.bell.over], base = over.y + over.r * 0.55;
+    const pad = 1.02; // hit() tests the bell at 0.85 × its radius, padded 1.2×
+    // the drawn bell: its crown (base + h, over the bead) and its widest ring (r at 0.4 h) are inside the tested sphere
+    expect(Math.abs(base + d.bell.h - b.y)).toBeLessThanOrEqual(b.r * pad);
+    expect(Math.hypot(d.bell.r, base + 0.4 * d.bell.h - b.y)).toBeLessThanOrEqual(b.r * pad);
+    expect(b.y - b.r).toBeGreaterThan(lay.centreY - lay.radius); // it sits up over the body, not inside it
+    const pb = pickBounds(lay, b);
+    expect(pb.r + 1e-9).toBeGreaterThanOrEqual(Math.abs(lay.centreY - pb.cy) + lay.radius);
+    expect(pb.r + 1e-9).toBeGreaterThanOrEqual(Math.hypot(b.x, b.y - pb.cy, b.z) + b.r);
+    expect(pickBounds(lay, null)).toEqual({ cy: lay.centreY, r: lay.radius });
   });
 });

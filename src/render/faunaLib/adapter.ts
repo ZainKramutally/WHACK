@@ -209,3 +209,29 @@ export function posedPartsCap(desc: FaunaDesc): number {
   if (desc.kind === 'axial') return desc.legs.length * 7 + tendrils;
   return desc.arms.reduce((s, a) => s + a.nRods + 2 + a.eyeN, 0) + tendrils;
 }
+
+/** A sphere in body units (x forward, y up, z lateral), for picking. */
+export interface BodySphere { x: number; y: number; z: number; r: number }
+
+/**
+ * The gas bell a carbon floater rides under (fauna.ts draws it over spine bead `bell.over`, from 0.55 of that bead's
+ * radius above its centre, `bell.h` tall and `bell.r` wide at its widest), as one sphere at rest pose. Pure.
+ */
+export function bellSphere(d: AxialDesc, lay: BeadLayout): BodySphere {
+  const b = lay.beads[d.bell.over];
+  const base = b.y + b.r * 0.55;
+  return { x: b.x, y: base + 0.5 * d.bell.h, z: b.z, r: Math.max(d.bell.r, 0.5 * d.bell.h) };
+}
+
+/**
+ * Broad-phase pick bounds (centre height and radius, body units, about the body's vertical axis) of a layout, grown
+ * to hold its bell when it carries one, so a click on the bell reaches the narrow phase. Pure.
+ */
+export function pickBounds(lay: BeadLayout, bell: BodySphere | null): { cy: number; r: number } {
+  if (!bell) return { cy: lay.centreY, r: lay.radius };
+  const lo = Math.min(lay.centreY - lay.radius, bell.y - bell.r), hi = Math.max(lay.centreY + lay.radius, bell.y + bell.r);
+  const cy = (lo + hi) / 2;
+  // the farthest point of either sphere from (0, cy, 0)
+  const reach = (x: number, y: number, z: number, r: number) => Math.sqrt(x * x + (y - cy) * (y - cy) + z * z) + r;
+  return { cy, r: Math.max(reach(0, lay.centreY, 0, lay.radius), reach(bell.x, bell.y, bell.z, bell.r)) };
+}

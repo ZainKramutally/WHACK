@@ -38,8 +38,8 @@ import { LOOK_PALETTES, creatureColour } from './palette';
 import { MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
 import { worldMaterial } from './material';
 import {
-  AX_RINGS, AX_SIDES, BELL_RINGS, BELL_SIDES, GLOW_MIN, PART, RAD_RINGS, RAD_SIDES, SLOT, SLOTS, TENDRILS, TENDRIL_LINKS, describe,
-  type AxialDesc, type FaunaDesc, type PartDesc, type PartType, type RadialDesc,
+  AX_RINGS, AX_SIDES, BELL_RINGS, BELL_SIDES, GLOW_MIN, PART, RAD_RINGS, RAD_SIDES, SLOT, SLOTS, TENDRILS, TENDRIL_LINKS, bellSphere,
+  describe, pickBounds, type AxialDesc, type BodySphere, type FaunaDesc, type PartDesc, type PartType, type RadialDesc,
 } from './faunaLib/adapter';
 import { RING_STRIDE, circleSection, gridIndex, ngonSection, setRing, writeRings, type Section } from './faunaLib/loft';
 import { PartBatch, partBatches } from './faunaLib/parts';
@@ -83,6 +83,8 @@ interface Entry {
   bin: number; binStamp: number;
   /** LOD: ranked camera distance this frame, and the tier it was last drawn at (2 loft, 1 posed proxy, 0 rest proxy). */
   rank: number; tier: number;
+  /** Carbon floaters: the gas bell as a body-space sphere (with desc), and whether it was drawn this frame (picking). */
+  bellS: BodySphere | null; bell: boolean;
   lastSeen: number;
   glow: number; silicon: boolean; scale: number;
   /** Rest pose, per bead x, y, z, r, tone-index (stride 5), built once. */
@@ -325,7 +327,7 @@ export function createFauna(app: App): FaunaPart {
 
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
-      layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0,
+      layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -650,6 +652,7 @@ export function createFauna(app: App): FaunaPart {
 
     // ---- floaters: a breathing gas bell over the body, tendrils trailing with lag, fronds at the tips ----------
     if (mode === LOCOMOTION.hover && bellLoft.n < LOFT_MAX) {
+      e.bell = true;
       const ob = d.bell.over * 5;
       toW(beads[ob], beads[ob + 1] + beads[ob + 3] * 0.55, beads[ob + 2]);
       const bx = W[0], by = W[1], bz = W[2];
@@ -798,7 +801,7 @@ export function createFauna(app: App): FaunaPart {
    * 1: posed proxies; 0: proxies at rest pose.
    */
   function draw(e: Entry, alpha: number, mode: number, live: boolean, tier: number) {
-    e.tier = 0;
+    e.tier = 0; e.bell = false;
     const ground = fHeight(e.x, e.z);
     const s = fBoost * displayFactor(e.scale) * alpha;
     if (s <= 0) return;
@@ -821,12 +824,23 @@ export function createFauna(app: App): FaunaPart {
     else animate(e, ft, s0, mode, fHeight, y0, cosH, sinH);
     if (tier === 2) {
       if (!e.desc && e.plan) {
-        try { e.desc = describe(e.plan, lay); } catch { e.plan = null; } // never retried: it stays a posed proxy
+        try {
+          e.desc = describe(e.plan, lay);
+          e.bellS = e.desc.kind === 'axial' ? bellSphere(e.desc, lay) : null;
+        } catch { e.plan = null; } // never retried: it stays a posed proxy
       }
       if (e.desc) {
         S = s; EX = e.x; EY = y0; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
         const ok = e.desc.kind === 'radial' ? drawRadialNear(e, e.desc, ft, mode) : drawAxialNear(e, e.desc, ft, mode);
-        if (ok) { e.tier = 2; return; }
+        if (ok) {
+          e.tier = 2;
+          if (live && e.bell && e.bellS) {
+            // the bell sits well above the body: grow the broad-phase sphere to hold it (hit() tests the bell itself)
+            const pb = pickBounds(lay, e.bellS), i = pn - 1;
+            py[i] = y0 + pb.cy * s; pr[i] = Math.max(pb.r * s, 0.3);
+          }
+          return;
+        }
       }
     }
     drawFar(e, s, y0, cosH, sinH, scratch, rodScratch);
@@ -1035,6 +1049,7 @@ export function createFauna(app: App): FaunaPart {
         for (const r of e.layout.radial?.rods ?? e.layout.limbRods ?? []) {
           for (const f of [0, 0.33, 0.67, 1]) test(r.ax + (r.bx - r.ax) * f, r.ay + (r.by - r.ay) * f, r.az + (r.bz - r.az) * f, r.r);
         }
+        if (e.bell && e.bellS) test(e.bellS.x, e.bellS.y, e.bellS.z, e.bellS.r * 0.85); // a carbon floater's gas bell
         if (t > 0 && (!best || t < best.dist)) best = { id: pid[i], dist: t };
       }
       return best;
