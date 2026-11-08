@@ -22,7 +22,7 @@ describe('constants budget', () => {
     expect(Object.isFrozen(CONSTANTS)).toBe(true);
   });
   it('has the pinned defaults', () => {
-    expect(CONSTANTS.SIGMA.value).toBe(0.012);
+    expect(CONSTANTS.SIGMA.value).toBe(0.015);
     expect(CONSTANTS.TSR.value).toBe(0.6);
     expect(CONSTANTS.PLATE_MASS.value).toBe(0.15);
   });
