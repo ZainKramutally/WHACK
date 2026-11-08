@@ -36,11 +36,15 @@ describe('floraLib archetypes', () => {
     expect(lib.archetypes.map((a) => a.key)).toEqual([...ARCHETYPE_KEYS]);
   });
 
-  it('carries color, aGlow and aSway; sway is ~0 at the base', () => {
+  it('carries color, aGlow, aSway and aPart (rim, cap in 0..1); sway is ~0 at the base', () => {
     for (const a of lib.archetypes) for (const L of a.lod) {
       const g = L.geometry;
       expect(g.getAttribute('color').itemSize).toBe(3);
       expect(g.getAttribute('aGlow').itemSize).toBe(1);
+      const part = g.getAttribute('aPart');
+      expect(part?.itemSize, a.key).toBe(2);
+      expect(part.count, a.key).toBe(g.getAttribute('position').count);
+      expect(Array.from(part.array as Float32Array).every((v) => v >= 0 && v <= 1), a.key).toBe(true);
       const pos = g.getAttribute('position').array, sway = g.getAttribute('aSway').array;
       let bad = 0;
       for (let v = 0; v < sway.length; v++) {

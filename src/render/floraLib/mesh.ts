@@ -9,6 +9,8 @@
 //    glowing is painted as pale tissue (bone / blush), so no fixed cyan survives in bright light.
 //  - A global detail scale (setDetail) thins ring segments for the far LOD; small counts (≤ 6, facets) never change.
 //  - build({ flat: true }) de-indexes and recomputes normals: true facets for silicon.
+//  - Part weights `aPart` (vec2: rim, cap) per vertex, default (0, 0): rim marks cap and fan rims (margin teeth), cap
+//    marks discs, webs and blades (droop). Per-plant deformation reads them; tops and bases come from the palette key.
 import { BufferAttribute, BufferGeometry } from 'three/webgpu';
 
 export type V3 = [number, number, number];
@@ -52,6 +54,9 @@ export interface Ring {
   crease?: boolean;
   mod?: (j: number, theta: number) => number;
   lift?: (j: number, theta: number) => number;
+  /** Part weights 0..1 (aPart): rim (margin teeth) and cap (droop). */
+  rim?: number;
+  cap?: number;
 }
 
 const POLE = 1e-6;
@@ -78,9 +83,10 @@ export class MeshBuilder {
   gk: number[] = [];
   site: number[] = [];
   swy: number[] = [];
+  part: number[] = [];
   idx: number[] = [];
 
-  vert(p: V3, n: V3, key: FloraKey, glow: number, sway: number) {
+  vert(p: V3, n: V3, key: FloraKey, glow: number, sway: number, rim = 0, cap = 0) {
     const tissue = TISSUE[key];
     const isSite = tissue !== undefined || glow > 0;
     this.pos.push(p[0], p[1], p[2]);
@@ -89,6 +95,7 @@ export class MeshBuilder {
     this.gk.push(isSite ? KEY_INDEX[tissue ? key : 'glow'] : 0);
     this.site.push(isSite ? clamp01(glow) : 0);
     this.swy.push(clamp01(sway));
+    this.part.push(clamp01(rim), clamp01(cap));
     return this.pos.length / 3 - 1;
   }
 
@@ -134,7 +141,7 @@ export class MeshBuilder {
     const outRow: number[][] = [];
     const emitRow = (i: number, band: number, a: number, b: number) => {
       const out: number[] = [];
-      for (let j = 0; j < P[i].length; j++) out.push(this.vert(P[i][j], normalAt(i, j, a, b), bandKey(band), bandGlow(band), rings[i].sway));
+      for (let j = 0; j < P[i].length; j++) out.push(this.vert(P[i][j], normalAt(i, j, a, b), bandKey(band), bandGlow(band), rings[i].sway, rings[i].rim, rings[i].cap));
       return out;
     };
     for (let i = 0; i < n; i++) {
@@ -176,6 +183,7 @@ export class MeshBuilder {
     g.setAttribute('position', new BufferAttribute(pos, 3));
     g.setAttribute('normal', new BufferAttribute(new Float32Array(this.nor), 3));
     g.setAttribute('aSway', new BufferAttribute(new Float32Array(this.swy), 1));
+    g.setAttribute('aPart', new BufferAttribute(new Float32Array(this.part), 2));
     g.setAttribute('aKey', new BufferAttribute(new Float32Array(this.key), 1));
     g.setAttribute('aGk', new BufferAttribute(new Float32Array(this.gk), 1));
     g.setAttribute('aSite', new BufferAttribute(new Float32Array(this.site), 1));
@@ -209,6 +217,7 @@ export class MeshBuilder {
 export interface ProfilePt {
   r: number; y: number; key: FloraKey; sway: number; glow?: number; crease?: boolean;
   mod?: Ring['mod']; lift?: Ring['lift'];
+  rim?: number; cap?: number;
 }
 
 /** Surface of revolution around `axis` through `origin`. Profile runs bottom → top of the solid. */
@@ -217,7 +226,7 @@ export function revolve(b: MeshBuilder, origin: V3, axis: V3, profile: ProfilePt
   const uu = u ? norm(sub(u, scl(t, dot(u, t)))) : perp(t);
   b.stack(profile.map((p) => ({
     c: add(origin, scl(t, p.y)), t, u: uu, r: p.r, key: p.key, glow: p.glow, sway: p.sway,
-    crease: p.crease, mod: p.mod, lift: p.lift,
+    crease: p.crease, mod: p.mod, lift: p.lift, rim: p.rim, cap: p.cap,
   })), segs, phase);
 }
 
@@ -231,6 +240,9 @@ export interface SweepOpts {
   crease?: (i: number) => boolean;
   u0?: V3;
   phase?: number;
+  /** Part weights along the sweep (aPart): rim and cap, 0..1. */
+  rim?: (s: number) => number;
+  cap?: (s: number) => number;
 }
 
 /** Tube along a polyline with parallel-transport frames. Returns the frames (for attaching parts). */
@@ -250,7 +262,7 @@ export function sweep(b: MeshBuilder, pts: V3[], o: SweepOpts) {
     const s = S[i] / L;
     return {
       c, t: T[i], u: U[i], r: o.radius(s, i), key: o.key(s, i), glow: o.glow?.(s), sway: o.sway(s, c),
-      mod: o.mod?.(s), crease: o.crease?.(i),
+      mod: o.mod?.(s), crease: o.crease?.(i), rim: o.rim?.(s), cap: o.cap?.(s),
     };
   }), o.segs, o.phase ?? 0);
   return { T, U, S, L };
@@ -276,8 +288,9 @@ export function bead(b: MeshBuilder, c: V3, axis: V3, r: number, segs: number, r
   revolve(b, c, axis, prof, segs);
 }
 
-/** Two-sided sheet over a grid G[i][j]. Each band (row i → i+1) gets its own rows so colours stay flat steps. */
-export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => FloraKey, sway: (p: V3) => number, thick: number, skip?: (i: number, j: number) => boolean) {
+/** Two-sided sheet over a grid G[i][j]. Each band (row i → i+1) gets its own rows so colours stay flat steps.
+ * `part(i)` gives row i's part weights (rim, cap); default (0, 0). */
+export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => FloraKey, sway: (p: V3) => number, thick: number, skip?: (i: number, j: number) => boolean, part?: (i: number) => readonly [number, number]) {
   const rows = G.length, cols = G[0].length;
   const nrm = (i: number, j: number): V3 => {
     const dr = sub(G[Math.min(rows - 1, i + 1)][j], G[Math.max(0, i - 1)][j]);
@@ -291,8 +304,9 @@ export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => FloraKey, s
       const A: number[] = [], B: number[] = [];
       for (let j = 0; j < cols; j++) {
         const na = scl(N[i][j], side), nb = scl(N[i + 1][j], side);
-        A.push(v(add(G[i][j], scl(na, thick)), na, key(i), 0, sway(G[i][j])));
-        B.push(v(add(G[i + 1][j], scl(nb, thick)), nb, key(i), 0, sway(G[i + 1][j])));
+        const pa = part?.(i) ?? NO_PART, pb = part?.(i + 1) ?? NO_PART;
+        A.push(v(add(G[i][j], scl(na, thick)), na, key(i), 0, sway(G[i][j]), pa[0], pa[1]));
+        B.push(v(add(G[i + 1][j], scl(nb, thick)), nb, key(i), 0, sway(G[i + 1][j]), pb[0], pb[1]));
       }
       for (let j = 0; j < cols - 1; j++) {
         if (skip?.(i, j)) continue;
@@ -302,6 +316,8 @@ export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => FloraKey, s
     }
   }
 }
+
+const NO_PART = [0, 0] as const;
 
 /** Planar curve by integrating a tangent angle theta(s) (radians from horizontal) in the plane (dir, up). */
 export function curl(o: V3, dir: V3, length: number, n: number, theta: (s: number) => number): V3[] {

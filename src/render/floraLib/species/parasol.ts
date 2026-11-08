@@ -93,6 +93,8 @@ export function parasolTitan(rng: Rng, variant: number) {
 }
 
 const FLARE = 0.2; // rim upturn as a fraction of disc radius
+/** aPart rim weight across a disc: 0 inside 85% of the radius, 1 at the lip. */
+const rimW = (f: number) => Math.max(0, Math.min(1, (f - 0.85) / 0.15));
 
 function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, swayY: (y: number) => number, H: number) {
   const { R, cup, dome } = d;
@@ -109,10 +111,10 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
     const r = rs * 0.9 + (R - rs * 0.9) * f;
     const y = -0.12 * R * Math.pow(1 - f, 1.6) + cup * R * f * f + FLARE * R * Math.pow(f, 5); // rim flares up so the pale band catches light from below
     const g = key === 'glow' ? 1 : 0;
-    prof.push({ r, y, key, glow: g, sway: sw(r, y), lift: k > 0 ? pleat(gill * f) : undefined, crease: f === 1 });
+    prof.push({ r, y, key, glow: g, sway: sw(r, y), lift: k > 0 ? pleat(gill * f) : undefined, crease: f === 1, cap: f, rim: rimW(f) });
   });
   // lip (zigzag rim)
-  prof.push({ r: R * 1.025, y: cup * R + FLARE * R + th * 0.5, key: 'maroon', sway: sw(R, cup * R), crease: true, mod: zig(0.025), lift: pleat(gill) });
+  prof.push({ r: R * 1.025, y: cup * R + FLARE * R + th * 0.5, key: 'maroon', sway: sw(R, cup * R), crease: true, mod: zig(0.025), lift: pleat(gill), cap: 1, rim: 1 });
   // top, inward
   // top, inward: stepped bone/blush growth rings, faint radial spokes (pleat lift), crimson umbo ring
   const tops: [number, PaletteKey][] = [
@@ -120,7 +122,7 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
     [0.33, 'blush'], [0.3, 'bone'], [0.14, 'crimson'], [0.09, 'bone'],
   ];
   const ty = (f: number) => th + cup * R * f * f + FLARE * R * Math.pow(f, 5) + dome * R * (1 - f) * (1 - f);
-  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: ty(f), key, sway: sw(R * f, cup * R), crease: i === 0, lift: i > 0 ? pleat(R * 0.012 * f) : undefined }));
+  tops.forEach(([f, key], i) => prof.push({ r: R * f, y: ty(f), key, sway: sw(R * f, cup * R), crease: i === 0, lift: i > 0 ? pleat(R * 0.012 * f) : undefined, cap: f, rim: rimW(f) }));
   prof.push({ r: 0, y: ty(0), key: 'bone', sway: sw(0, dome * R) });
   revolve(b, o, axis, prof, 48, rng.range(0, 1));
   // dangling fringe filaments from the rim underside
@@ -139,7 +141,7 @@ function disc(b: MeshBuilder, rng: Rng, o: V3, axis: V3, d: Disc, rs: number, sw
       const s0 = sw(rr, cup * R);
       sweep(b, pts, {
         segs: 4, radius: (s) => 0.55 * (1 - 0.6 * s),
-        key: (s) => (s < 0.5 ? 'maroon' : 'crimson'), sway: (s) => s0 + (1 - s0) * s,
+        key: (s) => (s < 0.5 ? 'maroon' : 'crimson'), sway: (s) => s0 + (1 - s0) * s, cap: () => 1,
       });
       if (k % 4 === 0) bead(b, pts[6], [0, -1, 0], 1.1, 6, 3, 'glow', 1, 1);
     }

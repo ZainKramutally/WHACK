@@ -95,7 +95,7 @@ function pod(b: MeshBuilder, o: V3, d: V3, P: number, shape: Cfg['shape'], sway:
     prof.push({ r, y: u * c.len * P, key: i === N ? 'maroon' : key, sway: sw, mod: ribs, crease: i === N });
   }
   // lip, then the cupped glowing mouth
-  prof.push({ r: P * c.mouth * 0.92, y: c.len * P + P * 0.05, key: 'glow', glow: 1, sway: sw, crease: true });
+  prof.push({ r: P * c.mouth * 0.92, y: c.len * P + P * 0.05, key: 'glow', glow: 1, sway: sw, crease: true, rim: 1 });
   if (c.spike) {
     prof.push({ r: P * c.mouth * 0.55, y: c.len * P + P * 0.18, key: 'crimson', sway: sw, crease: true });
     prof.push({ r: P * 0.07, y: c.len * P + P * 0.55, key: 'crimson', sway: sw });

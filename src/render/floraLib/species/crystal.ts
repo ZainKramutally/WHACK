@@ -20,11 +20,11 @@ const STIFF = 0.35;
 function hexPlate(b: MeshBuilder, c: V3, R: number, sway: number, phase: number) {
   const th = R * 0.08;
   revolve(b, add(c, [0, -th, 0]), UP, [
-    { r: R * 0.15, y: 0, key: 'maroon', sway, crease: true },
-    { r: R * 0.6, y: th * 0.4, key: 'crimson', sway, crease: true },
-    { r: R, y: th, key: 'blush', sway, crease: true },
-    { r: R * 0.97, y: th * 1.6, key: 'bone', sway, crease: true },
-    { r: R * 0.5, y: th * 2.2, key: 'bone', sway, crease: true },
+    { r: R * 0.15, y: 0, key: 'maroon', sway, crease: true, cap: 0.15 },
+    { r: R * 0.6, y: th * 0.4, key: 'crimson', sway, crease: true, cap: 0.6 },
+    { r: R, y: th, key: 'blush', sway, crease: true, cap: 1, rim: 1 },
+    { r: R * 0.97, y: th * 1.6, key: 'bone', sway, crease: true, cap: 1, rim: 1 },
+    { r: R * 0.5, y: th * 2.2, key: 'bone', sway, crease: true, cap: 0.5 },
     { r: 0, y: th * 3.2, key: 'bone', sway },
   ], 6, phase);
 }

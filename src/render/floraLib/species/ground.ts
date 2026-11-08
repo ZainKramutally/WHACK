@@ -78,7 +78,7 @@ export function groundCover(rng: Rng, variant: number) {
       for (const s of [0, 0.3, 0.7, 1]) {
         pts.push(add(scl(d, 0.05 + out * s * s), [0, h * Math.sin(s * Math.PI * 0.5) - 0.05, 0]));
       }
-      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : (far ? 0.08 : 0.062) * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s });
+      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : (far ? 0.08 : 0.062) * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s, cap: (s) => s });
     }
   } else {
     // spike crowns: 2-3 tall stalks, each a thistle crown of radiating bristles around a dark knob

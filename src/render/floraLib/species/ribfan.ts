@@ -51,7 +51,7 @@ export function ribFan(rng: Rng, variant: number) {
     ribPhis.forEach((phi, k) => {
       const pts: V3[] = [];
       for (let i = 0; i <= 12; i++) pts.push(fanPt(phi, (i / 12) * ribLen[k]));
-      sweep(b, pts, { segs: 6, radius: (s) => rT * 0.75 * (1 - 0.65 * s), key: (s) => keyAt(s * ribLen[k]), sway: (_s, p) => swayY(p[1]) });
+      sweep(b, pts, { segs: 6, radius: (s) => rT * 0.75 * (1 - 0.65 * s), key: (s) => keyAt(s * ribLen[k]), sway: (_s, p) => swayY(p[1]), cap: (s) => s, rim: (s) => Math.max(0, (s - 0.8) / 0.2) });
       const tip = pts[12];
       bead(b, tip, norm(sub(tip, pts[11])), rT * 0.85, 6, 3, k % 3 === 1 ? 'glow' : 'maroon', k % 3 === 1 ? 1 : 0, swayY(tip[1]));
     });
@@ -70,7 +70,7 @@ export function ribFan(rng: Rng, variant: number) {
         }
         G.push(row);
       }
-      sheet(b, G, (i) => (i < 2 ? 'maroon' : i < 3 ? 'crimson' : 'blush'), (p) => swayY(p[1]), rT * 0.12);
+      sheet(b, G, (i) => (i < 2 ? 'maroon' : i < 3 ? 'crimson' : 'blush'), (p) => swayY(p[1]), rT * 0.12, undefined, (i) => [i === rowsN ? 1 : 0, i / rowsN]);
     }
     // concentric rungs (arcs between ribs)
     for (let q = 1; q <= c.rungs; q++) {
@@ -83,7 +83,7 @@ export function ribFan(rng: Rng, variant: number) {
         // rungs sag slightly between ribs
         pts.push(fanPt(phi, s));
       }
-      sweep(b, pts, { segs: 4, radius: () => rT * 0.32, key: () => (q % 2 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]) });
+      sweep(b, pts, { segs: 4, radius: () => rT * 0.32, key: () => (q % 2 ? 'maroon' : 'crimson'), sway: (_s, p) => swayY(p[1]), cap: () => s });
     }
   }
   // collar where the fan leaves the trunk
@@ -129,7 +129,7 @@ function crinoid(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number)
     const pts = curl(o, dir, L, 22, (s) => th0 + turn * Math.pow(s, 2.2));
     const s1 = swayY(o[1]);
     const sw = (s: number) => clamp01(s1 + (1 - s1) * s);
-    sweep(b, pts, { segs: 6, radius: (s) => rS * 0.75 * (1 - 0.8 * s), key: (s) => (s < 0.35 ? 'maroon' : s < 0.75 ? 'crimson' : 'blush'), sway: (s) => sw(s) });
+    sweep(b, pts, { segs: 6, radius: (s) => rS * 0.75 * (1 - 0.8 * s), key: (s) => (s < 0.35 ? 'maroon' : s < 0.75 ? 'crimson' : 'blush'), sway: (s) => sw(s), cap: (s) => s });
     // pinnules: short spines off both sides, in the arm plane's outer normal
     const side: V3 = [-dir[2], 0, dir[0]];
     for (let i = 2; i < 18; i += 2) {
@@ -189,7 +189,7 @@ function whorl(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) =
     }
     sweep(b, pts, {
       segs: 6, radius: (s) => rS * 0.75 * (1 - 0.7 * s),
-      key: (s) => (s < 0.3 ? 'maroon' : s < 0.7 ? 'crimson' : 'blush'), sway: (_s, p) => swayY(p[1]),
+      key: (s) => (s < 0.3 ? 'maroon' : s < 0.7 ? 'crimson' : 'blush'), sway: (_s, p) => swayY(p[1]), cap: (s) => s,
     });
     const tip = pts[n];
     bead(b, tip, norm(sub(tip, pts[n - 1])), rS * 0.7, 6, 3, k % 3 === 0 ? 'glow' : 'maroon', k % 3 === 0 ? 1 : 0, swayY(tip[1]));
@@ -236,7 +236,7 @@ function sheaf(b: MeshBuilder, rng: Rng, c: Cfg, H: number, swayY: (y: number) =
       return row;
     });
     const rowKey = ['crimson', 'blush', 'blush', 'bone', 'blush'] as PaletteKey[];
-    sheet(b, G, (i) => rowKey[i], (p) => swayY(p[1]), rS * 0.12, (i, j) => (i === 2 && j % 2 === 0) || (i === 1 && j % 4 === 1));
+    sheet(b, G, (i) => rowKey[i], (p) => swayY(p[1]), rS * 0.12, (i, j) => (i === 2 && j % 2 === 0) || (i === 1 && j % 4 === 1), (i) => [i === rows.length - 1 ? 1 : 0, rows[i]]);
     // boss over the petiole join
     revolve(b, add(ctr, scl(n, -Rd * 0.04)), n, [
       { r: Rd * 0.16, y: 0, key: 'maroon', sway: swayY(ctr[1]) },

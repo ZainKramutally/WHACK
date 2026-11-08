@@ -12,7 +12,7 @@ function bell(b: MeshBuilder, o: V3, R: number, H: number, phase: number, segs: 
   const ribs = (_j: number, th: number) => 1 + 0.06 * Math.cos((segs / 2) * th);
   const sw = (y: number) => clamp01(0.15 + 0.5 * (y / H));
   revolve(b, o, [0, 1, 0], [
-    { r: R * 1.12, y: 0, key: 'maroon', sway: 0.05, mod: (_j, th) => 1 + 0.08 * Math.cos(14 * th) },
+    { r: R * 1.12, y: 0, key: 'maroon', sway: 0.05, mod: (_j, th) => 1 + 0.08 * Math.cos(14 * th), rim: 1 },
     { r: R * 1.05, y: H * 0.18, key: 'crimson', sway: sw(H * 0.18), mod: ribs, crease: true },
     { r: R * 0.92, y: H * 0.55, key: 'blush', sway: sw(H * 0.55), mod: ribs },
     { r: R * 0.6, y: H * 0.88, key: 'bone', sway: sw(H * 0.88), mod: ribs },
