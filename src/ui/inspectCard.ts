@@ -60,6 +60,7 @@ export function mountInspectCard(
   let lastPlan: BodyPlan | undefined;
   let lastForm: { name?: string; recognised: boolean } | undefined;
   let lastRect = '';
+  let lastSig = '';
 
   const otherName = other ? `A ${other.id} world` : '';
   const otherStart = other ? statsAtStart(other) : undefined;
@@ -136,6 +137,11 @@ export function mountInspectCard(
     if (!target || !last) return;
     const feat = world.features[target.kind];
     const { rows, dead, name } = describe(target, last);
+    // Snapshots arrive at 20 Hz but the formatted text rarely changes: skip the DOM rebuild and layout when it is identical.
+    const cmp = compareRows(target, last);
+    const sig = [name, feat.description, dead ? 'D' : '', feat.why, target.kind, rows.join('|'), cmp.join('|')].join('\n');
+    if (sig === lastSig) return;
+    lastSig = sig;
     title.textContent = name;
     kind.textContent = feat.description;
     status.textContent = dead
@@ -153,7 +159,7 @@ export function mountInspectCard(
     cmpTitle.textContent = 'Compared';
     const head = el('tr');
     for (const h of ['', 'This world', otherName ? `${otherName} (at start)` : '', 'Earth']) head.append(el('th', undefined, h));
-    const body = compareRows(target, last).map((r) => {
+    const body = cmp.map((r) => {
       const tr = el('tr');
       // Numbers stay on one line ("14.6 °C"); text facts (body chemistry) wrap.
       r.forEach((c, i) => tr.append(el('td', i === 0 ? 'wu-stat-name' : c.length > 12 ? 'wu-num wu-wrap' : 'wu-num', c)));
@@ -225,6 +231,7 @@ export function mountInspectCard(
     lastPlan = undefined;
     lastForm = undefined;
     lastRect = '';
+    lastSig = '';
     card.hidden = false;
     render();
   }
