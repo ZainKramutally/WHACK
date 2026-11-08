@@ -3,6 +3,7 @@ import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import { controlList } from '../worlds/controls';
 import type { Conditions, WorldConfig } from '../worlds/types';
+import { withCrustChoice } from '../gen/crust';
 import { canLive } from './limits';
 import type { LifeDrivers, LifeModel } from './lifeModel';
 import { PLAN_LENGTH } from './plan';
@@ -17,6 +18,9 @@ const slow = (globalThis as { process?: { env?: Record<string, string | undefine
 
 /** A 4 s build at 1/17 of the ecology fast-forward: the whole lifecycle in a fraction of a second. */
 const quick = (w: WorldConfig): WorldConfig => ({ ...w, build: { ...w.build, durationSec: 4, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 20 } });
+
+/** The world the demo runs: the default rock chip (the natural mix floods carbon to ~85%, outside its targets). */
+const demoWorld = (w: WorldConfig) => withCrustChoice(w, w.terrain.crust.defaultPick);
 
 const EARTH: Conditions = { temperature: 15, nitrogen: 1, oxygen: 21 };
 
@@ -606,7 +610,7 @@ describe('WorldSimulation', () => {
     const endOfBuild = (w: WorldConfig) => {
       let stats = memo.get(w.id);
       if (!stats) {
-        const sim = new WorldSimulation(w, EARTH);
+        const sim = new WorldSimulation(demoWorld(w), EARTH);
         sim.advance(w.build.durationSec);
         expect(sim.buildComplete).toBe(true);
         memo.set(w.id, (stats = sim.snapshot().stats));
@@ -621,7 +625,7 @@ describe('WorldSimulation', () => {
       }
     });
     it.skipIf(!slow)('carbon holds O₂, CO₂ and temperature inside targets for 10 minutes after the build, idle (SLOW, #31)', { timeout: 120000 }, () => {
-      const sim = new WorldSimulation(carbon, EARTH);
+      const sim = new WorldSimulation(demoWorld(carbon), EARTH);
       sim.advance(carbon.build.durationSec);
       const first = sim.snapshot().stats;
       for (let i = 0; i < 20; i++) {
@@ -640,7 +644,7 @@ describe('WorldSimulation', () => {
       }
     });
     it.skipIf(!slow).each([carbon, silicon])('stays alive and in band for a minute after the build ($id) (SLOW)', { timeout: 60000 }, (w: WorldConfig) => {
-      const sim = new WorldSimulation(w, EARTH);
+      const sim = new WorldSimulation(demoWorld(w), EARTH);
       sim.advance(w.build.durationSec + 60);
       const s = sim.snapshot();
       expect(s.population.consumers).toBeGreaterThan(100);
