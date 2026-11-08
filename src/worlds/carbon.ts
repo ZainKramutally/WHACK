@@ -239,7 +239,8 @@ export const carbon: WorldConfig = {
       edgeStressWeight: 1,
       mutation: { size: 0.075, prefTemp: 0.6, tolerance: 0.3, chem: 0.075, roleFlip: 0, sizeBoost: 2, dietBoost: 8, jumpRate: 0.012, jumpScale: 0.4 },   // assumption: true. Rare large jumps, as in punctuated equilibrium (Gould and Eldredge 1972): species stay stable, and occasional jumps found new ones
       bounds: { size: [0.2, 5], tolerance: [1, 30] },
-      chemTrait: { kind: 'oxygenNeed', halfSaturation: 2, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1, huntPenalty: 1 },
+      // assumption: true. halfSaturation 8: half of the aerobic benefit is reached at 8% O₂; below about 10–12% oxygen (like the air at 5,000 m) animals' sustained aerobic performance falls steeply. The 8 is an A/B fit (owner-approved); no source is cited yet.
+      chemTrait: { kind: 'oxygenNeed', halfSaturation: 8, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1, huntPenalty: 1 },
     },
     composition: { c: 0.85, si: 0.0, o: 0.15 },
     founders: {
