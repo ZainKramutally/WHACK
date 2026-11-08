@@ -22,7 +22,6 @@ export function mountSummaryCard(root: HTMLElement, world: WorldConfig, registry
   const traits = el('ul', 'wu-details');
   card.append(table, el('h3', 'wu-h3', 'Dominant life form'), traits);
   if (world.status === 'speculative') card.append(el('em', 'wu-tag wu-spec', 'speculative'));
-  if (world.easterEgg) card.append(el('em', 'wu-tag wu-spec', 'Easter egg: not science'));
   root.append(card);
 
   let last: SimSnapshot | null = null;

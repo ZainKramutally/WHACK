@@ -240,9 +240,9 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">${w.status === 'known' ? 'Known' : 'Speculative<span class="dagger">†</span>'}</span></div><div class="via"></div><span class="esel">Selected</span>`;
     } else if (e.egg) {
       el.className = 'ecard pick';
-      el.dataset.fam = 'carbon';
-      el.style.setProperty('--sw', 'var(--c2)');
-      el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">Easter egg: not science</span></div><div class="via">Tardigrades only. Lead is not a life chemistry.</div><span class="esel">Selected</span>`;
+      el.dataset.fam = 'lead';
+      el.style.setProperty('--sw', 'var(--ink)');
+      el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">Heavy metal</span></div><div class="via">${esc(e.reason ?? '')}</div><span class="esel">Selected</span>`;
     } else {
       el.className = 'ecard grey';
       el.setAttribute('aria-disabled', 'true');
@@ -302,7 +302,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     else if (c.worldId && c.worldId !== state.worldId) choose(c.z);
     if (wasEgg !== eggOn) render();
     showSlot();
-    if (c.egg) announce('Lead: easter egg, not science. Carbon world, tardigrades only.');
+    if (c.egg) announce('Lead.');
     else if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
   }
   /** Bring card i to the centre (smoothly) and, if it can be chosen, choose it now. */

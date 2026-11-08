@@ -40,7 +40,6 @@ export function mountConditions(
   const drawer = el('aside', 'wu-drawer wu-conditions');
   drawer.setAttribute('aria-label', 'Conditions');
   drawer.append(el('h2', 'wu-h', 'Conditions'));
-  if (world.easterEgg) drawer.append(el('em', 'wu-tag wu-spec', 'Easter egg: not science'));
 
   // --- sliders ---
   const sliderBox = el('section', 'wu-sliders');

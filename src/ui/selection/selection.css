@@ -131,6 +131,7 @@ figcaption b { font-weight: 700; }
   transition: opacity 0.2s steps(4, end);
 }
 .ecard[data-fam="silicon"] { --ea: var(--s2); --eb: var(--s4); }
+.ecard[data-fam="lead"] { --ea: var(--ink); --eb: var(--bone2); }
 .ecard.grey { --ea: #9C8F80; --eb: var(--bone3); color: #9C8F80; cursor: not-allowed; }
 .ecard.pick { cursor: pointer; }
 .ecard.focus { z-index: 1; opacity: 1; border-color: var(--ink); background: var(--bone4); box-shadow: 6px 6px 0 var(--ink); }
