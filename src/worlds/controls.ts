@@ -1,5 +1,12 @@
 // The three condition sliders, shared by every world so the ranges match (CLAUDE.md "Condition sliders").
-import type { ControlDef, ControlId } from './types';
+import type { ControlDef, ControlId, CrustPickId } from './types';
+
+/** The rock chips every world shows, in order (docs/features/crust.md); each world maps them to its own minerals via MineralDef.pick. */
+export const CRUST_PICKS: readonly { id: CrustPickId; label: string }[] = [
+  { id: 'volcanic', label: 'Volcanic' },
+  { id: 'continental', label: 'Continental' },
+  { id: 'ironRich', label: 'Iron-rich' },
+];
 
 export const controls: Record<ControlId, ControlDef> = {
   temperature: {

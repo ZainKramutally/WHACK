@@ -21,7 +21,7 @@ import { MACHINE_IDS } from '../gen/terrain';
 import { startingConditions } from '../sim/limits';
 import { withCrustChoice } from '../gen/crust';
 import { worldFor } from '../worlds';
-import type { Conditions, SimSnapshot, WorldId } from '../worlds/types';
+import type { Conditions, CrustPickId, SimSnapshot, WorldId } from '../worlds/types';
 import type { App } from './app';
 import { PAL, PIXEL, worldMaterial } from './material';
 import { INTERNAL_H } from './post';
@@ -55,7 +55,7 @@ export interface StartOptions {
   terrain: Terrain;
   handle: LaunchHandle;
   /** Picked rock chip (mineral id); absent = the natural mix. */
-  crust?: string;
+  crust?: CrustPickId;
   /** Latest sim snapshot (null until the first arrives). */
   snapshot(): SimSnapshot | null;
   /** Called once as the HUD begins to fade in (T = spawnSec − 0.45): the world UI's first caption was shown while it was hidden. */
@@ -69,7 +69,7 @@ export interface StartOptions {
 
 export interface Generate {
   /** Plan and compile for this world/seed/conditions while the selection screen is up. Cheap to call repeatedly: it debounces. */
-  prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: string): void;
+  prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: CrustPickId): void;
   start(o: StartOptions): void;
   dispose(): void;
 }
@@ -104,7 +104,7 @@ export function createGenerate(app: App): Generate {
   const MAX_SLOTS = 6;
   const primedBy = new Map<string, Primed>();
   let running: Primed | null = null;   // the plan the running transition draws: never evicted
-  const slotOf = (worldId: WorldId, crust?: string) => `${worldId}|${crust ?? ''}`;
+  const slotOf = (worldId: WorldId, crust?: CrustPickId) => `${worldId}|${crust ?? ''}`;
   const touch = (slot: string) => { const p = primedBy.get(slot); if (p) { primedBy.delete(slot); primedBy.set(slot, p); } };
   const store = (slot: string, p: Primed) => {
     const old = primedBy.get(slot);
@@ -122,7 +122,7 @@ export function createGenerate(app: App): Generate {
   let debounce = 0;
   let active: { stop(): void } | null = null;
 
-  interface PrimeArgs { worldId: WorldId; terrain: Terrain; seed: number; requested: Conditions; handle: LaunchHandle; crust?: string }
+  interface PrimeArgs { worldId: WorldId; terrain: Terrain; seed: number; requested: Conditions; handle: LaunchHandle; crust?: CrustPickId }
 
   const dims = () => {
     const W = window.innerWidth, H = window.innerHeight;
@@ -290,7 +290,7 @@ export function createGenerate(app: App): Generate {
     };
   }
 
-  function prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: string) {
+  function prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: CrustPickId) {
     if (!('relics' in terrain) || active) return;   // flat fallback: nothing to land on; or the transition is running
     const a: PrimeArgs = { worldId, terrain, seed, requested, handle, crust };
     const key = keyOf(a);

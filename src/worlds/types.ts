@@ -95,6 +95,9 @@ export interface LivingBand {
   blockingLimitId?: string;
 }
 
+/** The rock chips every world shows (CRUST_PICKS in controls.ts); each world maps each to one of its minerals. */
+export type CrustPickId = 'volcanic' | 'continental' | 'ironRich';
+
 /** One kind of rock in a world's crust (docs/features/crust.md). Colours are art-layer decisions, keyed by `id`. */
 export interface MineralDef extends Sourced {
   id: string;                                    // e.g. 'basalt', 'granite', 'silicide', 'nitride', 'waterIce'
@@ -104,7 +107,7 @@ export interface MineralDef extends Sourced {
   elevation: number;                             // 0..1 by height rank in the patch: 0 = lowest ground, 1 = highest
   supply: { c: number; si: number; o: number };  // nutrient multiplier per cell (1 = the world's base life.ledger supply); the patch mean is renormalised to base
   oxidises: boolean;                             // reacts with free oxygen (iron-bearing rock rusts; silicide turns to silica)
-  pick?: { label: string; hint: string };        // selection-screen rock chip (e.g. 'Volcanic', 'A young volcanic crust: dark basalt, fertile soil'); only on minerals that feed life
+  pick?: { id: CrustPickId; hint: string };        // selection-screen rock chip (e.g. 'Volcanic', 'A young volcanic crust: dark basalt, fertile soil'); only on minerals that feed life
 }
 
 export interface CrustConfig extends Sourced {
@@ -187,8 +190,8 @@ export interface NewFormEvent { binId: number; name: string; organismId: number 
 
 /** Typed bus events (CLAUDE.md "Bus events"). */
 export interface BusEvents {
-  'selection:changed': { worldId: WorldId; conditions: Conditions; crust?: string };   // crust: picked mineral id (rock chip), absent = the natural mix
-  'world:selected': { worldId: WorldId; requested: Conditions; seed?: number; crust?: string };   // seed: this run's seed (default world.demoSeed); crust: picked mineral id, absent = natural mix
+  'selection:changed': { worldId: WorldId; conditions: Conditions; crust?: CrustPickId };   // crust: rock chip id, absent = the natural mix
+  'world:selected': { worldId: WorldId; requested: Conditions; seed?: number; crust?: CrustPickId };   // seed: this run's seed (default world.demoSeed); crust: rock chip id, absent = natural mix
   'build:life': { worldId: WorldId };
   'build:complete': { worldId: WorldId };
   'sim:snapshot': SimSnapshot;

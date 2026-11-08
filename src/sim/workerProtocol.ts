@@ -1,10 +1,10 @@
 // Messages between the main thread and the sim worker. Every message is discriminated by `type`.
 // Main → worker: init, selectWorld, controlSet, dispose. Worker → main: ready, snapshot, event, error.
-import type { Conditions, ControlId, NewFormEvent, SimSnapshot, WorldId } from '../worlds/types';
+import type { Conditions, ControlId, CrustPickId, NewFormEvent, SimSnapshot, WorldId } from '../worlds/types';
 
 export type ToWorker =
   | { type: 'init' }
-  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: string }
+  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: CrustPickId }
   | { type: 'controlSet'; controlId: ControlId; value: number }
   | { type: 'dispose' };
 
@@ -47,7 +47,7 @@ export function parseToWorker(data: unknown): { ok: true; msg: ToWorker } | { ok
       if (!requested) return { ok: false, error: 'selectWorld: requested must be {temperature, nitrogen, oxygen} numbers' };
       if (data.seed !== undefined && !isNum(data.seed)) return { ok: false, error: 'selectWorld: seed must be a number' };
       if (data.crust !== undefined && typeof data.crust !== 'string') return { ok: false, error: 'selectWorld: crust must be a string' };
-      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined, ...(data.crust !== undefined ? { crust: data.crust as string } : {}) } };
+      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined, ...(data.crust !== undefined ? { crust: data.crust as CrustPickId } : {}) } };
     }
     case 'controlSet':
       if (typeof data.controlId !== 'string' || !CONTROL_IDS.includes(data.controlId)) return { ok: false, error: `unknown control '${String(data.controlId)}'` };

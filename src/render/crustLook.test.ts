@@ -139,7 +139,7 @@ describe('mineral look families', () => {
 import { withCrustChoice } from '../gen/crust';
 import { crustSeaStain } from './crustLook';
 const redHue = (hex: number) => { const { h } = hueOf(hex); return h >= 330 || h <= 40; };
-const ironW = withCrustChoice(carbon, 'ironstone'), basaltW = withCrustChoice(carbon, 'basalt');
+const ironW = withCrustChoice(carbon, 'ironRich'), basaltW = withCrustChoice(carbon, 'volcanic');
 describe('iron-rich and volcanic worlds', () => {
   it('rusted ironstone world: rock, shadow, haze and flora are all red-hued', () => {
     const i = inputsFor(ironW, 40);

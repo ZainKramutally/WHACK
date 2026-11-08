@@ -18,7 +18,7 @@ import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
 import { mountSelectionScreen } from './ui/selection/screen';
 import { controlList, worldFor } from './worlds';
-import type { Conditions, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
+import type { Conditions, CrustPickId, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
 
 // ---- injection points ----
 
@@ -48,15 +48,15 @@ function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, worl
 const runSeeds = new Map<WorldId, number>();
 const terrains = new Map<string, TerrainSampler | Terrain>();
 /** The world a run uses: the config with the picked rock chip applied (the config itself when nothing is picked). */
-const runWorld = (worldId: WorldId, crust?: string) => withCrustChoice(worldFor(worldId), crust);
+const runWorld = (worldId: WorldId, crust?: CrustPickId) => withCrustChoice(worldFor(worldId), crust);
 /** Cache key for per-world terrain state: a rock pick changes the terrain, so it is part of the key. */
-const keyOf = (worldId: WorldId, crust?: string) => `${worldId}|${crust ?? ''}`;
+const keyOf = (worldId: WorldId, crust?: CrustPickId) => `${worldId}|${crust ?? ''}`;
 function seedFor(worldId: WorldId): number {
   let seed = runSeeds.get(worldId);
   if (seed === undefined) { seed = pickSeed(location.search, worldFor(worldId).demoSeed).seed; runSeeds.set(worldId, seed); }
   return seed;
 }
-function terrainFor(worldId: WorldId, crust?: string): TerrainSampler | Terrain {
+function terrainFor(worldId: WorldId, crust?: CrustPickId): TerrainSampler | Terrain {
   const k = keyOf(worldId, crust);
   let t = terrains.get(k);
   if (!t) { t = createTerrainSampler(runWorld(worldId, crust), seedFor(worldId)); terrains.set(k, t); }
@@ -69,7 +69,7 @@ function ensureSim() { if (!simStarted) { simStarted = true; startSim(bus); } }
 /** Each world's terrain mesh is built once per page load and swapped in on demand; returns true only when it was newly built (so it needs compiling). */
 const meshes = new Map<string, { mesh: ReturnType<typeof createTerrainMesh>; uniforms: ReturnType<typeof createTerrainUniforms> }>();
 let meshFor: string | null = null;
-function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId, crust?: string): boolean {
+function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId, crust?: CrustPickId): boolean {
   const t = terrainFor(worldId, crust);
   const key = keyOf(worldId, crust);
   if (!('relics' in t)) return false;
@@ -104,7 +104,7 @@ async function start(
   worldId: WorldId,
   requested: Conditions,
   handle?: LaunchHandle,
-  crust?: string,
+  crust?: CrustPickId,
 ) {
   app.setSuspended(false);   // the selection screen is gone (or never shown): render from the first transition frame
   const world = runWorld(worldId, crust);
@@ -266,7 +266,7 @@ async function boot() {
   // The opaque selection screen covers the canvas: skip the world's GPU work until start() resumes it.
   prepared.then((p) => p.app.setSuspended(true)).catch(() => {});
   // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
-  const prime = (worldId: WorldId, conditions: Conditions, crust?: string) => {
+  const prime = (worldId: WorldId, conditions: Conditions, crust?: CrustPickId) => {
     prepared.then(async ({ app, view, gen }) => {
       ensureSim();
       const t = terrainFor(worldId, crust);

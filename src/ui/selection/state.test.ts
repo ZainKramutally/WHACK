@@ -81,7 +81,7 @@ describe('boxState bed', () => {
   }) as MineralDef);
   const withCrust = (world: WorldConfig, ms: MineralDef[]): WorldConfig =>
     ({ ...world, terrain: { ...world.terrain, crust: { minerals: ms, patchCells: 8, rustOxygen: 20, favour: 0.65, why: '', sources: [], assumption: true } } });
-  const ms = minerals([{ id: 'basalt', oxidises: true }, { id: 'granite', share: [0.1, 0.3] }, { id: 'waterIce', supply: { c: 0, si: 0, o: 0 } }]);
+  const ms = minerals([{ id: 'volcanic', oxidises: true }, { id: 'continental', share: [0.1, 0.3] }, { id: 'waterIce', supply: { c: 0, si: 0, o: 0 } }]);
   const carbon = withCrust(worldFor('carbon'), ms), silicon = withCrust(worldFor('silicon'), ms);
   const good = { temperature: 15, nitrogen: 1, oxygen: 0 };
 
@@ -101,14 +101,14 @@ describe('boxState bed', () => {
   it('rusts only oxidising minerals, and only with oxygen', () => {
     expect(boxState(carbon, good).bed.every((b) => b.rust === 0)).toBe(true);
     const bed = boxState(carbon, { ...good, oxygen: 10 }).bed;
-    expect(bed.find((b) => b.id === 'basalt')!.rust).toBeCloseTo(0.5);
-    expect(bed.filter((b) => b.id !== 'basalt').every((b) => b.rust === 0)).toBe(true);
+    expect(bed.find((b) => b.id === 'volcanic')!.rust).toBeCloseTo(0.5);
+    expect(bed.filter((b) => b.id !== 'volcanic').every((b) => b.rust === 0)).toBe(true);
   });
   it('ice never feeds; rock feeds while life can live', () => {
     const st = boxState(carbon, { ...good, oxygen: 21 });
     expect(st.ok).toBe(true);
     expect(st.bed.find((b) => b.id === 'waterIce')!.feeds).toBe(0);
-    expect(st.bed.find((b) => b.id === 'granite')!.feeds).toBe(1);
+    expect(st.bed.find((b) => b.id === 'continental')!.feeds).toBe(1);
   });
   it('feeds nothing when canLive fails or the solvent is frozen', () => {
     for (const [w, c] of [[carbon, { temperature: -183, nitrogen: 1, oxygen: 21 }], [carbon, { temperature: -80, nitrogen: 1, oxygen: 21 }], [silicon, { temperature: 15, nitrogen: 1, oxygen: 21 }]] as const) {
@@ -120,15 +120,16 @@ describe('boxState bed', () => {
 });
 
 describe('rock chip', () => {
-  it('toggles, resets on element switch, and rides the payload', async () => {
+  it('toggles, persists across element switch, and rides the payload', async () => {
     const { toggleCrust, selectElement, generatePayload, initialSelection } = await import('./state');
-    let s = toggleCrust(initialSelection(), 'granite');
-    expect(generatePayload(s).crust).toBe('granite');
-    expect(toggleCrust(s, 'granite').crust).toBeUndefined();
-    expect(toggleCrust(s, 'basalt').crust).toBe('basalt');
-    expect(toggleCrust(initialSelection(), 'waterIce').crust).toBeUndefined();
+    let s = toggleCrust(initialSelection(), 'continental');
+    expect(generatePayload(s).crust).toBe('continental');
+    expect(toggleCrust(s, 'continental').crust).toBeUndefined();
+    expect(toggleCrust(s, 'volcanic').crust).toBe('volcanic');
+    expect(toggleCrust(initialSelection(), 'waterIce' as never).crust).toBeUndefined();
     s = selectElement(s, 14);
-    expect(s.crust).toBeUndefined();
+    expect(s.worldId).toBe('silicon');
+    expect(s.crust).toBe('continental');
     expect(generatePayload(initialSelection())).not.toHaveProperty('crust');
   });
 });

@@ -2,6 +2,7 @@
 // Run once: SLOW=1 npx vitest run src/sim/crustPick.safety.test.ts
 import { describe, expect, it } from 'vitest';
 import { withCrustChoice } from '../gen/crust';
+import { CRUST_PICKS } from '../worlds/controls';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import type { Conditions } from '../worlds/types';
@@ -14,7 +15,7 @@ describe('rock pick safety', () => {
     const rows: string[] = [];
     for (const w of [carbon, silicon]) {
       const req = { ...w.startDefaults, ...(w.id === 'carbon' ? { temperature: 15, nitrogen: 1, oxygen: 21 } : {}) } as Conditions;
-      for (const pick of [undefined, ...w.terrain.crust.minerals.filter((m) => m.pick).map((m) => m.id)]) {
+      for (const pick of [undefined, ...CRUST_PICKS.map((c) => c.id)]) {
         const sim = new WorldSimulation(withCrustChoice(w, pick), req);
         for (let i = 0; i < 20 * (w.build.durationSec + 1); i++) sim.advance(0.05);
         const s = sim.snapshot();

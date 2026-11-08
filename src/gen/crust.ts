@@ -1,6 +1,7 @@
 // Seeded crust map (docs/features/crust.md): one mineral per cell of the 64² grid. Pure and deterministic from (world, seed).
 import { CELLS, GRID } from '../sim/grid';
-import type { MineralDef, WorldConfig } from '../worlds/types';
+import { CRUST_PICKS } from '../worlds/controls';
+import type { CrustPickId, MineralDef, WorldConfig } from '../worlds/types';
 import { createTerrain } from './terrain';
 
 export interface CrustMap { mineral: Uint8Array; shares: number[] }
@@ -68,17 +69,17 @@ export function rust(world: WorldConfig, oxygenPct: number): number {
 const derived = new WeakMap<WorldConfig, Map<string, WorldConfig>>();
 
 /**
- * The world a run uses when the player picks a rock chip: the picked mineral's share bounds sit at `crust.favour`, the others
- * share the rest in proportion to their bound midpoints. Pure, memoised per (world, id). No id, or an unknown or unpickable id,
+ * The world a run uses when the player picks a rock chip: the picked chip's mineral's share bounds sit at `crust.favour`, the others
+ * share the rest in proportion to their bound midpoints. Pure, memoised per (world, pick id). No id, or an unknown or unpickable id,
  * returns `world` itself, so object identity keys every cache.
  */
-export function withCrustChoice(world: WorldConfig, mineralId?: string): WorldConfig {
+export function withCrustChoice(world: WorldConfig, pickId?: CrustPickId): WorldConfig {
   const crust = world.terrain.crust;
-  const picked = mineralId ? crust?.minerals.find((m) => m.id === mineralId && m.pick) : undefined;
+  const picked = pickId ? crust?.minerals.find((m) => m.pick?.id === pickId) : undefined;
   if (!picked) return world;
   let byId = derived.get(world);
   if (!byId) { byId = new Map(); derived.set(world, byId); }
-  let out = byId.get(picked.id);
+  let out = byId.get(pickId!);
   if (!out) {
     const HALF = 0.01;
     const mid = (m: MineralDef) => (m.share[0] + m.share[1]) / 2;
@@ -88,9 +89,9 @@ export function withCrustChoice(world: WorldConfig, mineralId?: string): WorldCo
       return { ...m, share: [t - HALF, t + HALF] };
     });
     // The Conditions panel's Ground row says which rock was picked.
-    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (${picked.pick!.label})` } : f));
+    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (${CRUST_PICKS.find((c) => c.id === pickId)!.label})` } : f));
     out = { ...world, facts, terrain: { ...world.terrain, crust: { ...crust, minerals } } };
-    byId.set(picked.id, out);
+    byId.set(pickId!, out);
   }
   return out;
 }

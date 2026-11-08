@@ -1,14 +1,15 @@
 // Pure selection-screen logic: what is selected, what the sliders say, what Generate sends. No DOM.
 import { canLive, livingBands, startingConditions } from '../../sim/limits';
 import { controlIds, controlList, worldFor } from '../../worlds';
-import type { Conditions, ControlId, LivingBand, WorldConfig, WorldId } from '../../worlds/types';
+import { CRUST_PICKS } from '../../worlds/controls';
+import type { Conditions, ControlId, CrustPickId, LivingBand, WorldConfig, WorldId } from '../../worlds/types';
 import { group14 } from './elements';
 
 export interface SelectionState {
   worldId: WorldId;
   conditions: Conditions;
-  /** Picked rock chip (mineral id); absent = the natural seeded mix. Per world, so switching element clears it. */
-  crust?: string;
+  /** Picked rock chip (chip id); absent = the natural seeded mix. Kept across element switches: every world has the same chips. */
+  crust?: CrustPickId;
 }
 
 /** Carbon selected, sliders at the control defaults (15 °C, 1 × Earth, 21 % oxygen). */
@@ -23,12 +24,12 @@ export function initialSelection(): SelectionState {
 export function selectElement(s: SelectionState, z: number): SelectionState {
   const row = group14.find((r) => r.z === z);
   if (!row?.worldId || row.worldId === s.worldId) return s;
-  return { worldId: row.worldId, conditions: s.conditions };
+  return { worldId: row.worldId, conditions: s.conditions, ...(s.crust ? { crust: s.crust } : {}) };
 }
 
 /** Pick a rock chip; picking the picked one again, or an id the world cannot pick, clears it. */
-export function toggleCrust(s: SelectionState, id: string): SelectionState {
-  const ok = worldFor(s.worldId).terrain.crust.minerals.some((m) => m.id === id && m.pick);
+export function toggleCrust(s: SelectionState, id: CrustPickId): SelectionState {
+  const ok = CRUST_PICKS.some((c) => c.id === id);
   const crust = ok && s.crust !== id ? id : undefined;
   return { worldId: s.worldId, conditions: s.conditions, ...(crust ? { crust } : {}) };
 }
@@ -41,7 +42,7 @@ export function setCondition(s: SelectionState, id: ControlId, value: number): S
 }
 
 /** The `world:selected` payload for Generate. */
-export function generatePayload(s: SelectionState): { worldId: WorldId; requested: Conditions; crust?: string } {
+export function generatePayload(s: SelectionState): { worldId: WorldId; requested: Conditions; crust?: CrustPickId } {
   return { worldId: s.worldId, requested: { ...s.conditions }, ...(s.crust ? { crust: s.crust } : {}) };
 }
 

@@ -89,7 +89,7 @@ export const silicon: WorldConfig = {
     { id: 'star', label: 'Star', value: 'Sun-like, about 10× farther away', earthValue: 'The Sun', why: "Explains the cold; at Saturn's distance, Titan's surface is about −180 °C.", sources: ['fulchignoni2005'], assumption: true },
     { id: 'bodyChemistry', label: 'Body chemistry', value: 'Silicon–nitrogen compounds, with silicon-nitride ceramic plates', earthValue: 'Carbon chains with some oxygen', why: 'With no oxygen, silicon bodies are built from silicon–nitrogen compounds, and silicon nitride is a real, very hard ceramic.', sources: [], assumption: true },
     { id: 'feedstock', label: 'Silicon feedstock', value: 'Reduced silicon nitride and silicide minerals, powered by dim starlight', earthValue: 'Carbon dioxide fixed by sunlight', why: 'Silicon nitride (nierite) occurs in reduced enstatite chondrites, so a reduced world can hold it as rock; making silanes from silica would cost far more energy than this world has. Caveat: breaking the N≡N bond to fix nitrogen is energetically costly, which the model folds into upkeep.', sources: ['lee1995'], assumption: true },
-    { id: 'rock', label: 'Ground', value: 'Silicide, nitride and water-ice bedrock, with silicon-nitride crusts', earthValue: 'Silicate rock with limestone built by life', why: 'Silicide lies at the shore, nitride (nierite) mid-ground and water ice in the highlands; water exists here only as frozen bedrock, and the ice arches and spires are left over from formation.', sources: ['keil1968', 'lee1995'], assumption: true },
+    { id: 'rock', label: 'Ground', value: 'Reduced lava, silicide, nitride and water-ice bedrock, with silicon-nitride crusts', earthValue: 'Silicate rock with limestone built by life', why: 'Reduced lava floors the lowlands, silicide lies at the shore, nitride (nierite) mid-ground and water ice in the highlands; water exists here only as frozen bedrock, and the ice arches and spires are left over from formation.', sources: ['keil1968', 'lee1995'], assumption: true },
   ],
   features: {
     organism: {
@@ -388,6 +388,7 @@ export const silicon: WorldConfig = {
       { id: 'M2', rate: 0.01, params: { rimHeight: 2.5, bandCenter: 0.08, bandWidth: 0.2, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
       { id: 'M4', rate: 0.01, params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
       { id: 'M5', rate: 0.01, params: { bandH: 4, sharpness: 0.6, strength: 0.5 } },                                              // strata terraces
+      { id: 'M7', rate: 0.01, minerals: ['reducedLava'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // lava cooling columns, as on carbon: any lava that cools thick forms them (stylised, 8 m wide so the 2 m mesh resolves them)
       { id: 'M9', rate: 0.01, minerals: ['nitride'], params: { spikeHeight: 14, size: 10, density: 0.12, girth: 0.5, sharp: 1.6 } },   // sparse hexagonal nitride crystal spikes (stylised, declared illustration: 10 m cells so the 2 m mesh resolves them)
     ],
     relics: [
@@ -399,17 +400,20 @@ export const silicon: WorldConfig = {
     assumption: true,
     crust: {
       minerals: [
-        { id: 'silicide', label: 'Silicide', description: 'Metallic grains of silicon-bearing iron, as in the most oxygen-poor meteorites; they turn to silica if oxygen reaches them.', share: [0.30, 0.50], elevation: 0.25, supply: { c: 1, si: 1.6, o: 1 }, oxidises: true, pick: { label: 'Metal-rich', hint: 'Silicon-bearing metal: the richest feedstock' },
+        // Reduced lava: aubrites (reduced igneous meteorites) are recalled, not verified, to be silicate rock with grains of silicon-bearing metal (keil1968 covers the metal).
+        { id: 'reducedLava', label: 'Reduced lava', description: 'Lava from an oxygen-poor interior, flecked with silicon-bearing metal.', share: [0.15, 0.30], elevation: 0.15, supply: { c: 1, si: 1.2, o: 1 }, oxidises: true, pick: { id: 'volcanic', hint: 'Reduced lava: silicate rock flecked with silicon-bearing metal' },
+          why: 'Reduced igneous meteorites (aubrites) are silicate rock with grains of silicon-bearing metal, so lava from an oxygen-poor interior plausibly carries some reduced silicon; its metal flecks would turn to silica in oxygen.', sources: ['keil1968'], assumption: true },
+        { id: 'silicide', label: 'Silicide', description: 'Metallic grains of silicon-bearing iron, as in the most oxygen-poor meteorites; they turn to silica if oxygen reaches them.', share: [0.25, 0.40], elevation: 0.3, supply: { c: 1, si: 1.6, o: 1 }, oxidises: true, pick: { id: 'ironRich', hint: 'Silicon-bearing iron metal: the richest feedstock' },
           why: 'Reduced silicon in metal-silicide form is a plausible rich feedstock on an oxygen-poor world, and oxygen would turn it to silica rock.', sources: ['keil1968'], assumption: true },
-        { id: 'nitride', label: 'Nitride (nierite)', description: 'Hard silicon-nitride rock, found in oxygen-poor meteorites.', share: [0.25, 0.40], elevation: 0.5, supply: { c: 1, si: 1.2, o: 1 }, oxidises: false, pick: { label: 'Nitride', hint: 'Hard silicon-nitride rock: a steady feedstock' },
+        { id: 'nitride', label: 'Nitride (nierite)', description: 'Hard silicon-nitride rock, found in oxygen-poor meteorites.', share: [0.20, 0.35], elevation: 0.55, supply: { c: 1, si: 1.2, o: 1 }, oxidises: false, pick: { id: 'continental', hint: 'Hard silicon-nitride highlands: a steady feedstock' },
           why: 'Nierite (Si3N4) occurs naturally in enstatite chondrites, so reduced silicon nitride is a plausible feedstock here.', sources: ['lee1995'], assumption: true },
-        { id: 'waterIce', label: 'Water ice', description: 'Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it.', share: [0.15, 0.30], elevation: 0.9, supply: { c: 0, si: 0, o: 0 }, oxidises: false,
+        { id: 'waterIce', label: 'Water ice', description: 'Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it.', share: [0.10, 0.20], elevation: 0.9, supply: { c: 0, si: 0, o: 0 }, oxidises: false,
           why: 'Water exists here only as frozen bedrock (the relic ice landmarks); it carries no usable silicon.', sources: [], assumption: true },
       ],
       patchCells: 12,
       rustOxygen: 2,
       favour: 0.65,   // assumption: as on carbon
-      why: 'Three rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
+      why: 'Four rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
       sources: [],
       assumption: true,
     },

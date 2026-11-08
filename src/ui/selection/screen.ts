@@ -5,7 +5,8 @@
 import './selection.css';
 import { withCrustChoice } from '../../gen/crust';
 import { controlList, sourceFor, worldFor, worlds } from '../../worlds';
-import type { Conditions, ControlDef, ControlId, LethalLimit, WorldConfig } from '../../worlds/types';
+import { CRUST_PICKS } from '../../worlds/controls';
+import type { Conditions, ControlDef, ControlId, CrustPickId, LethalLimit, WorldConfig } from '../../worlds/types';
 import { fracToValue, redSegments, valueToFrac } from '../sliderMath';
 import type { UiBus } from '../uiBus';
 import { createBox, N_ATOMS } from './box';
@@ -35,7 +36,7 @@ export interface SelectionOptions {
    * Generate was clicked (after any slider glide). The host builds the world, emits `world:selected` with this payload and drives
    * the transition through `handle`, which also removes the screen when it is done.
    */
-  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions; crust?: string }, handle: LaunchHandle): void;
+  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions; crust?: CrustPickId }, handle: LaunchHandle): void;
 }
 
 export interface SelectionScreen {
@@ -534,14 +535,15 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond }, ...(state.crust ? { crust: state.crust } : {}) });
   }
 
-  // Rock chips (docs/features/crust.md): the world's pickable minerals; none picked = the natural mix.
+  // Rock chips (docs/features/crust.md): the same chips on every world, hints from the current world's mineral; none picked = the natural mix.
+  const pickHint = (world: WorldConfig, id: CrustPickId) => world.terrain.crust.minerals.find((m) => m.pick?.id === id)?.pick?.hint ?? '';
   let rockFor = '';
   function renderRock(world: WorldConfig) {
     const el = r('rock');
     if (rockFor !== world.id) {
       rockFor = world.id;
-      el.innerHTML = `<span class="rl">Rock:</span>` + world.terrain.crust.minerals.filter((m) => m.pick)
-        .map((m) => `<button type="button" class="chip" data-m="${esc(m.id)}" title="${esc(m.pick!.hint)}" aria-pressed="false">${esc(m.pick!.label)}</button>`).join('');
+      el.innerHTML = `<span class="rl">Rock:</span>` + CRUST_PICKS
+        .map((c) => `<button type="button" class="chip" data-m="${c.id}" title="${esc(pickHint(world, c.id))}" aria-pressed="false">${esc(c.label)}</button>`).join('');
     }
     el.querySelectorAll<HTMLButtonElement>('.chip').forEach((b) => {
       const on = b.dataset.m === state.crust;
@@ -552,10 +554,10 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   r('rock').addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
     if (!b || busy) return;
-    state = toggleCrust(state, b.dataset.m!);
+    state = toggleCrust(state, b.dataset.m as CrustPickId);
     render();
-    const m = worldFor(state.worldId).terrain.crust.minerals.find((x) => x.id === b.dataset.m)!;
-    announce(state.crust ? `${m.pick!.label} rock: ${m.pick!.hint}.` : 'Natural rock mix.');
+    const c = CRUST_PICKS.find((x) => x.id === b.dataset.m)!;
+    announce(state.crust ? `${c.label} rock: ${pickHint(worldFor(state.worldId), c.id)}.` : 'Natural rock mix.');
   });
 
   // References: every source cited by the selected world's limits and, for the appendix, the speculative world's reasoning.

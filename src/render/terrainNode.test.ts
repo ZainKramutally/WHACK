@@ -20,7 +20,7 @@ describe('terrainNode', () => {
     expect((mesh.material as { positionNode?: unknown }).positionNode).toBeTruthy();
   });
 
-  it.each([['carbon', carbon, ['M3', 'M4', 'M5', 'M6', 'M7', 'M8']], ['silicon', silicon, ['M2', 'M4', 'M5', 'M9']]] as const)(
+  it.each([['carbon', carbon, ['M3', 'M4', 'M5', 'M6', 'M7', 'M8']], ['silicon', silicon, ['M2', 'M4', 'M5', 'M7', 'M9']]] as const)(
     'the %s height node builds only the machines its config lists', (_n, world, listed) => {
       const terrain = createTerrain(world.terrain, world.demoSeed);
       const read: string[] = [];
