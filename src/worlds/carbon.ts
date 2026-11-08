@@ -61,6 +61,7 @@ export const carbon: WorldConfig = {
   stats: [
     { id: 'temperature', label: 'Surface temperature', unit: '°C', earthValue: 15, why: 'Water must stay liquid, and the star plus the CO₂ greenhouse set where the temperature sits.', sources: ['hoffman2017'] },
     { id: 'pressure', label: 'Surface pressure', unit: 'bar', earthValue: 1, why: 'The weight of the air: nitrogen, oxygen and CO₂ pulled down by gravity, plus water vapour.', sources: [], assumption: true },
+    { id: 'airDensity', label: 'Air density', unit: 'kg/m³', earthValue: 1.2, why: 'Pressure times the mean molar mass of the air over R·T: thicker, heavier air lifts more, so wings and gas bags work better; with gravity it decides who can float or fly.', sources: ['iupacWeights'], assumption: true },
     { id: 'gravity', label: 'Gravity', unit: 'g', earthValue: 1, why: 'Strong enough to hold an atmosphere, within the range of rocky planets.', sources: [], assumption: true },
     { id: 'oxygen', label: 'Oxygen', unit: '%', earthValue: 21, why: 'Set by the Oxygen slider, then nudged by life: photosynthesis adds it and consumers breathe it back down.', sources: [], assumption: true },
     { id: 'nitrogen', label: 'Nitrogen', unit: '× Earth', earthValue: 1, why: 'Set by the Nitrogen slider; life needs nitrogen for proteins and DNA.', sources: ['som2016'] },
@@ -174,9 +175,13 @@ export const carbon: WorldConfig = {
         earthN2Bar: 0.78,           // bar of N₂ at 1× Earth nitrogen and 1 g
         barPerPercentO2: 0.01,      // bar of O₂ per % at 1 g
         co2Bar: 0.0004,             // CO₂ partial pressure at 1 g (the 0.04% reference)
+        molarMassN2: 0.028013,      // kg/mol: the mean molar mass of the air is M = Σ xᵢMᵢ over these (IUPAC atomic weights)
+        molarMassO2: 0.031998,
+        molarMassCO2: 0.04401,
+        molarMassH2O: 0.018015,
       },
-      why: 'Each gas weighs on the ground in proportion to how much there is and how hard gravity pulls, plus water vapour.',
-      sources: [],
+      why: 'Each gas weighs on the ground in proportion to how much there is and how hard gravity pulls, plus water vapour; the same nitrogen makes thicker air on a heavier world. The gases\' molar masses give the air its density.',
+      sources: ['iupacWeights'],
       assumption: true,
     },
   ],

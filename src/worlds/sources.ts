@@ -128,6 +128,12 @@ const list: Source[] = [
     note: 'Crossref. Cassini radar found Ligeia Mare at least about 160 m deep: the real scale of a cold-world sea.',
   },
   {
+    id: 'iupacWeights',
+    citation: 'IUPAC Commission on Isotopic Abundances and Atomic Weights. Standard atomic weights (N 14.007, O 15.999, C 12.011, H 1.008).',
+    url: 'https://iupac.qmul.ac.uk/AtWt/',
+    note: 'TO VERIFY (recalled, not opened). Molar masses of N₂ (28.01), O₂ (32.00), CO₂ (44.01) and H₂O (18.02 g/mol) follow from these.',
+  },
+  {
     id: 'nistN2',
     citation: 'Linstrom PJ, Mallard WG (eds). NIST Chemistry WebBook, NIST Standard Reference Database 69: nitrogen (CAS 7727-37-9), fluid saturation properties and phase-change data. Retrieved 2026-11-07.',
     url: 'https://webbook.nist.gov/cgi/fluid.cgi?ID=C7727379&Action=Page',

@@ -95,6 +95,48 @@ export function partialPressures(
   return dry + vapourPressure(solvent, s.tC);
 }
 
+/** Molar masses (kg/mol) of the gases in the carbon world's air, from the pressure model's params. */
+export interface GasMassParams {
+  molarMassN2: number; molarMassO2: number; molarMassCO2: number; molarMassH2O: number;
+}
+
+/** Mean molar mass of the air, kg/mol: M = Σ xᵢMᵢ with xᵢ = pᵢ/P from the same partial pressures as partialPressures(). */
+export function meanMolarMass(
+  p: PartialPressureParams & GasMassParams,
+  solvent: Solvent,
+  s: { nitrogen: number; oxygenPct: number; tC: number; gravity: number },
+): number {
+  const n2 = s.nitrogen * p.earthN2Bar * s.gravity;
+  const o2 = s.oxygenPct * p.barPerPercentO2 * s.gravity;
+  const co2 = p.co2Bar * s.gravity;
+  const h2o = vapourPressure(solvent, s.tC);
+  const total = n2 + o2 + co2 + h2o;
+  return total > 0 ? (n2 * p.molarMassN2 + o2 * p.molarMassO2 + co2 * p.molarMassCO2 + h2o * p.molarMassH2O) / total : p.molarMassN2;
+}
+
+/**
+ * Surface air density and mean molar mass from the world's live stats: the partial-pressure mix on carbon (ρ = P·M/(R·T)
+ * with M from the live N₂, O₂, CO₂ and water vapour), the fixed main-gas mass (pure N₂) wherever pressure is vapour-pinned.
+ * `co2Ref` rescales the config's CO₂ pressure by the live CO₂ stat, as the pressure model does.
+ */
+export function surfaceAir(
+  derived: { model: string; params: Record<string, number> }[],
+  solvent: Solvent,
+  fallbackMolarMass: number,
+  s: Record<string, number>,
+  gravity: number,
+  co2Ref: number | undefined,
+): { density: number; molarMass: number } {
+  let M = fallbackMolarMass;
+  const d = derived.find((x) => x.model === 'partialPressures');
+  if (d && 'molarMassN2' in d.params) {
+    const p = d.params as unknown as PartialPressureParams & GasMassParams;
+    const co2Bar = co2Ref && 'co2' in s ? p.co2Bar * (s.co2! / co2Ref) : p.co2Bar;
+    M = meanMolarMass({ ...p, co2Bar }, solvent, { nitrogen: s.nitrogen!, oxygenPct: s.oxygen!, tC: s.temperature!, gravity });
+  }
+  return { density: gasDensity(s.pressure!, s.temperature!, M), molarMass: M };
+}
+
 // --- seaVolume / seaCover: nitrogen sea world ---------------------------------------------------------
 export interface SeaParams {
   earthN2Bar: number;   // converts bar of N₂ at 1 g to × Earth's nitrogen per m²

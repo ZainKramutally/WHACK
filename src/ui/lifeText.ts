@@ -1,5 +1,6 @@
 // Plain-words descriptions of living things (CLAUDE.md "Click to inspect"): pure functions from a body plan, genes
 // or flora cell to label/value rows. No DOM, so they are unit-tested. The sim's BodyPlan is the source of every number.
+import { flightCeiling, flightEnvFromStats, type FlightParams } from '../sim/flight';
 import { roleOf, type FunctionalType, type Role } from '../sim/guide';
 import { SILICON_WALKER_SEGMENT_THRESHOLD, type BodyPlan, type LocomotionMode } from '../sim/develop';
 import type { BodyGenes } from '../sim/genome';
@@ -86,6 +87,8 @@ export interface OrganismContext {
   form?: { name?: string; recognised: boolean };
   /** Include live-only rows (energy). */
   alive: boolean;
+  /** Live stats and the world's flight coefficients, for the flight-ceiling row. */
+  flight?: { stats: Record<string, number>; params: FlightParams; tissueRhoC: number };
 }
 
 export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ctx: OrganismContext): Rows {
@@ -94,6 +97,11 @@ export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ct
   rows.push(['Role', roleWords(roleOf(plan ? plan.diet : rec.body.diet))]);
   rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode, plan ? plan.architecture === 'radial' : ctx.chemistry === 'silicon', plan)]);
   rows.push(...(plan ? planRows(plan) : geneRows(rec.body)));
+  if (plan && ctx.flight && plan.mode === 2 && (plan.liftSpan ?? 0) > 0) {
+    const env = flightEnvFromStats(ctx.flight.stats);
+    const h = flightCeiling({ mass: plan.mass, liftSpan: plan.liftSpan!, bodyDensity: plan.bodyDensity, chemistry: plan.chemistry }, env, ctx.flight.params, ctx.flight.tissueRhoC);
+    rows.push(['Flight ceiling', h < 1 ? 'Cannot climb: weight beats lift here' : `Up to ${Math.round(h).toLocaleString('en-US')} m: the ceiling set by gravity (${env.gravity.toFixed(2)} g) and air density (${env.airKgM3.toFixed(1)} kg/m³)`]);
+  }
   rows.push(['Size', `${rec.size.toFixed(2)} × typical`]);
   rows.push(['Preferred temperature', `${formatValue(rec.prefTemp, '°C')} ± ${rec.tolerance.toFixed(1)} °C`]);
   rows.push([ctx.chemistry === 'silicon' ? 'Cold stability' : 'Oxygen need', pct(rec.chem)]);

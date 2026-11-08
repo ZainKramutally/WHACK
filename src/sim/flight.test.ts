@@ -69,3 +69,29 @@ describe('flight cost', () => {
     expect(Object.keys(silicon.life.inputs.flight).sort()).toEqual(Object.keys(carbon.life.inputs.flight).sort());
   });
 });
+
+describe('live air', () => {
+  it('mean molar mass follows the mix: more O₂ and CO₂ make heavier air, water vapour lighter', async () => {
+    const { meanMolarMass } = await import('./models');
+    const d = carbon.derived.find((x) => x.model === 'partialPressures')!;
+    const p = d.params as never;
+    const at = (oxygenPct: number, tC = 15) => meanMolarMass(p, carbon.solvent, { nitrogen: 1, oxygenPct, tC, gravity: 1 });
+    expect(at(35)).toBeGreaterThan(at(21));
+    expect(at(21, 40)).toBeLessThan(at(21, 5));
+    expect(at(21)).toBeGreaterThan(0.0285);
+    expect(at(21)).toBeLessThan(0.0295);
+  });
+  it('carbon pressure scales with gravity; silicon pressure does not', async () => {
+    const { partialPressures, vapourPressure } = await import('./models');
+    const p = carbon.derived.find((x) => x.model === 'partialPressures')!.params as never;
+    const P = (gravity: number) => partialPressures(p, carbon.solvent, { nitrogen: 1, oxygenPct: 21, tC: 15, gravity });
+    expect(P(1.3)).toBeGreaterThan(P(0.8));
+    expect(vapourPressure(silicon.solvent, -183)).toBe(vapourPressure(silicon.solvent, -183));
+  });
+  it('flightEnvFromStats recovers the molar mass from density, pressure and temperature', async () => {
+    const { flightEnvFromStats } = await import('./flight');
+    const e = flightEnvFromStats({ temperature: 15, pressure: 1, airDensity: 1.17, gravity: 1, oxygen: 21 });
+    expect(e.molarMass).toBeGreaterThan(0.027);
+    expect(e.molarMass).toBeLessThan(0.031);
+  });
+});

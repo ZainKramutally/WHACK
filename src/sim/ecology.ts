@@ -20,7 +20,7 @@ export const TICK_HZ = 20;
 export const CAP = 1024;
 
 /** The sim's inputs for one step: population.ts's Environment plus the living-band heat for develop(). */
-export interface EcologyEnv extends Environment { heatBand: number; /** atmospheric N₂ inventory, × Earth (carbon: a producer nutrient; absent = not limiting) */ nitrogen?: number; /** real surface air density, kg/m³ (default: the founders' inputs) */ airDensity?: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
+export interface EcologyEnv extends Environment { heatBand: number; /** atmospheric N₂ inventory, × Earth (carbon: a producer nutrient; absent = not limiting) */ nitrogen?: number; /** real surface air density, kg/m³ (default: the founders' inputs) */ airDensity?: number; /** mean molar mass of the live air, kg/mol */ molarMass?: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
 
 /**
  * World-config `life.ledger`: scalings that turn the rules into numbers (units: matter = animal mass = energy).
@@ -509,6 +509,9 @@ export class Ecology {
     if (!fp || !p.liftSpan) return 0;
     return flightCeiling(p as Required<Pick<BodyPlan, 'mass' | 'liftSpan' | 'bodyDensity' | 'chemistry'>>, this.flightEnv(), fp, this.inputs.tissueDensity.C);
   }
+  /** The live air density, already in develop()'s scale (kg/m³ × airDensity.scale), for the next births. */
+  setAirDensity(scaled: number): void { this.inputs.airDensity = scaled; }
+
   private flightEnv() {
     const fp = this.inputs.flight!;
     return {
@@ -516,6 +519,7 @@ export class Ecology {
       temperatureC: this.env.temperature,
       oxygenPct: this.env.oxygen,
       airKgM3: this.env.airDensity ?? this.inputs.airDensity / fp.airScale,
+      molarMass: this.env.molarMass,
     };
   }
 

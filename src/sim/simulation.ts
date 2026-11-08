@@ -16,7 +16,7 @@ import {
 } from './limits';
 import { EcologyLife, type LifeEnv, type LifeModel } from './lifeModel';
 import {
-  gasDensity, orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
+  surfaceAir, orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
   type PartialPressureParams, type RadiativeParams,
 } from './models';
 import { arrheniusFactor } from './population';
@@ -417,6 +417,7 @@ export class WorldSimulation {
         s[d.statId] = 100 * equilibriumSeaCover(w, this.conditions(), this.limitsEnv);
       }
     }
+    if ('airDensity' in s) s.airDensity = this.air().density;
   }
 
   // ---- terrain: sea level and the ecology's liquid grid ----------------------------------------------------------
@@ -493,9 +494,10 @@ export class WorldSimulation {
     return { x: p.x / S + 0.5, y: p.z / S + 0.5 };
   }
 
-  private airDensity(): number {
-    return gasDensity(this.stats.pressure, this.stats.temperature, this.world.life.inputs.airDensity.molarMass);
+  private air(): { density: number; molarMass: number } {
+    return surfaceAir(this.world.derived, this.world.solvent, this.world.life.inputs.airDensity.molarMass, this.stats, this.gravity, this.radBase.referenceCo2);
   }
+  private airDensity(): number { return this.air().density; }
 
   /** Body-gene mutation σ on the tick clock (see mutationSigmaAt). */
   private mutationSigma(): number {
@@ -521,6 +523,7 @@ export class WorldSimulation {
       pressure: s.pressure,
       airDensity: this.airDensity(),
       gravity: this.gravity,
+      molarMass: this.air().molarMass,
       mutationSigma: this.mutationSigma(),
     };
   }

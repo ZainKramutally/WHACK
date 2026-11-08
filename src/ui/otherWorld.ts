@@ -3,7 +3,7 @@
 // Pure. Stats a world only samples once (gravity, carbon CO₂ and sea cover) use the middle of their config range.
 import { equilibriumSeaCover } from '../sim/limits';
 import {
-  orbitForTemperature, partialPressures, radiativeBalance, starlight, vapourPressure,
+  orbitForTemperature, partialPressures, surfaceAir, radiativeBalance, starlight, vapourPressure,
   type PartialPressureParams, type RadiativeParams,
 } from '../sim/models';
 import { arrheniusFactor } from '../sim/population';
@@ -47,6 +47,10 @@ export function statsAtStart(world: WorldConfig): Record<string, number> {
     } else if (d.model === 'seaVolume') {
       s[d.statId] = 100 * equilibriumSeaCover(world, { temperature: s.temperature, nitrogen: s.nitrogen, oxygen: s.oxygen }, { gravity, controls: controlList });
     }
+  }
+  if ('airDensity' in s && 'pressure' in s) {
+    const radBase = (radDef?.params as Record<string, number> | undefined)?.referenceCo2;
+    s.airDensity = surfaceAir(world.derived, world.solvent, world.life.inputs.airDensity.molarMass, s, gravity, radBase).density;
   }
   return s;
 }

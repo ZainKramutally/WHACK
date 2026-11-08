@@ -19,6 +19,7 @@ export interface LifeEnv extends Environment {
   pressure: number;    // bar
   airDensity: number;  // kg/m³, real P·M/(R·T)
   gravity: number;     // g
+  molarMass: number;   // kg/mol, mean molar mass of the live air
   mutationSigma: number; // body-gene mutation σ now: SIGMA_BUILD during the build, SIGMA after
 }
 
@@ -110,6 +111,7 @@ export class EcologyLife implements LifeModel {
   step(env: LifeEnv, dt: number): void {
     const eco = this.eco;
     if (!eco) return;
+    eco.setAirDensity(env.airDensity * this.world.life.inputs.airDensity.scale);
     eco.step(env, dt);
     let dead = 0;
     for (let i = 0; i < CAP; i++) {

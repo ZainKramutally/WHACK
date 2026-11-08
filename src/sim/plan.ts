@@ -2,7 +2,7 @@
 // Layout = [PLAN_VERSION, ...PLAN_FIELDS in order]. Append only; bump PLAN_VERSION when it changes.
 import type { Arm, BodyPlan, LocomotionMode } from './develop';
 
-export const PLAN_VERSION = 4;
+export const PLAN_VERSION = 5;
 /** limbJointAngles is variable-length (0..6 in practice); this many slots are reserved. */
 export const MAX_LIMB_JOINTS = 8;
 /** Radial bodies: up to 8 arms (8-fold symmetry) and 5 hub tiers. */
@@ -41,6 +41,7 @@ export const PLAN_FIELDS = [
   'mode', // LOCOMOTION value
   'modeCostWalk', 'modeCostSwim', 'modeCostHover', 'modeCostSessile',
   'shellCover', // v4: silicon bilateral walkers: share of the segments under a ceramic shell (0 otherwise)
+  'liftSpan', // v5: span of the lift surface the flight power uses, m (0 unless hovering)
 ] as const;
 export type PlanField = (typeof PLAN_FIELDS)[number];
 
@@ -98,6 +99,7 @@ export function packBodyPlan(plan: BodyPlan): Float32Array {
   set('modeCostWalk', plan.modeCosts.walk); set('modeCostSwim', plan.modeCosts.swim);
   set('modeCostHover', plan.modeCosts.hover); set('modeCostSessile', plan.modeCosts.sessile);
   set('shellCover', plan.shellCover);
+  set('liftSpan', plan.liftSpan ?? 0);
   return b;
 }
 
@@ -136,6 +138,7 @@ export function unpackBodyPlan(buf: Float32Array): BodyPlan {
     defence: g('defence'), diet: g('diet'), plantGain: g('plantGain'), meatGain: g('meatGain'),
     mode: g('mode') as LocomotionMode,
     shellCover: g('shellCover'),
+    liftSpan: g('liftSpan'),
     modeCosts: { walk: g('modeCostWalk'), swim: g('modeCostSwim'), hover: g('modeCostHover'), sessile: g('modeCostSessile') },
   };
 }

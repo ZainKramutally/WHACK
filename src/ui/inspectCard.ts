@@ -1,5 +1,6 @@
 // Click-to-inspect card: what it is, details, why, and "this world" beside the other world's targets.
 // Holds a transparent window for the render layer's counterpart view and reports its rect on inspect:window.
+import { flightParamsFor } from '../sim/flight';
 import { el } from './dom';
 import { formatStat, formatValue } from './format';
 import { statsAtStart } from './otherWorld';
@@ -87,7 +88,7 @@ export function mountInspectCard(
       } else dead = true;
       if (lastForm?.recognised && lastForm.name) name = lastForm.name;
       if (lastRec) {
-        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', form: lastForm, alive: !dead }));
+        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
       }
     } else if (t.kind === 'producer') {
       const mat = s.flora[t.cell * 2] ?? 0;

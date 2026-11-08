@@ -45,8 +45,7 @@ describe('body plan wire format', () => {
     it(`round-trips a ${name} plan`, () => {
       const plan = develop(genome, cond, water);
       const back = unpackBodyPlan(packBodyPlan(plan));
-      const { liftSpan: _flightOnly, ...wire } = plan; // liftSpan is sim-only (flight.ts); not on the wire
-      expectClose(back, wire);
+      expectClose(back, { ...plan, liftSpan: plan.liftSpan ?? 0 });
       // enums and integers are exact
       expect(back.chemistry).toBe(plan.chemistry);
       expect(back.limbKind).toBe(plan.limbKind);

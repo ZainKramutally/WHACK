@@ -42,10 +42,25 @@ export interface FlightEnv {
   temperatureC: number;
   oxygenPct: number;
   airKgM3: number; // real air density at the surface, kg/m³
+  molarMass?: number; // kg/mol of the live air mix (default: FlightParams.molarMass, the main gas)
 }
 
 /** The slice of a BodyPlan flight reads. */
 export interface FlightBody { mass: number; liftSpan: number; bodyDensity: number; chemistry: 'silicon' | 'carbon' }
+
+/** The flight environment from a snapshot's stats: M comes back out of ρ = P·M/(R·T). */
+export function flightEnvFromStats(st: Record<string, number>): FlightEnv {
+  const T = st.temperature ?? 15;
+  const rho = st.airDensity ?? 1.2;
+  const P = st.pressure ?? 1;
+  return {
+    gravity: st.gravity ?? 1,
+    temperatureC: T,
+    oxygenPct: st.oxygen ?? 21,
+    airKgM3: rho,
+    molarMass: P > 0 ? (rho * R_GAS * (T + 273.15)) / (P * 1e5) : undefined,
+  };
+}
 
 /** Aerobic scope: carbon's is proportional to O₂ (1 at Earth's); silicon's is a constant. */
 export function aerobicScope(chemistry: 'silicon' | 'carbon', oxygenPct: number, p: FlightParams): number {
@@ -71,8 +86,8 @@ export function powerRatio(b: Pick<FlightBody, 'mass' | 'liftSpan' | 'chemistry'
 }
 
 /** Scale height H = R·T/(M·g), metres: lower gravity or warmer air gives a taller atmosphere. */
-export function scaleHeight(e: Pick<FlightEnv, 'temperatureC' | 'gravity'>, p: Pick<FlightParams, 'molarMass'>): number {
-  return (R_GAS * (e.temperatureC + 273.15)) / (p.molarMass * G0 * e.gravity);
+export function scaleHeight(e: Pick<FlightEnv, 'temperatureC' | 'gravity' | 'molarMass'>, p: Pick<FlightParams, 'molarMass'>): number {
+  return (R_GAS * (e.temperatureC + 273.15)) / ((e.molarMass ?? p.molarMass) * G0 * e.gravity);
 }
 
 /** Highest altitude (m above the surface) the body can hold: powered flight or buoyancy, whichever is higher. 0 if it cannot leave the ground. */
