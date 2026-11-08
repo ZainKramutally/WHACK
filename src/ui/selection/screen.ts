@@ -9,6 +9,7 @@ import { fracToValue, redSegments, valueToFrac } from '../sliderMath';
 import type { UiBus } from '../uiBus';
 import { createBox, N_ATOMS } from './box';
 import { group14 } from './elements';
+import { elementIcon } from './icons';
 import {
   bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, viability,
   type SelectionState,
@@ -102,12 +103,14 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     <div class="page">
       <div class="colL">
         <section aria-labelledby="s1">
-          <h2 class="sec" id="s1"><span class="no">1</span>Choose an element <small>(Table 1: Group 14; the last column is the live viability test)</small></h2>
+          <h2 class="sec" id="s1"><span class="no">1</span>Choose an element <small>(Table 1: Group 14; scroll sideways, or use ← →)</small></h2>
           <figure>
-            <div class="tablewrap"><table aria-label="Group 14 of the periodic table">
-              <thead><tr><th></th><th class="num"><span class="m">Z</span></th><th>Element</th><th>Status</th><th>Viability now</th></tr></thead>
-              <tbody data-r="rows" role="radiogroup" aria-label="Choose an element"></tbody>
-            </table></div>
+            <div class="carousel">
+              <button class="cnav prev" data-r="prev" type="button" aria-label="Previous element">‹</button>
+              <div class="track" data-r="track" role="listbox" tabindex="0" aria-orientation="horizontal" aria-label="Group 14 of the periodic table: scroll sideways to browse; carbon and silicon can be chosen"></div>
+              <button class="cnav next" data-r="next" type="button" aria-label="Next element">›</button>
+            </div>
+            <div class="pips" data-r="pips" aria-hidden="true"></div>
           </figure>
         </section>
         <section aria-labelledby="s2">
@@ -146,12 +149,12 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       <div class="morebody">
         <div>
           <h2 class="sec"><span class="no">1</span>Choose an element</h2>
-          <p>Group 14 shares carbon’s four bonding hands. Table 1 lists the column; only carbon and silicon can be chosen. The last column reports whether that chemistry’s life could persist under the conditions set in Section 2.</p>
+          <p>Group 14 shares carbon’s four bonding hands. Table 1 lists the column as a row of cards you scroll through; only carbon and silicon can be chosen. Each card reports whether that chemistry’s life could persist under the conditions set in Section 2.</p>
           <h2 class="sec"><span class="no">2</span>Starting conditions</h2>
           <p>Every condition is drawn on the same full range for every world. The bounds are given by Eq. (1).</p>
           <ul class="hints" data-r="hints"></ul>
           <h2 class="sec"><span class="no">3</span>Observation</h2>
-          <p>Figure 2 shows the selected chemistry in miniature. It is driven by the same viability test as Table 1, so the two never disagree: chains link and copy where life can persist, and each failing bound has its own signature.</p>
+          <p>Figure 2 shows the selected chemistry in miniature. It is driven by the same viability test as the cards in Table 1, so the two never disagree: chains link and copy where life can persist, and each failing bound has its own signature.</p>
         </div>
         <section class="refs" aria-labelledby="refs"><h2 id="refs">References</h2><ol data-r="refs"></ol></section>
       </div>
@@ -181,38 +184,140 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   let raf = 0;
   let alive = true;
 
-  // ---- Table 1 ----
-  const tbody = r('rows');
-  const pickRows = new Map<string, HTMLElement>();
+  // ---- Table 1: a horizontal carousel of group-14 cards ----
+  // Scrolling a selectable card into the centre selects it; a locked card in the centre is shown greyed and leaves the last
+  // selectable element selected (the box always shows a selectable element).
+  const track = r('track');
+  const pips = r('pips');
+  const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id'] }[] = [];
   for (const e of group14) {
-    const tr = document.createElement('tr');
+    const el = document.createElement('div');
+    el.id = `ec-${e.z}`;
+    el.setAttribute('role', 'option');
+    el.setAttribute('aria-selected', 'false');
+    const icon = `<div class="eicon">${elementIcon(e)}</div>`;
     if (e.worldId) {
       const w = worldFor(e.worldId);
-      tr.className = 'pick';
-      tr.style.setProperty('--sw', e.worldId === 'carbon' ? 'var(--c2)' : 'var(--s3)');
-      tr.innerHTML = `<td><button class="radio" type="button" role="radio" aria-label="${esc(e.name)}"></button></td>
-        <td class="num">${e.z}</td><td>${esc(e.name)} (${e.symbol})</td>
-        <td>${w.status === 'known' ? 'Known' : 'Speculative<span class="dagger">†</span>'}</td><td class="via"></td>`;
-      tr.addEventListener('click', () => choose(e.z));
-      tr.querySelector('.radio')!.addEventListener('keydown', (ev) => {
-        const k = (ev as KeyboardEvent).key;
-        if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(k)) return;
-        ev.preventDefault();
-        const other = group14.find((x) => x.worldId && x.worldId !== state.worldId)!;
-        choose(other.z);
-        pickRows.get(other.worldId!)!.querySelector<HTMLElement>('.radio')!.focus();
-      });
-      pickRows.set(e.worldId, tr);
+      el.className = 'ecard pick';
+      el.dataset.fam = e.worldId;
+      el.style.setProperty('--sw', e.worldId === 'carbon' ? 'var(--c2)' : 'var(--s3)');
+      el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">${w.status === 'known' ? 'Known' : 'Speculative<span class="dagger">†</span>'}</span></div><div class="via"></div><span class="esel">Selected</span>`;
     } else {
-      tr.className = 'grey';
-      tr.innerHTML = `<td></td><td class="num">${e.z}</td><td>${esc(e.name)} (${e.symbol})</td><td>Locked</td><td class="via">${esc(e.reason ?? '')}</td>`;
-      tr.addEventListener('click', () => {
-        tr.classList.remove('flash'); void tr.offsetWidth; tr.classList.add('flash');
-        announce(`${e.name} can’t be chosen: ${e.reason}.`);
-      });
+      el.className = 'ecard grey';
+      el.setAttribute('aria-disabled', 'true');
+      el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">Locked</span></div><div class="via">${esc(e.reason ?? '')}</div>`;
     }
-    tbody.append(tr);
+    el.addEventListener('click', () => {
+      if (suppressClick) return;
+      const i = cards.findIndex((c) => c.el === el);
+      goTo(i);
+      if (!e.worldId) {
+        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+        announce(`${e.name} can’t be chosen: ${e.reason}.`);
+      }
+    });
+    track.append(el);
+    cards.push({ el, z: e.z, worldId: e.worldId });
+    pips.append(document.createElement('span'));
   }
+
+  let focusIdx = 0;
+  let aim: number | null = null;   // set while we scroll to a card ourselves, so the scroll handler doesn't fight us
+  let aimTimer = 0;
+  let suppressClick = false;
+  const endAim = () => { aim = null; const i = nearestIdx(); if (i !== focusIdx) setFocus(i); };
+  const armAim = (ms: number) => { clearTimeout(aimTimer); aimTimer = window.setTimeout(endAim, ms); };
+  const nearestIdx = () => {
+    const mid = track.scrollLeft + track.clientWidth / 2;
+    let best = 0, bd = Infinity;
+    cards.forEach((c, i) => {
+      const d = Math.abs(c.el.offsetLeft + c.el.offsetWidth / 2 - mid);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  };
+  const scrollToIdx = (i: number) => {
+    const c = cards[i].el;
+    track.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - track.clientWidth / 2, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  };
+  function setFocus(i: number) {
+    focusIdx = i;
+    cards.forEach((c, k) => c.el.classList.toggle('focus', k === i));
+    [...pips.children].forEach((p, k) => p.classList.toggle('on', k === i));
+    track.setAttribute('aria-activedescendant', cards[i].el.id);
+    (r('prev') as HTMLButtonElement).disabled = i === 0;
+    (r('next') as HTMLButtonElement).disabled = i === cards.length - 1;
+    const c = cards[i];
+    if (c.worldId && c.worldId !== state.worldId) choose(c.z);
+    else if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
+  }
+  /** Bring card i to the centre (smoothly) and, if it can be chosen, choose it now. */
+  function goTo(i: number) {
+    i = Math.max(0, Math.min(cards.length - 1, i));
+    aim = i;
+    armAim(700);
+    if (i !== focusIdx) setFocus(i);
+    scrollToIdx(i);
+  }
+  let scrollRaf = 0;
+  track.addEventListener('scroll', () => {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      if (aim !== null) { armAim(160); return; }
+      const i = nearestIdx();
+      if (i !== focusIdx) setFocus(i);
+    });
+  }, { passive: true });
+  const userTakesOver = () => { aim = null; clearTimeout(aimTimer); };
+  track.addEventListener('touchstart', userTakesOver, { passive: true });
+  r('prev').addEventListener('click', () => goTo(focusIdx - 1));
+  r('next').addEventListener('click', () => goTo(focusIdx + 1));
+  track.addEventListener('keydown', (ev) => {
+    const k = ev.key;
+    const to = k === 'ArrowRight' ? focusIdx + 1 : k === 'ArrowLeft' ? focusIdx - 1 : k === 'Home' ? 0 : k === 'End' ? cards.length - 1 : null;
+    if (to === null) return;
+    ev.preventDefault();
+    goTo(to);
+  });
+  // A vertical wheel (a mouse wheel, or a trackpad swipe up/down) steps one card; sideways scrolling stays native.
+  let wheelAcc = 0, wheelLock = 0;
+  track.addEventListener('wheel', (ev) => {
+    if (Math.abs(ev.deltaX) >= Math.abs(ev.deltaY)) { userTakesOver(); return; }
+    const dir = ev.deltaY > 0 ? 1 : -1;
+    const next = focusIdx + dir;
+    if (next < 0 || next >= cards.length) return;   // at an end: let the page scroll
+    ev.preventDefault();
+    const now = performance.now();
+    if (now < wheelLock) return;
+    wheelAcc += ev.deltaY;
+    if (Math.abs(wheelAcc) < 30) return;
+    wheelAcc = 0; wheelLock = now + 380;
+    goTo(next);
+  }, { passive: false });
+  // Mouse drag (touch and trackpads scroll natively).
+  let drag: { x: number; left: number; moved: boolean } | null = null;
+  track.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+    userTakesOver();
+    drag = { x: ev.clientX, left: track.scrollLeft, moved: false };
+  });
+  track.addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 5) { drag.moved = true; track.classList.add('dragging'); track.setPointerCapture(ev.pointerId); }
+    if (drag.moved) track.scrollLeft = drag.left - dx;
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    track.classList.remove('dragging');
+    if (moved) { suppressClick = true; setTimeout(() => { suppressClick = false; }, 0); goTo(nearestIdx()); }
+  };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+  setFocus(0);
 
   // ---- Figure 1: axes ----
   const axes = new Map<ControlId, HTMLElement>();
@@ -270,14 +375,13 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const solvent = world.solvent.name.toLowerCase();
     r('abstract').innerHTML = `Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(world.displayName.toLowerCase())}, is <i>${world.status}</i>: ${world.status === 'known' ? `life as we know it, in ${esc(solvent)}.` : `a world of ${esc(solvent)} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
 
-    for (const [wid, tr] of pickRows) {
-      const sel = wid === world.id;
-      tr.classList.toggle('sel', sel);
-      const radio = tr.querySelector<HTMLElement>('.radio')!;
-      radio.setAttribute('aria-checked', String(sel));
-      radio.tabIndex = sel ? 0 : -1;
-      const v = viability(worldFor(wid as WorldConfig['id']), cond);
-      const via = tr.querySelector<HTMLElement>('.via')!;
+    for (const c of cards) {
+      if (!c.worldId) continue;
+      const sel = c.worldId === world.id;
+      c.el.classList.toggle('sel', sel);
+      c.el.setAttribute('aria-selected', String(sel));
+      const v = viability(worldFor(c.worldId), cond);
+      const via = c.el.querySelector<HTMLElement>('.via')!;
       via.className = `via ${v.ok ? 'ok' : 'no'}`;
       via.innerHTML = `<span class="sw"></span>${v.ok ? 'Life can persist' : esc(v.reason)}`;
     }
@@ -485,6 +589,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     alive = false;
     cancelAnimationFrame(raf);
     clearTimeout(toastTimer);
+    clearTimeout(aimTimer);
+    cancelAnimationFrame(scrollRaf);
     document.removeEventListener('keydown', onKey);
     root.remove();
   }
