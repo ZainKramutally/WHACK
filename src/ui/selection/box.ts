@@ -21,6 +21,12 @@ export function mulberry32(a: number) {
 }
 
 const S = 600, LO = 150, K = LO / S;
+/** Element atoms in the soup. About 3x the first version; tuned by eye for the 150 px figure. */
+const N_ATOMS = 80;
+/** Neighbour grid cell: equals the bonding reach, so a 3x3 block of cells covers every candidate. */
+const CELL = 32, GRID = Math.ceil(S / CELL);
+/** Atoms closer than this (and not bonded) bounce off each other. */
+const HARD = 18;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 interface Atom { x: number; y: number; vx: number; vy: number; b: number[]; rock: number; j: number }
 interface Gas { x: number; y: number; vx: number; vy: number; a: number }
@@ -41,7 +47,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   const rnd = mulberry32(seed);
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-  const atoms: Atom[] = Array.from({ length: 26 }, () => ({ x: 90 + rnd() * 420, y: 400 + rnd() * 150, vx: 0, vy: 0, b: [], rock: 0, j: rnd() < 0.5 ? 0 : 1 }));
+  const atoms: Atom[] = Array.from({ length: N_ATOMS }, () => ({ x: 30 + rnd() * 540, y: 380 + rnd() * 190, vx: 0, vy: 0, b: [], rock: 0, j: rnd() < 0.5 ? 0 : 1 }));
   const solvent = Array.from({ length: 170 }, () => ({ x: rnd() * S, y: 380 + rnd() * 210, vx: 0, vy: 0 }));
   const gasN2: Gas[] = Array.from({ length: MAX_N2 }, () => ({ x: rnd() * S, y: rnd() * 320, vx: rnd() - 0.5, vy: rnd() - 0.5, a: rnd() * 6.28 }));
   const gasO2: Gas[] = Array.from({ length: MAX_O2 }, () => ({ x: rnd() * S, y: rnd() * 320, vx: rnd() - 0.5, vy: rnd() - 0.5, a: rnd() * 6.28 }));
@@ -49,11 +55,48 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   let poolNow = 0.42;
   let lastTag: { text: string; y: number } | null = null;
 
-  const chainOf = (i: number) => {
-    const seen = new Set([i]), stack = [i];
-    while (stack.length) { const a = stack.pop()!; for (const n of atoms[a].b) if (!seen.has(n)) { seen.add(n); stack.push(n); } }
-    return seen;
+  // Chain ids and sizes, computed in one pass per step (and patched on each new bond) instead of a BFS per pair.
+  const comp = new Int32Array(N_ATOMS), compSize = new Int32Array(N_ATOMS), stack = new Int32Array(N_ATOMS);
+  function labelChains() {
+    comp.fill(-1);
+    for (let i = 0; i < N_ATOMS; i++) {
+      if (comp[i] >= 0) continue;
+      let sp = 0, size = 0; stack[sp++] = i; comp[i] = i;
+      while (sp) { const a = stack[--sp]; size++; for (const n of atoms[a].b) if (comp[n] < 0) { comp[n] = i; stack[sp++] = n; } }
+      compSize[i] = size;
+    }
+  }
+  const mergeChains = (ci: number, cj: number) => {
+    compSize[ci] += compSize[cj];
+    for (let k = 0; k < N_ATOMS; k++) if (comp[k] === cj) comp[k] = ci;
   };
+  // Uniform grid: head[cell] -> first atom, nextIn[i] -> next atom in the same cell (-1 ends).
+  const head = new Int32Array(GRID * GRID), nextIn = new Int32Array(N_ATOMS);
+  const cellOf = (v: number) => clamp(Math.floor(v / CELL), 0, GRID - 1);
+  function buildGrid() {
+    head.fill(-1);
+    for (let i = N_ATOMS - 1; i >= 0; i--) { const c = cellOf(atoms[i].y) * GRID + cellOf(atoms[i].x); nextIn[i] = head[c]; head[c] = i; }
+  }
+  /** Calls fn(j) for every atom in the 3x3 cells around atom i (including i itself). */
+  function near(i: number, fn: (j: number) => boolean | void) {
+    const cx = cellOf(atoms[i].x), cy = cellOf(atoms[i].y);
+    for (let gy = Math.max(0, cy - 1); gy <= Math.min(GRID - 1, cy + 1); gy++)
+      for (let gx = Math.max(0, cx - 1); gx <= Math.min(GRID - 1, cx + 1); gx++)
+        for (let j = head[gy * GRID + gx]; j >= 0; j = nextIn[j]) if (fn(j)) return;
+  }
+  /** Elastic-ish bounce between unbonded atoms: push apart, and swap the approaching share of velocity. */
+  function collide(i: number, j: number) {
+    const a = atoms[i], o = atoms[j];
+    if (a.b.includes(j)) return;
+    let dx = o.x - a.x, dy = o.y - a.y;
+    let d = Math.hypot(dx, dy);
+    if (d >= HARD) return;
+    if (d < 0.01) { dx = rnd() - 0.5; dy = rnd() - 0.5; d = Math.hypot(dx, dy) || 1; }
+    const nx = dx / d, ny = dy / d, push = (HARD - d) * 0.35;
+    a.x -= nx * push; a.y -= ny * push; o.x += nx * push; o.y += ny * push;
+    const vn = (a.vx - o.vx) * nx + (a.vy - o.vy) * ny;   // > 0 when approaching
+    if (vn > 0) { const jn = vn * 0.95; a.vx -= nx * jn; a.vy -= ny * jn; o.vx += nx * jn; o.vy += ny * jn; }
+  }
   const unbond = (i: number, j: number) => { atoms[i].b = atoms[i].b.filter((x) => x !== j); atoms[j].b = atoms[j].b.filter((x) => x !== i); };
 
   function step(st: BoxState, dt: number, isSi: boolean) {
@@ -125,31 +168,35 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
         }
       }
     });
+    buildGrid();
+    if (!frozenFx) for (let i = 0; i < N_ATOMS; i++) near(i, (j) => { if (j > i) collide(i, j); });
     if (pBreak) atoms.forEach((a, i) => { [...a.b].forEach((n) => { if (n > i && rnd() < pBreak * dt * 60 * 0.2) unbond(i, n); }); });
+    labelChains();
     if (pForm && !dry && !frozenFx) {
-      for (let i = 0; i < atoms.length; i++) {
+      for (let i = 0; i < N_ATOMS; i++) {
         const a = atoms[i];
         if (a.rock || a.b.length >= 2) continue;
-        for (let j = i + 1; j < atoms.length; j++) {
+        near(i, (j) => {
           const o = atoms[j];
-          if (o.rock || o.b.length >= 2 || a.b.includes(j)) continue;
-          if (Math.abs(o.x - a.x) > 32 || Math.abs(o.y - a.y) > 32) continue;
-          if (rnd() > pForm) continue;
-          const ca = chainOf(i);
-          if (ca.has(j) || ca.size + chainOf(j).size > maxLen) continue;
+          if (j <= i || o.rock || o.b.length >= 2 || a.b.includes(j)) return;
+          if (Math.abs(o.x - a.x) > 32 || Math.abs(o.y - a.y) > 32) return;
+          if (rnd() > pForm) return;
+          const ci = comp[i], cj = comp[j];
+          if (ci === cj || compSize[ci] + compSize[cj] > maxLen) return;
           a.b.push(j); o.b.push(i);
-          break;
-        }
+          mergeChains(ci, cj);
+          return true;
+        });
       }
     }
     if (living) {
       const done = new Set<number>();
       atoms.forEach((a, i) => {
-        if (done.has(i) || a.rock) return;
-        const ch = chainOf(i);
-        ch.forEach((k) => done.add(k));
-        if (ch.size >= 6 && rnd() < 0.005) {
-          const ends = [...ch].filter((k) => atoms[k].b.length === 1);
+        if (a.rock || done.has(comp[i])) return;
+        done.add(comp[i]);
+        if (compSize[comp[i]] >= 6 && rnd() < 0.005) {
+          const ends: number[] = [];
+          for (let k = 0; k < N_ATOMS; k++) if (comp[k] === comp[i] && atoms[k].b.length === 1) ends.push(k);
           if (!ends.length) return;
           let prev = -1, cur = ends[0];
           for (let s = 0; s < 2; s++) { const next = atoms[cur].b.find((n) => n !== prev); if (next === undefined) return; prev = cur; cur = next; }
