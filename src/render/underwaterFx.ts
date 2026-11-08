@@ -13,6 +13,7 @@ import { LOOK, PAL_LIT } from './material';
 type N = any;
 
 /** Snow specks (one draw) and shaft strips (one draw). */
+export const UNDERWATER_FX_ROOT = 'underwaterFx';
 export const SNOW_COUNT = 2400;
 export const SHAFT_COUNT = 7;
 const SNOW_BOX = 44;       // m: specks live in a cube this wide around the camera
@@ -152,7 +153,11 @@ export function createUnderwaterFx(app: App): UnderwaterFxPart {
   })();
   const shafts = new THREE.Mesh(shaftGeo, shaftMat);
 
-  for (const m of [snow, shafts]) { m.frustumCulled = false; m.renderOrder = 3; m.visible = false; scene.add(m); }
+  // One named root so main.ts warmFeatures can find it and pre-compile the pipelines before the first dive.
+  const root = new THREE.Group();
+  root.name = UNDERWATER_FX_ROOT;
+  for (const m of [snow, shafts]) { m.frustumCulled = false; m.renderOrder = 3; m.visible = false; root.add(m); }
+  scene.add(root);
 
   const lightDir = new THREE.Vector3();
   const base = new THREE.Color(), tint = new THREE.Color();

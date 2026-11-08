@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three/webgpu';
-import { SHAFT_COUNT, SNOW_COUNT, floraDensityAt, fxState, waterHaze } from './underwaterFx';
+import { UNDERWATER_FX_ROOT, createUnderwaterFx, SHAFT_COUNT, SNOW_COUNT, floraDensityAt, fxState, waterHaze } from './underwaterFx';
 import { seaStyle, waterAtDepth } from './palette';
 
 const wet = { submersion: 1, nitrogen: false, light: 1, depth: 3, floraDensity: 0.5 };
@@ -55,5 +55,17 @@ describe('floraDensityAt', () => {
     f[(32 * 64 + 32) * 2] = 0.5;
     expect(floraDensityAt(f, 1, 1, 256)).toBeCloseTo(0.5);
     expect(floraDensityAt(f, 1000, 0, 256)).toBe(0);
+  });
+});
+
+describe('createUnderwaterFx', () => {
+  it('puts its meshes under a named root for warmFeatures', () => {
+    const scene = new THREE.Scene();
+    const part = createUnderwaterFx({ scene, camera: new THREE.PerspectiveCamera() } as never);
+    const root = scene.getObjectByName('underwaterFx');
+    expect(UNDERWATER_FX_ROOT).toBe('underwaterFx');
+    expect(root).toBeTruthy();
+    expect(root!.children.length).toBe(part.meshes.length);
+    expect(part.meshes.every((m) => !m.visible)).toBe(true);
   });
 });

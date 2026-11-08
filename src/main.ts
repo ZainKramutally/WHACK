@@ -176,7 +176,7 @@ async function prepare() {
 
 /** Pipelines for hidden meshes only build on the first visible frame: show them, compile against the real scene, then restore. */
 async function warmFeatures(app: Awaited<ReturnType<typeof prepare>>['app']) {
-  for (const name of ['rockForms', 'basaltPillars', 'landmarks']) {
+  for (const name of ['rockForms', 'basaltPillars', 'landmarks', 'underwaterFx']) {
     const root = app.scene.getObjectByName(name);
     if (!root || !root.children.length) continue;
     const meshes: { o: import('three/webgpu').Object3D; v: boolean }[] = [];
