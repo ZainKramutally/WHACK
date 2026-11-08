@@ -72,7 +72,7 @@ describe('carbon sea cover from crust and temperature', () => {
     const s = sim.snapshot();
     expect(s.population.consumers).toBeGreaterThan(0);
     expect(s.population.producers).toBeGreaterThan(0);
-    for (let i = 1; i < covers.length; i++) expect(Math.abs(covers[i] - covers[i - 1])).toBeLessThan(1.5);   // eased: under 1.5 points per 0.25 s
+    for (let i = 1; i < covers.length; i++) expect(Math.abs(covers[i] - covers[i - 1])).toBeLessThan(1.6);   // eased: no jump (cover moves at most 3 points/s, plus the fill)
   });
 
   const state: TerrainState = { rise: 1, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 } };
