@@ -65,7 +65,7 @@ const SPECIES: SpeciesDef[] = [
   { id: 'shardTree', chem: 'silicon', role: 'mid', gen: shardTree, variants: [0, 1, 2, 3] },
   { id: 'prismTitan', chem: 'silicon', role: 'giant', gen: prismTitan, variants: [0, 1, 2, 3] },
   // New species go last, so every existing archetype keeps its seed (subSeed by species index) and shape.
-  // T9 (flora-traits): high-photorespiration builds, a hard switch at P = 0.45 (gates.ts denseBuild)
+  // T9 (flora-traits): high-photorespiration builds, a hard switch at P = DENSE_P (gates.ts worldEnv)
   { id: 'parasolTitanDense', chem: 'carbon', role: 'giant', gen: (r, v) => parasolTitan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'parasolTitan' },
   { id: 'ribFanDense', chem: 'carbon', role: 'mid', gen: (r, v) => ribFan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'ribFan' },
   // gated archetypes (flora-traits §2, gates.ts): drawn only where a gate substitutes them into a pick list

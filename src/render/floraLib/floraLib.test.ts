@@ -311,7 +311,7 @@ describe('C2 body variants and the T9 density build', () => {
     expect(d.dropped).toBe(0);
   });
 
-  it('T9: the dense build replaces the sparse one patch-wide at P = (O2/CO2)/525 ≥ 0.45, never both', () => {
+  it('T9: the dense build replaces the sparse one patch-wide at P = (O2/CO2)/525 ≥ 0.28, never both', () => {
     const tri = (a: number, l: number) => lib.archetypes[a].lod[l].triangles;
     const species = (inp: VisualInputs) => {
       const l = placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList());
@@ -319,6 +319,9 @@ describe('C2 body variants and the T9 density build', () => {
     };
     const sparse = species(carbonIn({ oxygen: 21, co2: 0.25 }));   // P 0.16 (carbon default)
     const dense = species(carbonIn({ oxygen: 21, co2: 0.04 }));    // P 1 (Earth today)
+    // the demo beat on the default seed: Oxygen 21 → 40% at CO2 0.25% (P 0.30) makes the ribs denser
+    expect(species(carbonIn({ oxygen: 40, co2: 0.25 })).set.has('ribFanDense')).toBe(true);
+    expect(species(carbonIn({ oxygen: 36, co2: 0.25 })).set.has('ribFanDense')).toBe(false); // P 0.27
     expect(sparse.set.has('ribFanDense') || sparse.set.has('parasolTitanDense')).toBe(false);
     expect(dense.set.has('ribFan') || dense.set.has('parasolTitan')).toBe(false);
     expect(dense.set.has('ribFanDense') && dense.set.has('parasolTitanDense')).toBe(true);

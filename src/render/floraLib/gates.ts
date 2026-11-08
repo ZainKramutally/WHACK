@@ -11,9 +11,10 @@ import type { VisualInputs } from '../../worlds/types';
 
 /** Air density of Earth's air in VisualInputs units: 1.2 kg/m³ × the shared `airDensity.scale` 0.05 (CLAUDE.md). */
 export const AIR_EARTH = 0.06;
-/** T9: dense ribs, pleats and gills from photorespiration index P = (O₂/CO₂) ÷ 525 (Earth today 21/0.04) at 0.45,
- * a hard switch, so one build shows at a time (Woodward 1987; Sage 2004). */
-export const DENSE_P = 0.45;
+/** T9: dense ribs, pleats and gills from photorespiration index P = (O₂/CO₂) ÷ 525 (Earth today 21/0.04) at 0.28,
+ * a hard switch, so one build shows at a time (Woodward 1987; Sage 2004). 0.28 [art] puts the design's demo beat on
+ * the default carbon seed: CO₂ 0.25% gives P 0.16 at 21% O₂ (sparse) and 0.30 at 40% (dense). */
+export const DENSE_P = 0.28;
 
 export interface WorldEnv {
   carbon: boolean; water: boolean; frozen: boolean;
