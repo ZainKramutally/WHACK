@@ -16,6 +16,7 @@ import {
   positionGeometry, normalGeometry, normalLocal,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
+import { crustRock } from './crustLook';
 import { LOOK_PALETTES, lookPalette, type LookKey, type LookPalette } from './palette';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -357,7 +358,7 @@ export function currentLook(): LookPalette | null {
  * LOOK. `patch` is the terrain patch size in metres (default 400).
  */
 export function updateLook(inputs: VisualInputs, camera: THREE.Camera, dt: number, patch = 400): void {
-  const p = lookPalette(inputs);
+  const p = lookPalette(inputs, crustRock(inputs, camera.position.x, camera.position.z, dt) ?? undefined);
   lastPal = p;
   for (const k of Object.keys(p.base) as LookKey[]) {
     setHex(PAL[k], p.base[k]);
@@ -375,7 +376,10 @@ export function updateLook(inputs: VisualInputs, camera: THREE.Camera, dt: numbe
   LOOK.lightColor.value.setRGB(1.0 * _c.r * p.dim, 0.97 * _c.g * p.dim, 0.93 * _c.b * p.dim);
   LOOK.ambient.value = p.dim;
   LOOK.brightness.value = p.brightness;
-  LOOK.fgTint.value.set(...(p.kind === 'silicon' ? [0.16, 0.14, 0.34] : [0.32, 0.12, 0.2]) as [number, number, number]);
+  if (p.crust) {   // foreground multiplier toward the rock's deep tone
+    const m = p.base.maroon, ch = (s: number) => 0.08 + 0.7 * (((m >> s) & 255) / 255);
+    LOOK.fgTint.value.set(ch(16), ch(8), ch(0));
+  } else LOOK.fgTint.value.set(...(p.kind === 'silicon' ? [0.16, 0.14, 0.34] : [0.32, 0.12, 0.2]) as [number, number, number]);
 
   // patch-relative air. Reference: clear midground, fog from ~0.1 world, ranges at the world edge ~90% white.
   // Here the patch (400 m) is the world and the far plane (1000 m) closes it: fog starts at 0.12 patch,

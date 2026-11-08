@@ -9,6 +9,7 @@ import { Fn, vec3, vec4, mix, pow, smoothstep, normalize, positionWorld, cameraP
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { seaStyle } from './palette';
+import { crustSeaTint } from './crustLook';
 import { worldMaterial, LOOK, PAL } from './material';
 
 export interface SeaPart {
@@ -55,6 +56,7 @@ export function createSea(app: App): SeaPart {
   mesh.frustumCulled = false;
   app.scene.add(mesh);
 
+  const tint = new THREE.Color();
   let key = '';
   return {
     mesh,
@@ -70,7 +72,8 @@ export function createSea(app: App): SeaPart {
       const nitrogen = /nitrogen/i.test(inputs.world.solvent.name);
       // colours every frame (PAL follows the active world); material rebuild only when the depth-write mode changes
       // opacity follows seaStyle (liquid nitrogen clear, water translucent, ice opaque); colours from the palette roles
-      const s = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks);
+      const shallows = crustSeaTint(inputs);
+      const s = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks, shallows);
       const deep = uDeep.value as THREE.Color, sky = uSky.value as THREE.Color;
       if (inputs.frozen) {
         deep.copy(PAL.bone.value).lerp(PAL.haze.value, 0.35);
@@ -82,6 +85,7 @@ export function createSea(app: App): SeaPart {
         uAlpha.value = s.opacity; uAlphaGraze.value = Math.min(1, s.opacity + 0.45); uGlint.value = 0.6;
       } else {
         deep.copy(PAL.shadow.value).lerp(PAL.maroon.value, 0.3);
+        if (shallows !== undefined) deep.lerp(tint.setHex(shallows), 0.6);   // the seabed's shallows
         sky.copy(PAL.haze.value).lerp(PAL.skyHorizon.value, 0.4);
         // seaStyle's opacity (0.62) looking down, a gentle fresnel rise to 0.85 at grazing: founders in the shallows stay visible
         uAlpha.value = s.opacity; uAlphaGraze.value = Math.max(s.opacity, 0.85); uGlint.value = 1;

@@ -59,3 +59,78 @@ describe('mineralColour', () => {
     expect(mineralColour('basalt', 1)).not.toBe(mineralColour('basalt', 0));
   });
 });
+
+// ---- mineral look families ----------------------------------------------------------------------------------------
+import { LOCAL_TAU_SEC, LocalCrust, blendFamilies, crustFloraTint, crustRock, mineralFamily, MINERAL_LOOK, type CrustMix } from './crustLook';
+import { hexToLab, lookPalette, skyStyle } from './palette';
+
+const mixOf = (w: typeof carbon): CrustMix => {
+  const ms = w.terrain.crust!.minerals;
+  return { ids: ms.map((m) => m.id), oxidises: ms.map((m) => m.oxidises), shares: ms.map((m) => (m.share[0] + m.share[1]) / 2), elevation: ms.map((m) => m.elevation) };
+};
+const hueOf = (hex: number) => { const [, a, b] = hexToLab(hex); return { C: Math.hypot(a, b), h: (Math.atan2(b, a) * 180 / Math.PI + 360) % 360 }; };
+const isRed = (hex: number) => { const { C, h } = hueOf(hex); return C > 0.1 && (h < 50 || h > 350); };
+const inputsFor = (w: typeof carbon, oxygen: number, over: Partial<{ weights: number[] }> = {}) => {
+  const mix = mixOf(w);
+  return {
+    world: { id: w.id, rustOxygen: w.terrain.crust!.rustOxygen, composition: w.life.composition, starType: 'G-type', crust: mix } as never,
+    stats: { oxygen, pressure: 1, temperature: 15 }, buildProgress: 1, light: 1,
+    terrain: { crustWeights: over.weights ? () => over.weights! : undefined } as never,
+  };
+};
+
+describe('mineral look families', () => {
+  it('every mineral of both worlds has a family; oxidising ones have a rusted variant', () => {
+    for (const w of [carbon, silicon]) for (const m of w.terrain.crust!.minerals) {
+      expect(MINERAL_LOOK[m.id], m.id).toBeDefined();
+      if (m.oxidises) expect(MINERAL_LOOK[m.id].length, m.id).toBe(2);
+    }
+  });
+  it('blend weights sum to 1, whatever the input', () => {
+    const r = blendFamilies(mixOf(carbon), [3, 1, 0], 0);
+    expect(r.weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+    expect(r.seaWeights.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+    expect(blendFamilies(mixOf(carbon), [0, 0, 0], 0).weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+  });
+  it('carbon at rust 0 is not red; a fully rusted ironstone-dominant mix is', () => {
+    const fresh = crustRock(inputsFor(carbon, 0), 0, 0, 1)!;
+    expect(isRed(fresh.red)).toBe(false);
+    expect(isRed(fresh.redLight)).toBe(false);
+    const iron = { ...mixOf(carbon), shares: mixOf(carbon).ids.map((id) => (id === 'ironstone' ? 1 : 0)) };
+    expect(isRed(blendFamilies(iron, iron.shares, 1).family.red)).toBe(true);
+    expect(isRed(mineralFamily('basalt', true, 1).red)).toBe(true);   // rusted basalt joins the reds
+  });
+  it('local haze eases monotonically towards the target and never overshoots', () => {
+    const l = new LocalCrust();
+    l.step([1, 0, 0], 0.05);
+    let prev = 1;
+    for (let i = 0; i < 80; i++) { const d = Math.abs(l.step([0, 0, 1], 0.05)[0] - 0); expect(d).toBeLessThanOrEqual(prev + 1e-12); prev = d; }
+    expect(prev).toBeLessThan(0.07);   // ≈ 4 s in, ~2 s to 95%: tau
+    expect(LOCAL_TAU_SEC).toBeGreaterThan(0.3);
+  });
+  it('local haze leans towards the rock under the camera', () => {
+    const ids = mixOf(carbon).ids;
+    const at = (id: string) => crustRock(inputsFor(carbon, 0, { weights: ids.map((i) => (i === id ? 1 : 0)) }), 0, 0, 10)!.haze;
+    expect(at('basalt')).not.toBe(at('granite'));
+    expect(hexToLab(at('basalt'))[2]).toBeLessThan(hexToLab(at('ironstone'))[2]);   // cooler (bluer) than the ochre air
+  });
+  it('silicon flora and air stay cold; carbon flora tint is green', () => {
+    const si = inputsFor(silicon, 0);
+    const tint = crustFloraTint(si as never)!;
+    expect(tint.crimson & 255).toBeGreaterThan((tint.crimson >> 16) & 255);   // blue ≥ red
+    const rock = crustRock(si as never, 0, 0, 1)!;
+    expect(rock.skyHorizon & 255).toBeGreaterThanOrEqual((rock.skyHorizon >> 16) & 255);
+    expect(rock.haze & 255).toBeGreaterThanOrEqual((rock.haze >> 16) & 255);
+    const g = crustFloraTint(inputsFor(carbon, 21) as never)!;
+    expect((g.crimson >> 8) & 255).toBeGreaterThan((g.crimson >> 16) & 255);
+  });
+  it('star modulation still applies on top of the crust look', () => {
+    const i = inputsFor(carbon, 0) as never as Parameters<typeof lookPalette>[0] & Parameters<typeof crustRock>[0];
+    const rock = crustRock(i, 0, 0, 1)!;
+    const bright = lookPalette({ ...i, light: 1 }, rock), dim = lookPalette({ ...i, light: 0.015 }, rock);
+    expect(bright.crust).toBe(true);
+    expect(bright.base.red).toBe(rock.red);
+    expect(dim.red).not.toBe(bright.red);
+    expect(skyStyle('G-type', 1, 1, 15, { haze: rock.haze, horizon: rock.skyHorizon }).horizon).not.toBe(skyStyle('G-type', 1, 1, 15).horizon);
+  });
+});

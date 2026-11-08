@@ -111,10 +111,32 @@ function terrainMemo(sampler: TerrainSampler, state: TerrainState, minerals?: re
     sampler,
     patchSize: sampler.patchSize,
     state: copyValue(state),
-    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize, crust },
+    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize, crust,
+      crustWeights: sampler.crustWeights ? (x, z) => sampler.crustWeights!(x, z) : undefined },
     ground: new Float64Array(GRID * GRID).fill(NaN),
   };
   return memo;
+}
+
+/** The run's crust for the art layer: realised shares by argmax over the 64² cell centres (the same rule as gen/crust.ts crustMap). Built once per sampler and world. */
+const crustCache = new WeakMap<object, { worldId: string; crust: NonNullable<VisualInputs['world']['crust']> }>();
+function crustOf(world: WorldConfig, sampler: TerrainSampler): VisualInputs['world']['crust'] {
+  const minerals = world.terrain.crust?.minerals;
+  if (!minerals || !sampler.crustWeights) return undefined;
+  const hit = crustCache.get(sampler);
+  if (hit && hit.worldId === world.id) return hit.crust;
+  const S = sampler.patchSize, counts = new Array<number>(minerals.length).fill(0);
+  for (let row = 0; row < GRID; row++) {
+    for (let col = 0; col < GRID; col++) {
+      const w = sampler.crustWeights(((col + 0.5) / GRID - 0.5) * S, ((row + 0.5) / GRID - 0.5) * S);
+      let best = 0;
+      for (let i = 1; i < w.length; i++) if (w[i] > w[best]) best = i;
+      counts[best]++;
+    }
+  }
+  const crust = { ids: minerals.map((m) => m.id), oxidises: minerals.map((m) => m.oxidises), shares: counts.map((c) => c / (GRID * GRID)), elevation: minerals.map((m) => m.elevation) };
+  crustCache.set(sampler, { worldId: world.id, crust });
+  return crust;
 }
 
 /** True once any land cell (ground above sea level) has flora biomass. Grid is row-major, z outer, centred on the patch. */
@@ -169,6 +191,7 @@ export function buildVisualInputs(
       solvent: world.solvent,
       rustOxygen: world.terrain.crust?.rustOxygen,
       composition: world.life.composition,
+      crust: crustOf(world, terrain),
     },
     stats,
     seaLevel,

@@ -209,7 +209,9 @@ export interface BusEvents {
 
 /** Read-only inputs the art layer consumes each frame (CLAUDE.md "Logic → art interface"). */
 export interface VisualInputs {
-  world: Pick<WorldConfig, 'id' | 'status' | 'starType' | 'solvent'> & { composition: WorldConfig['life']['composition']; /** terrain.crust.rustOxygen: oxygen % at which oxidising rock is fully rusted (art layer only) */ rustOxygen?: number };
+  world: Pick<WorldConfig, 'id' | 'status' | 'starType' | 'solvent'> & { composition: WorldConfig['life']['composition']; /** terrain.crust.rustOxygen: oxygen % at which oxidising rock is fully rusted (art layer only) */ rustOxygen?: number;
+    /** Art layer only (optional): the run's crust, in terrain.crust.minerals order. `shares` are the realised patch shares (argmax of terrain.crustWeights over the 64² cell centres, as gen/crust.ts crustMap). Built once per terrain by visualInputs. */
+    crust?: { ids: string[]; oxidises: boolean[]; shares: number[]; elevation: number[] } };
   stats: Record<string, number>;
   seaLevel: number;
   frozen: boolean;
@@ -223,6 +225,8 @@ export interface VisualInputs {
     /** The crust map (gen/crust.ts): mineral weights at (x, z) in `minerals` (config) order, sum 1. Absent on a world without
      *  terrain.crust or on flat ground; the art layer then falls back to its height-rank proxy. Read-only. */
     crust?: { minerals: readonly Pick<MineralDef, 'id' | 'supply'>[]; weights: (x: number, z: number) => number[] };
+    /** The same weights as crust.weights, as a bare sampler (used by crustLook's local haze). Optional: absent on stubs and flat terrains. */
+    crustWeights?: (x: number, z: number) => number[];
   };
   organisms: Float32Array;
   births: SimSnapshot['births'];

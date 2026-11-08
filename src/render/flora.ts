@@ -13,7 +13,7 @@ import type { VisualInputs } from '../worlds/types';
 import { floraLibrary, paintSites, type Archetype, type FloraPalette, type FloraRole } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
-import { crustRatchet, floraPigment } from './crustLook';
+import { crustFloraTint, crustRatchet, floraPigment } from './crustLook';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
@@ -265,7 +265,7 @@ export function createFlora(app: App): FloraPart {
 
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes);
       const kindOfWorld = lookKind(inputs.world.composition);
-      const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress));
+      const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress), crustFloraTint(inputs));
       counts.fill(0);
       for (let i = 0; i < list.n; i++) {
         const look = bucketId(list.arch[i], list.lod[i], list.dark[i]);

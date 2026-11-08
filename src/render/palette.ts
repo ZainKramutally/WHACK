@@ -36,17 +36,21 @@ export interface SkyStyle {
   fogFarFrac: number;
 }
 
-export function skyStyle(starType: string, light: number, pressureBar: number, temperatureC: number): SkyStyle {
+/** Air colours from the rock under the world (crustLook.crustRock): replaces the fixed per-world haze and horizon. */
+export interface AirTint { haze: number; horizon: number }
+
+export function skyStyle(starType: string, light: number, pressureBar: number, temperatureC: number, air?: AirTint): SkyStyle {
   const L = Math.max(1e-4, light);
   const brightness = clamp01(Math.pow(L, 0.22));
   const cold = clamp01((15 - temperatureC) / 180);
   // Red World white sky, turning to the silicon violet-lilac as the world gets colder.
   const C = LOOK_PALETTES.carbon, S = LOOK_PALETTES.silicon;
-  const zenith = mixHex(C.skyZenith, S.skyZenith, cold);
-  const horizon = mixHex(C.skyHorizon, S.skyHorizon, cold);
+  const zenith0 = mixHex(C.skyZenith, S.skyZenith, cold);
+  const zenith = air ? labMix(zenith0, air.haze, 0.12) : zenith0;   // physical sky, only breathed on by the haze
+  const horizon = air ? air.horizon : mixHex(C.skyHorizon, S.skyHorizon, cold);
   // Thicker air hazes the horizon toward the lilac haze (log scale around 1 bar).
   const haze = clamp01(Math.log10(Math.max(0.05, pressureBar)) * 0.6);
-  const horizonHazed = mixHex(horizon, mixHex(C.haze, S.haze, cold), haze * 0.5);
+  const horizonHazed = mixHex(horizon, air ? air.haze : mixHex(C.haze, S.haze, cold), haze * 0.5);
   const dim = 0.12 + 0.88 * brightness;
   const k = Math.pow(dim, 1 / 2.2);   // dim is a linear-light factor; hex colours are sRGB
   return {
@@ -74,7 +78,7 @@ export interface SeaStyle {
 }
 
 /** Liquid or frozen, from the solvent: water is blue-teal, liquid nitrogen is clear and nearly colourless. */
-export function seaStyle(solventName: string, frozen: boolean, solidSinks: boolean): SeaStyle {
+export function seaStyle(solventName: string, frozen: boolean, solidSinks: boolean, shallows?: number): SeaStyle {
   const nitrogen = /nitrogen/i.test(solventName);
   if (frozen) {
     const colour = nitrogen ? 0xe4ecf2 : 0xdcf0f8;
@@ -84,7 +88,7 @@ export function seaStyle(solventName: string, frozen: boolean, solidSinks: boole
     return { colour: 0xd8eaf4, opacity: 0.16, roughness: 0.05, underwater: 0x6a8aa8, underwaterFar: 90, metalness: 0 };
   }
   void solidSinks;
-  return { colour: 0x2a86a0, opacity: 0.62, roughness: 0.08, underwater: 0x1b5f78, underwaterFar: 35, metalness: 0 };
+  return { colour: shallows ?? 0x2a86a0, opacity: 0.62, roughness: 0.08, underwater: shallows !== undefined ? scaleHex(shallows, 0.7) : 0x1b5f78, underwaterFar: 35, metalness: 0 };
 }
 
 /** Ground colour (Red World base ground): red on carbon, pale violet stone on silicon. Life is the plants' colour, so
@@ -129,11 +133,11 @@ export function shiftHue(hex: number, deg: number, dl = 0): number {
 // One accent per species, picked by `accent`: carbon a deep tone of the body (flips light on dark bodies), pale bone (Red
 // World maroon on light bodies), or a contrasting ring hue; silicon a pale ice (white, ice blue or lilac). It colours the pattern (bands or spots), fins,
 // crests and horns. Inputs come from the plan (or the species look attractor), never from a world id.
-type Lab = [number, number, number];
+export type Lab = [number, number, number];
 const toLin = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const toSrgb = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
 
-function hexToLab(hex: number): Lab {
+export function hexToLab(hex: number): Lab {
   const r = toLin(((hex >> 16) & 255) / 255), g = toLin(((hex >> 8) & 255) / 255), b = toLin((hex & 255) / 255);
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
@@ -146,7 +150,7 @@ function hexToLab(hex: number): Lab {
 }
 
 /** OKLab → hex. Out-of-gamut colours lose chroma (hue and lightness kept) until they fit. */
-function labToHex(L: number, A: number, B: number): number {
+export function labToHex(L: number, A: number, B: number): number {
   let r = 0, g = 0, b = 0;
   for (let k = 0; k < 10; k++) {
     const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
@@ -280,10 +284,21 @@ export function lookKind(comp: { si: number }): 'carbon' | 'silicon' {
   return comp.si > 0.5 ? 'silicon' : 'carbon';
 }
 
+/** The roles that mean rock or air; the crust look fills them. */
+export type RockLook = Pick<LookColours, 'redLight' | 'red' | 'crimson' | 'maroon' | 'shadow' | 'haze' | 'skyHorizon'>;
+
+/** Mix two hexes in OKLab (perceptual). */
+export function labMix(a: number, b: number, t: number): number {
+  const x = hexToLab(a), y = hexToLab(b);
+  return labToHex(lerp(x[0], y[0], t), lerp(x[1], y[1], t), lerp(x[2], y[2], t));
+}
+
 export interface LookPalette extends LookColours {
   /** The unmodulated palette (for vertex colours / colorNodes that go through worldMaterial). */
   base: LookColours;
   kind: 'carbon' | 'silicon';
+  /** True when the rock/air roles come from the crust (crustLook) rather than the fixed per-world palette. */
+  crust: boolean;
   /** skyStyle brightness, light^0.22. */
   brightness: number;
   /** Scene dimming 0.12..1 from brightness (as skyStyle). Lit and shadow terms are multiplied by it. */
@@ -308,9 +323,13 @@ function ratioHex(a: number, b: number): number {
  * relative to a G star. Carbon under a G star at light 1 is the reference palette exactly. Glow is emissive, so it is
  * never dimmed: on a dim world it dominates, which is honest (glow from darkness).
  */
-export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>): LookPalette {
+export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>, rock?: RockLook): LookPalette {
   const kind = lookKind(i.world.composition);
-  const base = LOOK_PALETTES[kind];
+  const fixed = LOOK_PALETTES[kind];
+  // With a crust look the rock-and-air roles follow the minerals; ink, bone, blush and the glows stay the world's own.
+  const base: LookColours = rock
+    ? { ...fixed, ...rock, skyZenith: labMix(fixed.skyZenith, rock.haze, 0.12) }
+    : fixed;
   const st = skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, i.stats.temperature ?? 15);
   const dim = 0.12 + 0.88 * st.brightness;
   const starTint = ratioHex(st.starColour, STAR_COLOUR.G);
@@ -322,7 +341,7 @@ export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>):
     const b = Math.round(((t & 255) * (starTint & 255)) / 255);
     return (r << 16) | (g << 8) | b;
   };
-  const out = { base, kind, brightness: st.brightness, dim, starTint, airHaze: clamp01(Math.log10(Math.max(0.05, i.stats.pressure ?? 1)) * 0.6) } as LookPalette;
+  const out = { base, kind, crust: !!rock, brightness: st.brightness, dim, starTint, airHaze: clamp01(Math.log10(Math.max(0.05, i.stats.pressure ?? 1)) * 0.6) } as LookPalette;
   for (const k of Object.keys(base) as LookKey[]) out[k] = k === 'glow' || k === 'glowDeep' ? base[k] : tint(base[k]);
   return out;
 }
