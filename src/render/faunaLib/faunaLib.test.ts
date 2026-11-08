@@ -3,7 +3,7 @@ import { develop, type DevelopInputs } from '../../sim/develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from '../../sim/genome';
 import { OrganismField, geneField } from '../../sim/organismLayout';
 import { BEAD_EYE, BEAD_PLATE, beadLayout } from '../creatureLayout';
-import { PART, bellSphere, describe as describeFauna, pickBounds } from './adapter';
+import { PART, bellSphere, describe as describeFauna, pickBounds, spineCount } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
 import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
@@ -181,6 +181,17 @@ describe('loft writer', () => {
 });
 
 describe('fauna adapter', () => {
+  it('a swimmer’s upright tail fin sits on the body axis and is no taller than the body (owner bug: far fish spiking up)', () => {
+    for (const body of [{ size: 0.4, segments: 0.2, buoy: 0.6 }, { size: 0.3, segments: 0.5, buoy: 0.8 }]) {
+      const p = { ...develop(genome(body), day, water), tailKind: 'fluke' as const, tailSegments: 1 };
+      const lay = beadLayout(p), N = spineCount(p), spine = lay.beads.slice(0, N);
+      const top = (b: (typeof spine)[number]) => b.y + b.r * (b.sy ?? 1);
+      const trunkTop = Math.max(...spine.slice(1).map(top)), fin = spine[0], next = spine[1];
+      expect(top(fin), 'fin top vs body top').toBeLessThanOrEqual(1.25 * trunkTop);
+      expect(Math.abs(fin.y - next.y), 'fin centred on the axis').toBeLessThan(0.15 * next.r);
+    }
+  });
+
   it('silicon walkers build angular: faceted hex segments, silicon parts only, shell tiles by shellCover; carbon unchanged', () => {
     const plan = develop(genome({ size: 0.4, segments: 0.7, limbPairs: 0.3, limbLen: 0.5, plates: 0.6, horns: 0.6, eyes: 0.5 }, true), day, water);
     expect([plan.chemistry, plan.architecture, plan.limbKind]).toEqual(['silicon', 'axial', 'leg']);

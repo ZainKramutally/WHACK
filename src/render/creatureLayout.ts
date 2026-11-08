@@ -156,8 +156,10 @@ function axialLayout(plan: BodyPlan): BeadLayout {
       tailBeads.push({ r: rTail * (0.12 + 0.5 * f * f), sx: 1.8, sy: 1, sz: 1, tone: BEAD_BODY });
     }
   } else if (plan.tailKind === 'fluke') {
-    // an upright caudal fin (thin across, tall), as the near LOD's lunate tail (faunaLib/aquatic), not a flat pad
-    tailBeads.push({ r: rTail * 1.35, sx: 0.45, sy: 2.4, sz: 0.22, tone: BEAD_ACCENT });
+    // an upright caudal fin (thin across), as the near LOD's lunate tail (faunaLib/aquatic), not a flat pad. Its height
+    // is about the tail's depth and it is centred on the body axis (spine loop below): sy 2.4 standing on the ground
+    // made far fish carry a fin taller than they are long, spiking out of shallow water.
+    tailBeads.push({ r: rTail * 1.35, sx: 0.45, sy: 0.85, sz: 0.22, tone: BEAD_ACCENT });
     for (let k = 1; k < tail; k++) tailBeads.push({ r: rTail * 0.55, sx: 1, sy: 1, sz: 1, tone: BEAD_BODY });
   } else if (plan.tailKind === 'club') {
     tailBeads.push({ r: rTail * 1.35, sx: 1, sy: 1, sz: 1, tone: BEAD_PLATE });
@@ -179,7 +181,10 @@ function axialLayout(plan: BodyPlan): BeadLayout {
     const sx = isTail ? tailBeads[j].sx : Math.max(1, 0.62 * s / Math.max(r, 1e-6));
     const sy = isTail ? tailBeads[j].sy : flatten;
     const sz = isTail ? tailBeads[j].sz : 1 + 0.25 * (1 - flatten);
-    spine.push({ x: hx, z: 0, r, yaw: 0, sx, sy, sz, y: nLegs > 0 ? lift : r * sy });
+    // legless beads rest on the ground (y = r·sy); a fluke's fin is centred on its neighbour's axis instead
+    const finAxis = plan.tailKind === 'fluke' && j === 0
+      ? (tailBeads.length > 1 ? tailBeads[1].r * tailBeads[1].sy : trunkR[0] * flatten) : -1;
+    spine.push({ x: hx, z: 0, r, yaw: 0, sx, sy, sz, y: nLegs > 0 ? lift : finAxis >= 0 ? finAxis : r * sy });
     hx += s;
   }
   // Centre the chain on the origin and rotate so the head faces +x.

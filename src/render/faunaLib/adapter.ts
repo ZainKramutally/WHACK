@@ -111,7 +111,7 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   for (let j = skipTip ? 1 : 0; j < N; j++) spine.push({ bead: j, slot: beads[j].tone === BEAD_ACCENT ? SLOT.accent : SLOT.body });
   // fluke: an upright two-lobed caudal fin of fin parts rooted on the tail tip and swept back, as the near LOD's lunate
   // tail (no flat pad). Chord back, span up or down, thickness flipped to keep each basis right-handed.
-  if (plan.tailKind === 'fluke') for (const up of [1, -1]) parts.push(part({ type: PART.fin, a: 0, slot: SLOT.accent, ox: 0.35, sx: -1.1, sy: 1.6 * up, sz: -0.4 * up }));
+  if (plan.tailKind === 'fluke') for (const up of [1, -1]) parts.push(part({ type: PART.fin, a: 0, slot: SLOT.accent, ox: 0.35, sx: -1.1, sy: 1.0 * up, sz: -0.4 * up }));
   if (plan.tailKind === 'club') parts.push(part({ type: KNOB, a: 0, slot: SLOT.accent, sx: 1.05, sy: 0.95, sz: 1.05 }));
   const mids = 2 * spine.length - 1 + 6 <= AX_RINGS ? 1 : 0;
 
