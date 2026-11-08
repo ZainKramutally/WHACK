@@ -19,7 +19,7 @@ export interface AttachedPlayer {
   /** Show the centre reticle (gamepad is the last-used input). */
   readonly reticleVisible: boolean;
   /** Move the player (e.g. to the spawn point once the ground is solid) and snap the camera. */
-  respawn(x: number, z: number): void;
+  respawn(x: number, z: number, fromCamera?: boolean): void;
   setVisible(v: boolean): void;
   /** Grow the character in from its feet: 0 hides it, 1 is full size (the spawn ramp). */
   setAppear(k: number): void;
@@ -97,10 +97,19 @@ export function attachPlayer(
         camera.updateProjectionMatrix();
       }
     },
-    respawn(x, z) {
+    respawn(x, z, fromCamera = false) {
+      // Hand-off from another camera (the Generate transition): read its pose before anything moves.
+      let pose: { p: { x: number; y: number; z: number }; aim: { x: number; y: number; z: number } } | null = null;
+      if (fromCamera) {
+        camera.updateMatrixWorld();
+        const dir = camera.getWorldDirection(new THREE.Vector3());
+        const p = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+        pose = { p, aim: { x: p.x + dir.x * 8, y: p.y + dir.y * 8, z: p.z + dir.z * 8 } };
+      }
       player.teleport(x, z);
       camTarget.y = s.y;
-      follow.snap(camTarget, s.mode === 'swim');
+      if (pose) follow.setFromPose(pose.p, pose.aim, camTarget, s.mode === 'swim');
+      else follow.snap(camTarget, s.mode === 'swim');
     },
     setVisible(v) {
       character.root.visible = v;

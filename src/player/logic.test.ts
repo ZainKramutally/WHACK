@@ -261,3 +261,19 @@ describe('jumping', () => {
     expect(p.state.y).toBe(0);
   });
 });
+
+describe('poseToOrbit', () => {
+  it('recovers yaw, pitch and distance of a pose', async () => {
+    const { poseToOrbit } = await import('./camera');
+    const yaw = 0.7, pitch = 0.4, d = 20;
+    const f = { x: 5, y: 3, z: -2 };
+    const pos = { x: f.x + Math.sin(yaw) * Math.cos(pitch) * d, y: f.y + Math.sin(pitch) * d, z: f.z + Math.cos(yaw) * Math.cos(pitch) * d };
+    const o = poseToOrbit(pos, f, [1.2, 150], [-1.55, 1.55]);
+    expect(o.yaw).toBeCloseTo(yaw); expect(o.pitch).toBeCloseTo(pitch); expect(o.dist).toBeCloseTo(d);
+  });
+  it('clamps distance and pitch', async () => {
+    const { poseToOrbit } = await import('./camera');
+    expect(poseToOrbit({ x: 0, y: 500, z: 0 }, { x: 0, y: 0, z: 0 }, [1.2, 150], [-1.55, 1.55])).toMatchObject({ dist: 150, pitch: 1.55 });
+    expect(poseToOrbit({ x: 0.1, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, [1.2, 150], [-1.55, 1.55]).dist).toBe(1.2);
+  });
+});

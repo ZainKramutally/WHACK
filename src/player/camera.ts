@@ -28,6 +28,27 @@ export const DEFAULT_CAMERA_TUNING: CameraTuning = {
   zoomRange: [1.2, 150],
 };
 
+/**
+ * Orbit parameters (yaw, pitch, distance) that put the follow camera exactly at `pos` while it looks at `focus`
+ * (the character's look point). Distance and pitch are clamped into the zoom and pitch ranges. Pure.
+ */
+export function poseToOrbit(
+  pos: { x: number; y: number; z: number }, focus: { x: number; y: number; z: number },
+  zoomRange: [number, number], pitchRange: [number, number],
+): { yaw: number; pitch: number; dist: number } {
+  const dx = pos.x - focus.x, dy = pos.y - focus.y, dz = pos.z - focus.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < 1e-6) return { yaw: 0, pitch: 0.35, dist: clamp(DEFAULT_CAMERA_TUNING.distance, zoomRange[0], zoomRange[1]) };
+  return {
+    yaw: Math.atan2(dx, dz),
+    pitch: clamp(Math.asin(clamp(dy / len, -1, 1)), pitchRange[0], pitchRange[1]),
+    dist: clamp(len, zoomRange[0], zoomRange[1]),
+  };
+}
+
+/** Seconds over which the look point eases from the hand-off aim to the character. */
+const LOOK_EASE = 0.5;
+
 export interface CameraEnv {
   /** Height the camera must stay above at (x, z): terrain, or the ice on a frozen sea. */
   floorAt(x: number, z: number): number;
@@ -43,6 +64,12 @@ export interface FollowCamera {
   zoom(logDelta: number): void;
   update(dt: number, target: { x: number; y: number; z: number }, swimming: boolean): void;
   snap(target: { x: number; y: number; z: number }, swimming: boolean): void;
+  /**
+   * Hand-off from another camera: start exactly at `position` looking at `aim`, with yaw, pitch and zoom derived from
+   * that pose relative to `target`, so the first frame matches the last one. The look point then eases from `aim` to
+   * the character over about 0.5 s. Spring velocities are zeroed; the zoom stays until the player changes it.
+   */
+  setFromPose(position: { x: number; y: number; z: number }, aim: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, swimming: boolean): void;
 }
 
 export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning> = {}): FollowCamera {
@@ -70,6 +97,8 @@ export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning>
   }
 
   let lastSwim = false;
+  let lookT = LOOK_EASE;
+  const lookFrom = { x: 0, y: 0, z: 0 };
   const cam: FollowCamera = {
     yaw: 0,
     pitch: 0.35,
@@ -97,9 +126,18 @@ export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning>
       [p.y, vel.y] = smoothDamp(p.y, d.pos.y, vel.y, st, dt);
       [p.z, vel.z] = smoothDamp(p.z, d.pos.z, vel.z, st, dt);
       const l = cam.lookAt;
-      [l.x, lookVel.x] = smoothDamp(l.x, d.look.x, lookVel.x, t.lookSmoothTime, dt);
-      [l.y, lookVel.y] = smoothDamp(l.y, d.look.y, lookVel.y, t.lookSmoothTime, dt);
-      [l.z, lookVel.z] = smoothDamp(l.z, d.look.z, lookVel.z, t.lookSmoothTime, dt);
+      if (lookT < LOOK_EASE) {
+        lookT += dt;
+        const u = clamp(lookT / LOOK_EASE, 0, 1), k = u * u * (3 - 2 * u);
+        l.x = lookFrom.x + (d.look.x - lookFrom.x) * k;
+        l.y = lookFrom.y + (d.look.y - lookFrom.y) * k;
+        l.z = lookFrom.z + (d.look.z - lookFrom.z) * k;
+        lookVel.x = lookVel.y = lookVel.z = 0;
+      } else [l.x, lookVel.x] = smoothDamp(l.x, d.look.x, lookVel.x, t.lookSmoothTime, dt);
+      if (lookT >= LOOK_EASE) {
+        [l.y, lookVel.y] = smoothDamp(l.y, d.look.y, lookVel.y, t.lookSmoothTime, dt);
+        [l.z, lookVel.z] = smoothDamp(l.z, d.look.z, lookVel.z, t.lookSmoothTime, dt);
+      }
       // Never below the ground. Applied after the spring so the clamp is exact, and the spring state follows it.
       const minY = env.floorAt(p.x, p.z) + t.minClearance;
       if (p.y < minY) {
@@ -110,7 +148,21 @@ export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning>
         vel.y = Math.max(0, vel.y);
       }
     },
+    setFromPose(position, aim, target, swimming) {
+      lastSwim = swimming;
+      const focus = { x: target.x, y: target.y + t.targetHeight, z: target.z };
+      const o = poseToOrbit(position, focus, t.zoomRange, swimming ? t.swimPitch : t.walkPitch);
+      cam.yaw = o.yaw; cam.pitch = o.pitch;
+      dist = o.dist; distVel = 0;
+      if (swimming) swimTarget = o.dist; else walkTarget = o.dist;
+      Object.assign(cam.position, position);
+      Object.assign(cam.lookAt, aim);
+      Object.assign(lookFrom, aim);
+      lookT = 0;
+      vel.x = vel.y = vel.z = lookVel.x = lookVel.y = lookVel.z = 0;
+    },
     snap(target, swimming) {
+      lookT = LOOK_EASE;
       lastSwim = swimming;
       dist = swimming ? swimTarget : walkTarget;
       distVel = 0;

@@ -163,6 +163,7 @@ async function start(
   });
 
   // The Generate transition (before the player's hook: it drives the camera until the character spawns, then lets go).
+  const transitioned = !!handle && 'relics' in terrain;
   if (handle && 'relics' in terrain) {
     gen.start({
       worldId, requested, seed, terrain, handle, crust,
@@ -227,7 +228,7 @@ async function start(
     if (!spawned) {
       if (!latest || latest.timeSec < world.build.spawnSec) return;
       const p = spawnFor(terrain, latest, world);
-      player.respawn(p.x, p.z);
+      player.respawn(p.x, p.z, transitioned);
       view.setSpawn(p.x, p.z);
       appear = 0;
       player.setAppear(0);
