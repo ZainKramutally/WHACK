@@ -57,6 +57,17 @@ describe('body plan wire format', () => {
     });
   }
 
+  it('round-trips a silicon bilateral armoured walker with its shell coverage (v4)', () => {
+    const walker = { ...silicon, body: { ...silicon.body, segments: 0.8, limbPairs: 0.3, plates: 0.7, limbLen: 0.5 } };
+    const plan = develop(walker, cond, water);
+    expect([plan.chemistry, plan.architecture, plan.legPairs, plan.limbKind]).toEqual(['silicon', 'axial', 1, 'leg']);
+    expect(plan.shellCover).toBeGreaterThan(0.5);
+    const back = unpackBodyPlan(packBodyPlan(plan));
+    expect(back.shellCover).toBeCloseTo(plan.shellCover, 5);
+    expect(back.architecture).toBe('axial');
+    expect(unpackBodyPlan(packBodyPlan(develop(silicon, cond, water))).shellCover).toBe(0);
+  });
+
   it('carries the architecture: axial carbon has no arms or tiers, radial silicon has them all', () => {
     const c = unpackBodyPlan(packBodyPlan(develop(carbon, cond, water)));
     expect([c.architecture, c.symmetry, c.tiers, c.arms.length, c.tierRadii.length]).toEqual(['axial', 2, 0, 0, 0]);
