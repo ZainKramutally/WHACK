@@ -21,6 +21,7 @@ export const BOX_PAL = {
     silicide: ['#4A525C', '#8794A3', '#CDD8E4'],
     nitride: ['#9A9484', '#CFC8B2', '#F4EEDA'],
     waterIce: ['#A9C2DA', '#D8E8F6', '#FFFFFF'],
+    reducedLava: ['#1B1F24', '#3A424C', '#6A7684'],
     rock: ['#4A4A4A', '#808080', '#B8B8B8'],
   } as Record<string, string[]>,
   /** Where oxidising grains end up at full rust: basalt to rust red, silicide to grey-white silica. */
@@ -28,6 +29,7 @@ export const BOX_PAL = {
     basalt: ['#5A1E12', '#A8432A', '#D9694A'],
     ironstone: ['#6A2216', '#B8402A', '#D96A4E'],
     silicide: ['#B9B9B4', '#DCDCD6', '#F6F6F2'],
+    reducedLava: ['#8A9098', '#B4BAC2', '#E2E6EA'],
     rock: ['#6A3A2A', '#9A5A40', '#C98060'],
   } as Record<string, string[]>,
 };
@@ -54,10 +56,12 @@ const SILICON_SPRITE = ['..w..', '.w12.', 'w1210', '.110.', '..0..'];
 const ROCK_SPRITE = ['123', '220', '100'];
 /** Bed grain sprites (0 dark, 1 mid, 2 light); a few variants so the packed bed does not tile. */
 const GRAIN_SPRITES = [['120', '011', '100'], ['011', '121', '010'], ['210', '110', '001']];
-/** Basalt grains are small hexagons (columnar jointing, goehring2009); '.' is transparent. */
+/** Column-forming lava grains (basalt, reduced lava) are small hexagons (columnar jointing, goehring2009); '.' is transparent. */
 export const HEX_GRAIN_SPRITE = ['.121.', '12221', '12211', '.100.'];
-/** The sprite a bed grain draws: basalt gets the hexagon, every other mineral keeps its square variant. */
-export const grainSprite = (mineralId: string, variant: number): string[] => (mineralId === 'basalt' ? HEX_GRAIN_SPRITE : GRAIN_SPRITES[variant]);
+/** The sprite a bed grain draws: column-forming lava (see columnMinerals) gets the hexagon, every other mineral keeps its square variant. */
+export const grainSprite = (mineralId: string, variant: number, hexIds: ReadonlySet<string>): string[] => (hexIds.has(mineralId) ? HEX_GRAIN_SPRITE : GRAIN_SPRITES[variant]);
+/** Minerals the world's M7 (columns) machine is gated on: they cool into columns, so their grains are hexagons. */
+export const columnMinerals = (world: WorldConfig): ReadonlySet<string> => new Set(world.terrain.machines.filter((m) => m.id === 'M7').flatMap((m) => m.minerals ?? []));
 /** Bed geometry: grain size and rows in box pixels; BED_U is the same height in field units. */
 const GRAIN = 3, BED_ROWS = 4, BED_PX = GRAIN * BED_ROWS, BED_U = BED_PX / K;
 const BED_COLS = LO / GRAIN;
@@ -363,7 +367,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
         const base = BOX_PAL.crust[b.id] ?? BOX_PAL.crust.rock, rusted = BOX_PAL.crustRust[b.id] ?? BOX_PAL.crustRust.rock;
         bedPal[i] = base.map((h, q) => { const a = hexRgb(h), z = hexRgb(rusted[q]); return a.map((v, k) => v + (z[k] - v) * b.rust); });
       }
-      const ease = 1 - Math.exp(-lastDt * 6);
+      const hexIds = columnMinerals(world), ease = 1 - Math.exp(-lastDt * 6);
       for (let gi = 0; gi < grains.length; gi++) {
         const g = grains[gi];
         const col = gi % BED_COLS, row = Math.floor(gi / BED_COLS);
@@ -371,7 +375,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
         if (!g.cur) g.cur = tgt.map((c) => [...c]);
         else for (let i = 0; i < g.cur.length; i++) { const c = g.cur[i]; for (let k = 0; k < 3; k++) c[k] += (tgt[i][k] - c[k]) * ease; }
         const x0 = col * GRAIN, y0 = LO - BED_PX + row * GRAIN;
-        const sp = grainSprite(st.bed[bi].id, g.v), off = sp[0].length > GRAIN ? 1 : 0;   // basalt draws a 5-wide hex, centred on its 3-px cell
+        const sp = grainSprite(st.bed[bi].id, g.v, hexIds), off = sp[0].length > GRAIN ? 1 : 0;   // basalt draws a 5-wide hex, centred on its 3-px cell
         for (let i = 0; i < 3; i++) grainCols[i] = rgbHex(g.cur[i]);
         for (let r = 0; r < sp.length; r++) for (let c = 0; c < sp[r].length; c++) if (sp[r][c] !== '.') dot(x0 + c - off, y0 + r, grainCols[+sp[r][c]]);
       }
