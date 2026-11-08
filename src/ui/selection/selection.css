@@ -9,6 +9,7 @@
   --ink: #120D1C;
   --bone1: #A8957C; --bone2: #D8CBB4; --bone3: #EFE6D4; --bone4: #FFFAEE;
   --lethal: #B3260F;
+  --g1: #0F4A2A; --g2: #2E9E4A; --g3: #5FD36B; --g4: #C8F5B4;
   --c1: #7A1622; --c2: #D2332A; --c3: #FF6A3D; --c4: #FFB08A;
   --s1: #0B3A78; --s2: #1B8FD6; --s3: #3FE3F2; --s4: #BFF8FF;
   --o2: #BE1F86; --o3: #FF4FB0;
@@ -105,7 +106,7 @@ figcaption { font-size: 12px; line-height: 1.3; text-align: left; margin-top: 4p
 figcaption b { font-weight: 700; }
 
 /* Table 1: a horizontal carousel of element cards, snapping to each card */
-& { --cw: 300px; --u: 5px; --tile: 88px; --via-h: 31.2px; }
+& { --cw: 300px; --u: 4px; --tile: 88px; --via-h: 31.2px; }
 .carousel { position: relative; }
 .track {
   position: relative; display: flex; gap: 0; align-items: stretch; background: var(--bone2);
@@ -124,15 +125,15 @@ figcaption b { font-weight: 700; }
   display: flex; flex-direction: column; gap: 4px;
   padding: 8px 10px 8px;
   background: var(--bone4); border: 4px solid var(--bone1);
-  --ea: var(--c2); --eb: var(--c4);
-  margin-inline: -14px;
-  opacity: 0.5; transform: scale(0.7); transform-origin: center;
-  transition: transform 0.2s steps(4, end), opacity 0.2s steps(4, end);
+  --ea: var(--g2); --eb: var(--g4);
+  margin-inline: 8px;
+  opacity: 0.45;
+  transition: opacity 0.2s steps(4, end);
 }
 .ecard[data-fam="silicon"] { --ea: var(--s2); --eb: var(--s4); }
 .ecard.grey { --ea: #9C8F80; --eb: var(--bone3); color: #9C8F80; cursor: not-allowed; }
 .ecard.pick { cursor: pointer; }
-.ecard.focus { z-index: 1; opacity: 1; transform: none; border-color: var(--ink); background: var(--bone4); box-shadow: 6px 6px 0 var(--ink); }
+.ecard.focus { z-index: 1; opacity: 1; border-color: var(--ink); background: var(--bone4); box-shadow: 6px 6px 0 var(--ink); }
 .ecard.grey.focus { background: var(--bone3); border-color: #9C8F80; box-shadow: 6px 6px 0 #9C8F80; }
 .ecard.sel { border-color: var(--ink); }
 .ecard.flash { animation: flash 0.4s steps(2, end); }
@@ -140,12 +141,12 @@ figcaption b { font-weight: 700; }
 .eltile {
   position: relative; flex: none; box-sizing: border-box; width: var(--tile); height: var(--tile);
   border: 4px solid var(--ink); background: var(--eb); color: var(--ink);
-  display: grid; place-items: center; box-shadow: 3px 3px 0 var(--ink);
+  display: grid; place-items: center; box-shadow: 4px 4px 0 var(--ink);
 }
 .eltile i { position: absolute; top: 0; left: 3px; font: normal 14px/1 var(--mono); }
 .eltile b { font-size: calc(var(--tile) * 0.46); line-height: 1; font-weight: 700; padding-top: 6px; }
-.ecard.grey .eltile { border-color: #9C8F80; color: #7A6F63; box-shadow: 3px 3px 0 #9C8F80; }
-.motif { flex: none; width: calc(var(--u) * 26); height: calc(var(--u) * 24); image-rendering: pixelated; }
+.ecard.grey .eltile { border-color: #9C8F80; color: #7A6F63; box-shadow: 4px 4px 0 #9C8F80; }
+.motif { flex: none; width: calc(var(--u) * 26); height: calc(var(--u) * 24); image-rendering: pixelated; shape-rendering: crispEdges; }
 .motif .k { fill: var(--ink); }
 .motif .a { fill: var(--ea); }
 .motif .b { fill: var(--eb); }
@@ -322,7 +323,7 @@ figcaption b { font-weight: 700; }
   h2.sec { font-size: 21px; margin-bottom: 8px; }
   h2.sec small, figcaption, .footnotes p, .eqnote, .note, .reason { font-size: 14px; }
   .ctl-head { font-size: 17px; }
-  & { --cw: 340px; --u: 6px; --tile: 104px; --via-h: 33.6px; }
+  & { --cw: 340px; --u: 4px; --tile: 104px; --via-h: 33.6px; }
   .ename { font-size: 24px; }
   .ecard .via { font-size: 14px; }
   .ecard.grey .via { font-size: 13px; }
