@@ -55,6 +55,7 @@ export interface EcologyLedger {
   deepScale: number; // body length (m) a swimmer needs to feed in water deeper than the shallows (shallowMax); smaller swimmers feed only in the shallows
   meatAssim: number; // share of a kill's whole body (tissue + energy) a hunter keeps; 0 = use the plant transfer ε. Eating a whole animal is far more efficient than grazing a thin mat
   grazeReach: number; // metres of body length per extra cell of grazing radius (0 = grazers feed only in their own cell): big bodies feed over a footprint, so their intake does not saturate at one cell
+  growRate: number; // share of its body mass a juvenile converts from energy to body per ecology second (0 = born adult). Lets a large mutant be born small and grow
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
@@ -63,7 +64,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, cohesion: 1, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, cohesion: 1, intakeExp: 0.75,
 };
 
 export interface EcologyOptions {
@@ -90,6 +91,7 @@ const SLOT_RADIUS = 2; // implementation constant (DECISIONS §G.2 exempt): cell
 const SLOT_MARGIN = 0.25; // implementation constant (DECISIONS §G.2 exempt): a victim must have less than this share of the parent's energy per unit mass
 const DEEP_FLOOR = 0.3; // implementation constant (DECISIONS §G.2 exempt): the share of deep-water food the smallest swimmer can still use
 const DIGEST_FLOOR = 0.25; // implementation constant (DECISIONS §G.2 exempt): the share of a kill's assimilation a diet-0 animal keeps; a full carnivore keeps all of it
+const MATURE = 0.9; // implementation constant (DECISIONS §G.2 exempt): share of its adult mass an animal needs before it can bud
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -113,6 +115,7 @@ export class Ecology {
   readonly energy = new Float64Array(CAP);
   readonly age = new Float64Array(CAP);
   readonly struct = new Float64Array(CAP); // body matter M
+  readonly adult = new Float64Array(CAP); // the adult body matter this animal grows toward (struct < adult while it is a juvenile)
   readonly genome: AnimalGenome[] = new Array(CAP);
   readonly plan: BodyPlan[] = new Array(CAP);
   readonly mode = new Uint8Array(CAP); // locomotion mode at the last move
@@ -474,7 +477,7 @@ export class Ecology {
     const cy = (cell / GRID) | 0;
     const px = this.x[i];
     const py = this.y[i];
-    if (E > 2 * m) { this.act[i] = ACT.bud; return; }   // a satiated animal buds; with no free slot it displaces the weakest neighbour (bud())
+    if (E > 2 * m && m >= MATURE * this.adult[i]) { this.act[i] = ACT.bud; return; }   // a satiated animal buds; with no free slot it displaces the weakest neighbour (bud())
     const hungerFrac = clamp01(1 - E / (2 * m));
     const drive = 0.1 + hungerFrac * (1 + this.hunger);
     const sense = Math.min(1.5, L.senseBase + L.senseGain * (p.eyeArea / 1.5) * this.env.light);
@@ -718,6 +721,13 @@ export class Ecology {
       this.returnMatter(here, m + e, clamp01(p.plateCover));
       return;
     }
+    // juvenile growth: surplus energy becomes body until the adult mass is reached
+    if (m < this.adult[i] && this.energy[i] > m) {
+      const dm = Math.min(this.adult[i] - m, L.growRate * m * dt, this.energy[i] - m);
+      this.struct[i] += dm;
+      this.energy[i] -= dm;
+    }
+
     if (act === ACT.bud) { this.pendingBuds.push(i); this.act[i] = ACT.rest; } // one bud per decide window (act stays 'bud' for DECIDE_EVERY ticks otherwise)
   }
 
@@ -742,7 +752,7 @@ export class Ecology {
 
   // ---- R8: bud with mutation; R6: newborn plates thicken by INDUCE·Hunger·Afraid ---------------------------------
   private bud(p: number): void {
-    if (!this.alive[p] || this.energy[p] <= 2 * this.struct[p]) return;
+    if (!this.alive[p] || this.energy[p] <= 2 * this.struct[p] || this.struct[p] < MATURE * this.adult[p]) return;
     if (this.free.length === 0 && !this.displace(p)) return;
     const child = mutate(this.genome[p], this.rnd, this.rules, this.env.mutationSigma);
     this.spawn(child, this.x[p] + 0.3 * gaussian(this.rnd), this.y[p] + 0.3 * gaussian(this.rnd), this.gen[p] + 1, p, this.env);
@@ -803,7 +813,9 @@ export class Ecology {
         if (pool.length > 0) { const c = pool[Math.floor(this.rnd() * pool.length)]; px = (c % GRID) + this.rnd(); py = Math.floor(c / GRID) + this.rnd(); }
       }
     }
-    const M = Math.max(1e-6, plan.mass / this.L.massUnit);
+    const Madult = Math.max(1e-6, plan.mass / this.L.massUnit);
+    // A newborn is never larger than its parent (growRate > 0): a big mutant is born small and grows up on its own food.
+    const M = parent !== null && this.L.growRate > 0 ? Math.min(Madult, this.struct[parent]) : Madult;
     if (parent !== null) {
       if (this.energy[parent] < 1.5 * M) { this.free.push(slot); return false; }
       this.energy[parent] -= 1.5 * M;
@@ -815,6 +827,7 @@ export class Ecology {
     this.x[slot] = Math.min(GRID - 1e-6, Math.max(0, px));
     this.y[slot] = Math.min(GRID - 1e-6, Math.max(0, py));
     this.struct[slot] = M;
+    this.adult[slot] = Madult;
     this.energy[slot] = energyShare * M;
     this.age[slot] = 0;
     this.genome[slot] = genome;
