@@ -775,6 +775,7 @@ Speed is the point. Run the cheapest tier that answers the question.
 - **Test the terrain:** the CPU sampler matches the height formula; `seaLevel` gives the requested `seaCover`; spawn is within `shoreDistance` of the shore in both worlds at the default seeds; `rise` 0 is flat.
 - **Config checks as tests:** every stat, feedback, limit, build config and reasoning step has `sources` or `assumption: true`; speculative worlds have a `caveat`.
 - **Don't test** rendering, UI, the character controller or styling. Check them by hand.
+- **No browser tests (owner ruling, 2026-11-08):** don't launch Playwright, headless Chrome or `npm run smoke`, and don't take screenshots or measure fps. They used ~150% CPU. Verify with typecheck, build and related tests only; the owner checks visuals in his own browser.
 - **No test runs until the FINAL step of a task (owner ruling):** don't run `npx vitest run`, `vitest related` or any test with raised timeouts while iterating. Iterate with typecheck only. Run tests once, as the last step before reporting.
 - **Banned (owner ruling):** `npm test` (the full suite) and `npm run test:slow`. Run only `npx vitest related --run <files>`. Any test slower than 1 s goes behind `it.skipIf(!process.env.SLOW)` and isn't part of any tier. Fix the code, not the tests.
 
