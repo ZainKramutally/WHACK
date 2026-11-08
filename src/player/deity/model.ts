@@ -247,6 +247,7 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
     parts.forEach((g) => g.dispose());
     const antlers = blackMesh(merged);
     head.add(antlers);
+    antlers.userData.motion = 'sway';
     extras.push(antlers);
   } else if (variant === 'C') {
     // thin white halo (flat ring above the head) and one orbiting mote (a building block)
@@ -254,6 +255,7 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
     halo.rotation.x = Math.PI / 2;
     halo.position.y = R + 0.14;
     head.add(halo);
+    halo.userData.motion = 'sway';
     extras.push(halo);
     const orbit = new THREE.Group(); // pivot at the head centre: animation spins it
     const mote = whiteMesh(new THREE.BoxGeometry(0.075, 0.075, 0.075));
@@ -261,6 +263,7 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
     mote.rotation.set(0.5, 0.4, 0.2);
     orbit.add(mote);
     head.add(orbit);
+    orbit.userData.motion = 'orbit';
     extras.push(orbit);
   }
 

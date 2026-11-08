@@ -33,6 +33,11 @@ describe.each(DEITY_VARIANTS.map((v) => v.id))('deity variant %s', (id) => {
     while (p) { expect(p).not.toBe(rig.pelvis); p = p.parent; }
   });
 
+  it('tags extras with their motion', () => {
+    const want: Record<string, string[]> = { A: ['sway'], C: ['sway', 'orbit'] };
+    expect(rig.extras.map((e) => e.userData.motion)).toEqual(want[id] ?? []);
+  });
+
   it('disposes without throwing, with and without rim', () => {
     expect(() => rig.dispose()).not.toThrow();
     expect(() => buildDeity(id, { rim: true, voidMode: 'ink' }).dispose()).not.toThrow();
