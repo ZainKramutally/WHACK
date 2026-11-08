@@ -132,20 +132,26 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   const head = new THREE.Group();
   head.position.set(0, headRestY, 0);
   pose.add(head);
-  const visorRx = headR * 0.8, visorRy = headR * 0.6, visorRz = headR * 0.62, visorCz = -headR * 0.46;
-  const visor = new THREE.SphereGeometry(1, 40, 28);
+  // Visor: a big ink ellipsoid shell wrapped over ~80% of the helmet's front, just proud of the surface.
+  const visorRx = headR * 0.9, visorRy = headR * 0.74, visorRz = headR * 0.6, visorCz = -headR * 0.44, visorCy = headR * 0.04;
+  const visor = new THREE.SphereGeometry(1, 48, 32);
   visor.scale(visorRx, visorRy, visorRz);
-  visor.translate(0, headR * 0.02, visorCz);
+  visor.translate(0, visorCy, visorCz);
   head.add(new THREE.Mesh(keepG(merge([paint(new THREE.SphereGeometry(headR, 56, 40), SUIT), paint(visor, INK)])), suitMat));
+  head.userData.visor = { rx: visorRx, ry: visorRy, cy: visorCy };
 
+  // Eyes: big round white discs (each ~32% of the visor width), low-set and apart, tilted to the visor normal.
   const eyes: THREE.Object3D[] = [];
-  const eyeX = headR * 0.24, eyeY = headR * 0.04;
-  const eyeZ = visorCz - visorRz * Math.sqrt(Math.max(0.01, 1 - (eyeX / visorRx) ** 2 - ((eyeY - headR * 0.02) / visorRy) ** 2));
+  const eyeR = visorRx * 2 * 0.16, eyeX = visorRx * 0.42, eyeY = visorCy - visorRy * 0.16;
+  const sq = Math.sqrt(Math.max(0.01, 1 - (eyeX / visorRx) ** 2 - ((eyeY - visorCy) / visorRy) ** 2));
+  const eyeZ = visorCz - visorRz * sq;
   for (const s of [-1, 1]) {
-    const g = keepG(new THREE.SphereGeometry(headR * 0.115, 24, 16));
-    g.scale(1, 1, 0.3); // a round disc on the visor curve
+    const g = keepG(new THREE.SphereGeometry(eyeR, 28, 20));
+    g.scale(1, 1, 0.4); // a dome on the visor curve
     const e = new THREE.Mesh(g, eyeMat);
-    e.position.set(s * eyeX, eyeY, eyeZ + 0.002);
+    const n = new THREE.Vector3(s * eyeX / (visorRx * visorRx), (eyeY - visorCy) / (visorRy * visorRy), (eyeZ - visorCz) / (visorRz * visorRz)).normalize();
+    e.position.set(s * eyeX, eyeY, eyeZ).addScaledVector(n, -eyeR * 0.14);
+    e.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), n);
     head.add(e);
     eyes.push(e);
   }

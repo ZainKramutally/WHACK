@@ -73,6 +73,18 @@ describe('astronaut rig', () => {
     expect(new THREE.Vector3(0, 1, 0).applyMatrix4(fore.matrix).distanceTo(sh)).toBeCloseTo(armReach!, 2);
   });
 
+  it('keeps each eye (with gaze offset) inside the visor', () => {
+    const v = rig.head.userData.visor as { rx: number; ry: number; cy: number };
+    for (const e of rig.eyes) {
+      const r = (e as THREE.Mesh).geometry.boundingBox ?? ((e as THREE.Mesh).geometry.computeBoundingBox(), (e as THREE.Mesh).geometry.boundingBox!);
+      const er = r.max.x; // disc radius
+      const look = rig.dims.eyeLook;
+      expect((Math.abs(e.position.x) + er + look) / v.rx).toBeLessThan(1);
+      expect((Math.abs(e.position.y - v.cy) + er + look) / v.ry).toBeLessThan(1);
+      expect(er).toBeGreaterThan(0.25 * v.rx); // big eyes
+    }
+  });
+
   it('disposes without throwing', () => {
     expect(() => rig.dispose()).not.toThrow();
   });
