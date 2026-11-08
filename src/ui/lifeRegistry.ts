@@ -14,7 +14,7 @@ import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
 
 export interface FormInfo { name: string; type: FunctionalType; alive: number; repId: number }
-export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number }
+export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number; /** How the announcing animal moved: only animals that move the same way take the name (a hoverer is not a "swimmer"). */ mode?: LocomotionMode }
 export interface Analysis {
   /** Animal id → species name. Animals matching no announced species have no entry. */
   nameOf: Map<number, string>;
@@ -48,6 +48,7 @@ export function assignSpecies(
     let best: Species | undefined;
     let bestD = MATCH_RADIUS;
     for (const sp of ordered) {
+      if (sp.mode !== undefined && sp.mode !== r.mode) continue;
       const d = centroidDistance(c, sp.centroid);
       if (d <= bestD && (!best || d < bestD)) { best = sp; bestD = d; }
     }
@@ -115,7 +116,7 @@ export function mountLifeRegistry(bus: UiBus) {
           if (r.id !== p.organismId) continue;
           if (!species.some((sp) => sp.binId === p.binId)) {
             const centroid = genomeCentroid({ body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage });
-            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId });
+            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId, mode: r.mode });
             const plan = plans.get(p.organismId);
             bestiary.announce(p.name, functionalType(centroid, { mode: plan?.mode }).label, now, plan);
           }

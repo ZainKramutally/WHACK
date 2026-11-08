@@ -3,17 +3,17 @@ import { createBus } from '../bus';
 import { makeFounders, type AnimalGenome } from '../sim/genome';
 import { ORGANISM_STRIDE, packOrganism, type OrganismRecord } from '../sim/organismLayout';
 import { PLAN_FIELDS, PLAN_LENGTH, PLAN_VERSION } from '../sim/plan';
-import { LOCOMOTION } from '../sim/develop';
+import { LOCOMOTION, type LocomotionMode } from '../sim/develop';
 import { organismRows } from './lifeText';
 import { assignSpecies, mountLifeRegistry, type Species } from './lifeRegistry';
 import { genomeCentroid } from '../sim/guide';
 import type { SimSnapshot } from '../worlds/types';
 
-function buffer(genomes: AnimalGenome[], producers = 0): Float32Array {
+function buffer(genomes: AnimalGenome[], producers = 0, modes: LocomotionMode[] = []): Float32Array {
   const buf = new Float32Array((genomes.length + producers) * ORGANISM_STRIDE);
   const rec = (g: AnimalGenome, i: number, role: number): OrganismRecord => ({
     x: 0.5, y: 0.5, role, size: 0.2, prefTemp: g.climate.prefTemp, tolerance: g.climate.tolerance, chem: g.climate.chem, energy: 0.5,
-    id: 100 + i, generation: 1, heading: 0, mode: 0, body: g.body, comp: g.comp, lineage: g.lineage,
+    id: 100 + i, generation: 1, heading: 0, mode: modes[i] ?? 0, body: g.body, comp: g.comp, lineage: g.lineage,
   });
   genomes.forEach((g, i) => packOrganism(buf, i, rec(g, i, 1)));
   for (let k = 0; k < producers; k++) packOrganism(buf, genomes.length + k, rec(genomes[0]!, 1000 + k, 0));
@@ -29,6 +29,23 @@ const speciesOf = (binId: number, name: string, g: AnimalGenome): Species => ({ 
 const newForm = (binId: number, name: string, organismId: number) => ({ binId, name, organismId });
 const snap = (t: number, buf: Float32Array, births: SimSnapshot['births'] = []) => ({ timeSec: t, organisms: buf, births } as SimSnapshot);
 const click = (bus: ReturnType<typeof createBus>, id: number) => bus.emit('inspect:open', { target: { kind: 'organism', organismId: id }, at: { x: 0, y: 0 } });
+
+describe('assignSpecies and locomotion', () => {
+  it('an animal never takes the name of a species that moves another way (a hoverer is not a "swimmer")', () => {
+    const swimmers = speciesOf(1, 'Short Mote Swimmer', worms[0]!);
+    const sp: Species[] = [{ ...swimmers, mode: LOCOMOTION.swim }];
+    const modes = worms.slice(0, 6).map((_, i) => (i < 3 ? LOCOMOTION.swim : LOCOMOTION.hover));
+    const a = assignSpecies(buffer(worms.slice(0, 6), 0, modes), sp);
+    expect([...a.nameOf.keys()].sort()).toEqual([100, 101, 102]);   // the three swimmers only
+    expect(a.forms.get('Short Mote Swimmer')!.alive).toBe(3);
+  });
+  it('a hoverer takes the nearest species that also hovers', () => {
+    const sp: Species[] = [{ ...speciesOf(1, 'Short Mote Swimmer', worms[0]!), mode: LOCOMOTION.swim }, { ...speciesOf(2, 'Mote Drifter', worms[0]!), mode: LOCOMOTION.hover }];
+    const a = assignSpecies(buffer(worms.slice(0, 2), 0, [LOCOMOTION.hover, LOCOMOTION.swim]), sp);
+    expect(a.nameOf.get(100)).toBe('Mote Drifter');
+    expect(a.nameOf.get(101)).toBe('Short Mote Swimmer');
+  });
+});
 
 describe('assignSpecies', () => {
   it('with no announced species nothing is named, even for a big tight cluster', () => {
