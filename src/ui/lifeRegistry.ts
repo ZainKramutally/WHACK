@@ -14,7 +14,7 @@ import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
 
 export interface FormInfo { name: string; type: FunctionalType; alive: number; repId: number }
-export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number; /** How the announcing animal moved: only animals that move the same way take the name (a hoverer is not a "swimmer"). */ mode?: LocomotionMode; /** Whether the announcing animal was bilateral (axial) rather than a radial silicon hub: a radial tripod and an armoured biped never share a name. */ axial?: boolean }
+export interface Species { binId: number; name: string; /** Binomial, e.g. "Carbopus velox". */ scientific?: string; centroid: FormCentroid; organismId?: number; /** How the announcing animal moved: only animals that move the same way take the name (a hoverer is not a "swimmer"). */ mode?: LocomotionMode; /** Whether the announcing animal was bilateral (axial) rather than a radial silicon hub: a radial tripod and an armoured biped never share a name. */ axial?: boolean }
 export interface Analysis {
   /** Animal id → species name. Animals matching no announced species have no entry. */
   nameOf: Map<number, string>;
@@ -84,7 +84,7 @@ export function mountLifeRegistry(bus: UiBus) {
   const plans = new Map<number, BodyPlan>();
   const bestiary = new Bestiary();
   const species: Species[] = [];
-  let pending: { binId: number; name: string; organismId: number; tries: number }[] = [];
+  let pending: { binId: number; name: string; scientific?: string; organismId: number; tries: number }[] = [];
   let analysis: Analysis = EMPTY_ANALYSIS;
   let organisms: Float32Array = new Float32Array(0);
   let prevOrganisms: Float32Array = new Float32Array(0);
@@ -121,9 +121,9 @@ export function mountLifeRegistry(bus: UiBus) {
           if (r.id !== p.organismId) continue;
           if (!species.some((sp) => sp.binId === p.binId)) {
             const centroid = genomeCentroid({ body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage });
-            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId, mode: r.mode, axial: axialOf(r) });
+            species.push({ binId: p.binId, name: p.name, scientific: p.scientific, centroid, organismId: p.organismId, mode: r.mode, axial: axialOf(r) });
             const plan = plans.get(p.organismId);
-            bestiary.announce(p.name, functionalType(centroid, { mode: plan?.mode }).label, now, plan);
+            bestiary.announce(p.name, functionalType(centroid, { mode: plan?.mode }).label, now, plan, p.scientific);
           }
           return false;
         }
@@ -188,10 +188,12 @@ export function mountLifeRegistry(bus: UiBus) {
      * Species of a live animal: the sim's name for it, or no name when it matches no announced species.
      * `recognised` once the player has found that species (clicking one of its animals does that). Undefined for ids that aren't live animals.
      */
-    formOf(id: number): { name?: string; recognised: boolean } | undefined {
+    formOf(id: number): { name?: string; scientific?: string; recognised: boolean } | undefined {
       if (!analysis.nameOf.has(id) && !isLiveAnimal(id)) return undefined;
       const name = analysis.nameOf.get(id);
-      return name === undefined ? { recognised: false } : { name, recognised: bestiary.get(name)?.found === true };
+      if (name === undefined) return { recognised: false };
+      const e = bestiary.get(name);
+      return { name, scientific: e?.found ? e.scientific : undefined, recognised: e?.found === true };
     },
     /** The bestiary: found and locked living kinds, and kinds that died out. */
     bestiary: () => bestiary,

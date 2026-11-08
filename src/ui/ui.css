@@ -190,6 +190,8 @@
 .wu-bt-extinct .wu-bt-sprite { filter: grayscale(1) contrast(.8) opacity(.6); }
 .wu-bt-sprite { width: 96px; height: 68px; image-rendering: pixelated; image-rendering: crisp-edges; }
 .wu-bt-name { font-weight: 600; }
+.wu-sci { font-style: italic; margin: 0; font-size: 0.9em; opacity: .8; }
+.wu-bt .wu-sci { display: block; }
 .wu-bt-q { margin-top: 10px; font-size: 34px; font-weight: 700; line-height: 1; }
 .wu-bt-alive { font-family: var(--wu-mono); font-size: 16px; }
 .wu-bt-stamp {

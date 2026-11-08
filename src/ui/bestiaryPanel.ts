@@ -45,6 +45,7 @@ export function mountBestiary(
   const page = el('aside', 'wu-card wu-specimen');
   page.hidden = true;
   const pageTitle = el('h2', 'wu-h');
+  const pageSci = el('p', 'wu-sci');
   const pageX = el('button', 'wu-x', '×');
   pageX.type = 'button';
   pageX.setAttribute('aria-label', 'Close');
@@ -55,7 +56,7 @@ export function mountBestiary(
   pageFrame.append(pageViewport);
   const pageRows = el('ul', 'wu-details');
   const pageNote = el('p', 'wu-why-line');
-  page.append(pageTitle, pageX, pageType, pageStatus, pageFrame, pageRows, pageNote);
+  page.append(pageTitle, pageSci, pageX, pageType, pageStatus, pageFrame, pageRows, pageNote);
   if (speculative) page.append(el('em', 'wu-tag wu-spec', 'speculative'));
   root.append(page);
 
@@ -85,6 +86,7 @@ export function mountBestiary(
     b.type = 'button';
     // Every announced kind shows its real name and sprite; only the stamp says whether the player has scanned it.
     b.append(spriteCanvas(e.plan), el('span', 'wu-bt-name', e.name));
+    if (e.scientific) b.append(el('span', 'wu-sci', e.scientific));
     if (st === 'extinct') b.append(el('span', 'wu-bt-stamp', 'Extinct'));
     else if (st === 'new') b.append(el('span', 'wu-bt-stamp wu-bt-stamp-new', 'New species'));
     else b.append(el('span', 'wu-bt-check', 'Scanned'));
@@ -115,6 +117,8 @@ export function mountBestiary(
     const e = pageName ? registry.bestiary().get(pageName) : undefined;
     if (!e) return;
     pageTitle.textContent = e.name;
+    pageSci.textContent = e.scientific ?? '';
+    pageSci.hidden = !e.scientific;
     pageType.textContent = e.type ? e.type[0]!.toUpperCase() + e.type.slice(1) : '';
     pageStatus.textContent = e.extinct ? `Extinct since ${clock(e.lastAliveSec)}` : `${e.alive} alive now`;
     pageStatus.classList.toggle('wu-bt-dead', e.extinct);

@@ -21,6 +21,8 @@ export interface KindSighting {
 
 export interface BestiaryEntry {
   name: string;
+  /** Binomial name (Genus epithet), shown in italics under the common name. */
+  scientific?: string;
   type: string;
   /** The player clicked a living animal of this kind. */
   found: boolean;
@@ -68,9 +70,9 @@ export class Bestiary {
   }
 
   /** The sim announced a species. Files it locked; a repeat announcement of the same name is ignored. */
-  announce(name: string, type: string, now: number, plan?: BodyPlan): boolean {
+  announce(name: string, type: string, now: number, plan?: BodyPlan, scientific?: string): boolean {
     if (this.kinds.has(name)) return false;
-    this.kinds.set(name, { name, type, found: false, firstSeenSec: now, alive: 0, peak: 0, extinct: false, lastAliveSec: now, plan });
+    this.kinds.set(name, { name, scientific, type, found: false, firstSeenSec: now, alive: 0, peak: 0, extinct: false, lastAliveSec: now, plan });
     return true;
   }
 
