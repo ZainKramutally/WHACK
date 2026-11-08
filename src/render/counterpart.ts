@@ -110,6 +110,11 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   const prism = (n: number) => { const g = new THREE.CylinderGeometry(1, 1, 1, n, 1); g.rotateY(Math.PI / 2); return g; };
   const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0), p3: prism(3), p4: prism(4), p5: prism(5), p6: prism(6), p8: prism(8) };
   const geo = <T extends THREE.BufferGeometry>(g: T): T => { disposables.push(g); return g; };
+  /** A mesh on shared geometry and material: on clear, release its render objects (r187 keeps them, with dispose
+   *  listeners on the shared geometry and material, until the object itself dispatches 'dispose'). */
+  const releaseOnClear = (m: THREE.Object3D) => {
+    disposables.push({ dispose: () => (m as unknown as THREE.EventDispatcher<{ dispose: object }>).dispatchEvent({ type: 'dispose' }) });
+  };
   // The world's look for creatures: the near-LOD loft (vertex colours) and sculpted parts (instance colours), in this
   // view's own standard materials (the world material's fog, bounce and foreground push are tuned for the world camera).
   const loftMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 0.55 });
@@ -355,6 +360,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       mesh.matrix.multiplyMatrices(toCard.makeTranslation(-cc.x, -p.ground, -cc.z), p.m); // around the cell, on the plate
       mesh.frustumCulled = false;
       group.add(mesh);
+      releaseOnClear(mesh);
       const e = mesh.matrix.elements;
       const sc = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
       reach = Math.max(reach, Math.hypot(e[12], e[14]) + a.radius * sc);
@@ -421,6 +427,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
         const plant = new THREE.Mesh(arch.lod[0].geometry, plantMat);
         plant.scale.setScalar(1e-3);
         turntable.add(plant);
+        releaseOnClear(plant);
       }
       beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], nBody: 2, limbs: [], stride: 0, radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
       backdropFor(other);
