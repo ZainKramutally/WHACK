@@ -23,6 +23,9 @@ export interface Analysis {
   dominant: FormInfo | null;
 }
 
+/** A live animal takes the name of the nearest announced species within this distance: a little wider than the sim's cluster radius, so the many animals in clusters too small to announce still read as a kin of a named species. */
+const MATCH_RADIUS = 1.8 * FORM_RADIUS;
+
 export const EMPTY_ANALYSIS: Analysis = { nameOf: new Map(), forms: new Map(), dominant: null };
 
 /**
@@ -43,7 +46,7 @@ export function assignSpecies(
     const genome = { body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage };
     const c = genomeCentroid(genome);
     let best: Species | undefined;
-    let bestD = FORM_RADIUS;
+    let bestD = MATCH_RADIUS;
     for (const sp of ordered) {
       const d = centroidDistance(c, sp.centroid);
       if (d <= bestD && (!best || d < bestD)) { best = sp; bestD = d; }

@@ -16,10 +16,10 @@ export function lengthWords(m: number): string {
   return m >= 1 ? `${m.toFixed(1)} m` : `${Math.max(1, Math.round(m * 100))} cm`;
 }
 
-export function movesWords(mode: LocomotionMode): string {
+export function movesWords(mode: LocomotionMode, radial = false): string {
   switch (mode) {
     case 0: return 'Walks on the ground';
-    case 1: return 'Swims';
+    case 1: return radial ? 'Rolls and tumbles through the liquid on its faceted hub' : 'Swims';
     case 2: return 'Floats and hovers in the air';
     default: return 'Stays rooted in one place';
   }
@@ -83,7 +83,7 @@ export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ct
   const rows: Rows = [];
   if (ctx.form) rows.push(['Form', ctx.form.name === undefined ? '(not yet a recognised species)' : ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
   rows.push(['Role', roleWords(roleOf(plan ? plan.diet : rec.body.diet))]);
-  rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode)]);
+  rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode, plan ? plan.architecture === 'radial' : ctx.chemistry === 'silicon')]);
   rows.push(...(plan ? planRows(plan) : geneRows(rec.body)));
   rows.push(['Size', `${rec.size.toFixed(2)} × typical`]);
   rows.push(['Preferred temperature', `${formatValue(rec.prefTemp, '°C')} ± ${rec.tolerance.toFixed(1)} °C`]);
@@ -122,6 +122,6 @@ export interface DominantInfo { name: string; alive: number; type: FunctionalTyp
 
 export function dominantRows(d: DominantInfo, plan: BodyPlan | undefined): Rows {
   const rows: Rows = [['Form', d.name], ['Alive now', String(d.alive)], ['Type', d.type.label]];
-  if (plan) rows.push(['Moves', movesWords(plan.mode)], ...planRows(plan));
+  if (plan) rows.push(['Moves', movesWords(plan.mode, plan.architecture === 'radial')], ...planRows(plan));
   return rows;
 }
