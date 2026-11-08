@@ -10,7 +10,8 @@ import type { BodyPlan } from '../sim/develop';
 import { floraBin, formForBin } from '../render/floraForm';
 import { heatBand } from '../render/visualInputs';
 import { crustMap, mineralAt, type CrustMap } from '../gen/crust';
-import { organismDescription, organismExplanations, organismRows, producerRows, speciesName } from './lifeText';
+import { organismDescription, organismExplanations, organismRows, organismTags, producerRows, speciesName } from './lifeText';
+import { HABITAT_LABEL, ROLE_LABEL, ROLE_TITLE, iconChip } from './cardIcons';
 import type { LifeRegistry } from './lifeRegistry';
 import type { InspectTarget, SimSnapshot, WorldConfig } from '../worlds/types';
 
@@ -43,6 +44,7 @@ export function mountInspectCard(
   const closeBtn = el('button', 'wu-x', '×');
   closeBtn.type = 'button';
   closeBtn.setAttribute('aria-label', 'Close');
+  const tags = el('div', 'wu-tags'); // diet and habitat icons (organisms only)
   const kind = el('p', 'wu-sub');
   const status = el('p', 'wu-status');
   const details = el('ul', 'wu-details');
@@ -55,7 +57,7 @@ export function mountInspectCard(
   const win = el('div', 'wu-window');
   const winLabel = el('p', 'wu-window-label');
   // The counterpart window sits near the top so it is visible without scrolling on a short screen.
-  card.append(title, closeBtn, kind, status, win, winLabel, details, whyP, whyTitle, whyList, whyNote, cmpTitle, table);
+  card.append(title, closeBtn, tags, kind, status, win, winLabel, details, whyP, whyTitle, whyList, whyNote, cmpTitle, table);
   root.append(card);
 
   let target: InspectTarget | null = null;
@@ -88,7 +90,7 @@ export function mountInspectCard(
       } else dead = true;
       if (lastForm?.recognised && lastForm.name) name = lastForm.name;
       if (lastRec) {
-        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
+        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', chemTrait: world.life.rules.chemTrait, form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
       }
     } else if (t.kind === 'producer') {
       const mat = s.flora[t.cell * 2] ?? 0;
@@ -162,10 +164,17 @@ export function mountInspectCard(
       : [];
     // Snapshots arrive at 20 Hz but the formatted text rarely changes: skip the DOM rebuild and layout when it is identical.
     const cmp = compareRows(target, last);
-    const sig = [name, description, dead ? 'D' : '', reason, target.kind, rows.join('|'), cmp.join('|'), explanations.map((x) => `${x.label}:${x.text}`).join('|')].join('\n');
+    const tag = isOrg && lastRec ? organismTags(lastRec, lastPlan) : null;
+    const tagSig = tag ? `${tag.role}/${tag.habitat}` : '';
+    const sig = [tagSig, name, description, dead ? 'D' : '', reason, target.kind, rows.join('|'), cmp.join('|'), explanations.map((x) => `${x.label}:${x.text}`).join('|')].join('\n');
     if (sig === lastSig) return;
     lastSig = sig;
     title.textContent = name;
+    tags.hidden = !tag;
+    tags.replaceChildren(...(tag ? [
+      iconChip(tag.role, ROLE_LABEL[tag.role], ROLE_TITLE[tag.role]),
+      iconChip(tag.habitat, HABITAT_LABEL[tag.habitat], `Lives on: ${HABITAT_LABEL[tag.habitat].toLowerCase()}`),
+    ] : []));
     kind.textContent = description;
     status.textContent = dead
       ? target.kind === 'organism' ? 'This one has died.' : 'Nothing is growing here now.'

@@ -4,7 +4,8 @@ import { makeFounders, type AnimalGenome } from '../sim/genome';
 import { ORGANISM_STRIDE, packOrganism, type OrganismRecord } from '../sim/organismLayout';
 import { PLAN_FIELDS, PLAN_LENGTH, PLAN_VERSION } from '../sim/plan';
 import { LOCOMOTION, type LocomotionMode } from '../sim/develop';
-import { organismRows } from './lifeText';
+import { organismRows, organismTags } from './lifeText';
+import { carbon } from '../worlds/carbon';
 import { assignSpecies, mountLifeRegistry, type Species } from './lifeRegistry';
 import { genomeCentroid } from '../sim/guide';
 import type { SimSnapshot } from '../worlds/types';
@@ -99,18 +100,17 @@ describe('assignSpecies', () => {
 });
 
 describe('creature card rows', () => {
-  it('the card says "Walks on the ground" when the plan mode is walk, whatever the buffer mode says', () => {
+  it('the card shows the land habitat when the plan mode is walk, whatever the buffer mode says', () => {
     const plan = { mode: LOCOMOTION.walk, diet: 0.1 } as Parameters<typeof organismRows>[1];
-    const rows = organismRows(
-      { ...({} as Parameters<typeof organismRows>[0]), size: 0.2, prefTemp: 15, tolerance: 5, chem: 0.5, energy: 0.5, generation: 1, mode: LOCOMOTION.swim, body: worms[0]!.body },
-      plan, { chemistry: 'carbon', form: { name: 'Soft Walker', recognised: true }, alive: true },
-    );
-    expect(rows.find(([k]) => k === 'Moves')![1]).toBe('Walks on the ground');
+    const r = { ...({} as Parameters<typeof organismRows>[0]), size: 0.2, prefTemp: 15, tolerance: 5, chem: 0.5, energy: 0.5, generation: 1, mode: LOCOMOTION.swim, body: worms[0]!.body };
+    const rows = organismRows(r, plan, { chemistry: 'carbon', chemTrait: carbon.life.rules.chemTrait, form: { name: 'Soft Walker', recognised: true }, alive: true });
+    expect(rows.find(([k]) => k === 'Form')![1]).toBe('Soft Walker');
+    expect(organismTags(r, plan).habitat).toBe('land');
   });
   it('an animal matching no announced species reads "(not yet a recognised species)"', () => {
     const rows = organismRows(
       { ...({} as Parameters<typeof organismRows>[0]), size: 0.2, prefTemp: 15, tolerance: 5, chem: 0.5, energy: 0.5, generation: 1, mode: 0, body: worms[0]!.body },
-      undefined, { chemistry: 'carbon', form: { recognised: false }, alive: true },
+      undefined, { chemistry: 'carbon', chemTrait: carbon.life.rules.chemTrait, form: { recognised: false }, alive: true },
     );
     expect(rows.find(([k]) => k === 'Form')![1]).toBe('(not yet a recognised species)');
   });

@@ -7,6 +7,8 @@ import type { BodyGenes } from '../sim/genome';
 import type { OrganismRecord } from '../sim/organismLayout';
 import type { FloraForm, FloraSpecies } from '../render/floraForm';
 import type { WorldConfig } from '../worlds/types';
+import type { LifeRules } from '../sim/population';
+import { habitatOf, type Habitat } from './cardIcons';
 import { formatValue } from './format';
 
 export type Rows = [string, string][];
@@ -83,6 +85,8 @@ export function geneRows(b: BodyGenes): Rows {
 
 export interface OrganismContext {
   chemistry: 'carbon' | 'silicon';
+  /** The world's chemistry trait (world.life.rules.chemTrait): every coefficient for the living-conditions rows comes from here. */
+  chemTrait: ChemTrait;
   /** Species this animal belongs to (the sim's announced name), and whether the player has found it. No name: it matches no announced species. */
   form?: { name?: string; recognised: boolean };
   /** Include live-only rows (energy). */
@@ -91,20 +95,53 @@ export interface OrganismContext {
   flight?: { stats: Record<string, number>; params: FlightParams; tissueRhoC: number };
 }
 
+type ChemTrait = LifeRules['chemTrait'];
+
+/**
+ * Temperature range the animal is comfortable in: preferred ± tolerance (one standard deviation of the sim's comfort curve,
+ * ecology.ts climateMatch). On silicon the warm side stretches by 1 / (1 − warmRelief × coldStability), as the sim shrinks warm-side stress.
+ */
+export function livingRange(prefTemp: number, tolerance: number, chem: number, ct: ChemTrait): [number, number] {
+  const warm = ct.kind === 'coldStability' ? tolerance / (1 - ct.warmRelief * chem) : tolerance;
+  return [prefTemp - tolerance, prefTemp + warm];
+}
+
+export function livingRangeText(lo: number, hi: number): string {
+  const f = (v: number) => v.toFixed(1).replace(/\.0$/, '').replace('-', '−');
+  return `${f(lo)} – ${f(hi)} °C`;
+}
+
+/**
+ * Least oxygen (%) the animal can live on, the larger of the sim's two oxygen rules (ecology.ts, step):
+ * - aerobic gain: food use is 1 − chem + chem·(1 + aerobicBonus)·O₂/(O₂ + halfSaturation), which beats the no-oxygen baseline from O₂ = halfSaturation / aerobicBonus (only when chem > 0);
+ * - size cap: stress appears when size > maxBodySize(O₂, diet) = (baseMaxSize + maxSizePerPercent·O₂) / (1 + huntPenalty·diet), i.e. below O₂ = ((1 + huntPenalty·diet)·size − baseMaxSize) / maxSizePerPercent.
+ * Null on a world with no oxygen trait (silicon).
+ */
+export function minOxygen(chem: number, size: number, diet: number, ct: ChemTrait): number | null {
+  if (ct.kind !== 'oxygenNeed') return null;
+  const aerobic = chem > 0 && ct.aerobicBonus > 0 ? ct.halfSaturation / ct.aerobicBonus : 0;
+  const cap = ct.maxSizePerPercent > 0 ? ((1 + (ct.huntPenalty ?? 0) * diet) * size - ct.baseMaxSize) / ct.maxSizePerPercent : 0;
+  return Math.max(0, aerobic, cap);
+}
+
+/** The icon chips' data: diet role and habitat. */
+export function organismTags(rec: OrganismRecord, plan: BodyPlan | undefined): { role: Role; habitat: Habitat } {
+  return { role: roleOf(plan ? plan.diet : rec.body.diet), habitat: habitatOf(plan ? plan.mode : rec.mode, rec.body.buoy) };
+}
+
 export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ctx: OrganismContext): Rows {
   const rows: Rows = [];
   if (ctx.form) rows.push(['Form', ctx.form.name === undefined ? '(not yet a recognised species)' : ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
-  rows.push(['Role', roleWords(roleOf(plan ? plan.diet : rec.body.diet))]);
-  rows.push(['Moves', movesWords(plan ? plan.mode : rec.mode, plan ? plan.architecture === 'radial' : ctx.chemistry === 'silicon', plan)]);
-  rows.push(...(plan ? planRows(plan) : geneRows(rec.body)));
+  const [lo, hi] = livingRange(rec.prefTemp, rec.tolerance, rec.chem, ctx.chemTrait);
+  rows.push(['Lives at', livingRangeText(lo, hi)]);
+  const o2 = minOxygen(rec.chem, rec.size, plan ? plan.diet : rec.body.diet, ctx.chemTrait);
+  if (o2 !== null) rows.push(['Needs', `≥ ${o2.toFixed(1)}% oxygen${rec.chem > 0 ? ` (${pct(rec.chem)} of its energy from oxygen)` : ''}`]);
+  if (plan) rows.push(['Length', lengthWords(plan.scale)]);
   if (plan && ctx.flight && plan.mode === 2 && (plan.liftSpan ?? 0) > 0) {
     const env = flightEnvFromStats(ctx.flight.stats);
     const h = flightCeiling({ mass: plan.mass, liftSpan: plan.liftSpan!, bodyDensity: plan.bodyDensity, chemistry: plan.chemistry }, env, ctx.flight.params, ctx.flight.tissueRhoC);
     rows.push(['Flight ceiling', h < 1 ? 'Cannot climb: weight beats lift here' : `Up to ${Math.round(h).toLocaleString('en-US')} m: the ceiling set by gravity (${env.gravity.toFixed(2)} g) and air density (${env.airKgM3.toFixed(1)} kg/m³)`]);
   }
-  rows.push(['Size', `${rec.size.toFixed(2)} × typical`]);
-  rows.push(['Preferred temperature', `${formatValue(rec.prefTemp, '°C')} ± ${rec.tolerance.toFixed(1)} °C`]);
-  rows.push([ctx.chemistry === 'silicon' ? 'Cold stability' : 'Oxygen need', pct(rec.chem)]);
   rows.push(['Generation', String(rec.generation)]);
   if (ctx.alive) rows.push(['Energy', rec.energy >= 1 ? 'Ready to copy itself' : `${pct(rec.energy)} of the way to copying`]);
   return rows;

@@ -3,7 +3,11 @@ import { LOCOMOTION, develop, type DevelopInputs } from '../sim/develop';
 import { makeFounders } from '../sim/genome';
 import type { BodyPlan } from '../sim/develop';
 import type { OrganismRecord } from '../sim/organismLayout';
-import { biomassWords, dominantRows, geneRows, lengthWords, movesWords, organismRows, planRows, producerRows, roleWords } from './lifeText';
+import { biomassWords, dominantRows, geneRows, lengthWords, livingRange, livingRangeText, minOxygen, movesWords, organismRows, organismTags, planRows, producerRows, roleWords } from './lifeText';
+import { bitmapPath, habitatOf } from './cardIcons';
+import { maxBodySize } from '../sim/population';
+import { carbon } from '../worlds/carbon';
+import { silicon } from '../worlds/silicon';
 
 function plan(over: Partial<BodyPlan> = {}): BodyPlan {
   return {
@@ -92,29 +96,71 @@ describe('words', () => {
 });
 
 describe('organismRows', () => {
-  const ctx = { chemistry: 'carbon' as const, form: { name: 'Soft Walker', recognised: true }, alive: true };
-  it('puts form, role and moves first, then body, climate and generation', () => {
+  const ct = carbon.life.rules.chemTrait;
+  if (ct.kind !== 'oxygenNeed') throw new Error('carbon must use the oxygen trait');
+  const ctx = { chemistry: 'carbon' as const, chemTrait: ct, form: { name: 'Soft Walker', recognised: true }, alive: true };
+  it('lists form, living conditions, length, generation: no visible-body rows, no role or moves', () => {
     const r = organismRows(rec(), plan(), ctx);
-    expect(r.slice(0, 3)).toEqual([['Form', 'Soft Walker'], ['Role', 'Grazer (eats plants)'], ['Moves', 'Walks on the ground']]);
-    expect(get(r, 'Oxygen need')).toBe('64%');
-    expect(get(r, 'Preferred temperature')).toBe('16.3 °C ± 7.4 °C');
+    expect(r.map(([k]) => k)).toEqual(['Form', 'Lives at', 'Needs', 'Length', 'Generation', 'Energy']);
+    expect(get(r, 'Form')).toBe('Soft Walker');
+    expect(get(r, 'Lives at')).toBe('8.9 – 23.7 °C');
+    expect(get(r, 'Needs')).toMatch(/^≥ [\d.]+% oxygen \(64% of its energy from oxygen\)$/);
+    expect(get(r, 'Length')).toBe('40 cm');
     expect(get(r, 'Generation')).toBe('11');
     expect(get(r, 'Energy')).toBe('94% of the way to copying');
   });
-  it('labels silicon cold stability, unrecognised forms, and drops energy when dead', () => {
-    const r = organismRows(rec({ chem: 0.33, energy: 1 }), plan({ diet: 0.9, mode: LOCOMOTION.hover }), { chemistry: 'silicon', form: { name: 'Glass Strider', recognised: false }, alive: false });
-    expect(get(r, 'Cold stability')).toBe('33%');
+  it('silicon: no oxygen row; warm edge stretched by cold stability; drops energy when dead', () => {
+    const si = silicon.life.rules.chemTrait;
+    const r = organismRows(rec({ chem: 0.5, prefTemp: -183, tolerance: 4, energy: 1 }), plan({ diet: 0.9, mode: LOCOMOTION.hover }), { chemistry: 'silicon', chemTrait: si, form: { name: 'Glass Strider', recognised: false }, alive: false });
     expect(get(r, 'Form')).toBe('Glass Strider (not yet a common form)');
-    expect(get(r, 'Role')).toMatch(/^Hunter/);
-    expect(get(r, 'Moves')).toBe('Floats and hovers in the air');
+    expect(get(r, 'Needs')).toBeUndefined();
     expect(get(r, 'Energy')).toBeUndefined();
+    const [lo, hi] = livingRange(-183, 4, 0.5, si);
+    expect(lo).toBe(-187);
+    expect(hi).toBeCloseTo(-183 + 4 / (1 - (si.kind === 'coldStability' ? si.warmRelief : 0) * 0.5), 9);
+    expect(hi).toBeGreaterThan(-179);
+    expect(get(r, 'Lives at')).toBe(livingRangeText(lo, hi));
   });
-  it('falls back to genes when the body plan was not captured', () => {
+  it('without a body plan it still gives conditions and generation', () => {
     const r = organismRows(rec({ mode: 1 }), undefined, { ...ctx, form: undefined });
-    expect(get(r, 'Form')).toBeUndefined();
-    expect(get(r, 'Body')).toMatch(/not captured/);
-    expect(get(r, 'Moves')).toBe('Swims');
+    expect(r.map(([k]) => k)).toEqual(['Lives at', 'Needs', 'Generation', 'Energy']);
     expect(geneRows(rec().body)).toHaveLength(1);
+  });
+});
+
+describe('livingRange and minOxygen', () => {
+  it('formats the carbon range as preferred ± tolerance', () => {
+    expect(livingRange(14.5, 6.9, 0.5, carbon.life.rules.chemTrait)).toEqual([7.6, 21.4].map((v) => expect.closeTo(v, 9)));
+    expect(livingRangeText(7.6, 21.4)).toBe('7.6 – 21.4 °C');
+    expect(livingRangeText(-190, -170)).toBe('−190 – −170 °C');
+  });
+  const ct = { kind: 'oxygenNeed' as const, halfSaturation: 8, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1, huntPenalty: 1 };
+  it('is the larger of the aerobic break-even and the size-cap threshold, from config', () => {
+    expect(minOxygen(0.5, 0.2, 0, ct)).toBe(8);          // break-even halfSaturation / aerobicBonus beats a small body's cap
+    expect(minOxygen(0.5, 2, 0, ct)).toBeCloseTo(15, 9);   // (2 − 0.5) / 0.1
+    expect(minOxygen(0.5, 2, 1, ct)).toBeCloseTo(35, 9);   // hunters: (2·2 − 0.5) / 0.1
+    expect(minOxygen(0, 0.2, 0, ct)).toBe(0);            // no aerobic share, tiny body
+    expect(minOxygen(0.5, 0.2, 0, { ...ct, halfSaturation: 2 })).toBe(2);
+    // consistent with the sim's cap: at the threshold, size equals maxBodySize
+    const o2 = minOxygen(0, 2, 1, ct)!;
+    expect(maxBodySize(ct, o2, 1)).toBeCloseTo(2, 9);
+  });
+  it('reads the real world configs: carbon has a threshold, silicon none', () => {
+    expect(minOxygen(0.5, 0.2, 0, carbon.life.rules.chemTrait)).toBeGreaterThan(0);
+    expect(minOxygen(0.5, 0.2, 0, silicon.life.rules.chemTrait)).toBeNull();
+  });
+});
+
+describe('organismTags and icons', () => {
+  it('maps diet to role and locomotion to habitat', () => {
+    expect(organismTags(rec(), plan({ diet: 0.05, mode: LOCOMOTION.walk }))).toEqual({ role: 'grazer', habitat: 'land' });
+    expect(organismTags(rec(), plan({ diet: 0.95, mode: LOCOMOTION.swim }))).toEqual({ role: 'hunter', habitat: 'sea' });
+    expect(organismTags(rec(), plan({ diet: 0.5, mode: LOCOMOTION.hover })).habitat).toBe('air');
+    expect(habitatOf(LOCOMOTION.sessile, 0.9)).toBe('sea');
+    expect(habitatOf(LOCOMOTION.sessile, 0.1)).toBe('land');
+  });
+  it('turns a bitmap into rect-run path data', () => {
+    expect(bitmapPath(['.##.#', '#....'])).toBe('M1 0h2v1h-2zM4 0h1v1h-1zM0 1h1v1h-1z');
   });
 });
 
