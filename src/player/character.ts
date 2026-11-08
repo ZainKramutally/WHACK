@@ -19,6 +19,14 @@ export interface Character {
   cast?(): void;
 }
 
+/** Player and camera tuning that depends on the character's size. index.ts and the animation playground share it. */
+export function tuningFor(dims: DeityDims) {
+  return {
+    player: { swimSurfaceOffset: dims.headRestY - 0.15 }, // head centre ~0.15 m above the water while treading
+    camera: { targetHeight: 0.77 * dims.height },
+  };
+}
+
 export function createCharacter(opts: DeityAnimOptions & { variant?: DeityVariantId | 'standin' } = {}): Character {
   const { variant = DEFAULT_VARIANT, ...animOpts } = opts;
   const rig = variant === 'standin' ? buildStandinRig() : buildDeity(variant);

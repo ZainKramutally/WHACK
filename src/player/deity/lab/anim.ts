@@ -5,7 +5,7 @@
 import * as THREE from 'three/webgpu';
 import { createApp } from '../../../render/app';
 import { createFollowCamera } from '../../camera';
-import { createCharacter } from '../../character';
+import { createCharacter, tuningFor } from '../../character';
 import { createPlayer, type PlayerEnv, type PlayerIntents } from '../../controller';
 import { createInput } from '../../input';
 import { approach, walkFloor } from '../../logic';
@@ -39,18 +39,29 @@ const water = new THREE.Mesh(
 water.position.set(POOL.x, SEA, POOL.z);
 app.scene.add(ground, water);
 
-const player = createPlayer(env, { swimSurfaceOffset: 0.92 }); // as index.ts derives it for the deity (headRestY - 0.15)
-const s = player.state;
-const follow = createFollowCamera({ floorAt: (x, z) => walkFloor(heightAt(x, z), SEA, false) }, { targetHeight: 1.05 });
+const camEnv = { floorAt: (x: number, z: number) => walkFloor(heightAt(x, z), SEA, false) };
+let player = createPlayer(env);
+let s = player.state;
+let follow = createFollowCamera(camEnv);
 const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const; // ?variant=a|b|c|d|standin
 const qv = new URLSearchParams(location.search).get('variant');
 let vi = Math.max(0, VARIANTS.findIndex((v) => v.toLowerCase() === (qv ?? '').toLowerCase()));
 const make = () => createCharacter({ variant: VARIANTS[vi], ...(auto ? { lookBackDelay: [1.5, 1.5] as [number, number] } : {}) });
 let character = make();
+// Player and camera tuning follow the current rig's size (same helper as index.ts).
+function retune(keep?: { x: number; z: number; heading: number; yaw: number }) {
+  const t = tuningFor(character.dims);
+  player = createPlayer(env, t.player);
+  s = player.state;
+  follow = createFollowCamera(camEnv, t.camera);
+  if (keep) { player.teleport(keep.x, keep.z); s.heading = keep.heading; follow.yaw = keep.yaw; }
+  camTarget.x = s.x; camTarget.y = s.y; camTarget.z = s.z;
+  follow.snap(camTarget, false);
+}
 app.scene.add(character.root);
 const input = createInput(app.renderer.domElement);
 const camTarget = { x: s.x, y: s.y, z: s.z };
-follow.snap(camTarget, false);
+retune();
 
 // Scripted intents for ?auto: [start, end, moveZ, sprint]; jumps are pulses at fixed times.
 const SCRIPT: [number, number, number, boolean][] = [
@@ -82,7 +93,9 @@ window.addEventListener('keydown', (e) => {
     app.scene.remove(character.root);
     character.dispose();
     vi = (vi + 1) % VARIANTS.length;
+    const keep = { x: s.x, z: s.z, heading: s.heading, yaw: follow.yaw };
     character = make();
+    retune(keep);
     app.scene.add(character.root);
     hud.textContent = base + ' | variant ' + VARIANTS[vi];
   }

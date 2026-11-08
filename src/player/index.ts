@@ -3,7 +3,7 @@
 // and a PlayerEnv (terrain / sea samplers). Call update(dt) once per frame.
 import * as THREE from 'three/webgpu';
 import { createFollowCamera, type CameraTuning } from './camera';
-import { createCharacter } from './character';
+import { createCharacter, tuningFor } from './character';
 import { createPlayer, type PlayerEnv, type PlayerState, type PlayerTuning } from './controller';
 import { createInput, type InputCallbacks, type InputKind, type InputOptions } from './input';
 import { approach, easeSprintFov, walkFloor } from './logic';
@@ -44,11 +44,11 @@ export function attachPlayer(
   const input = createInput(domElement, opts.callbacks, opts.input);
   // The character sets the tuning that depends on its size (explicit options still win).
   const character = createCharacter();
-  const { dims } = character;
-  const player = createPlayer(env, { swimSurfaceOffset: dims.headRestY - 0.15, ...opts.player }); // head centre ~0.15 m above water while treading
+  const tuning = tuningFor(character.dims);
+  const player = createPlayer(env, { ...tuning.player, ...opts.player });
   const follow = createFollowCamera(
     { floorAt: (x, z) => walkFloor(env.heightAt(x, z), env.seaLevel(), env.frozen()) },
-    { targetHeight: 0.77 * dims.height, ...opts.camera },
+    { ...tuning.camera, ...opts.camera },
   );
   scene.add(character.root);
 
