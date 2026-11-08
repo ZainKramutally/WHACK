@@ -69,13 +69,13 @@ export function rust(world: WorldConfig, oxygenPct: number): number {
 const derived = new WeakMap<WorldConfig, Map<string, WorldConfig>>();
 
 /**
- * The world a run uses when the player picks a rock chip: the picked chip's mineral's share bounds sit at `crust.favour`, the others
+ * The world a run uses when the player picks a rock chip: the picked mineral's share bounds sit at its `favour` (else `crust.favour`), the others
  * share the rest in proportion to their bound midpoints. Pure, memoised per (world, pick id). No id, or an unknown or unpickable id,
  * returns `world` itself, so object identity keys every cache.
  */
 export function withCrustChoice(world: WorldConfig, pickId?: CrustPickId): WorldConfig {
   const crust = world.terrain.crust;
-  const picked = pickId ? crust?.minerals.find((m) => m.pick?.id === pickId) : undefined;
+  const picked = pickId ? crust?.minerals.find((m) => m.pick && m.id === pickId) : undefined;
   if (!picked) return world;
   let byId = derived.get(world);
   if (!byId) { byId = new Map(); derived.set(world, byId); }
@@ -85,11 +85,12 @@ export function withCrustChoice(world: WorldConfig, pickId?: CrustPickId): World
     const mid = (m: MineralDef) => (m.share[0] + m.share[1]) / 2;
     const rest = crust.minerals.filter((m) => m !== picked).reduce((a, m) => a + mid(m), 0);
     const minerals = crust.minerals.map((m): MineralDef => {
-      const t = m === picked ? crust.favour : ((1 - crust.favour) * mid(m)) / rest;
-      return { ...m, share: [t - HALF, t + HALF] };
+      const fav = picked.favour ?? crust.favour;
+      const t = m === picked ? fav : ((1 - fav) * mid(m)) / rest;
+      return { ...m, share: t === 0 ? [0, 0] : [Math.max(0, t - HALF), t + HALF] };
     });
     // The Conditions panel's Ground row says which rock was picked.
-    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (${CRUST_PICKS.find((c) => c.id === pickId)!.label})` } : f));
+    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (picked)` } : f));
     out = { ...world, facts, terrain: { ...world.terrain, crust: { ...crust, minerals } } };
     byId.set(pickId!, out);
   }

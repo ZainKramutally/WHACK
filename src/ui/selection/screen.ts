@@ -536,7 +536,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   }
 
   // Rock chips (docs/features/crust.md): the same chips on every world, hints from the current world's mineral; none picked = the natural mix.
-  const pickHint = (world: WorldConfig, id: CrustPickId) => world.terrain.crust.minerals.find((m) => m.pick?.id === id)?.pick?.hint ?? '';
+  const pickHint = (world: WorldConfig, id: CrustPickId) => world.terrain.crust.minerals.find((m) => m.id === id)?.pick?.hint ?? '';
   let rockFor = '';
   function renderRock(world: WorldConfig) {
     const el = r('rock');

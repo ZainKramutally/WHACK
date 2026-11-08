@@ -122,14 +122,14 @@ describe('boxState bed', () => {
 describe('rock chip', () => {
   it('toggles, persists across element switch, and rides the payload', async () => {
     const { toggleCrust, selectElement, generatePayload, initialSelection } = await import('./state');
-    let s = toggleCrust(initialSelection(), 'continental');
-    expect(generatePayload(s).crust).toBe('continental');
-    expect(toggleCrust(s, 'continental').crust).toBeUndefined();
-    expect(toggleCrust(s, 'volcanic').crust).toBe('volcanic');
+    let s = toggleCrust(initialSelection(), 'granite');
+    expect(generatePayload(s).crust).toBe('granite');
+    expect(toggleCrust(s, 'granite').crust).toBeUndefined();
+    expect(toggleCrust(s, 'nitride').crust).toBe('nitride');
     expect(toggleCrust(initialSelection(), 'waterIce' as never).crust).toBeUndefined();
     s = selectElement(s, 14);
     expect(s.worldId).toBe('silicon');
-    expect(s.crust).toBe('continental');
+    expect(s.crust).toBe('granite');
     expect(generatePayload(initialSelection())).not.toHaveProperty('crust');
   });
 });

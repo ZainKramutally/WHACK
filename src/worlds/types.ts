@@ -95,8 +95,8 @@ export interface LivingBand {
   blockingLimitId?: string;
 }
 
-/** The rock chips every world shows (CRUST_PICKS in controls.ts); each world maps each to one of its minerals. */
-export type CrustPickId = 'volcanic' | 'continental' | 'ironRich';
+/** The rock chips every world shows (CRUST_PICKS in controls.ts); chip id = mineral id (every world has all five minerals; absent ones have share [0, 0] until picked). */
+export type CrustPickId = 'basalt' | 'granite' | 'ironstone' | 'silicide' | 'nitride';
 
 /** One kind of rock in a world's crust (docs/features/crust.md). Colours are art-layer decisions, keyed by `id`. */
 export interface MineralDef extends Sourced {
@@ -107,7 +107,8 @@ export interface MineralDef extends Sourced {
   elevation: number;                             // 0..1 by height rank in the patch: 0 = lowest ground, 1 = highest
   supply: { c: number; si: number; o: number };  // nutrient multiplier per cell (1 = the world's base life.ledger supply); the patch mean is renormalised to base
   oxidises: boolean;                             // reacts with free oxygen (iron-bearing rock rusts; silicide turns to silica)
-  pick?: { id: CrustPickId; hint: string };        // selection-screen rock chip (e.g. 'Volcanic', 'A young volcanic crust: dark basalt, fertile soil'); only on minerals that feed life
+  pick?: { hint: string };                       // selection-screen rock chip hint (the chip id is the mineral id); world-specific
+  favour?: number;                               // overrides crust.favour when this mineral is picked (used where a pick at the default share would kill life)
 }
 
 export interface CrustConfig extends Sourced {

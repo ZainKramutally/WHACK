@@ -387,8 +387,9 @@ export const silicon: WorldConfig = {
     machines: [
       { id: 'M2', rate: 0.01, params: { rimHeight: 2.5, bandCenter: 0.08, bandWidth: 0.2, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
       { id: 'M4', rate: 0.01, params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
-      { id: 'M5', rate: 0.01, params: { bandH: 4, sharpness: 0.6, strength: 0.5 } },                                              // strata terraces
-      { id: 'M7', rate: 0.01, minerals: ['reducedLava'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // lava cooling columns, as on carbon: any lava that cools thick forms them (stylised, 8 m wide so the 2 m mesh resolves them)
+      { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 4, sharpness: 0.6, strength: 0.8, offMineral: 0.625 } },                                              // strata terraces
+      { id: 'M7', rate: 0.01, minerals: ['reducedLava', 'basalt'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // lava cooling columns, as on carbon: any lava that cools thick forms them (stylised, 8 m wide so the 2 m mesh resolves them)
+      { id: 'M8', rate: 0.01, minerals: ['granite'], params: { domeHeight: 18, domeFreq: 0.02, threshold: 0.55, uplandMin: 0.2, stackStep: 3, stackSharp: 0.6, stackShare: 0.5 } },   // granite domes and tors, only where granite is picked (stylised sizes)
       { id: 'M9', rate: 0.01, minerals: ['nitride'], params: { spikeHeight: 14, size: 10, density: 0.12, girth: 0.5, sharp: 1.6 } },   // sparse hexagonal nitride crystal spikes (stylised, declared illustration: 10 m cells so the 2 m mesh resolves them)
     ],
     relics: [
@@ -401,12 +402,19 @@ export const silicon: WorldConfig = {
     crust: {
       minerals: [
         // Reduced lava: aubrites (reduced igneous meteorites) are recalled, not verified, to be silicate rock with grains of silicon-bearing metal (keil1968 covers the metal).
-        { id: 'reducedLava', label: 'Reduced lava', description: 'Lava from an oxygen-poor interior, flecked with silicon-bearing metal.', share: [0.15, 0.30], elevation: 0.15, supply: { c: 1, si: 1.2, o: 1 }, oxidises: true, pick: { id: 'volcanic', hint: 'Reduced lava: silicate rock flecked with silicon-bearing metal' },
+        { id: 'reducedLava', label: 'Reduced lava', description: 'Lava from an oxygen-poor interior, flecked with silicon-bearing metal.', share: [0.15, 0.30], elevation: 0.15, supply: { c: 1, si: 1.2, o: 1 }, oxidises: true,
           why: 'Reduced igneous meteorites (aubrites) are silicate rock with grains of silicon-bearing metal, so lava from an oxygen-poor interior plausibly carries some reduced silicon; its metal flecks would turn to silica in oxygen.', sources: ['keil1968'], assumption: true },
-        { id: 'silicide', label: 'Silicide', description: 'Metallic grains of silicon-bearing iron, as in the most oxygen-poor meteorites; they turn to silica if oxygen reaches them.', share: [0.25, 0.40], elevation: 0.3, supply: { c: 1, si: 1.6, o: 1 }, oxidises: true, pick: { id: 'ironRich', hint: 'Silicon-bearing iron metal: the richest feedstock' },
+        { id: 'silicide', label: 'Silicide', description: 'Metallic grains of silicon-bearing iron, as in the most oxygen-poor meteorites; they turn to silica if oxygen reaches them.', share: [0.25, 0.40], elevation: 0.3, supply: { c: 1, si: 1.6, o: 1 }, oxidises: true, pick: { hint: 'Silicon-bearing iron metal: the richest feedstock' },
           why: 'Reduced silicon in metal-silicide form is a plausible rich feedstock on an oxygen-poor world, and oxygen would turn it to silica rock.', sources: ['keil1968'], assumption: true },
-        { id: 'nitride', label: 'Nitride (nierite)', description: 'Hard silicon-nitride rock, found in oxygen-poor meteorites.', share: [0.20, 0.35], elevation: 0.55, supply: { c: 1, si: 1.2, o: 1 }, oxidises: false, pick: { id: 'continental', hint: 'Hard silicon-nitride highlands: a steady feedstock' },
+        { id: 'nitride', label: 'Nitride (nierite)', description: 'Hard silicon-nitride rock, found in oxygen-poor meteorites.', share: [0.20, 0.35], elevation: 0.55, supply: { c: 1, si: 1.2, o: 1 }, oxidises: false, pick: { hint: 'Hard silicon-nitride rock: a steady feedstock' },
           why: 'Nierite (Si3N4) occurs naturally in enstatite chondrites, so reduced silicon nitride is a plausible feedstock here.', sources: ['lee1995'], assumption: true },
+        // Silicate rocks and iron oxide are absent from the natural silicon crust (share [0, 0]); they appear only when picked, and feed silicon life poorly.
+        { id: 'basalt', label: 'Basalt', description: 'Dark silicate lava rock; its silicon is bound to oxygen, so silicon life cannot use it.', share: [0, 0], elevation: 0.2, supply: { c: 1, si: 0.3, o: 1 }, oxidises: false, pick: { hint: 'Basalt: hard going for silicon life, silicate locks silicon away' },
+          why: 'Silicon bonds to oxygen extremely strongly, so silicate rock locks silicon away (reasoning step 3) and feeds silicon life poorly. Absent from the natural crust, so it appears only when picked.', sources: [], assumption: true },
+        { id: 'granite', label: 'Granite', description: 'Pale silicate rock; silicon locked in silica is unavailable to silicon life.', share: [0, 0], elevation: 0.8, supply: { c: 1, si: 0.3, o: 1 }, oxidises: false, pick: { hint: 'Granite: hard going for silicon life, silicate locks silicon away' },
+          why: 'Granite is silica-rich, and silicon bonded to oxygen is locked away from life (reasoning step 3). Absent from the natural crust, so it appears only when picked.', sources: [], assumption: true },
+        { id: 'ironstone', label: 'Banded ironstone', description: 'Iron oxide left from an earlier, wetter age; it carries no usable silicon.', share: [0, 0], elevation: 0.5, supply: { c: 1, si: 0.2, o: 1 }, oxidises: true, pick: { hint: 'Ironstone: iron oxide from an earlier, wetter age; hard going for silicon life' },
+          why: 'Iron oxide needs oxygen to form, so on this oxygen-free world it could only be a relic of an earlier, wetter age (speculative); it holds almost no usable silicon.', sources: [], assumption: true },
         { id: 'waterIce', label: 'Water ice', description: 'Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it.', share: [0.10, 0.20], elevation: 0.9, supply: { c: 0, si: 0, o: 0 }, oxidises: false,
           why: 'Water exists here only as frozen bedrock (the relic ice landmarks); it carries no usable silicon.', sources: [], assumption: true },
       ],
