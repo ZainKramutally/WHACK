@@ -283,3 +283,4 @@
 - 09:41: 2c low-priority note: src/audio/index.ts:153 MutationObserver on document.body runs place() + querySelectors per mutation batch (20-60 Hz in world). Not demo-breaking; skipped before freeze. Fix if fps dips: rAF-throttle the callback or observe #ui only.
 - 09:37 Pushed kelp forests + plant grow/die (+review fixes) to main 4a3c38b (owner OK). Open: flora pick during 2.2 s grow window (MED, skipped for freeze); 45 m kelp may look heavy.
 - 09:53 16: merged #96 free cinematic camera + window.lifeCam API.
+- 09:48 Pushed fly-clear (big fliers clear terrain) + flora ranged upload to main aecc56f (owner OK).
