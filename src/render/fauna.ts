@@ -171,19 +171,19 @@ export interface FaunaPart {
   dispose(): void;
 }
 
+// Every per-frame buffer here keeps the default static usage and goes through upload(): in three r187 a DynamicDraw
+// attribute is re-uploaded whole on every render (Attributes.update), even while its mesh draws 0 instances (the warm
+// meshes before life), whereas a static one uploads only after needsUpdate, and then only its update range.
 function withGlow(m: THREE.InstancedMesh, cap: number): Float32Array {
   const g = new Float32Array(cap);
   const a = new THREE.InstancedBufferAttribute(g, 1);
-  a.setUsage(THREE.DynamicDrawUsage);
   m.geometry.setAttribute('aGlow', a);
   return g;
 }
 
 function makeMesh(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.InstancedMesh {
   const m = new THREE.InstancedMesh(geo, mat, CAP);
-  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 3), 3);
-  m.instanceColor.setUsage(THREE.DynamicDrawUsage);
   m.frustumCulled = false;
   m.count = 0;
   // Every column but the last is rewritten per bead (ellipsoid scale and yaw); the bottom row is constant.
@@ -197,9 +197,7 @@ function makeRodMesh(sides: number, cap: number, mat: THREE.Material, radiusTop 
   const geo = new THREE.CylinderGeometry(radiusTop, 1, 1, sides, 1);
   geo.rotateY(Math.PI / 2);
   const m = new THREE.InstancedMesh(geo, mat, cap);
-  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
-  m.instanceColor.setUsage(THREE.DynamicDrawUsage);
   m.frustumCulled = false;
   m.count = 0;
   const a = m.instanceMatrix.array as Float32Array;
@@ -242,8 +240,7 @@ class LoftBatch {
     const g = new THREE.BufferGeometry();
     const aP = new THREE.BufferAttribute(this.pos, 3), aN = new THREE.BufferAttribute(this.nor, 3);
     const aC = new THREE.BufferAttribute(this.col, 3), aG = new THREE.BufferAttribute(this.glow, 1);
-    this.attrs = [aP, aN, aC, aG];
-    for (const a of this.attrs) a.setUsage(THREE.DynamicDrawUsage);
+    this.attrs = [aP, aN, aC, aG]; // static usage: flush() uploads only the used slots (see upload())
     g.setAttribute('position', aP); g.setAttribute('normal', aN); g.setAttribute('color', aC); g.setAttribute('aGlow', aG);
     g.setIndex(new THREE.BufferAttribute(gridIndex(rings, sides, slots), 1));
     g.setDrawRange(0, this.perIdx); // one slot of zeroed (degenerate) triangles until the first flush: compiled, never seen

@@ -90,11 +90,12 @@ export function createFlora(app: App): FloraPart {
   // Every bucket (archetype × LOD × value step, floraLib/buckets.ts) is created here, once, with a fixed capacity by
   // role, so a rebuild only writes instance buffers: it never creates a mesh or triggers a compile. Overflow is dropped
   // (and counted). A bucket is one draw call while it has plants; it is never culled (it spans the camera's surroundings).
+  // Instance matrices keep the default static usage: in three r187 a DynamicDraw attribute is re-uploaded whole on every
+  // render (Attributes.update), while a static one uploads only after needsUpdate, and then only its update range.
   const buckets = new Map<number, Bucket>();
   for (const d of bucketDefs()) {
     const L = lookOf(d.arch, d.lod, d.dark);
     const mesh = new THREE.InstancedMesh(L.geometry, materialFor(d.role, d.lod), d.cap);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
     mesh.visible = false;
     mesh.frustumCulled = false;
