@@ -7,7 +7,7 @@ import { createFlora } from '../flora';
 import { ARCHETYPE_KEYS } from './index';
 import { makePlantList, placePlants } from './place';
 import { worldEnv } from './gates';
-import { SHARE_RATE, SHARE_REBUILD, easeShares, gateTargets, shareDelta, statsMoved, statsOf, type GateShares } from './succession';
+import { SHARE_RATE, SHARE_REBUILD, easeShares, easedGates, gateTarget, gateTargets, shareDelta, statsMoved, statsOf, type GateShares } from './succession';
 
 const PATCH = 400;
 function inputs(over: Partial<VisualInputs> = {}, stats: Record<string, number> = {}): VisualInputs {
@@ -32,6 +32,20 @@ describe('succession easing (succession.ts)', () => {
     expect(e.cushion).toBe(0.5);
     easeShares(e, { cushion: 0 }, 0.1, true); // a new world snaps
     expect(e.cushion).toBe(0);
+  });
+
+  it('targets follow gates.ts gateShare (ramp × share): niche gates stay off at defaults, and eased copies carry no ramp', async () => {
+    const { GATES, gateShare } = await import('./gates');
+    const e = worldEnv(inputs());
+    for (const g of GATES) expect(gateTarget(g, e), g.id).toBe(Math.min(1, Math.max(0, gateShare(g, e))));
+    const ramped = GATES.filter((g) => g.ramp && g.chem === 'carbon');
+    expect(ramped.length).toBeGreaterThan(0);
+    for (const g of ramped) expect(gateTarget(g, e), `${g.id} at defaults`).toBe(gateShare(g, e));
+    const g = ramped[0];
+    const copy = easedGates(e, { [g.id]: 0.3 } as GateShares)[g.role].find((x) => x.id === g.id)!;
+    expect(copy.ramp).toBeUndefined();
+    expect(copy.share).toBe(0.3);
+    expect(gateShare(copy, e)).toBe(0.3);
   });
 
   it('at the default conditions nothing changes: shares hold, so no re-placement is triggered', () => {

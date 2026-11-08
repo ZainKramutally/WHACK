@@ -5,7 +5,7 @@
 // the changing share turns over. Render-only, never fed back to the sim. The targets are a pure function of the stats;
 // the eased shares are a pure function of the targets' history (the frame dt sequence), with no randomness.
 import type { VisualInputs } from '../../worlds/types';
-import { GATES, type GateId, type GateSpec, type WorldEnv } from './gates';
+import { GATES, gateShare, type GateId, type GateSpec, type WorldEnv } from './gates';
 
 /** Share change per second while easing: a full colonisation (0 → 1) takes 10 s ([art]). */
 export const SHARE_RATE = 0.1;
@@ -14,13 +14,10 @@ export const SHARE_REBUILD = 0.05;
 
 export type GateShares = Partial<Record<GateId, number>>;
 
-/** A gate's share target now: 0 while its world-wide condition fails, else its share (all of its plants when unset).
- * Accepts a share function of the world, for ramped gates. */
+/** A gate's share target now: gates.ts's one rule, gateShare (0 while its world half fails, else ramp(e) × share), so
+ * the eased path and activeGates agree. */
 export function gateTarget(g: GateSpec, e: WorldEnv): number {
-  if (!g.world(e)) return 0;
-  const s = (g as { share?: number | ((e: WorldEnv) => number) }).share;
-  const v = typeof s === 'function' ? s(e) : s ?? 1;
-  return Math.min(1, Math.max(0, v));
+  return Math.min(1, Math.max(0, gateShare(g, e)));
 }
 
 /** Every gate's target for this world's chemistry. */
@@ -58,7 +55,8 @@ export function easedGates(e: WorldEnv, shares: GateShares): Record<GateSpec['ro
   for (const g of GATES) {
     if (g.chem !== chem) continue;
     const s = shares[g.id] ?? 0;
-    if (s > 0) out[g.role].push({ ...g, world: () => true, share: s });
+    // the eased share is the whole condition now: no world test, and no ramp to multiply in again
+    if (s > 0) out[g.role].push({ ...g, world: () => true, share: s, ramp: undefined });
   }
   return out;
 }
