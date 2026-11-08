@@ -360,7 +360,7 @@ Clicking the sea, the ground or the sky opens nothing. It counts as clicking els
 Clicking a creature or a producer opens an inspect card beside it, never full screen. The card has:
 1. What it is, in one line.
 2. Its details in plain words.
-   - An organism: its body plan in words (limbs, plates, horns, eyes, how it moves), its role (plant, grazer or hunter), size, preferred temperature and tolerance, oxygen need or cold stability, its kind's name (clicking it files the kind in the bestiary), and which generation it is.
+   - An organism (simplified, owner request, 2026-11-08): its role and habitat as pixel icon chips (grazer sprout, hunter fang, omnivore both; land, sea or air), its kind's name (clicking files the kind in the bestiary), "Lives at" (preferred temperature ± tolerance; silicon's warm side is widened by cold stability), "Needs ≥ X% oxygen" with the share of its energy that comes from oxygen, length, generation, its flight ceiling if it flies, and energy. X is the strictest of the O₂ terms that bind, all read from config: half-saturation over the aerobic bonus, the O₂ that the size cap needs for this body, and `aerobicRef` for hunters. The visual rows are gone (moves, body, legs, plates, horns, eyes, tail, size, glow), because the 3D view shows them. "Why these traits?" and the comparison stay.
 3. Why it is like this: one sentence, from config like every other world fact.
 4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one. No charts.
    - Beside it, a small live 3D view of **the clicked thing itself**, turning: the creature in its own chemistry, or the clicked plant drawn with the world's own flora assets.
