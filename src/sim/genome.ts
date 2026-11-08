@@ -62,7 +62,7 @@ const FOUNDER_BASE: BodyGenes = {
 };
 /** Standing variation σ on these genes (research/body-plans/notes/01 §5: g1, g9–g12, g14, g21, g24). */
 const FOUNDER_SIGMA = 0.12; // size starts near 0 (0.05, clamped at 0): founders are the smallest bodies the grammar makes
-const FOUNDER_VARIED: BodyGene[] = ['size', 'limbLen', 'plates', 'horns', 'diet'];
+const FOUNDER_VARIED: BodyGene[] = ['size', 'gape', 'limbLen', 'plates', 'horns', 'diet'];
 /** Share of founders that start with a tiny limb bud (limbPairs > 0 but too small to round to a leg pair). */
 const BUD_SHARE = 0.15;
 const BUD_RANGE: [number, number] = [0.02, 0.12]; // below 0.125 = 0 leg pairs after round(4·g)
