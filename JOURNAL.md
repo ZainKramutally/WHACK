@@ -250,3 +250,4 @@
 - ~08:30: merged astro-model (b1ad2cf + d7ac713): qodo variant K astronaut as a DeityRig (1.5 m, headAttached, 2-bone IK arm tubes in update()), in lineup + anim playground + createCharacter. Gate green. Waiting on Caden: deity C vs astronaut, then merge to main before 10:00.
 - ~08:40: Caden picked the astronaut. Contract dea7c42 adds optional knees, shoulder, armReach. astro-model: round edges, circular eyes, knees, arm dims. deity-anim: astronaut default in createCharacter, arm arcs (run +-55 deg), knee bend, counter-twist, critique pass. Then CLAUDE.md + push to main.
 - ~08:50: merged astronaut polish (0e685d7): pill torso, rounded pack/boots, tori rings merged in, round disc eyes, thigh+shin knees, shoulder/armReach dims, bounded 2-bone arms. Gate green.
+- 08:52 16: merged #89 camera hand-off from the Generate transition's end pose.
