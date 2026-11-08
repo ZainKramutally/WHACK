@@ -60,6 +60,9 @@ export interface EcologyLedger {
   cellMetres: number; // metres per grid cell (the terrain patch ÷ 64)
   displayCap: number; // the render's drawn-length ceiling (m) in the display rule 60·tanh(2·(size/0.15)^0.8/60)
   displayFounder: number; // the render's drawn length (m) of a 0.15 m founder
+  waterBuffer: number; // 0..1: how much of decay and edge stress submerged flora escapes at full depth (deepLiquid); seas buffer temperature (0 = none)
+  seaRefuge: number; // mat biomass (0..1) that grazers cannot eat in water at least shallowMax deep, so a bed survives grazing and regrows
+  seaGrowth: number; // multiplier on mat growth in submerged cells (regrowth from the seed bank; 1 = same as land)
   growRate: number; // share of its body mass a juvenile converts from energy to body per ecology second (0 = born adult). Lets a large mutant be born small and grow
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   aerobicRef: number; // % oxygen at which aerobic scope is 1 (Fick: sustained power ∝ O₂); 0 = off (silicon: not aerobic, so O₂ = 0 is neutral)
@@ -83,7 +86,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, walkFroude: 0, cellMetres: 6.25, displayCap: 60, displayFounder: 2, cohesion: 1, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, waterBuffer: 0, seaRefuge: 0, seaGrowth: 1, walkFroude: 0, cellMetres: 6.25, displayCap: 60, displayFounder: 2, cohesion: 1, intakeExp: 0.75,
   aerobicRef: 0, aerobicFloor: 0, aerobicMax: 1.5, aerobicSpeed: 0, aerobicMove: 0, aerobicHunt: 0, thermalRefC: 15, thermalSpanC: 0, thermalK: 0, thermalSurfRef: 1, supportCost: 0, supportRef: 0, nitrogenHalf: 0, strandDrain: 0,
 };
 
@@ -277,7 +280,8 @@ export class Ecology {
     // The lethal limits stress producers like animals: the same edge stress that kills animals (stressDeath·s²) strips flora
     // and stops its growth at the edge of the living band, and is negligible inside it (cubic ramp).
     const edge = clamp01(this.env.edgeStress);
-    const decay = Math.min(1, L.floraDecay * dt + this.rules.stressDeath * edge * edge * dt);
+    const decayRaw = L.floraDecay * dt + this.rules.stressDeath * edge * edge * dt;
+    const decay = Math.min(1, decayRaw);
     const vigour = 1 - edge;
     const sun = Math.min(1, this.env.light * L.floraLightGain);
     const cm = L.cellMass;
@@ -288,11 +292,15 @@ export class Ecology {
       // decay returns nutrients
       let b = g.mat[i];
       let can = g.canopy[i];
-      if (decay > 0 && (b > 0 || can > 0)) {
+      // Water buffers: seas change temperature slowly and deep water is stable, so submerged flora feels less of the decay and the edge
+      // stress, in proportion to depth (ledger waterBuffer; 0 = none).
+      const depthFrac = L.waterBuffer > 0 ? Math.min(1, g.liquid[i] / L.deepLiquid) : 0;
+      const decayHere = depthFrac > 0 ? decay * (1 - L.waterBuffer * depthFrac) : decay;
+      if (decayHere > 0 && (b > 0 || can > 0)) {
         // Under lethal stress a seed bank of mat survives (so the flora can regrow when conditions return); canopy does not.
         const floor = edge > 0 ? Math.min(b, FLORA_SEED) : 0;
-        const bLoss = Math.min(b * decay, b - floor);
-        const cLoss = can * decay;
+        const bLoss = Math.min(b * decayHere, b - floor);
+        const cLoss = can * decayHere;
         this.returnMatter(i, (bLoss + cLoss) * cm, 0);
         b -= bLoss;
         can -= cLoss;
@@ -308,7 +316,7 @@ export class Ecology {
       if (x < GRID - 1) { nb += g.mat[i + 1]; nn++; }
       if (y > 0) { nb += g.mat[i - GRID]; nn++; }
       if (y < GRID - 1) { nb += g.mat[i + GRID]; nn++; }
-      let grow = vigour * P0 * dt * hab * nFix * light * (b + L.spread * (nb / nn)) * (1 - b);
+      let grow = vigour * P0 * dt * hab * nFix * light * (b + L.spread * (nb / nn)) * (1 - b) * (wet ? L.seaGrowth : 1);
       grow = this.limit(i, grow, 1 - b);
       b += grow;
       let growC = 0;
@@ -767,7 +775,8 @@ export class Ecology {
             if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
             const c = ny * GRID + nx;
             if (!this.habitable(p, g.liquid[c])) continue;
-            const avail = this.deepOk(p, g.liquid[c]) * (g.mat[c] + this.canopyAccess(p) * g.canopy[c]);
+            const refuge = g.liquid[c] >= L.shallowMax ? L.seaRefuge : 0;   // deep beds keep a standing minimum that grazers cannot eat
+            const avail = this.deepOk(p, g.liquid[c]) * (Math.max(0, g.mat[c] - refuge) + this.canopyAccess(p) * g.canopy[c]);
             const bite = Math.min(avail * rules.consumer.grazeShare, want);
             if (bite <= 0) continue;
             want -= bite;

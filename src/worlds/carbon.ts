@@ -306,6 +306,9 @@ export const carbon: WorldConfig = {
       cellMetres: 6.25, // terrain.patchSize 400 ÷ 64 cells
       displayCap: 60, // the render's drawn-length ceiling in metres (render display rule)
       displayFounder: 2, // the render's drawn length of a founder worm, metres
+      waterBuffer: 0.8, // assumption: true. Submerged flora loses 80% less to decay and edge stress at full depth: seas change temperature slowly, deep water is stable (ocean thermal inertia); owner request 2026-11-08, kelp died too fast
+      seaRefuge: 0.15, // assumption: true. Grazers cannot eat the last 15% of mat in water 2 m deep or more, so a kelp bed survives grazing and regrows
+      seaGrowth: 2, // assumption: true. Mat regrows 2x faster in water (a seed bank and nutrients in the water column)
       growRate: 0.05, // assumption: true. A juvenile turns surplus energy into body at 5% of its mass per ecology second, so a large mutant is born small (never larger than its parent) and grows up
       meatAssim: 0.6, // assumption: true. A hunter keeps about 60% of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
       grazeReach: 1, // assumption: true. A grazer feeds one extra cell out per metre of body length, up to 2 cells
