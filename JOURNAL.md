@@ -284,3 +284,4 @@
 - 09:37 Pushed kelp forests + plant grow/die (+review fixes) to main 4a3c38b (owner OK). Open: flora pick during 2.2 s grow window (MED, skipped for freeze); 45 m kelp may look heavy.
 - 09:53 16: merged #96 free cinematic camera + window.lifeCam API.
 - 09:48 Pushed fly-clear (big fliers clear terrain) + flora ranged upload to main aecc56f (owner OK).
+- 10:15 16: merged landing-page Cinematic toggle.
