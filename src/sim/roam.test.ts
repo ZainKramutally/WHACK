@@ -34,7 +34,7 @@ describe('animals roam', () => {
   it.each([carbon, silicon])('an animal covers several cells in 10 s of grazing ($id)', (w: WorldConfig) => {
     const r = pathLengths(w, 100, 200);
     expect(r.tracked).toBeGreaterThan(10);
-    expect(r.mean).toBeGreaterThan(3); // cells; before the wander walk an animal moved about 0.3 cells in 10 s
+    expect(r.mean).toBeGreaterThan(2); // cells; walkers now obey a Froude speed limit (owner request, too fast to click), so silicon founder worms cover about 2.3 cells in 10 s; before the wander walk an animal moved about 0.3 cells in 10 s
   });
   it.skipIf(!slow).each([carbon, silicon])('a full ecology still roams: several cells per 10 s at the cap ($id) (SLOW)', { timeout: 120000 }, (w: WorldConfig) => {
     const r = pathLengths(w, 3400, 200);
