@@ -141,3 +141,4 @@
 - 03:53: MAIN PUSH (Caden: reviewed part now): main 34fccf2 = f046658 + art batch through the aPart blocker fix. Gate tsc 0, 302/14, build OK. 16 pinged, #50 updated. Walking fix (dec8975 on stage) awaits review 9 addendum.
 - 04:01 16: merged pass 7 items 1 (founder leg lean) and 4 (announcement pacing: 4–5 at spawn, one per 25 s live). Item 5 (#80 swimmer-only slot rule) sent back to be mode-symmetric.
 - 03:56: MAIN PUSH walking fix (Caden approved): main cf6bad1 (first attempt raced 16's 7c98144; rebased + re-gated 312/14). Caden's own npm run dev runs in the main checkout, which is on session/crust (not main), so he doesn't see the art; told him.
+- 03:56: art-fauna slope pitch c2c34f0, swimmer trails 392c70d, near-draw try c0cd1b7 -> stage 97d6a66 on main cf6bad1 (after teeth packing 3). Gate 318/14, build OK. Review 10 scope = cf6bad1..97d6a66.
