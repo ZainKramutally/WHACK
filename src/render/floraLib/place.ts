@@ -21,8 +21,8 @@ const FOREGROUND_R = 30;
 const THIN_START = 45, THIN_END = 150;
 /** Giants: at most one per SUPER × SUPER cells (~31 m). */
 const SUPER = 5;
-/** Canopy biomass needed for a giant / a mid plant in a cell. */
-const GIANT_CANOPY = 0.2, MID_CANOPY = 0.04;
+/** Canopy biomass needed for a giant / a mid plant in a cell (backdrop.ts reads GIANT_CANOPY for its horizon giants). */
+export const GIANT_CANOPY = 0.2, MID_CANOPY = 0.04;
 /** Mid plants thin from MID_THIN_START to 30% at MID_THIN_END metres from the camera. */
 const MID_THIN_START = 70, MID_THIN_END = 200;
 /** Near-LOD radius per role (m). At 30 m the pixel look (360 px internal height) gives ~10 px per metre, so ground cover
