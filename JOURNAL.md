@@ -269,3 +269,5 @@
 - 09:00: demo-path bug (via 16): fish swimming in the air -> fish-air agent (swimY clamp under surface, beached in dry cells, all tiers). Owner ask: hunting attack + obvious kills -> Caden approved freeze exception (full version) -> hunt-anim agent (phase 1 jaw-open/lunge/swoop now; phase 2 intent stalk/flee + kill flash/collapse/burst/fade when 16's hunt-events lands ~09:35; target 10:15).
 - 09:13 16: merged zoom sensitivity ×3–4 and #92 founders follow the start temperature.
 - 09:11 Pushed fish-air swimY fix to main bb69c8b (owner OK). Pending: fish-air shoreline nudge + review fixes, hunt-anim v4 wiring.
+09:10 session/crust: lead/tardigrade easter egg spawned (feature/lead-egg)
+09:15 merged feature/lead-egg (lead/tardigrade easter egg, 56d13d6); Tier 1 green, smoke skipped per owner ruling
