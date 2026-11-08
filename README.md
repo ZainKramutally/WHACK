@@ -42,15 +42,18 @@ npm run test:all
 |---|---|---|
 | Move | W A S D | Left stick |
 | Look around | Drag the mouse | Right stick |
-| Sprint | Hold Shift | Click the left stick (L3) to toggle |
-| Jump | Space | X or RB |
+| Sprint (on land) | Hold Shift | Click the left stick (L3) to toggle |
+| Jump (on land and frozen seas) | Space | X or RB |
 | Swim up / down | Space / Shift | RB / LB |
-| Inspect | Click (without dragging) | A, on the centre reticle |
+| Scan a creature or plant | Click (without dragging) | A, on the centre reticle |
 | Close a card or panel | Esc | B |
 | Conditions panel | Tab | Y |
+| Bestiary | Click its tab, next to Conditions | |
 | Move a slider | Arrow keys while Conditions is open | D-pad: up/down picks a slider, left/right moves it |
 
 Keyboard and gamepad work at the same time, so control can pass between people mid-run.
+
+Hover a creature or plant (or rest the gamepad reticle on it) and pixel corner brackets lock on. An unfound species reads **NEW SPECIES · CLICK TO SCAN**, an animal that matches no announced species reads UNCLASSIFIED, and names are never shown before you scan. Creatures win over plants and the sea when the pointer is over several. Only creatures and plants can be clicked; the sea, ground and sky open nothing.
 
 ## The idea
 
@@ -89,7 +92,7 @@ An inspect card should answer two different questions:
 1. **How did the model produce this feature?** The card reads the inspected creature’s body plan and genes. It explains the body-plan rule, which movement score is cheapest, how its diet genes weight plant and animal food, and what protection and climate traits do in the simulation.
 2. **Why did this lineage spread?** That is a stronger causal claim. The model can show a trait’s programmed effects and trade-offs, but a single run does not prove which pressure caused a lineage to spread. The card says this directly instead of presenting a mechanism as a proven evolutionary history.
 
-Silicon anatomy is an explicit assumption. Radial faceted bodies are the default; the model switches to a bilateral, front-first walker when the segment gene is at least `0.55` and the limb gene resolves to one or two leg pairs. A separate plates gene controls whether the walker has a ceramic shell. These are rules in our simulation, not claims about real silicon organisms. The inspect card explains the branch used by each specimen.
+Silicon anatomy is an explicit assumption. Radial faceted bodies are the default; the model switches to an armoured bilateral, front-first walker (a biped or quadruped) when the segment gene is at least `0.55` and the limb gene resolves to one or two leg pairs. A separate plates gene controls whether the walker has a ceramic shell. These are rules in our simulation, not claims about real silicon organisms. The inspect card explains the branch used by each specimen.
 
 Some traits have modelled trade-offs: plates and horns add defense and mass, silicon plate coverage also slows modeled dissolution in liquid, and silicon cold stability reduces warm-side climate stress while increasing upkeep. Body colour and pattern are visual only; glow has an upkeep cost. The README and inspect card distinguish these implemented effects from evidence about real-world evolution.
 
@@ -107,7 +110,11 @@ Some traits have modelled trade-offs: plates and horns add defense and mass, sil
 - A 15-gene animal genome: 12 body genes and 3 climate genes, plus inherited body composition.
 - One shared ecology for feeding, hunting, fleeing, movement, rest, death, and reproduction.
 - A configured cap of 1,024 organisms; plants are tracked as grid biomass.
-- A browser app built with Vite and three.js, with a worker-driven simulation, conditions panel, bestiary, and click-to-inspect cards.
+- A browser app built with Vite and three.js, with a worker-driven simulation, conditions panel, bestiary (with a live, turning 3D specimen page), and click-to-inspect cards.
+- Conditions shape bodies through physical terms in the one trait ledger, found by selection and not by templates: oxygen sets aerobic scope and size, temperature drives a heat balance on skin area, gravity loads limbs (square-cube), and nitrogen limits plant growth on carbon. There is no gravity slider: gravity is sampled per seed and shown in Conditions beside air density.
+- Flight comes from physics: induced power against muscle power, gravity and air density (a live stat). It is rare at Earth-like defaults and more common at low gravity or thick air.
+- Species names are a seeded genus word plus a movement word (for example "Vouheth Eel"). Each run draws its founders' starting lean from the seed, so every run's species differ.
+- Plants are drawn as pure functions of per-cell biomass and conditions: thirteen gated archetypes, five of them silicon-only and speculative.
 
 ## What is emergent and what is designed
 
@@ -117,7 +124,8 @@ Some traits have modelled trade-offs: plates and horns add defense and mass, sil
 - **Tuning choices, declared:** raised mutation; a compressed pace of chemistry (and silicon's lowered activation energy) so evolution is visible in a demo; a longer base lifespan; silicon plants that saturate at 1% sunlight; the 20-second fast-forward of about 340 ecology-seconds; hunger as plant scarcity; grazing that takes only a share; consumer interference; and a spore bank that lets life regrow after a crash.
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow without oxygen, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
 - **Illustration only:** the particle box, the live view in inspect cards, sky and fog, plant shapes (the simulation has only per-cell biomass), IK feet, the player's suit, and creature display size (a ~64× real size range is drawn as ~25×).
-- **Hunters are still rare:** a hunt is worth the prey it yields, so hunters do evolve, but only a handful within a demo (on the demo seeds, about 3–8 on carbon and 1–2 on silicon in the first minute). The worlds are mostly grazers with some omnivores, and big predator–prey cycles take longer than a demo.
+- **Hunters establish but stay few and solitary:** a hunt is worth the prey it yields and jaws grow with diet, so hunters do evolve, but only a handful within a demo (on the demo seeds, about 3–8 on carbon and 1–2 on silicon in the first minute), and how many depends on the seed. The worlds are mostly grazers with some omnivores, and big predator–prey cycles take longer than a demo.
+- **Giants are not built yet (known gap):** animals of 2 m or more stay at zero or one per seed, because a newborn giant has no surplus energy to grow. Fixing it needs food only big bodies can reach.
 
 ## Sources
 

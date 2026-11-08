@@ -16,19 +16,21 @@ Earth's crust is about 28% silicon and 0.02% carbon, yet every living thing is a
 
 You complete the sentence "Life is ▢ based" by picking an element from group 14 of the periodic table, and set a young planet's temperature, nitrogen and oxygen. A small particle box shows the chemistry live: carbon chains linking in water, or silicon rusting into grey rock the moment there's free oxygen. The carbon and silicon cells tell you whether life could survive your settings, and why not.
 
-Click **Generate** and the box's particles multiply into the ground of a new world. In about 20 seconds terrain rises, seas fill, the air settles, and life grows from a couple of dozen tiny worms into up to a thousand evolving animals that grow legs and find new ways of moving, all while you walk around it in third person. Then the world keeps living: the ecology keeps evolving, and life keeps changing the air and seas.
+Click **Generate** and the box's particles multiply into the ground of a new world. In about 20 seconds terrain rises, seas fill, the air settles, and life grows from a couple of dozen tiny worms into up to a thousand evolving animals that grow legs and find new ways of moving, all while you walk, sprint, jump, swim and dive around it in third person. Then the world keeps living: the ecology keeps evolving, and life keeps changing the air and seas.
 
 - **Carbon** is life as we know it, in water.
-- **Silicon** is our best-reasoned speculation: a world at about −183 °C with liquid-nitrogen seas and thick nitrogen air (about 3.6 bar, set by the seas' vapour pressure, like Titan). Its bodies are built differently: radial, faceted crystal hubs instead of head-to-tail bodies.
+- **Silicon** is our best-reasoned speculation: a world at about −183 °C with liquid-nitrogen seas and thick nitrogen air (about 3.6 bar, set by the seas' vapour pressure, like Titan). Its bodies are built differently: radial, faceted crystal hubs instead of head-to-tail bodies, plus armoured two- and four-legged walkers in a silicon-nitride shell.
 
-Click any creature or plant patch for a card that explains it in plain words, compares it with the other world and Earth, and shows it turning in a live 3D view. The Conditions panel holds the sliders for the whole run: drag them and life responds, and red zones show exactly where life would die and why. Every number on screen has a source or is labelled as an assumption, and the silicon world always shows the strongest case against itself.
+Point at a creature and pixel brackets lock on; an unfound species reads **NEW SPECIES · CLICK TO SCAN**, and names are never given away before you scan one. Click a creature or plant patch for a card that explains it in plain words, compares its world with the other world and Earth, and shows the thing itself turning in a live 3D view. Scanned species fill a bestiary with a turning 3D specimen page for each. Species are a seeded genus word plus how they move ("Vouheth Eel"), and each run starts from a different founder lineage, so every run's species differ. The Conditions panel holds the sliders for the whole run: drag them and life responds, and red zones show exactly where life would die and why. Every number on screen has a source or is labelled as an assumption, and the silicon world always shows the strongest case against itself.
 
 ## How we built it
 
 - **three.js r187 with the WebGPU renderer** (it falls back to WebGL2), TypeScript and Vite. Custom TSL only where it pays: terrain heights, the world material and a pixel post pass.
 - **A deterministic simulation in a Web Worker** at a fixed 20 Hz on a 64 × 64 grid. During the 20-second build it fast-forwards about 340 ecology-seconds on a tick schedule that depends only on build time, never frame rate, so the same seed always grows the same world.
-- **Up to 1,024 animals, each with 15 genes** (12 body genes and 3 climate genes). One `develop()` function turns genes plus the world's chemistry into a body plan. The chemistry is the grammar: carbon reads the genes as a bilateral, segmented body, silicon as a radial lattice, so the two worlds' life never mirrors each other.
+- **Up to 1,024 animals, each with 15 genes** (12 body genes and 3 climate genes). One `develop()` function turns genes plus the world's chemistry into a body plan. The chemistry is the grammar: carbon reads the genes as a bilateral, segmented body, silicon as a radial lattice (or an armoured walker when its genes favour a front end), so the two worlds' life never mirrors each other.
 - **One ecology** of 12 rules with a shared utility loop (forage, hunt, flee, rest, bud), a trait ledger where every gene costs something, and plants as per-cell biomass.
+- **Conditions shape bodies.** Oxygen sets aerobic scope and size, temperature drives a heat balance on skin area (cold favours compact bodies, heat long limbs), gravity loads limbs, and nitrogen limits plants on carbon. Flight comes from gravity, air density (a live stat) and muscle power, and is rare at defaults. There is no gravity slider; gravity is sampled per seed.
+- **Plants** are pure functions of per-cell biomass and conditions: thirteen gated archetypes, five of them silicon-only.
 - **Science in data, not code.** Each world's config holds every fact with a one-sentence reason and sources: NIST vapour-pressure tables for water and nitrogen, a radiative balance with the CO₂ greenhouse (about 3 K per doubling), an Arrhenius pace of life, and lethal limits. The sliders' red zones are found numerically from the same limits the simulation kills by, so the interface and the simulation can never disagree.
 - **Vitest** for the models, the limits, determinism and the ecology, including headless runs of each world's demo seed.
 
@@ -45,6 +47,7 @@ Click any creature or plant patch for a card that explains it in plain words, co
 - A judge can follow the chain from "silicon bonds are weaker" all the way to "so this world is frozen, oxygen-free and has thick air", one sourced step at a time.
 - The selection screen is a small physics puzzle: drag the temperature down and carbon dies, then silicon needs more nitrogen to hold a sea, then it rusts until you remove the oxygen.
 - Carbon and silicon life are built by different body grammars from the same genes.
+- Discovery is the player's job: scan a creature to file its species in the bestiary.
 - The silicon world argues against itself: its caveat is always on screen.
 
 ## What we learned
@@ -54,7 +57,7 @@ Disciplined speculation is harder and more interesting than free invention: each
 ## What's next
 
 - Germanium, the next element down ("bonds even weaker than silicon's").
-- More predators: hunters now evolve, but only a handful within a demo; we want stable predator–prey cycles and a rare, solitary apex hunter.
+- Giants and stable predator–prey cycles. Hunters now evolve and stay solitary, but only a handful per run, and animals over 2 m do not establish yet: a newborn giant has no surplus energy to grow. Fixing it needs food only big bodies can reach.
 - Sound that changes with each world's air and solvent.
 - Re-reading the last few unverified figures (listed in `research/sources-verified.md`).
 

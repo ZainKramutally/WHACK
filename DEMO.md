@@ -2,6 +2,8 @@
 
 The 3-minute talk track for the 20 s build (issue #29). It uses only what works on `main` at `9917a84` (plus the fixes on `fix/open-issues`), checked against the code and, for the life on the demo seeds, against headless runs of the simulation. Nothing here was run in a browser, because of the 2026-11-08 no-browser-tests ruling, so do the **rehearsal checks** below in your own browser before the first run-through.
 
+**The demo-seed species names changed on 2026-11-08** (genus word plus movement word, seeded founder lineages), so any species name quoted below is out of date. Rehearse again and note the names you actually see.
+
 The story turns on one idea: carbon is the familiar world, and silicon is the door nobody has walked through. The judge watches a world build itself and then breaks its own physics on purpose.
 
 ## Pitch (3:00)
@@ -21,15 +23,15 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 | 0–6 s | The camera pushes into the box, and its particles double into about 25,000 grains that land on the real terrain and build the world pixel by pixel. Caption: *A carbon world forms* | "None of this is pre-made. Terrain, seas, air and life all grow from one seed, and every number comes from real chemistry." |
 | about 6 s | The character spawns on land near the shore | *(Press W, holding Shift to sprint, towards the water.)* |
 | about 9 s | Caption: *Life stirs in the shallows* | "Those are the founders: two dozen tiny worms. Nobody designed what comes next." |
-| 9–20 s | The terrain keeps rising and life spreads. By about 12 s the first species have formed: on the demo seed, an eel in the shallows and skitters on the shore | "About a thousand animals, each carrying 15 genes, mutating and competing. Legs, plates and eyes have to be earned." |
+| 9–20 s | The terrain keeps rising and life spreads. By about 12 s the first species have formed: some swim in the shallows and some walk the shore (names are a genus word plus how they move, so read them off the screen in rehearsal) | "About a thousand animals, each carrying 15 genes, mutating and competing. Legs, plates and eyes have to be earned." |
 
 ### Explore (0:40–1:10): click a creature
 
-**Do:** walk up to a creature and click it (a click without dragging). On carbon about half the animals swim in the shallows and half walk the shore. Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design.
+**Do:** walk up to a creature (Space jumps, Shift sprints on land; swimming is faster than walking). Hover it: pixel brackets lock on. If it is a species you haven't scanned, they go gold and pulse: **NEW SPECIES · CLICK TO SCAN**. Then click it (a click without dragging). Creatures win over plants and the sea when several are under the pointer. On carbon about half the animals swim in the shallows and half walk the shore. Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design. An animal that reads UNCLASSIFIED (dim brackets) can't file a species, so hover another.
 
 **Judges see:** the inspect card. It describes the body plan in words, its role, size and generation. It has a slowly turning live 3D view, and a comparison table with the columns **This world**, **A silicon world (at start)** and **Earth**. If the animal belongs to a named species, a caption *New entry: (name)* files it in the Bestiary. If not, the card says *Form: (not yet a recognised species)*, so click another.
 
-**Say:** "One function grows every body from its genes, and the world's chemistry sets the grammar. This one is generation *(read the number)*. Next to it is the same table for a silicon world: minus 183 degrees, air at three and a half bar, seas of liquid nitrogen. Finding it put it in our bestiary."
+**Say:** "One function grows every body from its genes, and the world's chemistry sets the grammar. This one is generation *(read the number)*. Next to it is the same table for a silicon world: minus 183 degrees, air at three and a half bar, seas of liquid nitrogen. Finding it put it in our bestiary, and every run grows different species."
 
 ### What-if (1:10–1:35): life follows the physics
 
@@ -52,7 +54,7 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 | 3 | Nitrogen: click the axis, press **Home**, **PageUp ×3**, **↑ ×10** (about 32 ×) | The pool condenses, then silicon turns to grey rock and sinks: *Free oxygen turns silicon into rock (speculative)* | "Silicon grabs oxygen so hard it turns to stone. That's why Earth's crust is rock." |
 | 4 | Oxygen: click the axis, press **Home** (0%) | Chains link and copy, and silicon's cell lights up: *Life can persist* | "No oxygen, no water, nitrogen seas. Now silicon can live." |
 | 5 | Press **Enter** or click **Generate world** (about 2:15) | Caption: *A silicon world forms (speculative)* | "Its star is ten times farther away than our Sun. The air is three and a half bar, held by the nitrogen seas, a bit like Titan's thick air." |
-| 6 | (about 2:24) | Caption: *Something stirs in the liquid nitrogen* | **Caveat, word for word:** "Most chemists doubt this. Almost nothing dissolves in liquid nitrogen, and chemistry there is extremely slow. Petkowski, Bains and Seager concluded in 2020 that no environment makes silicon life plausible. This world is our best-reasoned guess, not a prediction, and the app labels it that way everywhere." |
+| 6 | (about 2:24) | Caption: *Something stirs in the liquid nitrogen*. Silicon bodies are radial and faceted, and some are armoured walkers (bipeds and quadrupeds) in a ceramic shell | **Caveat, word for word:** "Most chemists doubt this. Almost nothing dissolves in liquid nitrogen, and chemistry there is extremely slow. Petkowski, Bains and Seager concluded in 2020 that no environment makes silicon life plausible. This world is our best-reasoned guess, not a prediction, and the app labels it that way everywhere." |
 
 ### Close (2:35–3:00)
 
@@ -107,10 +109,24 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 - **Team split:** engineering lead: generation, simulation, character and integration. Caden: creatures, UI and the art layer.
 - **What next:** germanium, the next element down ("bonds even weaker than silicon's"), and sound that changes per world.
 
+## If a judge holds the controller
+
+A judge takes the controller (or keyboard) from the start and walks while we talk. If they stall, get lost or the clock gets tight, one of us takes over with the other input device, so there is no handover fumble. Keyboard and gamepad work at the same time. Controller: left stick moves, right stick looks, A scans the centre reticle, B closes, Y opens Conditions, the D-pad works the sliders, X or RB jumps, L3 toggles sprint. On silicon, optionally click a crystalline crust: the card says what it is and why it is like that (no other-world counterpart is shown, by design).
+
+## Do not claim
+
+- **No giants.** Animals of 2 m or more stay at zero or one per seed. Don't say big bodies evolve on demand.
+- **Hunters are few, solitary and seed-dependent.** Don't promise predator–prey cycles, and don't point at a hunter you haven't found in rehearsal.
+- **Flight is rare at defaults.** Don't promise fliers; they appear at low gravity or thick air, and gravity is sampled per seed (there is no gravity slider).
+- **The time-lapse is compressed.** Pace of life, mutation and the 20-second ecology fast-forward are tuning choices; say so if asked.
+- **The years counter is illustrative.** Nothing in the sim reads it.
+- **Don't quote "a thousand" on silicon** (about 800 on the demo seed).
+- Oxygen shifts body size over generations, not in seconds. Silicon life is speculative: never call it established.
+
 ## Update this script when these land
 
 | Issue | Change |
 |---|---|
-| #48 hunters | If hunters become common at spawn, add one line pointing at a predator |
+| #48 hunters | Hunters now establish and are solitary. If one is reliably visible at spawn on the demo seed, add one line pointing at it |
 | #54, #76 species | If 4–5 species are visible at spawn, or the names change, update the 9–20 s row and the explore beat. On `9917a84` the demo seed gives 2 species by the end of the build on carbon (an eel and a skitter, a walker by 40 s) and 4 on silicon (two rollers and two tripods) |
 | #39, #47 recovery | If wall-and-back recovers within about 20 s, the red wall can become a deliberate beat |
