@@ -91,3 +91,4 @@
 - 02:31 16: art layer on main d0ba7c8 (6a, 25 render commits); session/logic ff; honesty box adds the moons.
 - 02:33 16: merged flight (#67): powered flight from (m·g)^1.5/√(2ρA), ceiling over scale height, altitude + grown in organism layout v3 (stride 30); CLAUDE.md updated.
 - 02:35 16: merged #51 (radial swimmers roll; nearest announced species within 1.8× form radius). Held back jumpRateBuild (no build-count gain; live discoveries 0–3). #39/#47 re-check: carbon 50–100% at 60 s, silicon seed 2 fails.
+- 02:32: art-fixes + art-water shut down; integrate + art-water worktrees removed. art-fauna asked for a shared flora library: flora-unique to add memoized floraLibrary()/LIB_SEED (first commit, I cherry-pick to art-fauna) + FloraPart.plantsIn(cell) records for the card. main.ts lost-births LOW sent to 16. Journal commits now stay on session until the next approved main merge.
