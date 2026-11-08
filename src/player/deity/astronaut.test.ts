@@ -85,6 +85,30 @@ describe('astronaut rig', () => {
     }
   });
 
+  it('hip pivots sit on the torso base, and the hip caps overlap it at every leg angle', () => {
+    const { hipHalfWidth, bodyRadius, legRadiusForTest } = { ...rig.dims, legRadiusForTest: 0 };
+    void legRadiusForTest;
+    const pos = ((rig.body as THREE.Mesh).geometry as THREE.BufferGeometry).getAttribute('position');
+    let baseY = Infinity; // the body's lowest vertex in pelvis space (the flat torso base; rings sit above it)
+    for (let i = 0; i < pos.count; i++) baseY = Math.min(baseY, pos.getY(i));
+    for (const leg of rig.legs) {
+      expect(Math.abs(leg.position.y - baseY)).toBeLessThan(0.025); // pivot at the base
+      expect(Math.abs(leg.position.x)).toBeLessThanOrEqual(bodyRadius);
+      const cap = leg.userData.cap as { y: number; r: number };
+      for (const rx of [0, 0.6, -0.6, -1.2]) {
+        leg.rotation.x = rx;
+        leg.updateMatrixWorld(true);
+        const c = new THREE.Vector3(0, cap.y, 0);
+        leg.localToWorld(c);
+        rig.pelvis.worldToLocal(c); // pelvis space: the torso base is y = 0
+        expect(c.y + cap.r).toBeGreaterThan(0.05); // the sphere reaches up into the torso
+        expect(Math.abs(c.x) - hipHalfWidth).toBeLessThan(0.01);
+        expect(Math.abs(c.z)).toBeLessThan(cap.r);
+      }
+      leg.rotation.x = 0;
+    }
+  });
+
   it('disposes without throwing', () => {
     expect(() => rig.dispose()).not.toThrow();
   });

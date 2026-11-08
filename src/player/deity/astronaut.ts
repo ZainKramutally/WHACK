@@ -3,7 +3,7 @@
 // Primitives only: no shader port. One worldMaterial with vertex colours (cel shading and fog like the world), unlit eyes.
 import * as THREE from 'three/webgpu';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { worldMaterial } from '../../render/material';
 import { LOOK_PALETTES, mixHex } from '../../render/palette';
 import type { DeityDims, DeityRig } from './rig';
@@ -46,6 +46,31 @@ function ring(c: THREE.Vector3, axis: THREE.Vector3, r: number, hex: number): TH
   return paint(g, hex);
 }
 
+/** Semi-oval torso profile: normalised radius at height fraction f (0 = flat bottom, 1 = top). Flat base with a small edge
+ *  fillet, widest at f = 0.5, then a rounded (squircle) dome so the shoulders stay soft. */
+function torsoR(f: number): number {
+  if (f <= 0) return 0.9;
+  if (f < 0.07) { const t = 1 - f / 0.07; return 0.9 + 0.1 * Math.sqrt(Math.max(0, 1 - t * t)); }
+  if (f <= 0.5) return 1;
+  const u = Math.min(1, (f - 0.5) / 0.5);
+  return Math.pow(Math.max(0, 1 - u ** 3), 1 / 3);
+}
+function torsoGeo(tw: number, td: number, H: number): THREE.BufferGeometry {
+  const prof: THREE.Vector2[] = [new THREE.Vector2(0, 0)];
+  const fs: number[] = [0];
+  for (let i = 1; i <= 8; i++) fs.push((0.07 * i) / 8);
+  for (let i = 1; i <= 8; i++) fs.push(0.07 + (0.43 * i) / 8);
+  for (let i = 1; i <= 16; i++) fs.push(0.5 + (0.5 * i) / 16);
+  for (const f of fs) prof.push(new THREE.Vector2(Math.max(torsoR(f), f >= 1 ? 0 : 0.0001), f));
+  let g: THREE.BufferGeometry = new THREE.LatheGeometry(prof, 56);
+  g.scale(tw, H, td);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  g = mergeVertices(g);
+  g.computeVertexNormals();
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 2), 2));
+  return g;
+}
+
 export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
@@ -64,13 +89,13 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   const tw = K.torsoW * S, td = K.torsoD * S, th = bodyHeight / 2;
   const armR = K.armR * S, legR = K.legR * S, mittR = K.mittR * S;
   const hipHalfWidth = Math.min(K.hipX, K.torsoW - 0.35 * K.legR) * S;
-  const shoulderX = tw + 0.4 * armR, shoulderY = bodyHeight - 0.7 * armR; // pelvis space
+  const H = bodyHeight;
+  const shoulderY = H - 0.7 * armR;
+  const shoulderX = tw * torsoR(shoulderY / H) + 0.4 * armR; // pelvis space, just outside the dome
 
   // ---- body: torso, shoulder and hip collars, neck seal, backpack (pelvis space, merged) ----
   const bp: THREE.BufferGeometry[] = [];
-  const torso = new RoundedBoxGeometry(tw * 2, th * 2, td * 2, 7, Math.min(tw, th, td) * 0.97); // nearly a pill
-  torso.translate(0, th, 0);
-  bp.push(paint(torso, SUIT));
+  bp.push(paint(torsoGeo(tw, td, H), SUIT)); // semi-oval: flat base over the hips, dome top
   const packC = new THREE.Vector3(0, th * 1.1, td + 0.75 * K.packD * S);
   const pack = new RoundedBoxGeometry(K.packW * S * 2, K.packH * S * 2, K.packD * S * 2, 6, 0.9 * Math.min(K.packW, K.packH, K.packD) * S);
   pack.translate(packC.x, packC.y, packC.z);
@@ -80,9 +105,11 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
     bp.push(ring(new THREE.Vector3(s * shoulderX, shoulderY, 0).addScaledVector(u, 0.3 * armR), u, armR + 0.25 * K.ringT * S, GEAR));
     bp.push(ring(new THREE.Vector3(s * hipHalfWidth, 0.02, 0), new THREE.Vector3(0, 1, 0), legR + 0.2 * K.ringT * S, GEAR));
   }
-  const neckY = bodyHeight - 0.03;
-  const dy = (neckY + hipHeight - headRestY) / headR;
-  const neck = ring(new THREE.Vector3(0, neckY, 0), new THREE.Vector3(0, 1, 0), headR * Math.sqrt(Math.max(0.02, 1 - dy * dy)) + 0.2 * K.ringT * S, INK);
+  // neck seal: where the dome narrows to the helmet's width, on the helmet's surface
+  const helmR = (y: number) => { const d = (y + hipHeight - headRestY) / headR; return Math.abs(d) < 1 ? headR * Math.sqrt(1 - d * d) : 0; };
+  let neckY = H - 0.03;
+  for (let f = 1; f > 0.5; f -= 0.01) if (torsoR(f) * (tw + td) / 2 >= helmR(f * H)) { neckY = f * H; break; }
+  const neck = ring(new THREE.Vector3(0, neckY, 0), new THREE.Vector3(0, 1, 0), helmR(neckY) + 0.2 * K.ringT * S, INK);
   bp.push(neck);
   const body = new THREE.Mesh(keepG(merge(bp)), suitMat);
 
@@ -103,6 +130,7 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   // ---- legs: thigh (hip → knee) and shin + boot (knee → sole); the knee pivot sits a little below halfway ----
   const legs: THREE.Group[] = [];
   const knees: THREE.Group[] = [];
+  const HIP_CAP = 0.025;
   const L = hipHeight, kneeY = -0.55 * L, bootRy = 0.07;
   const sphereAt = (r: number, y: number, hex: number) => paint(new THREE.SphereGeometry(r, 20, 14).translate(0, y, 0), hex);
   for (const s of [-1, 1]) {
@@ -111,7 +139,8 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
     const kneeR = legR * 0.96;
     const thigh = new THREE.CylinderGeometry(legR, kneeR, -kneeY, 16, 1);
     thigh.translate(0, kneeY / 2, 0);
-    leg.add(new THREE.Mesh(keepG(merge([paint(thigh, SUIT), sphereAt(kneeR, kneeY, SUIT)])), suitMat));
+    leg.add(new THREE.Mesh(keepG(merge([paint(thigh, SUIT), sphereAt(kneeR, kneeY, SUIT), sphereAt(legR, HIP_CAP, SUIT)])), suitMat));
+    leg.userData.cap = { y: HIP_CAP, r: legR }; // hip cap: tucked into the torso so no swing opens a gap
     const knee = new THREE.Group();
     knee.position.set(0, kneeY, 0);
     leg.add(knee);
