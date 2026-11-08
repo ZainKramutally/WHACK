@@ -81,6 +81,7 @@ const HEAD_F = [0.45, 0.8, 1.0], HEAD_K = [0.9, 0.62, 0.08];
 // Gas bell egg profile: height from the rim (× bell height) and radius factor, closed underneath.
 const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0];
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
+const G_MOVE = 0.25; // m a creature moves before its cached ground height is resampled
 const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
@@ -104,6 +105,8 @@ interface Entry {
   swRank: number; swOn: boolean;
   /** Ground under it when last drawn (the view test's sphere height). */
   yDrawn: number;
+  /** Cached ground: the last sample (height, slope, where, terrain stamp); resampled after 0.25 m or a terrain change. */
+  gH: number; gSx: number; gSz: number; gX: number; gZ: number; gStamp: number;
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -380,7 +383,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
-      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -1025,6 +1028,22 @@ export function createFauna(app: App): FaunaPart {
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
+  // Ground cache: about 1k height samples a frame (one per creature, plus posed feet) became a resample only after a
+  // creature moves 0.25 m or the terrain changes, with the slope kept so the cached plane is exact to first order.
+  let terrainStamp = 0, sigRise = NaN, sigForm = NaN;
+  function groundOf(e: Entry): number {
+    const dx = e.x - e.gX, dz = e.z - e.gZ;
+    if (e.gStamp !== terrainStamp || dx * dx + dz * dz > G_MOVE * G_MOVE) {
+      const h = fHeight(e.x, e.z);
+      e.gSx = (fHeight(e.x + G_MOVE, e.z) - h) / G_MOVE; e.gSz = (fHeight(e.x, e.z + G_MOVE) - h) / G_MOVE;
+      e.gH = h; e.gX = e.x; e.gZ = e.z; e.gStamp = terrainStamp;
+      return h;
+    }
+    return e.gH + e.gSx * dx + e.gSz * dz;
+  }
+  // Posed proxies (tier 1) plant their feet on the cached plane; lofted ones (tier 2) sample the terrain.
+  let PL_H = 0, PL_SX = 0, PL_SZ = 0, PL_X = 0, PL_Z = 0;
+  const planeAt = (x: number, z: number) => PL_H + PL_SX * (x - PL_X) + PL_SZ * (z - PL_Z);
   /** Conservative: the sphere is inside or on all four side planes of the camera frustum. */
   function inView(x: number, y: number, z: number, r: number): boolean {
     const P = frustum.planes;
@@ -1044,7 +1063,7 @@ export function createFauna(app: App): FaunaPart {
     e.tier = 0; e.bell = false;
     const wasSwim = e.swOn;
     e.swOn = false;
-    const ground = fHeight(e.x, e.z);
+    const ground = groundOf(e);
     const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
     let y0 = ground;
@@ -1063,8 +1082,10 @@ export function createFauna(app: App): FaunaPart {
     fPosed++;
     e.tier = 1;
     const s0 = fBoost * drawnFactor(e.scale, e.g);
-    if (lay.radial) animateRadial(e, ft, s0, mode, fHeight, y0, cosH, sinH);
-    else animate(e, ft, s0, mode, fHeight, y0, cosH, sinH);
+    PL_H = e.gH; PL_SX = e.gSx; PL_SZ = e.gSz; PL_X = e.gX; PL_Z = e.gZ;
+    const feetOn = tier === 2 ? fHeight : planeAt;
+    if (lay.radial) animateRadial(e, ft, s0, mode, feetOn, y0, cosH, sinH);
+    else animate(e, ft, s0, mode, feetOn, y0, cosH, sinH);
     if (tier === 2) {
       if (!e.desc && e.plan) {
         try {
@@ -1200,6 +1221,12 @@ export function createFauna(app: App): FaunaPart {
       const boost = part.scaleBoost;
       ft = t; fBoost = boost; fSea = inputs.seaLevel; fSeaThere = (inputs.stats.seaCover ?? 1) > 0.005;
       fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0;
+      // the terrain changed enough to move the ground (formation rise, landform growth): resample every cached ground
+      let form = 0;
+      for (const k in inputs.terrain.progress) form += inputs.terrain.progress[k];
+      if (!(Math.abs(inputs.terrain.rise - sigRise) < 0.002 && Math.abs(form - sigForm) < 0.005)) {
+        terrainStamp++; sigRise = inputs.terrain.rise; sigForm = form;
+      }
       counts.fill(0);
       for (const l of LOFTS) l.n = 0;
       for (const b of parts) b.n = 0;
