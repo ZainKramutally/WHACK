@@ -32,9 +32,10 @@ export function createSea(app: App): SeaPart {
   const uBed: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
   const uBedAmt = uniform(0);
   const uPatch = uniform(256);
-  const RES = 96;
-  const heights = new Float32Array(RES * RES);
-  const heightTex = new THREE.DataTexture(heights, RES, RES, THREE.RedFormat, THREE.FloatType);
+  // half-float: filterable on every WebGPU/WebGL2 device (float32 linear filtering is an optional feature)
+  const RES = 64;
+  const heights = new Uint16Array(RES * RES);
+  const heightTex = new THREE.DataTexture(heights, RES, RES, THREE.RedFormat, THREE.HalfFloatType);
   heightTex.minFilter = heightTex.magFilter = THREE.LinearFilter;
   heightTex.needsUpdate = true;
 
@@ -82,14 +83,15 @@ export function createSea(app: App): SeaPart {
   mesh.frustumCulled = false;
   app.scene.add(mesh);
 
-  // Re-bake the seabed heights while the terrain moves (build rise, landforms): at most every 0.4 s, and only when its state changed.
-  let bakeKey = '', bakeAt = -1;
+  // Re-bake the seabed heights (64² cell centres) only when the VisualInputs terrain object changes (it is memoised while the
+  // sampler and state are unchanged), at most every 0.5 s during the build and every 1 s after it.
+  let bakedFor: unknown = null, bakedPatch = 0, bakeAt = -10;
   function bake(inputs: VisualInputs, patch: number, t: number) {
     const f = inputs.terrain.height;
-    const k = `${patch}|${inputs.terrain.rise.toFixed(3)}|${Object.values(inputs.terrain.progress).map((v) => v.toFixed(3)).join()}`;
-    if (!f || (k === bakeKey) || (bakeAt >= 0 && t - bakeAt < 0.4 && t >= bakeAt)) return;
-    bakeKey = k; bakeAt = t;
-    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) heights[j * RES + i] = f(((i + 0.5) / RES - 0.5) * patch, ((j + 0.5) / RES - 0.5) * patch);
+    if (!f || (inputs.terrain === bakedFor && patch === bakedPatch)) return;
+    if (t >= bakeAt && t - bakeAt < (inputs.buildProgress < 1 ? 0.5 : 1)) return;
+    bakedFor = inputs.terrain; bakedPatch = patch; bakeAt = t;
+    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) heights[j * RES + i] = THREE.DataUtils.toHalfFloat(f(((i + 0.5) / RES - 0.5) * patch, ((j + 0.5) / RES - 0.5) * patch));
     heightTex.needsUpdate = true;
   }
   let key = '';
