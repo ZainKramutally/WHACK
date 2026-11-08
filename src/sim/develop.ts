@@ -123,6 +123,7 @@ export interface BodyPlan {
  * Designed and declared; each is a shape or unit-conversion factor.
  */
 const G = {
+  jawPleiotropy: 0.6, // designed grammar rule: effective gape = gape + this × diet, so a meat-eating lineage gets the mouth for prey with the same mutation (assumption: true)
   baseScale: 0.15, // m at size 0; ×2^(6·size)
   sizeOctaves: 6,
   airLift: 0.6, // (1 + airLift·ρ_air·buoy) on scale: gas bells grow in thick air
@@ -413,7 +414,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     shellCover: armouredWalker ? clamp(f.plates + 0.35 * giant, 0, 1) : 0,
     hornCount,
     hornLength: hornCount === 0 ? 0 : f.horns * (radial ? 0.6 : hornCount > 2 ? 0.35 : 0.6) * scale,
-    gapeSize: 2 * body.gape * scale,
+    gapeSize: 2 * Math.min(1, body.gape + G.jawPleiotropy * body.diet) * scale,   // carnivore jaws co-develop with the diet gene: one mutation carries both
     dorsal: comp.si >= comp.c ? 'rods' : 'frills',
     hornKind,
     girth, flatten, headScale, gradient, carapace, crest, jaw, tailKind, tailSegments, finSpan, wingSpan, liftSpan,

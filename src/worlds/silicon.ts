@@ -264,7 +264,7 @@ export const silicon: WorldConfig = {
       toleranceCost: 0.02,
       stressDeath: 1.5,
       edgeStressWeight: 1,
-      mutation: { size: 0.075, prefTemp: 0.6, tolerance: 0.3, chem: 0.075, roleFlip: 0, sizeBoost: 2, jumpRate: 0.012, jumpScale: 0.4 },   // assumption: true. Rare large jumps, as in punctuated equilibrium (Gould and Eldredge 1972): species stay stable, and occasional jumps found new ones
+      mutation: { size: 0.075, prefTemp: 0.6, tolerance: 0.3, chem: 0.075, roleFlip: 0, sizeBoost: 2, dietBoost: 8, jumpRate: 0.012, jumpScale: 0.4 },   // assumption: true. Rare large jumps, as in punctuated equilibrium (Gould and Eldredge 1972): species stay stable, and occasional jumps found new ones
       bounds: { size: [0.2, 5], tolerance: [1, 30] },
       chemTrait: { kind: 'coldStability', warmRelief: 0.5, cost: 0.2 },
     },
@@ -297,7 +297,7 @@ export const silicon: WorldConfig = {
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
       growRate: 0.05, // assumption: true. A juvenile turns surplus energy into body at 5% of its mass per ecology second, so a large mutant is born small (never larger than its parent) and grows up
-      meatAssim: 0.5, // assumption: true. A hunter keeps about half of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
+      meatAssim: 0.9, // assumption: true. A hunter keeps about half of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
       grazeReach: 1, // assumption: true. A grazer feeds one extra cell out per metre of body length, up to 2 cells
       canopyReach: 0.6, // assumption: true. Metres of limb a body needs to reach canopy biomass: tall bodies open food small ones cannot get (megafauna niche, owner ruling 2026-11-08)
       deepScale: 0.9, // assumption: true. Body length (m) a swimmer needs to feed below the shallows: only large swimmers use deep-water food
@@ -305,7 +305,7 @@ export const silicon: WorldConfig = {
       intake: 15, // assumption: raised so slow-pace silicon grazers still bud within their lifespan, and so a collapsed population regrows visibly (about 40 s) after a heat wall
       speed: 1.5, // cells per ecology second
       moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost
-      catchRate: 0.4, // catch attempts per ecology second when a prey is in reach; tuned so hunters persist
+      catchRate: 1.0, // catch attempts per ecology second when a prey is in reach; tuned so hunters persist
       buildRate: 0.05, // stone matter per M^0.75 per ecology second while a builder rests at home
       senseBase: 0.7, // cells an animal sees with no eyes
       senseGain: 0.8, // extra cells seen at full eyes in full light

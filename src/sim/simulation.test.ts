@@ -566,8 +566,8 @@ describe('WorldSimulation', () => {
   describe('field guide events', () => {
     // The silicon case takes over a second, so it only runs with SLOW=1; carbon (under a second) covers the same code in the default run.
     const announcesOnce = (w: WorldConfig) => {
-      // 6 s build with 100 ecology-seconds of life, snapshotted at 20 Hz as the worker does.
-      const sim = new WorldSimulation({ ...w, build: { ...w.build, durationSec: 6, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 100 } }, EARTH);
+      // 6 s build with 200 ecology-seconds of life (enough for a cluster to reach the build's announcement share), snapshotted at 20 Hz as the worker does.
+      const sim = new WorldSimulation({ ...w, build: { ...w.build, durationSec: 6, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 200 } }, EARTH);
       const forms: { binId: number; name: string }[] = [];
       for (let i = 0; i < 160; i++) {
         sim.advance(0.05);

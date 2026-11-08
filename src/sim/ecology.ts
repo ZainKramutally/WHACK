@@ -596,8 +596,8 @@ export class Ecology {
           const eats = eatsIntensity(p, pj);
           if (eats > 0) {
             // A kill is worth the whole prey body: its energy for the hunter, in units of one cell's transfer at plant ε, so big prey pays more.
-            const worth = L.meatAssim > 0 ? 1 + ((this.struct[j] + this.energy[j]) * L.meatAssim * (DIGEST_FLOOR + (1 - DIGEST_FLOOR) * p.meatGain)) / (L.cellMass * CONSTANTS.EPS0.value) : 1;
-            const v = (drive * eats * worth * (1 - REF * this.shelter(cellOf(this.x[j], this.y[j])))) / (1 + d);
+            const worth = L.meatAssim > 0 ? ((this.struct[j] + this.energy[j]) * L.meatAssim * (DIGEST_FLOOR + (1 - DIGEST_FLOOR) * p.meatGain)) / (L.cellMass * CONSTANTS.EPS0.value) : eats;
+            const v = (drive * worth * (1 - REF * this.shelter(cellOf(this.x[j], this.y[j])))) / (1 + d);
             if (v > huntV) { huntV = v; huntJ = j; }
           }
           const a = eatsIntensity(pj, p);

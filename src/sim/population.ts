@@ -70,6 +70,7 @@ export interface LifeRules {
     roleFlip: number; // chance a child switches role
     jumpRate?: number; // ecology: share of births that make a large jump on 1-3 random body genes (default 0)
     jumpScale?: number; // and the jump's step size (default 0)
+    dietBoost?: number; // ecology: the diet gene steps this many times further than the other body genes (default 1), so a lineage can cross from grazing to hunting
     sizeBoost?: number; // ecology: the body-size gene steps this many times further than the other body genes (default 1); size is the one trait that must travel a long way for megafauna to exist
   };
   bounds: { size: [number, number]; tolerance: [number, number] };

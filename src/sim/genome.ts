@@ -46,7 +46,8 @@ export function mutate(
 ): AnimalGenome {
   const body = {} as BodyGenes;
   const sizeBoost = climate.mutation.sizeBoost ?? 1;
-  for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * (g === 'size' ? sizeBoost : 1) * gaussian(rng));
+  const dietBoost = climate.mutation.dietBoost ?? 1;
+  for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * (g === 'size' ? sizeBoost : g === 'diet' ? dietBoost : 1) * gaussian(rng));
   // Punctuated equilibrium (Gould & Eldredge 1972): rarely, 1-3 genes jump far, founding a new form that establishes or dies out.
   const jumpRate = climate.mutation.jumpRate ?? 0;
   if (jumpRate > 0 && rng() < jumpRate) {
