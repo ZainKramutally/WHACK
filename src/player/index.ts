@@ -7,6 +7,7 @@ import { createCharacter, tuningFor } from './character';
 import { createPlayer, type PlayerEnv, type PlayerState, type PlayerTuning } from './controller';
 import { createInput, type InputCallbacks, type InputKind, type InputOptions } from './input';
 import { approach, easeSprintFov, walkFloor } from './logic';
+import { createFreeCam, dirFromAngles, type PathKey, type Vec3 } from './freeCam';
 
 export type { PlayerEnv, PlayerState, PlayerTuning, CameraTuning, InputCallbacks, InputKind };
 
@@ -23,6 +24,18 @@ export interface AttachedPlayer {
   setVisible(v: boolean): void;
   /** Grow the character in from its feet: 0 hides it, 1 is full size (the spawn ramp). */
   setAppear(k: number): void;
+  /** The free (cinematic) camera: detached from the character, scriptable (see player/freeCam.ts). */
+  readonly free: {
+    readonly active: boolean;
+    enter(): void;
+    /** Ease back to the follow camera (about 0.6 s). */
+    exit(): void;
+    toggle(): void;
+    set(pose: { pos: Vec3; look: Vec3; fov?: number }): void;
+    path(keys: PathKey[], opts?: { loop?: boolean }): Promise<void>;
+    stop(): void;
+    state(): { active: boolean; playing: boolean; pos: Vec3; look: Vec3; fov: number; speed: number };
+  };
 }
 
 export interface AttachOptions {
@@ -61,7 +74,51 @@ export function attachPlayer(
   camera.position.set(follow.position.x, follow.position.y, follow.position.z);
   camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
 
+  // Free camera: floor is the terrain (or the ice on a frozen sea); the sea itself is not a floor, so it can go underwater.
+  const freeCam = createFreeCam({ floorAt: (x, z) => (env.frozen() ? Math.max(env.heightAt(x, z), env.seaLevel()) : env.heightAt(x, z)) });
+  const idle = { moveX: 0, moveZ: 0, rise: 0, jump: false, sprint: false };
+  const applyFree = () => {
+    const d = dirFromAngles(freeCam.yaw, freeCam.pitch);
+    camera.position.set(freeCam.pos.x, freeCam.pos.y, freeCam.pos.z);
+    camera.lookAt(freeCam.pos.x + d[0], freeCam.pos.y + d[1], freeCam.pos.z + d[2]);
+    if (camera.fov !== freeCam.fov) { camera.fov = freeCam.fov; camera.updateProjectionMatrix(); }
+  };
+  const enterFree = () => {
+    if (freeCam.active) return;
+    camera.updateMatrixWorld();
+    const dir = camera.getWorldDirection(new THREE.Vector3());
+    freeCam.begin(camera.position, dir, camera.fov);
+    input.setFree(true);
+  };
+  const exitFree = () => {
+    if (!freeCam.active) return;
+    const pos = { x: freeCam.pos.x, y: freeCam.pos.y, z: freeCam.pos.z };
+    const aim = freeCam.aim();
+    freeCam.end();
+    input.setFree(false);
+    camTarget.y = s.y;
+    follow.setFromPose(pos, { x: aim[0], y: aim[1], z: aim[2] }, camTarget, s.mode === 'swim');
+    fovExtra = 0;
+    camera.fov = baseFov;
+    camera.updateProjectionMatrix();
+  };
+  const free: AttachedPlayer['free'] = {
+    get active() { return freeCam.active; },
+    enter: enterFree,
+    exit: exitFree,
+    toggle() { if (freeCam.active) exitFree(); else enterFree(); },
+    set({ pos, look, fov }) { enterFree(); freeCam.set(pos, look, fov); applyFree(); },
+    path(keys, o = {}) { enterFree(); return freeCam.play(keys, !!o.loop); },
+    stop() { freeCam.stop(); },
+    state() {
+      const d = dirFromAngles(freeCam.yaw, freeCam.pitch);
+      const p: Vec3 = freeCam.active ? [freeCam.pos.x, freeCam.pos.y, freeCam.pos.z] : [camera.position.x, camera.position.y, camera.position.z];
+      return { active: freeCam.active, playing: freeCam.playing, pos: p, look: [p[0] + d[0], p[1] + d[1], p[2] + d[2]], fov: camera.fov, speed: freeCam.speed };
+    },
+  };
+
   return {
+    free,
     state: s,
     get lastUsed() {
       return input.lastUsed;
@@ -71,6 +128,14 @@ export function attachPlayer(
     },
     update(dt) {
       const it = input.poll(dt);
+      if (freeCam.active) {
+        // Detached: the character idles (the sim and its own animation carry on) and the intents fly the camera.
+        freeCam.update(dt, it);
+        applyFree();
+        player.update(dt, { ...idle, camYaw: follow.yaw, camPitch: follow.pitch });
+        character.update(s, dt);
+        return;
+      }
       follow.orbit(it.orbitYaw, it.orbitPitch);
       if (it.zoom) follow.zoom(it.zoom);
       player.update(dt, {

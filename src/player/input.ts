@@ -14,6 +14,10 @@ export interface InputCallbacks {
   onSliderSelect?(index: number): void;
   /** The most recently used input device changed (controls hint, reticle). */
   onLastUsedChange?(kind: InputKind): void;
+  /** C, or gamepad View/Back: toggle the free (cinematic) camera. */
+  onToggleFreeCam?(): void;
+  /** H: toggle the in-world UI (used inside the free camera). */
+  onToggleUI?(): void;
 }
 
 export interface Intents {
@@ -25,6 +29,7 @@ export interface Intents {
   orbitYaw: number;  // radians this frame, camera yaw change
   orbitPitch: number; // radians this frame, + = camera higher
   zoom: number;      // log-distance change this frame: + out, - in (wheel, LT/RT)
+  slow: boolean;     // Ctrl or Alt held (fine framing in the free camera)
 }
 
 export interface InputOptions {
@@ -38,10 +43,12 @@ export interface InputHandle {
   poll(dt: number): Intents;
   readonly lastUsed: InputKind;
   readonly gamepadConnected: boolean;
+  /** Free-camera mode: movement keys are recorded even with Ctrl or Alt held. */
+  setFree(on: boolean): void;
   dispose(): void;
 }
 
-const GP = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const GP = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const REPEAT_DELAY = 0.35;
 const REPEAT_EVERY = 0.09;
 
@@ -61,6 +68,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
 
   // keyboard
   const keys = new Set<string>();
+  let free = false;
   const isTyping = (t: EventTarget | null) =>
     t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
   const onKeyDown = (e: KeyboardEvent) => {
@@ -75,8 +83,14 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       if (!e.repeat) cb.onClose?.();
       return;
     }
-    if (isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.code;
+    if (k === 'ControlLeft' || k === 'ControlRight' || k === 'AltLeft' || k === 'AltRight') { keys.add(k); return; }
+    if (isTyping(e.target) || e.metaKey) return;
+    if ((e.ctrlKey || e.altKey) && !free) return;
+    if (k === 'KeyC' || k === 'KeyH') {
+      if (!e.repeat) { setLast('keyboard'); if (k === 'KeyC') cb.onToggleFreeCam?.(); else cb.onToggleUI?.(); }
+      return;
+    }
     if (k === 'KeyW' || k === 'KeyA' || k === 'KeyS' || k === 'KeyD' || k === 'Space' || k === 'ShiftLeft' || k === 'ShiftRight') {
       keys.add(k);
       setLast('keyboard');
@@ -203,6 +217,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       if (edge(GP.A)) cb.onInspect?.('reticle');
       if (edge(GP.B)) cb.onClose?.();
       if (edge(GP.Y)) cb.onToggleConditions?.();
+      if (edge(GP.BACK)) cb.onToggleFreeCam?.();
       if (edge(GP.UP)) {
         slider = (slider + sliderCount - 1) % sliderCount;
         cb.onSliderSelect?.(slider);
@@ -234,7 +249,8 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       }
       if (used) setLast('gamepad');
     }
-    return { moveX, moveZ, sprint, rise, jump, orbitYaw, orbitPitch, zoom };
+    const slow = keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('AltLeft') || keys.has('AltRight');
+    return { moveX, moveZ, sprint, rise, jump, orbitYaw, orbitPitch, zoom, slow };
   }
 
   return {
@@ -245,6 +261,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
     get gamepadConnected() {
       return connectedPad;
     },
+    setFree(on) { free = on; },
     dispose() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);

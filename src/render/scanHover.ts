@@ -21,6 +21,8 @@ type HoverPayload = { target: Life; rect: { x: number; y: number; width: number;
 export interface ScanHover {
   /** Which device drives the lock: the mouse position, or the screen centre. */
   setInputKind(kind: 'keyboard' | 'gamepad'): void;
+  /** Off in the free camera: no hover scanning, and clicks open nothing. */
+  setEnabled(on: boolean): void;
   /** The locked creature if this click (client pixels, or 'reticle') lands inside its lock rect plus a margin, else null. */
   lockedCreatureAt(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } } | null;
   dispose(): void;
@@ -36,6 +38,7 @@ export function createScanHover(
   let kind: 'keyboard' | 'gamepad' = 'keyboard';
   let px = 0, py = 0, pointerIn = false, dragging = false;
   let grace = 0;
+  let enabled = true;
   let acc = RESOLVE_EVERY; // resolve on the first frame
   let payload: HoverPayload | null = null;
   let key = '';
@@ -83,7 +86,7 @@ export function createScanHover(
   window.addEventListener('pointerup', onUp);
 
   const off = app.registerFrameHook((dt) => {
-    const active = kind === 'gamepad' || (pointerIn && !dragging);
+    const active = enabled && (kind === 'gamepad' || (pointerIn && !dragging));
     if (!active) { clear(); return; }
     acc += dt;
     if (acc >= RESOLVE_EVERY) {
@@ -118,8 +121,9 @@ export function createScanHover(
   });
 
   return {
+    setEnabled(on) { enabled = on; if (!on) clear(); },
     lockedCreatureAt(at) {
-      if (!payload || payload.target.kind !== 'organism') return null;
+      if (!enabled || !payload || payload.target.kind !== 'organism') return null;
       const x = at === 'reticle' ? cr.left + cr.width / 2 : at.x, y = at === 'reticle' ? cr.top + cr.height / 2 : at.y;
       return inLock(x, y, payload.rect, CLICK_MARGIN) ? { target: payload.target, at: { x, y } } : null;
     },

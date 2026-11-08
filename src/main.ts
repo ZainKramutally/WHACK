@@ -22,6 +22,7 @@ import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
+import { hideFreeCamHint, setCinematicUI, showFreeCamHint } from './ui/cinematic';
 import { mountSelectionScreen } from './ui/selection/screen';
 import { controlList, setEgg, worldFor } from './worlds';
 import type { Conditions, CrustPickId, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
@@ -290,6 +291,7 @@ async function start(
     {
       callbacks: {
         onInspect(at) {
+          if (player.free.active) return;   // free camera: clean frames, no clicking
           // Only life opens a card (creatures and producers). The sea, ground and sky act as "clicking elsewhere"
           // and close any open card, for the gamepad reticle too (owner ruling, 2026-11-07).
           // A click on a locked creature opens THAT creature even if the ray misses it (fast movers).
@@ -302,10 +304,31 @@ async function start(
         onSliderSelect: (i) => ui.selectSlider(i),
         onSliderNudge: (i, d) => ui.nudgeSlider(i, d),
         onLastUsedChange: (k) => { ui.setInputKind(k); scan.setInputKind(k); },
+        onToggleFreeCam: () => setFree(!player.free.active, true),
+        onToggleUI: () => { if (player.free.active) setCinematicUI(!document.body.classList.contains('wu-cinematic')); },
       },
     },
   );
   player.setVisible(false);
+
+  // Free (cinematic) camera: C or View/Back toggles it; window.lifeCam scripts it (API in player/freeCam.ts).
+  function setFree(on: boolean, hint: boolean) {
+    if (on === player.free.active) return;
+    if (on) { player.free.enter(); setCinematicUI(true); scan.setEnabled(false); if (hint) showFreeCamHint(); }
+    else { player.free.exit(); setCinematicUI(false); scan.setEnabled(true); hideFreeCamHint(); }
+  }
+  Object.assign(window, {
+    lifeCam: {
+      enter: () => setFree(true, false),
+      exit: () => setFree(false, false),
+      set: (p: Parameters<typeof player.free.set>[0]) => { setFree(true, false); player.free.set(p); },
+      path: (keys: Parameters<typeof player.free.path>[0], o?: { loop?: boolean }) => { setFree(true, false); return player.free.path(keys, o); },
+      stop: () => player.free.stop(),
+      hideUI: (b: boolean) => setCinematicUI(!!b),
+      state: () => ({ ...player.free.state(), uiHidden: document.body.classList.contains('wu-cinematic') }),
+    },
+  });
+  const cinematic = new URLSearchParams(location.search).has('cinematic');
 
   // The character spawns once the ground is solid (build.spawnSec); before that the player is frozen and hidden.
   let spawned = false;
