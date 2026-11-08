@@ -260,3 +260,4 @@
 - 08:56: merged ocean-level (seaFreeboard: base + 0.28×(basalt−default) + ice(T); default 74.2% exact; basalt 97%; rampRange 0.18→0.38; SLOW targets use default chip). 607 related tests + build green. Pushing. SLOW silicon −163 °C 90 s test 877<900 (pre-existing from silicon terrain changes?) → told logic lead.
 - 09:02 16: carbon sea cover physical (fc 5a67fe1) documented. Flags: carbon start at −40 °C ends the build with 0 consumers (in band!); SLOW silicon −163 °C test 877 < 900.
 - 09:03 16: merged hunt-events (#91 sim half): layout v4 intent/targetId, SimSnapshot.kills.
+- 09:02: OWNER bug: pillars red on non-iron rock. Cause: src/gen/landmarkMesh.ts paints legacy landmarks (hoodoos, buttes, arches) from fixed Red World palettes (ROCK, butte) on every world. landmark-colour agent: colour from the local mineral (ironstone keeps Red World ramp), shell/ice unchanged. Note: user's likely dev server 5173 (session/character) already had pillars + warm grey.
