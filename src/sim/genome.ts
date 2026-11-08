@@ -56,11 +56,11 @@ export function mutate(
 
 /** Founder body: tiny capsule worm (F §3.2: "the first animals are always worms"). */
 const FOUNDER_BASE: BodyGenes = {
-  size: 0.1, segments: 0.2, limbPairs: 0, limbLen: 0.3, plates: 0.05, horns: 0.05,
+  size: 0.05, segments: 0.2, limbPairs: 0, limbLen: 0.3, plates: 0.05, horns: 0.05,
   gape: 0.2, diet: 0.1, eyes: 0.2, buoy: 0.2, glow: 0, sociality: 0.3,
 };
 /** Standing variation σ on these genes (research/body-plans/notes/01 §5: g1, g9–g12, g14, g21, g24). */
-const FOUNDER_SIGMA = 0.12;
+const FOUNDER_SIGMA = 0.12; // size starts near 0 (0.05, clamped at 0): founders are the smallest bodies the grammar makes
 const FOUNDER_VARIED: BodyGene[] = ['size', 'limbLen', 'plates', 'horns', 'diet'];
 /** Share of founders that start with a tiny limb bud (limbPairs > 0 but too small to round to a leg pair). */
 const BUD_SHARE = 0.15;
