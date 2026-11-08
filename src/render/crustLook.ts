@@ -2,7 +2,7 @@
 // pigment blend (purple → green). Pure; the art layer feeds it the oxygen stat and reads colours back. Decoration only.
 import type { FloraPalette } from './floraLib';
 import type { VisualInputs } from '../worlds/types';
-import { hexToLab, labToHex, labMix, mixHex, type RockLook } from './palette';
+import { LOOK_PALETTES, hexToLab, labToHex, labMix, mixHex, type RockLook } from './palette';
 
 /** [fresh, rusted] ground colour per mineral id; minerals that don't oxidise have the same colour twice. */
 export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
