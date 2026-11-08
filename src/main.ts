@@ -150,6 +150,7 @@ async function start(
       heightAt: groundHeight,
       seaLevel: () => latest?.stats.seaLevel ?? -1000,
       frozen: () => (latest ? latest.stats.temperature < world.solvent.freezeC : false),
+      gravity: () => latest?.stats.gravity ?? 1,
       spawn: { x: 0, z: 0 },
     },
     {

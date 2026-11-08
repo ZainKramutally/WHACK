@@ -1,11 +1,15 @@
 // Character controller: walk on the sampled terrain, swim in liquid seas, stand on frozen ones.
 // Pure numbers; no three.js. Convention: camera yaw 0 looks down -z; forward = (-sin yaw, -cos yaw).
-import { angleDelta, approach, clamp, decideMode, walkFloor, type PlayerMode } from './logic';
+import {
+  STANDARD_GRAVITY, angleDelta, approach, clamp, decideMode, stepJump, walkFloor, type JumpTimers, type PlayerMode,
+} from './logic';
 
 export interface PlayerEnv {
   heightAt(x: number, z: number): number;
   seaLevel(): number;
   frozen(): boolean;
+  /** Surface gravity in g (stats.gravity). Defaults to 1 before the first snapshot. */
+  gravity?(): number;
   spawn: { x: number; z: number };
 }
 
@@ -23,6 +27,9 @@ export interface PlayerTuning {
   sprintMul: number;      // walkSpeed multiplier while sprinting on land
   maxSpeed: number;       // hard cap on speed in the water
   sprintMaxSpeed: number; // hard cap on land, raised so sprint (walkSpeed * sprintMul) fits
+  jumpSpeed: number;      // m/s takeoff speed; apex = v²/2g, about 1.2 m at 1 g
+  airAccelTime: number;   // s, steering time constant in the air (larger = less air control)
+  ledgeDrop: number;      // m the ground may fall away under the feet before we count as airborne
   /** Hard bound on the playable patch (± metres from origin); 0 disables. */
   bound: number;
 }
@@ -41,6 +48,9 @@ export const DEFAULT_PLAYER_TUNING: PlayerTuning = {
   sprintMul: 1.8,
   maxSpeed: 8,
   sprintMaxSpeed: 9.5,
+  jumpSpeed: 4.85,
+  airAccelTime: 0.45,
+  ledgeDrop: 0.7,
   bound: 0,
 };
 
@@ -48,6 +58,7 @@ export interface PlayerIntents {
   moveX: number;   // right +
   moveZ: number;   // forward +
   rise: number;    // up +
+  jump?: boolean;  // jump button held (edge-detected here; on land and ice only)
   sprint?: boolean; // walking on land only; ignored while swimming
   camYaw: number;
   camPitch: number; // + = camera above target (looking down)
@@ -66,6 +77,11 @@ export interface PlayerState {
   speed: number;     // current speed, m/s (for animation)
   sprinting: boolean; // sprint is active (land, moving)
   onIce: boolean;    // standing on a frozen sea
+  grounded: boolean; // feet on the floor (walk mode); false while jumping or falling
+  /** Set for one update on takeoff. */
+  jumped: boolean;
+  /** Set for one update on touchdown: 0..1 impact strength, else 0. */
+  landed: number;
   /** Set for one update when the mode flipped, with the previous mode. */
   switchedFrom: PlayerMode | null;
 }
@@ -91,8 +107,14 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
     speed: 0,
     sprinting: false,
     onIce: false,
+    grounded: true,
+    jumped: false,
+    landed: 0,
     switchedFrom: null,
   };
+
+  let timers: JumpTimers = { coyote: 0, buffer: 0 };
+  let prevJump = false;
 
   const place = (x: number, z: number) => {
     state.x = x;
@@ -104,6 +126,8 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
     state.mode = decideMode({ mode: 'walk', ground, seaLevel: sea, frozen });
     state.y = state.mode === 'walk' ? walkFloor(ground, sea, frozen) : sea - t.swimSurfaceOffset;
     state.onIce = frozen && sea > ground;
+    state.grounded = true;
+    timers = { coyote: 0, buffer: 0 };
   };
   place(env.spawn.x, env.spawn.z);
 
@@ -116,6 +140,14 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
 
     const prevMode = s.mode;
     s.mode = decideMode({ mode: prevMode, ground, seaLevel: sea, frozen });
+    // Airborne over deep liquid: keep flying until the feet are down at swim depth, then swim.
+    if (prevMode === 'walk' && s.mode === 'swim' && !s.grounded && s.y > sea - t.swimSurfaceOffset) s.mode = 'walk';
+    if (s.mode === 'walk' && prevMode === 'swim') s.grounded = true;
+    if (s.mode === 'swim') s.grounded = false;
+    s.jumped = false;
+    s.landed = 0;
+    const jumpPressed = !!i.jump && !prevJump;
+    prevJump = !!i.jump;
     s.switchedFrom = s.mode !== prevMode ? prevMode : null;
 
     // Camera-relative basis.
@@ -136,13 +168,47 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
       const speed = t.walkSpeed * (s.sprinting ? t.sprintMul : 1) * (1 - t.waterDrag * wade);
       const dx = (rx * ix + fx * iz) * speed;
       const dz = (rz * ix + fz * iz) * speed;
-      s.vx = approach(s.vx, dx, t.walkAccelTime, dt);
-      s.vz = approach(s.vz, dz, t.walkAccelTime, dt);
-      s.vy = 0;
-      integrate(dt);
-      const floor = walkFloor(env.heightAt(s.x, s.z), sea, frozen);
-      if (s.y < floor) s.y = floor; // popped onto ice or shore
-      s.y = s.y < floor ? floor : s.y + (floor - s.y) * Math.min(1, t.groundFollow * dt);
+      const g = Math.max(0.01, env.gravity?.() ?? 1) * STANDARD_GRAVITY;
+      const j = stepJump(timers, s.grounded, jumpPressed, dt);
+      timers = j.timers;
+      if (j.fire) {
+        s.vy = t.jumpSpeed;
+        s.grounded = false;
+        s.jumped = true;
+      }
+      if (s.grounded) {
+        s.vx = approach(s.vx, dx, t.walkAccelTime, dt);
+        s.vz = approach(s.vz, dz, t.walkAccelTime, dt);
+        s.vy = 0;
+        integrate(dt);
+        const floor = walkFloor(env.heightAt(s.x, s.z), sea, frozen);
+        if (s.y - floor > t.ledgeDrop) {
+          s.grounded = false; // walked off a ledge: fall from here (coyote time still allows a jump)
+        } else {
+          s.y = s.y < floor ? floor : s.y + (floor - s.y) * Math.min(1, t.groundFollow * dt);
+        }
+      }
+      if (!s.grounded) {
+        // Ballistic. Horizontal velocity carries; input steers slowly, and no input means no braking.
+        if (mag > 0.1) {
+          s.vx = approach(s.vx, dx, t.airAccelTime, dt);
+          s.vz = approach(s.vz, dz, t.airAccelTime, dt);
+        }
+        const vyPrev = s.vy;
+        s.vy -= g * dt;
+        s.y += ((vyPrev + s.vy) / 2) * dt;
+        integrate(dt);
+        const floor = walkFloor(env.heightAt(s.x, s.z), sea, frozen);
+        if (s.vy <= 0 && s.y <= floor) {
+          s.landed = clamp(-s.vy / 8, 0.1, 1);
+          s.y = floor;
+          s.vy = 0;
+          s.grounded = true;
+        } else if (s.y < floor) {
+          s.y = floor; // head-first into rising ground
+          s.vy = Math.min(s.vy, 0);
+        }
+      }
       s.swimPitch += (0 - s.swimPitch) * Math.min(1, 8 * dt);
     } else {
       s.sprinting = false;
@@ -169,15 +235,16 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
     }
 
     // Cap speed (diagonals, hitches).
-    const v3 = Math.hypot(s.vx, s.vy, s.vz);
-    const cap = s.mode === 'walk' ? t.sprintMaxSpeed : t.maxSpeed;
+    const walking = s.mode === 'walk';
+    const v3 = walking ? Math.hypot(s.vx, s.vz) : Math.hypot(s.vx, s.vy, s.vz);
+    const cap = walking ? t.sprintMaxSpeed : t.maxSpeed;
     if (v3 > cap) {
       const k = cap / v3;
       s.vx *= k;
-      s.vy *= k;
+      if (!walking) s.vy *= k;
       s.vz *= k;
     }
-    s.speed = Math.hypot(s.vx, s.vy, s.vz);
+    s.speed = walking ? Math.hypot(s.vx, s.vz) : Math.hypot(s.vx, s.vy, s.vz);
     s.onIce = frozen && s.mode === 'walk' && sea > env.heightAt(s.x, s.z);
 
     // Face travel direction (or the move intent when starting up).

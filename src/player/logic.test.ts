@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   STAND_DEPTH, WADE_DEPTH, angleDelta, applyDeadZone, decideMode, easeSprintFov, nextPadSprint, dragEnd, dragMove, dragStart, walkFloor,
+  jumpApex, stepJump, takeoffSpeedFor,
 } from './logic';
 import { createPlayer, type PlayerIntents } from './controller';
 import { createFollowCamera } from './camera';
@@ -206,5 +207,57 @@ describe('sprint', () => {
     expect(e).toBeCloseTo(6, 1);
     for (let k = 0; k < 120; k++) e = easeSprintFov(e, false, 6, 1 / 60);
     expect(e).toBeLessThan(0.1);
+  });
+});
+
+describe('jump', () => {
+  it('apex follows v²/2g: 1.2 m at 1 g, twice that at 0.5 g', () => {
+    const v = takeoffSpeedFor(1.2, 1);
+    expect(jumpApex(v, 1)).toBeCloseTo(1.2);
+    expect(jumpApex(v, 0.5)).toBeCloseTo(2.4);
+  });
+  it('fires on the ground, not twice, and honours coyote time and the buffer', () => {
+    const z = { coyote: 0, buffer: 0 };
+    expect(stepJump(z, true, true, 0.016).fire).toBe(true);
+    // just left a ledge: still within coyote time
+    const left = stepJump({ coyote: 0.1, buffer: 0 }, false, true, 0.05);
+    expect(left.fire).toBe(true);
+    // airborne after firing: no double jump
+    expect(stepJump(left.timers, false, true, 0.016).fire).toBe(false);
+    // pressed 0.05 s before landing fires on touchdown; 0.2 s before does not
+    const early = stepJump(z, false, true, 0.016);
+    expect(stepJump(early.timers, true, false, 0.05).fire).toBe(true);
+    const stale = stepJump(early.timers, false, false, 0.2);
+    expect(stepJump(stale.timers, true, false, 0.016).fire).toBe(false);
+  });
+});
+
+describe('jumping', () => {
+  const mk = (g: number) =>
+    createPlayer({ heightAt: () => 0, seaLevel: () => -100, frozen: () => false, gravity: () => g, spawn: { x: 0, z: 0 } });
+  const apexOf = (g: number) => {
+    const p = mk(g);
+    p.update(0.016, { ...idle, jump: true });
+    let max = 0;
+    for (let n = 0; n < 400; n++) {
+      p.update(0.01, idle);
+      max = Math.max(max, p.state.y);
+    }
+    expect(p.state.grounded).toBe(true);
+    expect(p.state.y).toBe(0);
+    return max;
+  };
+  it('apex is about 1.2 m at 1 g and about double at 0.5 g', () => {
+    expect(apexOf(1)).toBeGreaterThan(1.1);
+    expect(apexOf(1)).toBeLessThan(1.3);
+    expect(apexOf(0.5)).toBeGreaterThan(2.2);
+  });
+  it('falls off a ledge without jitter and lands on the ground', () => {
+    let h = 5;
+    const p = createPlayer({ heightAt: () => h, seaLevel: () => -100, frozen: () => false, spawn: { x: 0, z: 0 } });
+    h = 0;
+    for (let n = 0; n < 200; n++) p.update(0.016, idle);
+    expect(p.state.grounded).toBe(true);
+    expect(p.state.y).toBe(0);
   });
 });

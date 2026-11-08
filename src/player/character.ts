@@ -9,6 +9,8 @@ export interface Character {
   dispose(): void;
 }
 
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
 export function createCharacter(): Character {
   const root = new THREE.Group();
   const pose = new THREE.Group(); // bobbed / leaned, child of root
@@ -36,12 +38,23 @@ export function createCharacter(): Character {
   pose.add(body, head, visor, pack);
 
   let phase = 0;
+  let squash = 0; // + = crouched (takeoff / landing), eased back to 0
   return {
     root,
     update(s, dt) {
       root.position.set(s.x, s.y, s.z);
       root.rotation.y = s.heading;
-      if (s.mode === 'walk') {
+      if (s.jumped) squash = 0.6;
+      if (s.landed > 0) squash = Math.max(squash, s.landed);
+      squash = squash * Math.exp(-dt / 0.09);
+      if (s.mode === 'walk' && !s.grounded) {
+        // Airborne: stretch while rising, tuck slightly while falling.
+        const stretch = clamp01(s.vy / 5);
+        pose.position.y = 0;
+        pose.scale.set(1 - 0.06 * stretch, 1 + 0.08 * stretch, 1 - 0.06 * stretch);
+        pose.rotation.set(0.1 + (s.vy < 0 ? 0.12 : 0), 0, 0);
+      } else if (s.mode === 'walk') {
+        pose.scale.set(1 + 0.12 * squash, 1 - 0.18 * squash, 1 + 0.12 * squash);
         phase += dt * (3 + s.speed * 1.6);
         const k = Math.min(1, s.speed / 3);
         pose.position.y = Math.abs(Math.sin(phase)) * 0.09 * k;
@@ -51,6 +64,7 @@ export function createCharacter(): Character {
         phase += dt * (1.5 + s.speed);
         const k = Math.min(1, s.speed / 2);
         pose.position.y = Math.sin(phase * 0.8) * 0.05;
+        pose.scale.set(1, 1, 1);
         pose.rotation.set(0.5 * k + s.swimPitch * 0.6, 0, Math.sin(phase) * 0.1 * k);
       }
     },

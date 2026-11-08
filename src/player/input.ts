@@ -21,6 +21,7 @@ export interface Intents {
   moveZ: number;     // forward +
   sprint: boolean;   // Shift held, or gamepad L3 toggled on (the controller ignores it while swimming)
   rise: number;      // up + / sink -  (swimming)
+  jump: boolean;     // Space, pad X or RB held (the controller edge-detects; on land it jumps, in water `rise` applies)
   orbitYaw: number;  // radians this frame, camera yaw change
   orbitPitch: number; // radians this frame, + = camera higher
 }
@@ -39,7 +40,7 @@ export interface InputHandle {
   dispose(): void;
 }
 
-const GP = { A: 0, B: 1, Y: 3, LB: 4, RB: 5, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const GP = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const REPEAT_DELAY = 0.35;
 const REPEAT_EVERY = 0.09;
 
@@ -164,6 +165,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
     orbitDx = 0;
     orbitDy = 0;
 
+    let jump = keys.has('Space');
     let sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
     const pad = findPad();
     connectedPad = !!pad;
@@ -185,6 +187,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       orbitPitch += ry * padRad * dt;
       const padRise = (down(GP.RB) ? 1 : 0) - (down(GP.LB) ? 1 : 0);
       if (padRise !== 0) rise = padRise;
+      jump = jump || down(GP.RB) || down(GP.X);
 
       if (edge(GP.A)) cb.onInspect?.('reticle');
       if (edge(GP.B)) cb.onClose?.();
@@ -220,7 +223,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       }
       if (used) setLast('gamepad');
     }
-    return { moveX, moveZ, sprint, rise, orbitYaw, orbitPitch };
+    return { moveX, moveZ, sprint, rise, jump, orbitYaw, orbitPitch };
   }
 
   return {

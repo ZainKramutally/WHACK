@@ -7,8 +7,8 @@ const DEADZONE = 0.2;
 const REPEAT_MS = 120;
 
 const TEXT = {
-  keyboard: 'WASD move · Shift sprint · drag to look · click to inspect · Space / Shift swim (in water) · Tab conditions',
-  gamepad: 'Left stick move · L3 sprint · right stick look · A inspect · B close · Y conditions · D-pad sliders',
+  keyboard: 'WASD move · Shift sprint · Space jump · drag to look · click to inspect · Space / Shift rise / sink (in water) · Tab conditions',
+  gamepad: 'Left stick move · X / RB jump · L3 sprint · right stick look · A inspect · B close · Y conditions · D-pad sliders',
 };
 
 export interface HintCallbacks {

@@ -6,7 +6,7 @@ import { createFollowCamera, type CameraTuning } from './camera';
 import { createCharacter } from './character';
 import { createPlayer, type PlayerEnv, type PlayerState, type PlayerTuning } from './controller';
 import { createInput, type InputCallbacks, type InputKind, type InputOptions } from './input';
-import { easeSprintFov, walkFloor } from './logic';
+import { approach, easeSprintFov, walkFloor } from './logic';
 
 export type { PlayerEnv, PlayerState, PlayerTuning, CameraTuning, InputCallbacks, InputKind };
 
@@ -54,7 +54,8 @@ export function attachPlayer(
   const baseFov = camera.fov;
   const sprintFovDeg = opts.sprintFovDeg ?? 6;
   let fovExtra = 0;
-  follow.snap(s, s.mode === 'swim');
+  const camTarget = { x: s.x, y: s.y, z: s.z }; // y eases while airborne so jumps don't yank the camera
+  follow.snap(camTarget, s.mode === 'swim');
   camera.position.set(follow.position.x, follow.position.y, follow.position.z);
   camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
 
@@ -73,11 +74,15 @@ export function attachPlayer(
         moveX: it.moveX,
         moveZ: it.moveZ,
         rise: it.rise,
+        jump: it.jump,
         sprint: it.sprint,
         camYaw: follow.yaw,
         camPitch: follow.pitch,
       });
-      follow.update(dt, s, s.mode === 'swim');
+      camTarget.x = s.x;
+      camTarget.z = s.z;
+      camTarget.y = s.mode === 'walk' && !s.grounded ? approach(camTarget.y, s.y, 0.3, dt) : s.y;
+      follow.update(dt, camTarget, s.mode === 'swim');
       camera.position.set(follow.position.x, follow.position.y, follow.position.z);
       camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
       character.update(s, dt);
@@ -90,7 +95,8 @@ export function attachPlayer(
     },
     respawn(x, z) {
       player.teleport(x, z);
-      follow.snap(s, s.mode === 'swim');
+      camTarget.y = s.y;
+      follow.snap(camTarget, s.mode === 'swim');
     },
     setVisible(v) {
       character.root.visible = v;

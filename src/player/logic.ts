@@ -116,3 +116,44 @@ export function dragMove(s: DragState, x: number, y: number, threshold = DRAG_TH
 export function dragEnd(s: DragState, x: number, y: number, threshold = DRAG_THRESHOLD_PX): 'click' | 'drag' {
   return dragMove(s, x, y, threshold).dragging ? 'drag' : 'click';
 }
+
+// --- jump ------------------------------------------------------------------------------------
+
+export const STANDARD_GRAVITY = 9.81; // m/s² per g
+/** Grace after leaving the ground in which a jump still works (s). */
+export const COYOTE_TIME = 0.1;
+/** A jump pressed this long before landing still fires on touchdown (s). */
+export const JUMP_BUFFER = 0.1;
+
+/** Ballistic apex height (m) for a takeoff speed under gravity `g` (in g). */
+export function jumpApex(takeoffSpeed: number, g: number): number {
+  return (takeoffSpeed * takeoffSpeed) / (2 * Math.max(0.01, g) * STANDARD_GRAVITY);
+}
+
+/** The takeoff speed (m/s) that gives `apex` metres at gravity `g` (in g). */
+export function takeoffSpeedFor(apex: number, g: number): number {
+  return Math.sqrt(2 * Math.max(0.01, g) * STANDARD_GRAVITY * apex);
+}
+
+export interface JumpTimers {
+  coyote: number;
+  buffer: number;
+}
+
+/**
+ * Coyote time + jump buffer. Call every frame; `fire` is true on the frame a jump should launch.
+ * Firing zeroes both timers, so there is no double jump.
+ */
+export function stepJump(
+  t: JumpTimers,
+  grounded: boolean,
+  pressed: boolean,
+  dt: number,
+  coyoteTime = COYOTE_TIME,
+  bufferTime = JUMP_BUFFER,
+): { timers: JumpTimers; fire: boolean } {
+  const coyote = grounded ? coyoteTime : Math.max(0, t.coyote - dt);
+  const buffer = pressed ? bufferTime : Math.max(0, t.buffer - dt);
+  if (coyote > 0 && buffer > 0) return { timers: { coyote: 0, buffer: 0 }, fire: true };
+  return { timers: { coyote, buffer }, fire: false };
+}
