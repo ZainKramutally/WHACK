@@ -1,6 +1,5 @@
 // Seeded crust map (docs/features/crust.md): one mineral per cell of the 64² grid. Pure and deterministic from (world, seed).
 import { CELLS, GRID } from '../sim/grid';
-import { CRUST_PICKS } from '../worlds/controls';
 import type { CrustPickId, MineralDef, WorldConfig } from '../worlds/types';
 import { createTerrain } from './terrain';
 
