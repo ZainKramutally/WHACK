@@ -137,3 +137,4 @@
 - 03:45: aPart BLOCKER fixed (9b3e621 -> d62484d: aPart to BuiltPlant.part side array, shared lookGeometry for world+card, guard extended). Stage GREEN d62484d: tsc 0, 274/14, SLOW 74/74, build OK. Review 9 (all since f1ca91c) to art-review; then ask Caden for push.
 - 03:47: walking fix on stage bde6b03: harness a748019, straight spine 7dd4030, gait bde6b03 (Froude halfStride, distance-integrated gaitStep, walkW, slew limit, lateral-sequence quadrupeds, motion-only curl flexion + turn bend). Gate 284/14, build OK. Review 9 scope +3. flora-unique on teeth packing (separate).
 - 03:53 16: art batch on main 34fccf2 (unique plants, condition traits, 8 archetypes, fish/plesiosaurs, juveniles via grown, silicon armoured walker render). CLAUDE.md plant traits.
+- 03:55 16: merged swim 8.5 m/s (rise 5, cap 9.5, swim camera smoothTime 0.09).
