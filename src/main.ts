@@ -23,6 +23,7 @@ import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
+import { mountCapture, type CaptureApi } from './capture';
 import { cinematicOn } from './cinematicSetting';
 import { hideFreeCamHint, setCinematicUI, showFreeCamHint } from './ui/cinematic';
 import { mountSelectionScreen } from './ui/selection/screen';
@@ -321,7 +322,7 @@ async function start(
     else { player.free.exit(); setCinematicUI(false); scan.setEnabled(true); hideFreeCamHint(); }
   }
   Object.assign(window, {
-    lifeCam: {
+    lifeCam: Object.assign((window as unknown as { lifeCam?: object }).lifeCam ?? {}, {
       enter: () => setFree(true, false),
       exit: () => setFree(false, false),
       set: (p: Parameters<typeof player.free.set>[0]) => { setFree(true, false); player.free.set(p); },
@@ -329,7 +330,7 @@ async function start(
       stop: () => player.free.stop(),
       hideUI: (b: boolean) => setCinematicUI(!!b),
       state: () => ({ ...player.free.state(), uiHidden: document.body.classList.contains('wu-cinematic') }),
-    },
+    }),
   });
   const cinematic = cinematicOn();
 
@@ -385,15 +386,29 @@ async function start(
   // Console handles for debugging and headless smoke tests, behind ?debug (like the fps readout).
   if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view, seed, bus, landmarks });
 
+  capture?.setRun(worldId, seed);
+
   // Everything is subscribed: start the sim, then select the world.
   ensureSim();
   bus.emit('world:selected', { worldId, requested, seed, ...(crust ? { crust } : {}) });
 }
 
+let capture: CaptureApi | null = null;
 async function boot() {
   audio = mountAudio();
   const link = new URLSearchParams(location.search).get('world');
   const prepared = prepare();
+  // P screenshot, V record / stop: works from the selection screen on (canvas only; the DOM UI is never in the image).
+  prepared.then(({ app }) => {
+    capture = mountCapture(app, { audioStream: () => audio?.engine.captureStream() ?? null });
+    bus.on('world:selected', () => { void capture?.stopRecording(); });
+    const w = window as unknown as { lifeCam?: Record<string, unknown> };
+    w.lifeCam = Object.assign(w.lifeCam ?? {}, {
+      screenshot: () => capture!.screenshot(),
+      startRecording: () => capture!.startRecording(),
+      stopRecording: () => capture!.stopRecording(),
+    });
+  }).catch(() => {});
   if (link === 'carbon' || link === 'silicon') {
     const requested = Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions;
     await start(await prepared, link, requested);

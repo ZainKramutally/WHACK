@@ -31,6 +31,8 @@ export interface BoxAudio {
 export interface Engine {
   readonly ctx: AudioContext | null;
   resume(): void;
+  /** The game's sound as a MediaStream (a tap after the limiter), for video capture; null when there is no audio. */
+  captureStream(): MediaStream | null;
   setMuted(m: boolean): void;
   muted(): boolean;
   /** Start fetching + decoding these cue bases (and their variants) in the background. */
@@ -64,10 +66,11 @@ export function createEngine(): Engine {
   let ctx: AudioContext | null = null;
   try { ctx = Ctor ? new Ctor() : null; } catch { ctx = null; }
   if (!ctx) {
-    return { ctx: null, resume: noop, setMuted: noop, muted: () => true, preload: noop, once: () => false, bed: noop, silenceBedsExcept: noop,
+    return { ctx: null, captureStream: () => null, resume: noop, setMuted: noop, muted: () => true, preload: noop, once: () => false, bed: noop, silenceBedsExcept: noop,
       setUnderwater: noop, duck: noop, listener: noop, windSet: noop, box: noop, music: noop, tick: noop, creatureVoices: () => 0, stinger: noop, lockOn: noop, dispose: noop };
   }
   const c = ctx;
+  let tapNode: MediaStreamAudioDestinationNode | null = null;
   let isMuted = false;
   try { isMuted = localStorage.getItem('audio.muted') === '1'; } catch { /* private mode */ }
 
@@ -465,6 +468,10 @@ export function createEngine(): Engine {
 
   return {
     ctx: c,
+    captureStream() {
+      if (!tapNode) { try { tapNode = c.createMediaStreamDestination(); limiter.connect(tapNode); } catch { return null; } }
+      return tapNode.stream;
+    },
     resume() { if (c.state !== 'running') void c.resume().catch(noop); },
     setMuted(m) {
       isMuted = m; try { localStorage.setItem('audio.muted', m ? '1' : '0'); } catch { /* ignore */ }

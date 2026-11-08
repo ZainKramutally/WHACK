@@ -7,7 +7,7 @@ const DEADZONE = 0.2;
 const REPEAT_MS = 120;
 
 const TEXT = {
-  keyboard: 'WASD move · Shift sprint · Space jump · drag to look · scroll zoom · click to inspect · Space / Shift rise / sink (in water) · Tab conditions',
+  keyboard: 'WASD move · Shift sprint · Space jump · drag to look · scroll zoom · click to inspect · Space / Shift rise / sink (in water) · Tab conditions · C free camera · P photo · V record',
   gamepad: 'Left stick move · X / RB jump · L3 sprint · right stick look · LT/RT zoom · A inspect · B close · Y conditions · D-pad sliders',
 };
 
