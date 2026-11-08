@@ -13,6 +13,7 @@ import type { DevelopInputs } from '../sim/develop';
 import { gasDensity } from '../sim/models';
 import { beadLayout, cellCentre } from './layout';
 import { floraForm } from './floraForm';
+import { crustRatchet, floraPigment } from './crustLook';
 import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixHex, seaStyle, skyStyle } from './palette';
 import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
 import type { PlacedPlant } from './flora';
@@ -344,7 +345,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const world = deps.worldFor(inputs.world.id);
     const patch = inputs.terrain.patchSize ?? world.terrain.patchSize;
     const lib = floraLibrary();
-    const pal = LOOK_PALETTES[lookKind(inputs.world.composition)];
+    const kind = lookKind(inputs.world.composition);
+    const pal = floraPigment(LOOK_PALETTES[kind], kind === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress));   // the world's own pigment, so the card matches the plants outside
     const cc = cellCentre(cell, patch);
     const group = new THREE.Group();
     let reach = 0.3, top = 0.3;
