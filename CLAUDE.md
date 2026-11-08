@@ -156,6 +156,8 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 - **Glow comes from darkness, on both worlds.** The `glow` gene pays for itself as a lure only when light is scarce, so the dim silicon world evolves glow without any oxygen. On silicon the chemistry behind it is non-oxygen chemiluminescence, marked `assumption: true`. This replaces F's and DECISIONS' "glow ∝ oxygen".
 - **Evolution recipe** (from Caden's measurements; without it, legs, plates, horns and hunters don't appear inside a demo):
   - **Gentle mutation, scheduled:** `SIGMA_BUILD` 0.02 for the build's fast-forward, easing to `SIGMA` 0.015 after `build:complete`, so species stay recognisable for minutes (the intended experience). The size gene steps 2× further (`life.rules.mutation.sizeBoost`, world config) so size can diverge.
+  - **Rare big jumps (owner ruling, punctuated equilibrium; Gould and Eldredge 1972):** about 1.2% of births (`life.rules.mutation.jumpRate` 0.012, world config, `assumption: true`) take a large step (`jumpScale` 0.4) on 1–3 random body genes, so new forms can appear suddenly while species stay stable in between.
+  - **Juveniles grow (R3, R8):** a newborn is never larger than its parent. It turns surplus energy into body at ledger `growRate` (0.05, `assumption: true`) until it reaches its adult mass, and it buds only at 90% of adult mass. Without this, a parent paying for a bigger child's whole body capped size growth at about 0.05 on the gene per generation, so giants could never arise. Matter is conserved.
   - **Gentler diet payoff:** plant gain = (1 − diet)^p and meat gain = diet^p with `DIET_EXP` p = 1.15 (owner ruling #48; it was 2), so part-carnivores already gain from meat.
   - **Megafauna payoff:** food intake scales as M^`intakeExp` (ledger, 0.9 in both worlds, `assumption: true`; 0.75 would be Kleiber), so big bodies out-eat their upkeep.
   - **Herds:** grazers drift toward nearby kin in proportion to their `sociality` gene (ledger `cohesion`), so herds move together and low-sociality animals stay solitary.
@@ -668,7 +670,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - every feedback rate
   - the build timings, and the years counter, which is illustrative
 - **Tuning cheats:**
-  - scheduled mutation (`SIGMA_BUILD` 0.02 → `SIGMA` 0.015, size gene ×2), the gentler diet payoff (`DIET_EXP` 1.15), the megafauna intake exponent (`intakeExp` 0.9) and kin cohesion
+  - scheduled mutation (`SIGMA_BUILD` 0.02 → `SIGMA` 0.015, size gene ×2), rare big jumps (`jumpRate` 0.012, `jumpScale` 0.4), juvenile growth (`growRate` 0.05), the gentler diet payoff (`DIET_EXP` 1.15), the megafauna intake exponent (`intakeExp` 0.9) and kin cohesion
   - the compressed pace rule, and silicon's lowered activation energy (32 kJ/mol)
   - a base lifespan of 40 ecology-seconds (scaling with mass^0.25), raised from 6 so generations turn over
   - silicon producers that saturate at 1% sunlight (`floraLightGain` 100), and then grow at full rate
