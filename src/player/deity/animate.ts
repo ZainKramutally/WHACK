@@ -154,7 +154,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     p[H1Z] = -sw2 + trail;
     p[H0Z] = sw2 + trail;
     p[H0Y] = p[H1Y] = pump;
-    p[H0X] = p[H1X] = 0.04;
+    p[H0X] = p[H1X] = 0.015; // hands hug the body: motion is along z
   }
 
   function airPose(p: Float64Array, vy: number) {

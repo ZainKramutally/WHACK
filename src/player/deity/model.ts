@@ -46,11 +46,31 @@ const SPECS: Record<DeityVariantId, Spec> = {
 const EYE_LOOK = 0.04;
 
 /** A unit-sphere-based ellipsoid with the given radii, centred at (0, cy, 0). */
-function ellipsoid(rx: number, ry: number, rz: number, cy = 0, seg: [number, number] = [22, 14]): THREE.BufferGeometry {
+function ellipsoid(rx: number, ry: number, rz: number, cy = 0, seg: [number, number] = [40, 24]): THREE.BufferGeometry {
   const g = new THREE.SphereGeometry(1, seg[0], seg[1]);
   g.scale(rx, ry, rz);
   g.translate(0, cy, 0);
   return g;
+}
+
+/** Smooth bell profile for variant C: radius ratio (of bodyRadius) by height ratio, a rolled hem and round shoulders. */
+const BELL_CTRL: [number, number][] = [
+  [0, 0], [0.62, 0], [0.92, 0.014], [1.0, 0.065], [0.94, 0.2], [0.78, 0.4], [0.58, 0.58], [0.44, 0.72], [0.34, 0.85],
+  [0.22, 0.95], [0.1, 0.99], [0, 1],
+];
+function bellPoints(bodyRadius: number, bodyHeight: number, n = 24): THREE.Vector2[] {
+  const curve = new THREE.CatmullRomCurve3(BELL_CTRL.map(([r, u]) => new THREE.Vector3(r, u, 0)), false, 'centripetal');
+  return curve.getPoints(n * 4 - 1).filter((_, i, a) => i % 4 === 0 || i === a.length - 1).map((v) => new THREE.Vector2(Math.max(0, v.x) * bodyRadius, v.y * bodyHeight));
+}
+/** Bell radius at height y above the pelvis (dense sampling of the same profile). */
+export function bellRadiusAt(bodyRadius: number, bodyHeight: number, y: number): number {
+  const pts = bellPoints(bodyRadius, bodyHeight, 200);
+  let best = 0;
+  for (let i = 1; i < pts.length; i++) if (pts[i].y >= y && pts[i - 1].y <= y && pts[i].y > pts[i - 1].y) {
+    const k = (y - pts[i - 1].y) / (pts[i].y - pts[i - 1].y);
+    best = Math.max(best, pts[i - 1].x + (pts[i].x - pts[i - 1].x) * k);
+  }
+  return best;
 }
 
 /** A rod from a to b with radius r (6-sided: chunky, cheap). */
@@ -115,10 +135,8 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
   let bodyGeo: THREE.BufferGeometry;
   let bodyRz = s.bodyRadius;
   if (variant === 'C') {
-    // bell-shaped cloak: a lathe flaring to the hem, with a soft shoulder
-    const pts = [[0.0, 0], [0.34, 0], [0.335, 0.04], [0.29, 0.2], [0.21, 0.42], [0.15, 0.58], [0.12, 0.66], [0.07, 0.69], [0, 0.7]]
-      .map(([x, y]) => new THREE.Vector2(x * (s.bodyRadius / 0.34), y * (s.bodyHeight / 0.7)));
-    bodyGeo = new THREE.LatheGeometry(pts, 22);
+    // bell-shaped cloak: a smooth lathe with a rolled hem and round shoulders
+    bodyGeo = new THREE.LatheGeometry(bellPoints(s.bodyRadius, s.bodyHeight), 48);
   } else if (variant === 'A') {
     bodyGeo = ellipsoid(s.bodyRadius, s.bodyHeight / 2, s.bodyRadius * 0.92, s.bodyHeight / 2); // egg
     bodyGeo.translate(0, 0, 0);
@@ -145,10 +163,10 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
       g = mergeGeometries([stick, foot])!;
       stick.dispose(); foot.dispose();
     } else if (variant === 'C') {
-      g = ellipsoid(0.08, L / 2, 0.11, -L / 2, [12, 8]); // tiny feet peeking under the hem
+      g = ellipsoid(0.08, L / 2, 0.11, -L / 2, [24, 16]); // tiny feet peeking under the hem
       g.translate(0, 0, -0.04);
     } else {
-      g = ellipsoid(0.1, L / 2, 0.12, -L / 2, [12, 8]); // stubby leg
+      g = ellipsoid(0.1, L / 2, 0.12, -L / 2, [24, 16]); // stubby leg
       g.translate(0, 0, -0.01);
     }
     const m = blackMesh(g);
@@ -161,7 +179,7 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
   const head = new THREE.Group();
   head.position.set(0, headRestY, 0);
   pose.add(head);
-  head.add(blackMesh(new THREE.SphereGeometry(s.headRadius, 24, 16)));
+  head.add(blackMesh(new THREE.SphereGeometry(s.headRadius, 40, 28)));
 
   // ---- eyes ----
   const eyes: THREE.Object3D[] = [];
@@ -211,17 +229,21 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
   }
 
   // ---- hands: detached floating mitts, children of pose ----
-  const handRest: [number, number, number] = [s.bodyRadius + 0.22, hipHeight + s.bodyHeight * 0.45, -0.05];
+  const handY = hipHeight + s.bodyHeight * 0.45;
+  // C's mitts hug the bell: just outside its surface at hand height. The others float further out.
+  const handX = variant === 'C' ? bellRadiusAt(s.bodyRadius, s.bodyHeight, s.bodyHeight * 0.45) + s.handRadius + 0.02 : s.bodyRadius + 0.22;
+  const handRest: [number, number, number] = [handX, handY, variant === 'C' ? -0.06 : -0.05];
   const hands: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
     const h = new THREE.Group();
     h.position.set(sx * handRest[0], handRest[1], handRest[2]);
     const r = s.handRadius;
-    const palm = ellipsoid(r, r * 0.95, r * 0.85, 0, [14, 10]);
+    const palm = ellipsoid(r, r * 0.95, r * 0.85, 0, [24, 16]);
     const thumb = ellipsoid(r * 0.5, r * 0.45, r * 0.45, 0, [8, 6]);
     thumb.translate(sx * -r * 0.3, r * 0.65, -r * 0.35);
-    const mitt = mergeGeometries([palm, thumb])!;
-    palm.dispose(); thumb.dispose();
+    const mitt = variant === 'C' ? palm : mergeGeometries([palm, thumb])!; // C: a plain round mitt
+    if (variant !== 'C') palm.dispose();
+    thumb.dispose();
     h.add(blackMesh(mitt));
     pose.add(h);
     hands.push(h);
@@ -251,14 +273,14 @@ export function buildDeity(variant: DeityVariantId = DEFAULT_VARIANT, opts: Deit
     extras.push(antlers);
   } else if (variant === 'C') {
     // thin white halo (flat ring above the head) and one orbiting mote (a building block)
-    const halo = whiteMesh(new THREE.TorusGeometry(R * 0.78, 0.022, 6, 28));
+    const halo = whiteMesh(new THREE.TorusGeometry(R * 0.78, 0.022, 12, 48));
     halo.rotation.x = Math.PI / 2;
     halo.position.y = R + 0.14;
     head.add(halo);
     halo.userData.motion = 'sway';
     extras.push(halo);
     const orbit = new THREE.Group(); // pivot at the head centre: animation spins it
-    const mote = whiteMesh(new THREE.BoxGeometry(0.075, 0.075, 0.075));
+    const mote = whiteMesh(new THREE.SphereGeometry(0.042, 16, 12));
     mote.position.set(R + 0.2, 0.05, 0);
     mote.rotation.set(0.5, 0.4, 0.2);
     orbit.add(mote);

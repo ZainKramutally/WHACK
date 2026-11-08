@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three/webgpu';
-import { buildDeity, DEITY_VARIANTS } from './model';
+import { bellRadiusAt, buildDeity, DEITY_VARIANTS } from './model';
 
 describe.each(DEITY_VARIANTS.map((v) => v.id))('deity variant %s', (id) => {
   const rig = buildDeity(id);
@@ -41,5 +41,21 @@ describe.each(DEITY_VARIANTS.map((v) => v.id))('deity variant %s', (id) => {
   it('disposes without throwing, with and without rim', () => {
     expect(() => rig.dispose()).not.toThrow();
     expect(() => buildDeity(id, { rim: true, voidMode: 'ink' }).dispose()).not.toThrow();
+  });
+});
+
+describe('variant C hands', () => {
+  it('sit just outside the bell at hand height', () => {
+    const rig = buildDeity('C');
+    const { dims } = rig;
+    const y = dims.handRest[1] - dims.hipHeight;
+    const geo = (rig.body as THREE.Mesh).geometry as THREE.BufferGeometry;
+    const pos = geo.getAttribute('position');
+    let surf = 0;
+    for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i) - y) < 0.01) surf = Math.max(surf, Math.hypot(pos.getX(i), pos.getZ(i)));
+    expect(surf).toBeGreaterThan(0.1);
+    expect(dims.handRest[0] - surf).toBeLessThanOrEqual(dims.handRadius + 0.04);
+    expect(dims.handRest[0] - surf).toBeGreaterThan(dims.handRadius * 0.5); // not inside the cloak
+    expect(bellRadiusAt(dims.bodyRadius, dims.bodyHeight, y)).toBeCloseTo(surf, 1);
   });
 });
