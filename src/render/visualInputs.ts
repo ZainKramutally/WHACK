@@ -193,7 +193,7 @@ export function makeStubVisualInputs(): VisualInputs {
     heatBand: 0.5,
     heatSolvent: 0.65,
     light: 1,
-    airDensity: 1.2,
+    airDensity: 0.06,   // VisualInputs units: Earth's 1.2 kg/m³ × the shared airDensity.scale 0.05 (not raw kg/m³)
     buildProgress: 1,
     terrain: { rise: 1, progress: {}, height: () => 0 },
     organisms: new Float32Array(0),
