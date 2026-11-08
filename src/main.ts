@@ -55,6 +55,17 @@ function terrainFor(worldId: WorldId): TerrainSampler | Terrain {
   return t;
 }
 
+/** The sim worker and the world's terrain mesh are set up while the selection screen is up, so Generate does not stall on them. */
+let simStarted = false;
+function ensureSim() { if (!simStarted) { simStarted = true; startSim(bus); } }
+let meshFor: WorldId | null = null;
+function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId): boolean {
+  const t = terrainFor(worldId);
+  if (!('relics' in t)) return false;
+  if (meshFor !== worldId) { view.setTerrainSampler(t); meshFor = worldId; return true; }
+  return false;
+}
+
 // ---- boot ----
 
 /** World-agnostic setup, done while the selection screen is up: renderer, scene and every world's materials compile here. */
@@ -81,7 +92,7 @@ async function start(
   const landmarks = 'relics' in terrain
     ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
     : null;
-  if ('relics' in terrain) view.setTerrainSampler(terrain);
+  ensureTerrainMesh(view, worldId);
   view.setLandmarks(landmarks);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
@@ -180,7 +191,7 @@ async function start(
   if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view, seed, bus, landmarks });
 
   // Everything is subscribed: start the sim, then select the world.
-  startSim(bus);
+  ensureSim();
   bus.emit('world:selected', { worldId, requested, seed });
 }
 
@@ -201,9 +212,12 @@ async function boot() {
   });
   // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
   const prime = (worldId: WorldId, conditions: Conditions) => {
-    prepared.then(({ gen }) => {
+    prepared.then(async ({ app, view, gen }) => {
+      ensureSim();
       const t = terrainFor(worldId);
-      if ('relics' in t) gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle);
+      if (!('relics' in t)) return;
+      if (ensureTerrainMesh(view, worldId)) await app.compile();   // the world's terrain shader, compiled before Generate
+      gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle);
     }).catch(() => {});
   };
   bus.on('selection:changed', ({ worldId, conditions }) => prime(worldId, conditions));

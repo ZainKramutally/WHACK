@@ -320,7 +320,13 @@ export function createGenerate(app: App): Generate {
     overlay.width = overlay.height = 150;
     overlay.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:101;image-rendering:pixelated;pointer-events:none;transform-origin:50% 50%`;
     document.body.appendChild(overlay);
-    const octx = overlay.getContext('2d', { willReadFrequently: true })!;
+    const octx = overlay.getContext('2d')!;
+    // Dissolve mask: a small CPU canvas of 'erase here' pixels, uploaded when the fade moves (no GPU readback of the box).
+    const maskCv = document.createElement('canvas');
+    maskCv.width = maskCv.height = 150;
+    const mctx = maskCv.getContext('2d', { willReadFrequently: true })!;
+    const mimg = mctx.createImageData(150, 150);
+    let maskFade = -1;
     const boxHash = new Float32Array(150 * 150);
     for (let i = 0; i < boxHash.length; i++) { const h = Math.sin(i * 12.9898 + 78.233) * 43758.5453; boxHash[i] = h - Math.floor(h); }
 
@@ -341,19 +347,27 @@ export function createGenerate(app: App): Generate {
     const baseFov = camera.fov;
     let anchor: { sim: number; wall: number } | null = null, lastSim = -1, lastT = 0;
     const wall0 = performance.now();
-    let truePose: CamPose | null = null, truePoseAt = 0, trueFrom: CamPose | null = null, trueChecks = 0;
+    let trueSpawn: { x: number; z: number } | null = null, truePoseAt = 0, trueFrom: CamPose | null = null, trueChecks = 0;
+    const floorOf = (x: number, z: number) => { const g = o.groundAt(x, z); return o.frozenNow() ? Math.max(g, o.seaLevelNow()) : g; };
     let released = false, domGone = false;
 
     const fin = (): CamPose => {
-      if (!truePose) return plan.pose;
+      if (!trueSpawn) return plan.pose;
+      // The terrain keeps rising until the build ends, so the true spawn pose is re-read on the live ground every frame.
       const w = sstep(truePoseAt, truePoseAt + 0.6, lastT);
-      const a = trueFrom ?? plan.pose, b = truePose;
+      const a = trueFrom ?? plan.pose, b = spawnCameraPose(trueSpawn, o.groundAt, floorOf);
       const mixV = (u: Vec3, v: Vec3): Vec3 => ({ x: u.x + (v.x - u.x) * w, y: u.y + (v.y - u.y) * w, z: u.z + (v.z - u.z) * w });
       return { pos: mixV(a.pos, b.pos), look: mixV(a.look, b.look) };
     };
 
+    // ?debug: frame times during the transition, for the headless fps check (window.__genFrames = [[T, ms], …]).
+    const dbg = new URLSearchParams(location.search).has('debug');
+    const frameLog: number[][] = [];
+    let lastNow = 0;
+    if (dbg) (window as unknown as Record<string, unknown>).__genFrames = frameLog;
     const hook = (_dt: number) => {
       const now = performance.now();
+      if (dbg) { if (lastNow) frameLog.push([+lastT.toFixed(2), +(now - lastNow).toFixed(1)]); lastNow = now; }
       const snap = o.snapshot();
       if (snap && snap.timeSec !== lastSim) { lastSim = snap.timeSec; anchor = { sim: snap.timeSec, wall: now }; }
       const T0 = anchor ? anchor.sim + (now - anchor.wall) / 1000 : (now - wall0) / 1000;
@@ -375,8 +389,7 @@ export function createGenerate(app: App): Generate {
         trueChecks++;
         try {
           const sp = o.spawnFor(snap);
-          const next = spawnCameraPose(sp, o.groundAt, (x, z) => { const g = o.groundAt(x, z); return o.frozenNow() ? Math.max(g, o.seaLevelNow()) : g; });
-          trueFrom = fin(); truePose = next; truePoseAt = T;
+          trueFrom = fin(); trueSpawn = sp; truePoseAt = T;
         } catch { /* keep the planned pose */ }
       }
 
@@ -419,13 +432,19 @@ export function createGenerate(app: App): Generate {
           root.style.maskImage = mask; root.style.webkitMaskImage = mask;
           handle.setBoxSpeed(1 - sstep(0.25, 0.6, T));
           // Box copy with a pixel dissolve.
+          octx.globalCompositeOperation = 'source-over';
           octx.clearRect(0, 0, 150, 150);
           octx.drawImage(handle.boxCanvas, 0, 0, 150, 150);
           const fade = sstep(0.62, 1.0, T);
           if (fade > 0) {
-            const img = octx.getImageData(0, 0, 150, 150), d = img.data;
-            for (let i = 0; i < boxHash.length; i++) if (boxHash[i] < fade) d[i * 4 + 3] = 0;
-            octx.putImageData(img, 0, 0);
+            if (Math.abs(fade - maskFade) > 0.004) {
+              maskFade = fade;
+              const d = mimg.data;
+              for (let i = 0; i < boxHash.length; i++) { d[i * 4 + 3] = boxHash[i] < fade ? 255 : 0; }
+              mctx.putImageData(mimg, 0, 0);
+            }
+            octx.globalCompositeOperation = 'destination-out';
+            octx.drawImage(maskCv, 0, 0);
           }
           overlay.style.display = fade >= 1 ? 'none' : 'block';
           // Generation 0 follows the live dots until the box has frozen.
@@ -449,6 +468,10 @@ export function createGenerate(app: App): Generate {
         if (ramp >= 1) { seaMat.opacity = seaBase; seaWritten = -1; }
       }
 
+      if (dbg && T > spawnSec - 1.0) {
+        const w = window as unknown as { __genCam?: number[][] };
+        (w.__genCam ??= []).push([+T.toFixed(3), camera.position.x, camera.position.y, camera.position.z, camera.rotation.x, camera.fov]);
+      }
       if (T >= spawnSec + 0.4) stop();
     };
 
