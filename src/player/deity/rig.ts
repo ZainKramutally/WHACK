@@ -25,6 +25,9 @@ export interface DeityDims {
   handRest: [number, number, number]; // the right hand's rest position in pose space; the left hand mirrors x
   handRadius: number;
   eyeLook: number;       // largest gaze offset of an eye in head space
+  shoulder?: [number, number, number]; // optional, rigs with arms: the right shoulder pivot in pose space at rest (left mirrors x)
+  armReach?: number;     // optional, rigs with arms: shoulder to mitt centre at full stretch. Animation then swings the
+                         // hands on arcs about the shoulder and keeps them within reach
 }
 
 export interface DeityRig {
@@ -34,6 +37,8 @@ export interface DeityRig {
   body: THREE.Object3D;                    // child of pelvis; squash and stretch through scale
   legs: [THREE.Group, THREE.Group];        // [left, right], children of pelvis; each hangs along -y for legLength;
                                            // rotation.x swings it (+ moves the foot forward, toward -z)
+  knees?: [THREE.Group, THREE.Group];      // optional: knee pivots, children of each leg partway down; rotation.x bends the
+                                           // knee (negative folds the shin back, toward +z). Animation leaves them at rest if absent
   head: THREE.Group;                       // child of pose, NOT of the pelvis, so it can float, lag and spring on its own
   eyes: [THREE.Object3D, THREE.Object3D];  // [left, right], children of head; scale.y 1 -> 0 is the blink;
                                            // position offsets of up to eyeLook are the gaze
