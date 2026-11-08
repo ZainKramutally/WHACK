@@ -10,6 +10,7 @@ import { worldMaterial } from './material';
 import { biomassAround, biomassFactors, type Landmark, type LandmarkSet } from '../gen/landmarks';
 import { landmarkPieces } from '../gen/landmarkMesh';
 import type { TerrainState } from '../gen/terrain';
+import { mineralIdAt, rockPalette } from './landmarkLook';
 
 export interface LandmarksPart {
   /** Replace the structures (null clears). Builds all meshes now; the material is already compiled with the scene. */
@@ -64,10 +65,14 @@ export function createLandmarksPart(app: App): LandmarksPart {
     for (const e of entries) for (const m of e.meshes) { root.remove(m); m.geometry.dispose(); }
     entries = [];
     lastInputs = null;
+    tinted = false;
   }
 
-  function build(lm: Landmark): Entry {
-    const pieces = landmarkPieces(lm);
+  const ROCK_KINDS = new Set(['hoodoo', 'rockStack', 'butte']);
+  let tinted = false;
+
+  function build(lm: Landmark, rock?: number[]): Entry {
+    const pieces = landmarkPieces(lm, rock);
     const meshes: THREE.Mesh[] = [];
     let top = 0;
     for (const p of pieces) {
@@ -122,11 +127,23 @@ export function createLandmarksPart(app: App): LandmarksPart {
     setSet(s) {
       clear();
       set = s;
-      if (s) entries = s.landmarks.map(build);
+      if (s) entries = s.landmarks.map((l) => build(l));
       for (const e of entries) for (const m of e.meshes) m.updateMatrixWorld(true);
     },
     update(dt, _t, inputs, patch) {
       if (!set) return;
+      const crust = inputs.terrain.crust;
+      if (!tinted && crust) {   // once per set: rock landmarks take the colours of the mineral they stand on
+        tinted = true;
+        entries = entries.map((e) => {
+          if (!ROCK_KINDS.has(e.lm.kind)) return e;
+          const rock = rockPalette(mineralIdAt(crust, e.lm.x, e.lm.z));
+          if (!rock) return e;
+          for (const m of e.meshes) { root.remove(m); m.geometry.dispose(); }
+          return build(e.lm, rock);
+        });
+        lastInputs = null;
+      }
       const state: TerrainState = { rise: inputs.terrain.rise, progress: inputs.terrain.progress, heatSolvent: inputs.heatSolvent };
       const fresh = inputs !== lastInputs;
       lastInputs = inputs;

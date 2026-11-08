@@ -109,7 +109,7 @@ const finish = (s: Soup): LandmarkMeshData => {
 // ---- palettes (Red World roles; the art layer re-skins by replacing the material) ----
 const C = LOOK_PALETTES.carbon, SI = LOOK_PALETTES.silicon;
 const ICE = [SI.bone, 0xdbe9fb, SI.blush, 0xb7c4f2];
-const ROCK = [0xe9b9a8, 0xc9566a, 0xa8122a, 0xf2a2a0, 0x8a2840, 0xd98a8a];
+const ROCK_RED = [0xe9b9a8, 0xc9566a, 0xa8122a, 0xf2a2a0, 0x8a2840, 0xd98a8a, 0x5c0a1e, C.maroon];   // iron / Red World; other minerals pass their own (render/landmarkLook)
 const SHELL = [C.bone, 0xfbd9cf, C.blush, 0xe8c4b8];
 
 // ---- tiered spire, enclosing the heightfield bump ----
@@ -238,7 +238,7 @@ function stromatolite(lm: Landmark): Soup {
   return s;
 }
 
-function hoodoo(lm: Landmark): Soup {
+function hoodoo(lm: Landmark, ROCK: number[] = ROCK_RED): Soup {
   const s: Soup = { pos: [], hex: [] };
   const rnd = mulberry(lm.seed);
   const H = lm.height, R = lm.radius, ph = rnd() * TWO_PI;
@@ -246,7 +246,7 @@ function hoodoo(lm: Landmark): Soup {
   const stem = 8;
   for (let i = 0; i <= stem; i++) {
     const u = i / stem, y = u * 0.74 * H;
-    rings.push({ y, r: R * (0.46 + 0.54 * Math.pow(1 - u, 2.2) + 0.07 * Math.sin(u * 20 + ph)), hex: ROCK[Math.floor(rnd() * ROCK.length)], rot: 0.3 * i });
+    rings.push({ y, r: R * (0.46 + 0.54 * Math.pow(1 - u, 2.2) + 0.07 * Math.sin(u * 20 + ph)), hex: ROCK[Math.floor(rnd() * 6)], rot: 0.3 * i });
   }
   const cap = [[0.77, 0.52], [0.8, 1.0], [0.88, 1.08], [0.96, 0.82], [1.0, 0.25]];
   cap.forEach(([u, r], i) => rings.push({ y: u * H, r: R * r, hex: i < 2 ? ROCK[2] : ROCK[4], rot: 0.3 * (stem + i) }));
@@ -279,13 +279,13 @@ function strata(lm: Landmark, o: { layers: [number, number]; sides: number; jitt
   return s;
 }
 
-const rockStack = (lm: Landmark) => strata(lm, { layers: [4, 7], sides: 8, jitter: 0.1, shrink: 0.35, talus: 0.25, palette: ROCK, dark: C.maroon });
-const butte = (lm: Landmark) => strata(lm, { layers: [8, 12], sides: 16, jitter: 0.05, shrink: 0.04, talus: 0.5, palette: [0xc9566a, 0xa8122a, 0x8a2840, 0xd98a8a, 0x5c0a1e], dark: C.maroon });
+const rockStack = (lm: Landmark, R: number[] = ROCK_RED) => strata(lm, { layers: [4, 7], sides: 8, jitter: 0.1, shrink: 0.35, talus: 0.25, palette: R.slice(0, 6), dark: R[7] });
+const butte = (lm: Landmark, R: number[] = ROCK_RED) => strata(lm, { layers: [8, 12], sides: 16, jitter: 0.05, shrink: 0.04, talus: 0.5, palette: [R[1], R[2], R[4], R[5], R[6]], dark: R[7] });
 
 // ---- public ----
 
 /** The pieces to draw for a landmark, in local space (arch: two piers at ±span/2 along x, and a lintel from the first pier's top). */
-export function landmarkPieces(lm: Landmark): Piece[] {
+export function landmarkPieces(lm: Landmark, rock?: number[]): Piece[] {
   switch (lm.kind) {
     case 'iceSpire': return [{ kind: 'body', mesh: finish(spire(lm)), offset: [0, 0, 0] }];
     case 'iceArch': return [
@@ -296,8 +296,8 @@ export function landmarkPieces(lm: Landmark): Piece[] {
     case 'crystalCluster': return [{ kind: 'body', mesh: finish(crystals(lm)), offset: [0, 0, 0] }];
     case 'reefPillar': return [{ kind: 'body', mesh: finish(reefPillar(lm)), offset: [0, 0, 0] }];
     case 'stromatolite': return [{ kind: 'body', mesh: finish(stromatolite(lm)), offset: [0, 0, 0] }];
-    case 'hoodoo': return [{ kind: 'body', mesh: finish(hoodoo(lm)), offset: [0, 0, 0] }];
-    case 'rockStack': return [{ kind: 'body', mesh: finish(rockStack(lm)), offset: [0, 0, 0] }];
-    case 'butte': return [{ kind: 'body', mesh: finish(butte(lm)), offset: [0, 0, 0] }];
+    case 'hoodoo': return [{ kind: 'body', mesh: finish(hoodoo(lm, rock)), offset: [0, 0, 0] }];
+    case 'rockStack': return [{ kind: 'body', mesh: finish(rockStack(lm, rock)), offset: [0, 0, 0] }];
+    case 'butte': return [{ kind: 'body', mesh: finish(butte(lm, rock)), offset: [0, 0, 0] }];
   }
 }
