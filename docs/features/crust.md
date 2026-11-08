@@ -185,3 +185,26 @@ The scout verified the bibliographic data and DOIs. It did not verify the suppor
 
 - **Magnetism and magnetoreception.** Red iron (hematite) is only weakly magnetic; the strongly magnetic mineral is magnetite. Navigation needs a planetary field, plus a new rule. That breaks the 12-rule cap, and judges can't see it.
 - **Calcium or iron as body elements.** That would grow composition from three elements to four across the genome, `develop()` and the ledger.
+
+## Status at the 10:00 freeze (2026-11-08, on main)
+
+- **Rock chips:** `[Basalt] [Granite] [Ironstone] [Silicide] [Nitride]` on both worlds, with favour 0.9. Defaults: carbon ironstone (the Red World), silicon silicide.
+- **Landforms per rock.** Canyons and strata are ironstone-only. Big mesh structures per rock family (`src/gen/rockForms.ts`, `src/render/rockForms.ts`):
+  - basalt and reducedLava: lava tubes, sea stacks and fan cliffs (curved, splaying column bundles)
+  - ironstone: banded mesas and buttes
+  - granite: domes, tors and balancing boulders
+  - silicide: pitted mounds
+  - nitride: crystal clusters
+  - the backdrop silhouettes follow the dominant rock
+- **Basalt pillars:** instanced 3 m hex prisms on the coast that you can walk on (`src/render/basaltPillars.ts`). The GPU ground mesh excludes M7, which the prisms draw. The floor pattern is gone. Tops are lighter, and lichen appears after life reaches land.
+- **Colour:**
+  - Basalt is warm grey.
+  - Ironstone draws the fixed Red World ramp.
+  - The dominant rock sets the palette (squared weights).
+  - Skies are Rayleigh blue, and silicon is no longer purple.
+  - Water is blue by its own physics, and minerals tint only the shallows.
+  - Underwater: light shafts, marine snow and teal depth haze.
+- **Carbon sea cover (`seaFreeboard`):** seeded base + 0.28 × (basalt share − default share) + an ice term from temperature, clamped to 0.25–0.97. The default is 74.2%; the Basalt pick is a 97% island world.
+- **Open:** issue #82 tracks assumptions and unverified sources.
+  - Known risks: a carbon start near −40 °C ends with 0 consumers, and the SLOW silicon −163 °C 90 s test gives 877 against a 900 target.
+  - Not done: kelp forests and fish schools (art lead's area; the request expired undelivered), bestiary grouping by genus.
