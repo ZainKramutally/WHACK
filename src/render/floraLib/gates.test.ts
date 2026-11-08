@@ -5,6 +5,10 @@ import { ARCHETYPE_INDEX, ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, typ
 import { AIR_EARTH, GATES, SHORE_BAND, activeGates, aquaticFor, supplySi, worldEnv } from './gates';
 import { makePlantList, placePlants, type PlantShapes } from './place';
 import { countDraws } from './buckets';
+import { createTerrain, seaLevelForCover, spawnPoint } from '../../gen/terrain';
+import { carbon } from '../../worlds/carbon';
+import { silicon } from '../../worlds/silicon';
+import type { WorldConfig } from '../../worlds/types';
 
 const PATCH = 400;
 let lib: FloraLibrary;
@@ -16,7 +20,7 @@ function shore(stats: Record<string, number>, over: Partial<VisualInputs> = {}):
   const flora = new Float32Array(64 * 64 * 2);
   for (let c = 0; c < 4096; c++) { flora[c * 2] = c % 2 ? 1 : 0.6; flora[c * 2 + 1] = c % 2 ? 0.05 : 0.8; }
   return {
-    // airDensity in VisualInputs units (the stub's 1.2 is raw kg/m³, which would read as 20 × Earth's air)
+    // airDensity in VisualInputs units: Earth's air
     ...stub, flora, seaLevel: 0, lifeOnLand: true, airDensity: AIR_EARTH, stats: { ...stub.stats, ...stats },
     terrain: { rise: 1, progress: {}, height: (x) => 0.06 * x, patchSize: PATCH }, ...over,
   };
@@ -208,6 +212,37 @@ describe('gated archetypes', () => {
     for (const k of ['airKelpFloat#0', 'whiskerReef#0', 'frostFern#0']) expect(keys.has(k), k).toBe(true);
     const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
     expect(d.draws).toBeLessThanOrEqual(33);
+    expect(d.triangles).toBeLessThan(4.5e6);
+    expect(d.dropped).toBe(0);
+  });
+
+  // A realistic mixed world (team-lead ruling): the demo terrain with its sea, a checkerboard of mat-dominant and mixed
+  // cells (tufts, domes and crusts beside groves and giants, on land, on the shore and under the sea), default stats.
+  // Three pick lists meet in one carbon world, so its ground cover alone takes 18 draws: the ceiling is 45, not 33.
+  it.each([
+    ['carbon (defaults: mangrove, kelp)', carbon, 1, 0.06, 0.38, {}],
+    ['carbon, cold and nitrogen-poor (pitcher, rosette, cushion, kelp)', carbon, 1, 0.06, 0.26, { temperature: -5, nitrogen: 0.2 }],
+    ['silicon (defaults: reef, fern, air float)', silicon, 0.016, 0.65, 0.6, {}],
+  ] as [string, WorldConfig, number, number, number, Record<string, number>][])('draw ceiling: a mixed %s world on its demo terrain ≤ 45 draws, < 4.5M tris, nothing dropped', (_id, world, light, air, heatBand, over) => {
+    const terrain = createTerrain(world.terrain, world.demoSeed);
+    const T = over.temperature ?? world.startDefaults.temperature;
+    const hs = Math.min(1, Math.max(0, 0.5 + (T - world.solvent.freezeC) / world.terrain.heatSolventSpan));
+    const st = { rise: 1, heatSolvent: hs, progress: Object.fromEntries(world.terrain.machines.map((m) => [m.id, 1])) };
+    const sea = seaLevelForCover(terrain, st, (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200);
+    const flora = new Float32Array(64 * 64 * 2);
+    for (let c = 0; c < 4096; c++) { const mixed = ((c % 64) + Math.floor(c / 64)) % 2 === 0; flora[c * 2] = mixed ? 0.7 : 1; flora[c * 2 + 1] = mixed ? 0.5 : 0.05; }
+    const stub = makeStubVisualInputs();
+    const inp: VisualInputs = {
+      ...stub, flora, lifeOnLand: true, light, airDensity: air, heatBand, heatSolvent: hs, seaLevel: sea,
+      world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition },
+      stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
+      terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH },
+    };
+    const sp = spawnPoint(terrain, st, sea);
+    const l = placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf());
+    const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
+    console.log(`${_id} mixed world: ${d.draws} draws`, JSON.stringify(Object.fromEntries(Object.entries(d.byRole).map(([r, v]) => [r, v.draws]))), `${(d.triangles / 1e6).toFixed(2)}M tris`);
+    expect(d.draws).toBeLessThanOrEqual(45);
     expect(d.triangles).toBeLessThan(4.5e6);
     expect(d.dropped).toBe(0);
   });
