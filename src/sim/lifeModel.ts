@@ -1,6 +1,6 @@
 // The seam between WorldSimulation (conditions, feedbacks, build clock, snapshots) and the ecology.
 // WorldSimulation talks only to LifeModel; EcologyLife adapts the spatial ecology (ecology.ts).
-import type { WorldConfig } from '../worlds/types';
+import type { SimSnapshot, WorldConfig } from '../worlds/types';
 import type { BodyPlan } from './develop';
 import { flightParamsFor } from './flight';
 import { CAP, Ecology, type EcologyLedger } from './ecology';
@@ -49,6 +49,8 @@ export interface LifeModel {
   guideAnimals(): GuideAnimal[];
   /** Packed develop() plans (plan.ts) of animals born since the last call. */
   drainBirths(): { id: number; plan: Float32Array }[];
+  /** Predation kills since the last call. */
+  drainKills(): SimSnapshot['kills'];
   /** New static liquid depth per cell (the sea moved or the terrain rose). Optional. */
   setLiquid?(liquid: ArrayLike<number>): void;
 }
@@ -148,6 +150,8 @@ export class EcologyLife implements LifeModel {
   drainBirths(): { id: number; plan: Float32Array }[] {
     return this.eco ? this.eco.drainBirths().map((b: { id: number; plan: BodyPlan }) => ({ id: b.id, plan: packBodyPlan(b.plan) })) : [];
   }
+
+  drainKills(): SimSnapshot['kills'] { return this.eco ? this.eco.drainKills() : []; }
 
   setLiquid(liquid: ArrayLike<number>): void {
     if (!this.eco) return;

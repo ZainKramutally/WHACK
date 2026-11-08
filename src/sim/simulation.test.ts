@@ -35,6 +35,7 @@ class FixedLife implements LifeModel {
   packOrganisms() { return new Float32Array(0); }
   guideAnimals() { return []; }
   drainBirths() { return []; }
+  drainKills() { return []; }
 }
 
 /** Step the build clock in `dt` slices up to `total` seconds, collecting events. */

@@ -231,3 +231,31 @@ describe('Ecology from the real world configs', () => {
   }
 });
 function run2(eco: Ecology, e: EcologyEnv, ticks: number) { for (let t = 0; t < ticks; t++) eco.step(e, DT); }
+
+describe('Ecology: hunt events', () => {
+  it('a hunter chasing prey reads as intent hunt with targetId, and its kill is reported exactly once', () => {
+    const { eco, env: e } = ecologyFromWorld(worlds.carbon);
+    eco.seedLife(e);
+    for (let t = 0; t < 40; t++) eco.step(e, DT);
+    eco.drainKills();
+    const [h, p] = living(eco);
+    const priv = eco as unknown as { act: Uint8Array; tgt: Int32Array; tgtId: Float64Array; tick: number; actAnimal(i: number): void };
+    const rec = (i: number) => { const buf = eco.packOrganisms().data; return Array.from({ length: buf.length / ORGANISM_STRIDE }, (_, k) => readOrganism(buf, k)).find((r) => r.id === eco.id[i])!; };
+    const hunterId = eco.id[h], preyId = eco.id[p];
+    eco.x[p] = eco.x[h]; eco.y[p] = eco.y[h];
+    let killed = false;
+    for (let n = 0; n < 5000 && !killed; n++) {
+      priv.act[h] = 2; priv.tgt[h] = p; priv.tgtId[h] = preyId; // ACT.hunt
+      priv.tick = 1 - (h % 4) + 4; // keep (tick + h) % 4 != 0 so the forced choice is not re-decided
+      if (n === 0) { expect(rec(h).intent).toBe(1); expect(rec(h).targetId).toBe(preyId); }
+      priv.actAnimal(h);
+      killed = !eco.alive[p];
+    }
+    expect(killed).toBe(true);
+    const kills = eco.drainKills();
+    expect(kills).toHaveLength(1);
+    expect(kills[0]).toMatchObject({ hunterId, preyId });
+    expect(kills[0].x).toBeGreaterThanOrEqual(0);
+    expect(eco.drainKills()).toHaveLength(0);
+  });
+});

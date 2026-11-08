@@ -300,6 +300,7 @@ export class WorldSimulation {
       organisms: this.life.packOrganisms(),
       flora: this.life.floraBuffer(),
       births: this.life.drainBirths(),
+      kills: this.life.drainKills(),
       controls: conds,
       bands,
     };

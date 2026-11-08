@@ -184,6 +184,8 @@ export interface SimSnapshot {          // 20 Hz
   organisms: Float32Array;              // layout in sim/organismLayout.ts
   flora: Float32Array;                  // per-cell flora biomass (mat, canopy) on the 64² grid
   births: { id: number; plan: Float32Array }[];
+  /** Predation kills since the previous snapshot (not starvation, age or stress). x, z are the prey's last position in organism-buffer patch units (0..1). */
+  kills: { hunterId: number; preyId: number; x: number; z: number; preyScale?: number }[];
   controls: Conditions;
   bands: Record<ControlId, LivingBand>;
 }

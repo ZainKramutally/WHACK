@@ -11,7 +11,7 @@ import { flightCeiling, climbRate } from './flight';
 import { develop, skinArea, supportLoad, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
 import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition, type FounderLatent } from './genome';
 import { CELLS, FLORA_STRIDE, GRID, cellOf, type Grid } from './grid';
-import { ORGANISM_STRIDE, packOrganism } from './organismLayout';
+import { INTENT, ORGANISM_STRIDE, packOrganism } from './organismLayout';
 import { maxBodySize, pace, type Environment, type LifeRules } from './population';
 import { eatsIntensity, kinStrength } from './relationships';
 import { makeRng, gaussian, type Rng } from './rng';
@@ -101,6 +101,10 @@ export interface EcologyOptions {
 // implementation constant (DECISIONS §G.2 exempt)
 // implementation constant (DECISIONS §G.2 exempt)
 const ACT = { rest: 0, forage: 1, hunt: 2, flee: 3, home: 4, bud: 5 } as const;
+/** ACT (internal order) → INTENT (organismLayout.ts): rest→4, forage→0, hunt→1, flee→2, home→3, bud→5. */
+const INTENT_OF_ACT = [INTENT.rest, INTENT.forage, INTENT.hunt, INTENT.flee, INTENT.home, INTENT.bud];
+/** A predation kill: positions in patch units (0..1), the same as the organism buffer. */
+export interface PredationKill { hunterId: number; preyId: number; x: number; z: number; preyScale: number }
 const DECIDE_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): an animal re-decides every 4th tick (staggered by index); it moves and eats every tick
 const RISK_EVERY = 40; // implementation constant (DECISIONS §G.2 exempt): derived fields (risk, hunger) refresh every 2 s
 const FLORA_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): flora (slow) updates every 4th tick with 4× the step
@@ -160,6 +164,7 @@ export class Ecology {
   private readonly cellStart = new Int32Array(CELLS + 1);
   private readonly cellItems = new Int32Array(CAP);
   private readonly births: { id: number; plan: BodyPlan }[] = [];
+  private readonly kills: PredationKill[] = []; // predation kills since the last drainKills()
   private readonly pendingBuds: number[] = [];
   private readonly modeShare = [0, 0, 0, 0];   // share of the animals in each locomotion mode (refreshed with the derived fields)
   private readonly modePeak = [0, 0, 0, 0];    // each mode's recent high share (decays slowly): a mode far below it is refilling after a stranding or crash
@@ -782,6 +787,7 @@ export class Ecology {
         if (this.rnd() < Math.min(1, L.catchRate * dt * (L.aerobicHunt > 0 ? scope ** L.aerobicHunt : 1)) * pCatch) {
           const matter = this.struct[j] + this.energy[j];
           const jc = cellOf(this.x[j], this.y[j]);
+          this.kills.push({ hunterId: this.id[i], preyId: this.id[j], x: this.x[j] / GRID, z: this.y[j] / GRID, preyScale: this.plan[j].scale / L.sizeRef });
           this.kill(j);
           const epsMeat = L.meatAssim > 0 ? Math.min(1, L.meatAssim * efficiency * (DIGEST_FLOOR + (1 - DIGEST_FLOOR) * p.meatGain)) : eps;   // a gut built for meat keeps more of a kill
           this.returnMatter(jc, matter * (1 - epsMeat), 0);
@@ -985,6 +991,11 @@ export class Ecology {
   }
 
   // ---- outputs ----------------------------------------------------------------------------------------------------------
+  /** Predation kills since the last call (SimSnapshot.kills); starvation, age and stress deaths are not included. */
+  drainKills(): PredationKill[] {
+    return this.kills.splice(0, this.kills.length);
+  }
+
   /** develop() plans of animals born since the last call (SimSnapshot.births). */
   drainBirths(): { id: number; plan: BodyPlan }[] {
     return this.births.splice(0, this.births.length);
@@ -1007,6 +1018,7 @@ export class Ecology {
         x: this.x[i] / GRID, y: this.y[i] / GRID, role: 1, size: this.plan[i].scale / this.L.sizeRef,
         prefTemp: g.climate.prefTemp, tolerance: g.climate.tolerance, chem: g.climate.chem,
         energy: this.energy[i] / (2 * this.struct[i]), id: this.id[i], generation: this.gen[i],
+        intent: INTENT_OF_ACT[this.act[i]], targetId: this.act[i] === ACT.hunt && this.tgt[i] >= 0 && this.alive[this.tgt[i]] && this.id[this.tgt[i]] === this.tgtId[i] ? this.tgtId[i] : -1,
         heading: this.heading[i], mode: this.mode[i] as 0 | 1 | 2 | 3, altitude: this.alt[i], grown: Math.min(1, this.struct[i] / this.adult[i]), body: g.body, comp: g.comp, lineage: g.lineage,
       });
     }
