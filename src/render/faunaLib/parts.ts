@@ -62,14 +62,13 @@ export class PartBatch {
   constructor(geo: THREE.BufferGeometry, mat: THREE.Material, cap: number) {
     this.cap = cap;
     this.glow = new Float32Array(cap);
+    // Static usage on every buffer: in three r187 a DynamicDraw attribute is re-uploaded whole on every render, even at
+    // count 0 (warm); a static one uploads only after flush()'s needsUpdate, and then only the used range.
     this.aG = new THREE.InstancedBufferAttribute(this.glow, 1);
-    this.aG.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('aGlow', this.aG);
     this.mesh = new THREE.InstancedMesh(geo, mat, cap);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.col = new Float32Array(cap * 3);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(this.col, 3);
-    this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.mesh.count = 0;
     this.m = this.mesh.instanceMatrix.array as Float32Array;
