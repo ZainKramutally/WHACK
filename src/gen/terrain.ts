@@ -53,7 +53,7 @@ export interface TerrainParams {
   sBase: number; sWx: number; sWz: number; sM2: number; sM3a: number; sM3b: number; sM4: number; sM6: number;
   sM7: number; sM8: number; sM9a: number; sM9b: number; sCrust: number;   // from their own rng stream, so older seeds' terrain is unchanged
   /** Shared crust weights (see crustScore/crustWeights): quantile thresholds baked once from the 64² cell-centre scores. */
-  crust: { k: number; thr: number[]; w: number; nf: number; order: number[] };   // order[j] = config index of the j-th lowest mineral
+  crust: { k: number; thr: number[]; w: number; nf: number; order: number[]; bands: number[] };   // order[j] = config index of the j-th lowest mineral; bands = elevation indices of the PRESENT minerals (realised share > 0), lowest first; thr[i] separates bands[i] from bands[i+1]
   gates: Partial<Record<MachineId, number[]>>;   // machines gated by minerals: 0/1 per mineral in elevation order (absent = ungated)
   oBaseX: number; oBaseZ: number; oWxX: number; oWxZ: number; oWzX: number; oWzZ: number;
   // shore ramp (spawn area)
@@ -166,13 +166,18 @@ export function crustScore(P: TerrainParams, bn: number, x: number, z: number, k
   return k.r((1 - CRUST_NOISE_WEIGHT) * (0.5 + 0.5 * bn) + CRUST_NOISE_WEIGHT * k.vnoise(x * P.crust.nf, z * P.crust.nf, P.sCrust));
 }
 
-/** Smooth weights per mineral in ELEVATION order (length 4, unused = 0, sum 1): successive smoothsteps across the baked thresholds. */
+/** Smooth weights per mineral in ELEVATION order (length k, absent minerals exactly 0, sum 1): successive smoothsteps across the baked thresholds of the present minerals. */
 export function crustWeights(P: TerrainParams, score: number, k: Kit = kit64): number[] {
-  const { thr, w } = P.crust;
-  const c: number[] = [1];
-  for (let i = 0; i < 3; i++) c.push(i < thr.length ? k.smoothstep(thr[i] - w, thr[i] + w, score) : 0);
-  c.push(0);
-  return [0, 1, 2, 3].map((i) => c[i] - c[i + 1]);
+  const { thr, w, bands } = P.crust;
+  const out = new Array<number>(P.crust.k).fill(0);
+  if (bands.length === 0) return out;
+  let prev = 1;
+  for (let i = 0; i < bands.length; i++) {
+    const next = i < thr.length ? k.smoothstep(thr[i] - w, thr[i] + w, score) : 0;
+    out[bands[i]] = prev - next;
+    prev = next;
+  }
+  return out;
 }
 
 /**
@@ -195,8 +200,8 @@ export function heightCore(
   const { qx, qz, bn, base } = warpBase(P, x, z, k);
 
   // shared crust weights (elevation order); a machine with `minerals` is multiplied by the summed weight of its minerals
-  const cw = Object.keys(P.gates).length ? crustWeights(P, crustScore(P, bn, x, z, k), k) : [1, 0, 0, 0];
-  const gateOf = (id: MachineId) => { const g = P.gates[id]; return g ? g.reduce((a, c, j) => a + c * cw[j], 0) : 1; };
+  const cw = Object.keys(P.gates).length ? crustWeights(P, crustScore(P, bn, x, z, k), k) : [];
+  const gateOf = (id: MachineId) => { const g = P.gates[id]; return g ? g.reduce((a, c, j) => a + c * (cw[j] ?? 0), 0) : 1; };
 
   // M5 strata terraces (smooth staircase blended in by progress)
   let hb = base;
@@ -337,16 +342,19 @@ const SHARE_MARGIN = 0.001;   // realised shares stay this far inside the bounds
 
 /** Target share per mineral (config order), sampled inside the bounds from the world seed and normalised to sum 1. */
 export function sampleShares(minerals: { share: [number, number] }[], rng: () => number): number[] {
-  const lo = minerals.map((m) => m.share[0] + SHARE_MARGIN), hi = minerals.map((m) => m.share[1] - SHARE_MARGIN);
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const s = minerals.map((_, i) => lo[i] + (hi[i] - lo[i]) * rng());
-    const sum = s.reduce((a, b) => a + b, 0);
-    const norm = s.map((x) => x / sum);
-    if (norm.every((x, i) => x >= lo[i] && x <= hi[i])) return norm;
+  // a mineral with hi <= 0 is absent (share exactly 0); a narrow band gets a proportionally smaller margin so lo <= hi always holds
+  const lo: number[] = [], hi: number[] = [];
+  for (const m of minerals) {
+    const a = Math.max(0, m.share[0]), b = Math.max(0, m.share[1]);
+    const mg = Math.min(SHARE_MARGIN, Math.max(0, b - a) / 4);
+    lo.push(b <= 0 ? 0 : a + mg); hi.push(b <= 0 ? 0 : b - mg);
   }
-  const mid = minerals.map((m) => (m.share[0] + m.share[1]) / 2);   // fallback: bounds midpoints, normalised
-  const sum = mid.reduce((a, b) => a + b, 0);
-  return mid.map((x) => x / sum);
+  const fix = (v: number[]) => { const sum = v.reduce((a, b) => a + b, 0); return sum > 0 ? v.map((x) => x / sum) : v; };
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const norm = fix(minerals.map((_, i) => lo[i] + (hi[i] - lo[i]) * rng()));
+    if (norm.every((x, i) => x >= lo[i] - 1e-12 && x <= hi[i] + 1e-12)) return norm;
+  }
+  return fix(minerals.map((m, i) => (hi[i] > 0 ? (m.share[0] + m.share[1]) / 2 : 0)));   // fallback: bounds midpoints, normalised
 }
 
 export function createTerrain(config: TerrainConfig, seed: number): Terrain {
@@ -387,7 +395,7 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
   const m4x = ((rng() * 2 - 1) * machines.M4!.offsetFrac) * S;
 
   const crustMinerals = config.crust.minerals;
-  if (crustMinerals.length > 4) throw new Error('terrain config: at most 4 crust minerals per world');
+  if (crustMinerals.length > 8) throw new Error('terrain config: at most 8 crust minerals per world');
   const order = crustMinerals.map((_, i) => i).sort((a, b) => crustMinerals[a].elevation - crustMinerals[b].elevation || a - b);
   const gateFor = (ids: string[] | undefined) => ids ? order.map((ci) => (ids.includes(crustMinerals[ci].id) ? 1 : 0)) : undefined;
   const gates: TerrainParams['gates'] = {};
@@ -400,7 +408,7 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
     A: b.amplitude, freq: b.frequency, oct: Math.floor(b.octaves), lac: b.lacunarity, gain: b.gain,
     warpAmp: b.warpAmp, warpFreq: b.warpFreq, expo: b.exponent, rampRange: b.rampRange, rampDetail: b.rampDetail,
     sBase, sWx, sWz, sM2, sM3a, sM3b, sM4, sM6, sM7, sM8, sM9a, sM9b, sCrust,
-    crust: { k: crustMinerals.length, thr: [], w: 0.03, nf: 1 / (Math.max(1, config.crust.patchCells) * (S / GRID)), order }, gates,
+    crust: { k: crustMinerals.length, thr: [], w: 0.03, nf: 1 / (Math.max(1, config.crust.patchCells) * (S / GRID)), order, bands: [] }, gates,
     oBaseX, oBaseZ, oWxX, oWxZ, oWzX, oWzZ,
     ramp, machines, active, m3dir: [Math.cos(m3Ang), Math.sin(m3Ang)], m4x, piers,
   };
@@ -414,12 +422,15 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
     }
     const sorted = Float64Array.from(sc).sort();
     const shares = sampleShares(crustMinerals, makeRng(seed)('crust'));
+    const cellsOf = order.map((ci) => Math.round(shares[ci] * CELLS));
+    const present = order.map((_, j) => j).filter((j) => cellsOf[j] > 0);   // elevation indices; absent minerals get no band
     let pos = 0;
     const thr: number[] = [];
-    for (let j = 0; j < order.length - 1; j++) {
-      pos += Math.round(shares[order[j]] * CELLS);
+    for (let b = 0; b < present.length - 1; b++) {
+      pos += cellsOf[present[b]];
       thr.push((sorted[pos - 1] + sorted[pos]) / 2);
     }
+    params.crust.bands = present;
     let gap = Infinity;
     for (let j = 0; j + 1 < thr.length; j++) gap = Math.min(gap, thr[j + 1] - thr[j]);
     params.crust.thr = thr;
