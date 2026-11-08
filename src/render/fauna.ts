@@ -23,7 +23,7 @@
 // tripod-step on their arms (planted feet), swimmers roll like a wheel, hoverers pulse as a bell with arms hanging and
 // trailing rod tendrils, sessile ones stay rooted as a still crystal colony with prongs raised.
 import { currentEgg } from '../worlds';
-import { tardigradePlan } from './tardigrade';
+import { tardigradePlan, createTardigrades, type TardigradeSwarm } from './tardigrade';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
@@ -408,6 +408,7 @@ export function createFauna(app: App): FaunaPart {
   let frame = 0;
   let lastBuf: Float32Array | null = null, snapId = 0, lastSnapT = -1;
   let lastWorld = '', lastBuild = 0;
+  let tardi: TardigradeSwarm | null = null;
   let hadLife = false; // until the first animal, keep every batch visible so the up-front compile covers it
   const counts = new Array(MESHES.length).fill(0);
   const scratch = new Float32Array(MAX_BEADS_PER_ORGANISM * 5);  // animated bead pose, same layout as Entry.flat
@@ -1748,6 +1749,19 @@ export function createFauna(app: App): FaunaPart {
       for (const l of LOFTS) l.flush(warm);
       for (const b of parts) b.flush(warm);
       part.count = pn;
+      // Lead egg: the generic bodies above still run (picking and locate read them) but are hidden; tardigrades are drawn instead.
+      if (currentEgg()) {
+        if (!tardi) { tardi = createTardigrades(loftC, 1100, withGlow); app.scene.add(...tardi.meshes); }
+        for (const m of MESHES) m.visible = false;
+        for (const l of LOFTS) l.mesh.visible = false;
+        for (const b of parts) b.mesh.visible = false;
+        tardi.begin();
+        for (let i = 0; i < pn; i++) {
+          const e = pe[i];
+          tardi.add(e.x + e.nx, pY0[i], e.z + e.nz, e.h, e.mode === LOCOMOTION.walk ? e.pitch : 0, drawnLength(e.scale, e.g) * fBoost, e.id, t);
+        }
+        tardi.end();
+      } else if (tardi) { tardi.begin(); tardi.end(); }
     },
     hit(origin, dir) {
       // Broad phase: the loose bounding sphere (either side, so a camera inside one still tests the body).
@@ -1820,6 +1834,7 @@ export function createFauna(app: App): FaunaPart {
       for (const p of parts) p.mesh.dispose();
       for (const m of MATS) m.dispose();
       entries.clear(); pending.clear();
+      if (tardi) { app.scene.remove(...tardi.meshes); tardi.dispose(); tardi = null; }
     },
   };
   return part;
