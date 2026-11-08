@@ -187,7 +187,7 @@ export function createFlora(app: App): FloraPart {
         fill[id] = 0;
         if (!counts[id]) continue;
         const b = buckets.get(id);
-        if (!b) continue; // a look with no bucket (never placed by place.ts: ground is near-LOD, only ground is dark)
+        if (!b) continue; // a look with no bucket (place.ts never places one: dark is near ground only, silicon ground is near)
         const L = lookOf(id >> 2, (id >> 1) & 1, id & 1);
         if (L.painted.pal !== pal || Math.abs(L.painted.glow - lookGlow[id]) > 0.01) {
           paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[id], L.dark);

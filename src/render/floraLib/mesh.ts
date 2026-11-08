@@ -40,6 +40,8 @@ export const perp = (t: V3): V3 => norm(Math.abs(t[1]) < 0.9 ? cross(t, [0, 1, 0
 let SEG_SCALE = 1;
 /** Ring-segment scale for the next builds (1 = near LOD). Every count scales, but never below 3 (thin filaments). */
 export function setDetail(scale: number) { SEG_SCALE = scale; }
+/** The detail scale of the build in progress (< 1: a far LOD, which may also thin repeated parts). */
+export const detail = () => SEG_SCALE;
 const segsFor = (segs: number) => (SEG_SCALE >= 1 ? segs : Math.max(3, Math.round(segs * SEG_SCALE)));
 
 export interface Ring {

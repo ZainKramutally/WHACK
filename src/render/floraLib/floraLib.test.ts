@@ -7,7 +7,7 @@ import {
   ARCHETYPE_KEYS, ARCHETYPE_META, ROLE_BAND, archetypesFor, buildFloraLibrary, paint, plantHeight,
   type FloraLibrary, type FloraPalette, type FloraRole,
 } from './index';
-import { makePlantList, placePlants } from './place';
+import { LOD_NEAR, makePlantList, placePlants } from './place';
 import { countDraws } from './buckets';
 
 const PAL: FloraPalette = { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a };
@@ -138,6 +138,14 @@ describe('placePlants', () => {
     for (let c = 0; c < 4096; c++) { const [m, k] = fill(c); flora[c * 2] = m; flora[c * 2 + 1] = k; }
     return { ...makeStubVisualInputs(), flora, seaLevel: -1, terrain: { rise: 1, progress: {}, height: () => 0 }, lifeOnLand: true, ...over };
   }
+  /** Silicon world over the stub (dim light, liquid nitrogen). */
+  const siliconOver = (): Partial<VisualInputs> => {
+    const stub = makeStubVisualInputs();
+    return {
+      world: { ...stub.world, id: 'silicon', composition: { c: 0.1, si: 0.9, o: 0 }, solvent: { ...stub.world.solvent, name: 'Liquid nitrogen' } },
+      light: 0.016,
+    };
+  };
   const roles = (l: ReturnType<typeof makePlantList>) => {
     const n = { ground: 0, mid: 0, giant: 0 };
     for (let i = 0; i < l.n; i++) n[ARCHETYPE_META[l.arch[i]].role]++;
@@ -187,14 +195,10 @@ describe('placePlants', () => {
 
   it('draw calls: one per archetype × LOD × value step in use (no chunks), and no plant dropped for capacity', () => {
     const tri = (a: number, l: number) => lib.archetypes[a].lod[l].triangles;
-    const stub = makeStubVisualInputs();
-    const si: Partial<VisualInputs> = {
-      world: { ...stub.world, id: 'silicon', composition: { c: 0.1, si: 0.9, o: 0 }, solvent: { ...stub.world.solvent, name: 'Liquid nitrogen' } },
-      light: 0.016,
-    };
+    const si = siliconOver();
     const cases: [string, VisualInputs, number][] = [
-      // carbon, bright: capped ground (3 kinds × 2 value steps), 6 mid and 6 giant kinds × 2 LODs
-      ['carbon worst case', inputs(() => [0.6, 1]), 30],
+      // carbon, bright: capped ground (3 kinds × near, dark near and far), 6 mid and 6 giant kinds × 2 LODs
+      ['carbon worst case', inputs(() => [0.6, 1]), 33],
       // silicon, dim: crystal ground (4 × 2), shard trees (3 × 2), prism titans (2 × 2)
       ['silicon worst case', inputs(() => [0.6, 1], si), 18],
       // every cell under the sea: ground cover only, crowded into the low crust row (the fullest bucket)
@@ -206,6 +210,24 @@ describe('placePlants', () => {
       expect(d.draws, name).toBeLessThanOrEqual(budget);
       expect(d.draws, name).toBeGreaterThan(0);
     }
+  });
+
+  it('ground cover draws its far LOD beyond the LOD radius on carbon only; the dark foreground step is always near', () => {
+    const lods = (inp: VisualInputs) => {
+      const l = placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList());
+      const n = { far: 0, nearOut: 0, farIn: 0, darkFar: 0 };
+      for (let i = 0; i < l.n; i++) {
+        if (ARCHETYPE_META[l.arch[i]].role !== 'ground') continue;
+        const out = Math.hypot(l.x[i], l.z[i]) >= LOD_NEAR.ground;
+        if (l.lod[i]) { n.far++; if (!out) n.farIn++; if (l.dark[i]) n.darkFar++; } else if (out) n.nearOut++;
+      }
+      return n;
+    };
+    const c = lods(inputs(() => [1, 0]));
+    expect(c.far).toBeGreaterThan(1000);
+    expect(c.nearOut + c.farIn + c.darkFar).toBe(0);
+    // silicon's far LOD is its near one, so its ground cover stays in the near buckets
+    expect(lods(inputs(() => [1, 0], siliconOver())).far).toBe(0);
   });
 
   it('keeps land plants off until lifeOnLand, and only ground cover under the sea', () => {
