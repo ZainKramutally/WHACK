@@ -96,3 +96,4 @@
 - 02:55 16: merged #75 (mode-aware species mapping; movement words by mode and traits, Diver for swim+fly).
 - 03:11 16: merged #76 pass 6 (seeded founder lineage, seeded genus names); between-run BC carbon 0.07→~0.38, silicon 0.09→~0.27; names never repeat. Demo-seed names changed.
 - 03:14 16: merged inspect-card DOM skip (perf item 7) and animal-priority picking (#78).
+- 02:32: art-fixes + art-water shut down; integrate + art-water worktrees removed. art-fauna asked for a shared flora library: flora-unique to add memoized floraLibrary()/LIB_SEED (first commit, I cherry-pick to art-fauna) + FloraPart.plantsIn(cell) records for the card. main.ts lost-births LOW sent to 16. Journal commits now stay on session until the next approved main merge.
