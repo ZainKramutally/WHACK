@@ -3,7 +3,7 @@ import { LOCOMOTION, develop, type DevelopInputs } from '../sim/develop';
 import { makeFounders } from '../sim/genome';
 import type { BodyPlan } from '../sim/develop';
 import type { OrganismRecord } from '../sim/organismLayout';
-import { organismExplanations, biomassWords, dominantRows, geneRows, lengthWords, livingRange, livingRangeText, minOxygen, movesWords, organismRows, organismTags, planRows, producerRows, roleWords } from './lifeText';
+import { bodyFitExplanations, organismExplanations, biomassWords, dominantRows, geneRows, lengthWords, livingRange, livingRangeText, minOxygen, movesWords, organismRows, organismTags, planRows, producerRows, roleWords } from './lifeText';
 import { bitmapPath, habitatOf } from './cardIcons';
 import { maxBodySize } from '../sim/population';
 import { carbon } from '../worlds/carbon';
@@ -203,5 +203,25 @@ describe('organismExplanations', () => {
     expect(labels(e)).toEqual(['Body shape (speculative)', 'How it moves', 'What it eats', 'Armour (speculative)', 'Cold stability (speculative)']);
     const radial = organismExplanations(rec(), plan({ chemistry: 'silicon', architecture: 'radial' }), silicon, {});
     expect(radial[0]!.text).toMatch(/design guess/);
+  });
+});
+
+describe('bodyFitExplanations', () => {
+  const stats = (o: Record<string, number>) => ({ temperature: 15, gravity: 1, airDensity: 1.2, ...o });
+  const tl = (w: typeof carbon, p: BodyPlan, st: Record<string, number>) => bodyFitExplanations(p, w, st).map((e) => e.label);
+  it('says nothing about heat at the reference temperature, and something in deep cold', () => {
+    expect(tl(carbon, plan(), stats({}))).not.toContain('Heat');
+    const cold = [plan({ mass: 50, scale: 1.5, segmentCount: 3 }), plan({ mass: 50, scale: 1.5, segmentCount: 16, legPairs: 4, limbLength: 1.2 })]
+      .map((p) => bodyFitExplanations(p, carbon, stats({ temperature: -15 })).find((e) => e.label === 'Heat')?.text);
+    expect(cold.some((t) => t !== undefined)).toBe(true);
+  });
+  it('gravity line only for walkers, and only when the effect is large', () => {
+    expect(tl(carbon, plan({ mode: LOCOMOTION.swim }), stats({ gravity: 3 }))).not.toContain('Gravity');
+  });
+  it('flight line names wings or floating, from the live air and gravity', () => {
+    const wings = bodyFitExplanations(plan({ mode: LOCOMOTION.hover, wingSpan: 1 }), carbon, stats({ airDensity: 4.5, gravity: 0.6 }));
+    expect(wings.find((e) => e.label === 'Flight')!.text).toMatch(/^Flies.*4\.5 kg.*0\.60 g/);
+    const float = bodyFitExplanations(plan({ mode: LOCOMOTION.hover, wingSpan: 0 }), carbon, stats({}));
+    expect(float.find((e) => e.label === 'Flight')!.text).toMatch(/^Floats/);
   });
 });

@@ -2,7 +2,7 @@
 // or flora cell to label/value rows. No DOM, so they are unit-tested. The sim's BodyPlan is the source of every number.
 import { flightCeiling, flightEnvFromStats, type FlightParams } from '../sim/flight';
 import { roleOf, type FunctionalType, type Role } from '../sim/guide';
-import { SILICON_WALKER_SEGMENT_THRESHOLD, type BodyPlan, type LocomotionMode } from '../sim/develop';
+import { SILICON_WALKER_SEGMENT_THRESHOLD, skinArea, supportLoad, type BodyPlan, type LocomotionMode } from '../sim/develop';
 import type { BodyGenes } from '../sim/genome';
 import type { OrganismRecord } from '../sim/organismLayout';
 import type { FloraForm, FloraSpecies } from '../render/floraForm';
@@ -164,6 +164,50 @@ export function organismDescription(plan: BodyPlan): string {
 }
 
 /**
+ * Lines for effects the model prices from the live climate: heat balance (skin area against temperature), standing under
+ * gravity (square-cube support load) and flight or floating (wings, air density, gravity). A line appears only when the
+ * effect is big enough to matter for this body here; the thresholds are presentation only.
+ */
+export function bodyFitExplanations(plan: BodyPlan, world: WorldConfig, stats: Record<string, number>, spec = ''): TraitExplanation[] {
+  const out: TraitExplanation[] = [];
+  const L = (world.life.ledger ?? {}) as Record<string, number>;
+  const t = stats.temperature, g = stats.gravity, rho = stats.airDensity;
+
+  if ((L.thermalSpanC ?? 0) > 0 && (L.thermalK ?? 0) > 0 && t !== undefined && plan.mass > 0) {
+    const x = Math.max(-1, Math.min(1, (t - (L.thermalRefC ?? 15)) / L.thermalSpanC!));
+    const skin = skinArea(plan) / Math.max(1e-9, plan.mass ** 0.75) / (L.thermalSurfRef || 1);
+    const load = x < 0 ? -x * (skin - 1) : x * (1 / skin - 1);
+    const cost = L.thermalK! * load; // the share of upkeep it adds (or saves), as the sim prices it
+    if (cost > 0.08) {
+      out.push({ label: `Heat${spec}`, text: x < 0
+        ? 'Long and thin, with a lot of skin for its size. In this cold it loses heat fast, which costs extra energy.'
+        : 'Compact and bulky, with little skin for its size. In this heat it struggles to shed warmth, which costs extra energy.' });
+    } else if (cost < -0.08) {
+      out.push({ label: `Heat${spec}`, text: x < 0
+        ? 'Compact and bulky: in the cold, a round body loses less heat, like a walrus. That saves energy.'
+        : 'Slender with long limbs: in the heat, extra skin sheds warmth. That saves energy.' });
+    }
+  }
+
+  if (plan.mode === 0 && g !== undefined && (L.supportCost ?? 0) > 0) {
+    const scaleRef = (world.life.inputs as { economics?: { gravityScaleRef?: number } }).economics?.gravityScaleRef ?? 1;
+    const cost = L.supportCost! * (supportLoad(plan, g, scaleRef) - (L.supportRef ?? 0));
+    if (cost > 0.1) {
+      out.push({ label: `Gravity${spec}`, text: `Holding up this body is costly here: gravity is ${g.toFixed(2)} g, and long legs on a big body cost the most.` });
+    } else if (cost < -0.1) {
+      out.push({ label: `Gravity${spec}`, text: `This body is easy to hold up on a world with ${g.toFixed(2)} g, so standing and walking cost less.` });
+    }
+  }
+
+  if (plan.mode === 2 && rho !== undefined && g !== undefined) {
+    out.push({ label: `Flight${spec}`, text: plan.wingSpan > 0
+      ? `Flies: a light body, big wings, thick air (${rho.toFixed(1)} kg/m³) and gravity of ${g.toFixed(2)} g make flight affordable here.`
+      : `Floats: a light body hangs in air this thick (${rho.toFixed(1)} kg/m³), with gravity at ${g.toFixed(2)} g.` });
+  }
+  return out;
+}
+
+/**
  * "Why these traits?": one plain line per trait, cause then effect, written as a museum label. Each line states only what the
  * model does with the genes. It does not claim to know why a lineage spread in a particular run.
  */
@@ -199,6 +243,8 @@ export function organismExplanations(
     3: 'Moving costs more than it pays back, so it stays put.',
   };
   explanations.push({ label: 'How it moves', text: `${how[plan.mode]} In another habitat, the model can pick a different way.` });
+
+  explanations.push(...bodyFitExplanations(plan, world, stats, spec));
 
   const role = roleOf(plan.diet);
   explanations.push({
