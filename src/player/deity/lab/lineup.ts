@@ -8,9 +8,11 @@ import { createWorldView } from '../../../render/world';
 import { makeStubVisualInputs } from '../../../render/visualInputs';
 import { worlds } from '../../../worlds';
 import type { VisualInputs } from '../../../worlds/types';
-import { buildDeity, DEITY_VARIANTS } from '../model';
+import { buildAstronaut } from '../astronaut';
+import { buildDeity, DEITY_VARIANTS as DEITY_ONLY } from '../model';
 import type { DeityRig } from '../rig';
 
+const DEITY_VARIANTS = [...DEITY_ONLY, { id: 'K' as const, name: 'K astronaut' }];
 type View = 'turntable' | 'front' | 'back' | 'side' | 'game';
 const q = new URLSearchParams(location.search);
 let worldId: 'carbon' | 'silicon' = q.get('world') === 'silicon' ? 'silicon' : 'carbon';
@@ -18,7 +20,7 @@ let view: View = (['turntable', 'front', 'back', 'side', 'game'] as const).find(
 let rim = q.has('rim') && q.get('rim') !== '0';
 let voidMode: 'unlit' | 'ink' = q.get('void') === 'ink' ? 'ink' : 'unlit';
 let paused = false;
-let gameIdx = Math.max(0, DEITY_VARIANTS.findIndex((v) => v.id === (q.get('variant') ?? 'C')));
+let gameIdx = Math.max(0, DEITY_VARIANTS.findIndex((v) => v.id === (q.get('variant') === 'astronaut' ? 'K' : q.get('variant') ?? 'C')));
 
 const app = await createApp();
 const stub = makeStubVisualInputs();
@@ -55,7 +57,7 @@ const human = new THREE.Group();
   const h = new THREE.Mesh(headG, mat);
   h.position.y = 1.68;
   human.add(b, h);
-  human.position.set(4.8, 0, 0);
+  human.position.set(7, 0, 0);
 }
 scene.add(human);
 
@@ -63,7 +65,7 @@ function rebuild() {
   for (const r of rigs) { scene.remove(r.root); r.dispose(); }
   rigs.length = 0;
   DEITY_VARIANTS.forEach((v, i) => {
-    const r = buildDeity(v.id, { rim, voidMode });
+    const r = v.id === 'K' ? buildAstronaut() : buildDeity(v.id, { rim, voidMode });
     r.root.position.set((i - 2) * SPACING, 0, 0);
     scene.add(r.root);
     rigs.push(r);
@@ -148,7 +150,7 @@ app.registerFrameHook((dt) => {
     el.style.top = `${(-v3.y * 0.5 + 0.5) * innerHeight}px`;
   };
   labels.forEach((el, i) => place(el, (i - 2) * SPACING, !game));
-  place(humanEl, 4.8, !game);
+  place(humanEl, 7, !game);
   if (game) {
     labels[gameIdx].style.display = '';
     labels[gameIdx].style.left = '50%';
