@@ -70,6 +70,13 @@ const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 function sameValue(a: unknown, b: unknown): boolean {
   if (!isObj(a) || !isObj(b)) return a === b;
   if (a === b) return true;
+  const la = a as unknown as ArrayLike<unknown>, lb = b as unknown as ArrayLike<unknown>;
+  const arrA = Array.isArray(a) || ArrayBuffer.isView(a), arrB = Array.isArray(b) || ArrayBuffer.isView(b);
+  if (arrA || arrB) {
+    if (!arrA || !arrB || la.length !== lb.length) return false;
+    for (let i = 0; i < la.length; i++) if (!sameValue(la[i], lb[i])) return false;
+    return true;
+  }
   let n = 0;
   for (const k in b) {
     if (!has(b, k)) continue;
@@ -82,6 +89,8 @@ function sameValue(a: unknown, b: unknown): boolean {
 
 function copyValue<T>(v: T): T {
   if (!isObj(v)) return v;
+  if (Array.isArray(v)) return v.map(copyValue) as T;
+  if (ArrayBuffer.isView(v)) return (v as unknown as { slice(): T }).slice();
   const out: Record<string, unknown> = {};
   for (const k in v) if (has(v, k)) out[k] = copyValue(v[k]);
   return out as T;
