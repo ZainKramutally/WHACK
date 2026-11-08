@@ -94,3 +94,4 @@
 - 02:46 16: merged #74 (sticky creature lock, NEW SPECIES label until found; swimmers pickable from above water).
 - 02:52 16: merged loud NEW SPECIES lock (gold, pulse, ping; UNCLASSIFIED dim). #75 (swimmer name) with sim-worker.
 - 02:55 16: merged #75 (mode-aware species mapping; movement words by mode and traits, Diver for swim+fly).
+- 02:47 (2026-11-08) perf: session/perf from main 21d12f5 (optimiser). Landing lag = 3D scene rendering behind the opaque selection screen + terrain/Generate shader rebuild+compile (and a terrain mesh leak) on every carbon/silicon switch + sheet-wide drop-shadow filter + per-pixel fillRect box draw. Spawned perf-landing (app.ts/main.ts/generate.ts) and perf-audit (scout, rest of app). selection/* is box-crust's (dirty): CSS + box draw fixes sent to whack-2026-fc to fold in or hand over after merge.
