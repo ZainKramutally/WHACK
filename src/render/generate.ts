@@ -272,7 +272,7 @@ export function createGenerate(app: App): Generate {
     debounce = window.setTimeout(() => {
       if (job) { pending = a; return; }
       const inp = planInput(a);
-      job = { key, it: planSteps(inp), timer: 0, inp, args: a };
+      job = { key: keyOf(a), it: planSteps(inp), timer: 0, inp, args: a };   // fresh key: dims() may have changed since prime() was called
       job.timer = schedule(pump) as number;
     }, 250);
   }
@@ -317,6 +317,8 @@ export function createGenerate(app: App): Generate {
 
   function run(o: StartOptions, p: Primed, world: ReturnType<typeof worldFor>, W: number, H: number) {
     active?.stop();
+    // Only this world runs from here on: free the other worlds' primed plans.
+    for (const [id, other] of primedBy) if (id !== o.worldId) { other.dispose(); primedBy.delete(id); }
     const plan = p.plan, U = p.U, tu = p.tu;
     const dur = world.build.durationSec, spawnSec = world.build.spawnSec;
     const handle = o.handle;

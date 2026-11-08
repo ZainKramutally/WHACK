@@ -108,6 +108,12 @@ async function start(
     ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
     : null;
   ensureTerrainMesh(view, worldId);
+  // One world per page load: free the other worlds' cached terrain meshes (setTerrain already took them out of the scene).
+  for (const [id, e] of meshes) {
+    if (id === worldId) continue;
+    e.mesh.traverse((o) => { const m = o as import('three/webgpu').Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as import('three/webgpu').Material).dispose(); } });
+    meshes.delete(id);
+  }
   view.setLandmarks(landmarks);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.

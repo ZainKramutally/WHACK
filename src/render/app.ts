@@ -174,6 +174,7 @@ export async function createApp(): Promise<App> {
     compile,
     setSuspended(on) {
       suspended = on;
+      if (!on) { fpsFrames = 0; fpsStart = performance.now(); }
     },
   };
 }
