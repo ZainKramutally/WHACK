@@ -2,13 +2,15 @@
 // palette, dimmed and tinted by the star through PAL_LIT/LOOK), two pale moons (decoration, lit by the same star, never
 // over the star disc), and the real star disc along LOOK.lightDir, coloured by its spectral class and sized by `light`.
 // Underwater (camera below the sea surface) the sky, the scene fog and the world material's air all take the sea's
-// tint and a short fog.
+// tint and a short fog. It also writes the underwater overlay's state for post.ts (LOOK.underwater, waterTint, waterClear,
+// waterDepth): an eased gate that is on only over a liquid sea, from just above the surface (the waterline window) down.
 import * as THREE from 'three/webgpu';
 import { Fn, float, vec3, mix, smoothstep, positionWorldDirection, dot, normalize, floor, clamp, length, max, mx_noise_float, uniform } from 'three/tsl';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { seaStyle, skyStyle } from './palette';
 import { LOOK, PAL_LIT, PIXEL, bayer4 } from './material';
+import { easeSubmersion, stepSubmersion, submersionTarget } from './underwater';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -28,6 +30,8 @@ const MOONS: { dir: [number, number, number]; radiusDeg: number; seed: number; s
   { dir: [0.255, 0.174, -0.951], radiusDeg: 5, seed: 3.1, strength: 0.78 },   // ~10° up: in frame at walking pitch
   { dir: [0.79, 0.276, -0.553], radiusDeg: 2.4, seed: 7.7, strength: 0.82 },
 ];
+/** The overlay grade reaches full depth at this fraction of the solvent's underwater fog distance (water 14 m, N₂ 36 m). */
+const GRADE_DEPTH_FRAC = 0.4;
 
 /** Composite one moon over `sky`: a lit sphere with a stepped terminator toward the star, maria and a horizon fade. */
 function moon(d: N, sky: N, under: N, m: (typeof MOONS)[number]): N {
@@ -91,23 +95,38 @@ export function createSky(app: App): SkyPart {
   const sunDir = new THREE.Vector3();
   const tmp = new THREE.Color();
   let underwater = false;
+  let submersion = 0; // the overlay's linear ramp (underwater.ts); LOOK.underwater is its eased value
 
   return {
     starMesh,
     get underwater() {
       return underwater;
     },
-    update(_dt, inputs, patch) {
+    update(dt, inputs, patch) {
       const st = skyStyle(inputs.world.starType, inputs.light, inputs.stats.pressure ?? 1, inputs.stats.temperature ?? 15);
-      underwater = camera.position.y < inputs.seaLevel && (inputs.stats.seaCover ?? 1) > 0.005;
+      const hasSea = (inputs.stats.seaCover ?? 1) > 0.005;
+      underwater = camera.position.y < inputs.seaLevel && hasSea;
       sunDir.copy(LOOK.lightDir.value).normalize();
 
+      const sea = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks);
+      const nitrogen = /nitrogen/i.test(inputs.world.solvent.name);
+      // the tint in the look's palette (as sea.ts colours the surface): ice pale, nitrogen pale-clear, water violet-oxblood
+      if (inputs.frozen) tmp.copy(PAL_LIT.bone.value).multiplyScalar(0.55);
+      else if (nitrogen) tmp.copy(PAL_LIT.blush.value).lerp(PAL_LIT.shadow.value, 0.45);
+      else tmp.copy(PAL_LIT.shadow.value).lerp(PAL_LIT.crimson.value, 0.3);
+
+      // Overlay state for post.ts. Liquid only: a frozen sea is walkable ice, so the gate drops to 0 at once.
+      const depth = inputs.seaLevel - camera.position.y;
+      const liquid = hasSea && !inputs.frozen;
+      submersion = liquid ? stepSubmersion(submersion, submersionTarget(depth, liquid), dt) : 0;
+      LOOK.underwater.value = easeSubmersion(submersion);
+      // water grades toward the fog's violet-oxblood; liquid nitrogen toward a paler, clear icy lilac
+      LOOK.waterTint.value.copy(tmp);
+      if (nitrogen) LOOK.waterTint.value.lerp(PAL_LIT.haze.value, 0.5).lerp(PAL_LIT.bone.value, 0.3);
+      LOOK.waterClear.value = nitrogen ? 1 : 0;
+      LOOK.waterDepth.value = Math.min(1, Math.max(0, depth / (sea.underwaterFar * GRADE_DEPTH_FRAC)));
+
       if (underwater) {
-        const sea = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks);
-        // the tint in the look's palette (as sea.ts colours the surface): ice pale, nitrogen pale-clear, water violet-oxblood
-        if (inputs.frozen) tmp.copy(PAL_LIT.bone.value).multiplyScalar(0.55);
-        else if (/nitrogen/i.test(inputs.world.solvent.name)) tmp.copy(PAL_LIT.blush.value).lerp(PAL_LIT.shadow.value, 0.45);
-        else tmp.copy(PAL_LIT.shadow.value).lerp(PAL_LIT.crimson.value, 0.3);
         uZenith.value.copy(tmp);
         uHorizon.value.copy(tmp);
         uHaze.value.copy(tmp);

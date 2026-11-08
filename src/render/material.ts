@@ -103,6 +103,11 @@ export const LOOK: Record<string, N> = {
   focusR: uniform(2.5),
   patch: uniform(400),
   brightness: uniform(1),
+  // underwater overlay (render-only): sky.ts writes these once per frame, post.ts reads them
+  underwater: uniform(0),    // eased submersion 0..1; exactly 0 above the waterline window, on frozen seas and with no sea
+  waterTint: uniform(lin(LOOK_PALETTES.carbon.shadow)), // the liquid's lit tint the overlay grades toward
+  waterClear: uniform(0),    // 0 water (dense, dark) .. 1 liquid nitrogen (clear, pale)
+  waterDepth: uniform(0),    // camera depth under the surface as a fraction of the grade's full depth, 0..1
 };
 
 /** Ordered 4×4 Bayer threshold in [0, 1) from the (internal) pixel coordinate (for sky/fog dithering). */

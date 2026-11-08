@@ -4,12 +4,22 @@
 // and 1000 m far plane; bloom (threshold 1, HDR emissives only) runs at internal resolution with 2 mips, sampled at
 // internal pixel centres and quantised to quarter steps, so glows read as crisp cores with a stepped 1-2 px halo.
 // Smooth (?style=smooth): full resolution, no outline, soft bloom.
+// Underwater overlay, only while LOOK.underwater > 0 (sky.ts: liquid seas, from just above the surface down; the branch
+// is skipped otherwise, so it costs nothing above water): a waterline across the view while the camera is within the
+// lens of the surface (underwater.ts), and on the wet side a row-shift refraction wobble, world-space caustics on
+// surfaces under the water, a grade toward the liquid's tint that deepens with depth, faint light shafts fanning from
+// the star's side, a stepped vignette and an ink outline that dissolves into the water. Screen patterns run per
+// internal pixel and are stepped, so the pixels stay crisp; smooth mode runs them unstepped on the same ~360 px grid.
 // The inspect card's live view is NOT drawn here: the app draws its overlays after `render()`, straight to the canvas.
 import * as THREE from 'three/webgpu';
-import { Fn, pass, vec2, vec3, vec4, screenUV, screenSize, perspectiveDepthToViewZ, getViewPosition, smoothstep, max, mix, float, uniform, floor } from 'three/tsl';
+import {
+  Fn, If, pass, vec2, vec3, vec4, screenUV, screenSize, perspectiveDepthToViewZ, getViewPosition, smoothstep, max, min, mix, float, uniform,
+  floor, round, sin, fract, dot, length, exp,
+} from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import type { VisualInputs } from '../worlds/types';
-import { LOOK, PAL, PIXEL } from './material';
+import { LOOK, PAL, PAL_LIT, PIXEL } from './material';
+import { waterlineNdc } from './underwater';
 
 export { PIXEL };
 export const INTERNAL_H = 360;
@@ -22,8 +32,49 @@ const FADE_TO_FAR = 0.6;
 const INK_SCALE_FULL = 1.25;
 const INK_SCALE_GONE = 3;
 
+// Underwater look. Screen units are internal (art) pixels, world units metres.
+const WOBBLE_PX = 1.1;          // row-shift refraction: two sines, rounded, so rows move by 1-2 internal px
+const CAUSTIC_CELL = 2.2;       // m, caustic net cell size on surfaces under the water
+const CAUSTIC_GAIN = 0.45;      // caustic light added at full strength (× the star's light colour)
+const SHAFT_GAIN = 0.1;         // light shafts: low strength
+const LUMA_W = [0.2126, 0.7152, 0.0722] as const;
+
 // TSL typing is loose in @types/three for node chains; keep it pragmatic.
 type N = any;
+
+/** Hash without sine (Dave Hoskins, MIT): vec2 → vec2 in [0, 1). */
+const hash22 = (p: N): N => {
+  const p3: N = fract(vec3(p.x, p.y, p.x).mul(vec3(0.1031, 0.103, 0.0973))).toVar();
+  p3.addAssign(dot(p3, p3.yzx.add(33.33)));
+  return fract(p3.xx.add(p3.yz).mul(p3.zy));
+};
+
+/** F2 - F1 of a 3×3 voronoi whose points orbit slowly in their cells: ~0 on the cell borders (the caustic net). */
+const voronoiEdge = (p: N, t: N): N => {
+  const cell: N = floor(p);
+  const f: N = p.sub(cell);
+  const d1: N = float(8).toVar();
+  const d2: N = float(8).toVar();
+  for (let j = -1; j <= 1; j++) {
+    for (let i = -1; i <= 1; i++) {
+      const o = vec2(i, j);
+      const h: N = hash22(cell.add(o));
+      const pt: N = o.add(sin(h.mul(6.2831).add(vec2(t.mul(0.83), t.mul(0.61)))).mul(0.38)).add(0.5);
+      const d: N = length(pt.sub(f));
+      d2.assign(min(d2, max(d1, d)));
+      d1.assign(min(d1, d));
+    }
+  }
+  return d2.sub(d1);
+};
+
+/** Pixel mode quantises a 0..1 value into n steps; smooth mode leaves it. */
+const steps = (x: N, n: number): N => (PIXEL ? floor(x.mul(n).add(0.5)).div(n) : x);
+/** 1 for rows with a <= rel < b (in art px); smooth mode antialiases the edges. */
+const band = (rel: N, a: number, b: number): N =>
+  PIXEL
+    ? rel.greaterThanEqual(a).and(rel.lessThan(b)).select(float(1), float(0))
+    : smoothstep(a - 0.5, a + 0.5, rel).mul(float(1).sub(smoothstep(b - 0.5, b + 0.5, rel)));
 
 export interface Post {
   /** Render the scene through the pipeline to the canvas. */
@@ -67,24 +118,119 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
   const seaU = uniform(-1e9);
   const camYU = uniform(0);
   const inkScaleU = uniform(1); // 1 - smoothstep(INK_SCALE_FULL, INK_SCALE_GONE, pixelScale)
+  // Underwater overlay, from the scene camera each frame (update): the waterline's screen y (NDC, underwater.ts), the
+  // shaft fan's origin x (NDC, on the star's side) and the shafts' strength (shallow and looking up = strongest).
+  const lineU = uniform(-1e3);
+  const sunXU = uniform(0);
+  const shaftU = uniform(0);
+  // The art-pixel grid: the internal pixels in pixel mode; smooth mode uses the same ~360 px grid, unquantised.
+  const grid: N = PIXEL ? screenSize.div(k) : screenSize.mul(float(INTERNAL_H).div(screenSize.y));
+  const LUMA: N = vec3(...LUMA_W);
+
+  /**
+   * The wet side's look, in place on `c`. ip: art-pixel coordinate (top-left origin); wet: 0..1 (× the eased gate);
+   * rel: art px below the waterline (0 = the surface row); wp: world position of the pixel's surface; zc: its view depth.
+   */
+  const overlay = (c: N, ip: N, wet: N, rel: N, wp: N, zc: N) => {
+    const t: N = LOOK.time;
+    const clear: N = LOOK.waterClear;
+    const dep: N = LOOK.waterDepth;
+    const tint: N = vec3(LOOK.waterTint);
+    const hue: N = tint.div(max(tint.r, max(tint.g, tint.b)).max(1e-4)); // the liquid's hue, brightest channel 1
+    const light: N = vec3(LOOK.lightColor);                              // the star's light (dimmed and tinted)
+
+    // (b) caustics: a drifting voronoi net projected straight down onto surfaces under the water. Brightest just under
+    // the surface, gone within a few metres in water (tens in clear nitrogen), and lost in the water's fog with distance.
+    const dSurf: N = seaU.sub(wp.y);
+    const near: N = exp(max(zc.sub(LOOK.fogStart), 0).div(LOOK.fogDist).negate());
+    const cs: N = exp(max(dSurf, 0).div(mix(4, 12, clear)).negate()).mul(near).mul(wet)
+      .mul(dSurf.greaterThan(0).select(float(1), float(0))).toVar();
+    If(cs.greaterThan(0.01), () => {
+      const p: N = wp.xz.div(CAUSTIC_CELL);
+      const pw: N = p.add(sin(p.yx.mul(1.7).add(t.mul(0.5))).mul(0.18));
+      const net: N = float(1).sub(smoothstep(0.02, 0.11, voronoiEdge(pw, t)));
+      c.addAssign(light.mul(steps(net, 3)).mul(cs).mul(CAUSTIC_GAIN));
+    });
+
+    // (a) grade toward the liquid: a hue filter, darker and more saturated with depth (down to a readable floor), and
+    // a lift toward the tint. Clear liquid nitrogen gets a light cool filter, little darkening and a pale lift.
+    const filt: N = mix(vec3(1), hue, mix(0.5, 0.15, clear).mul(dep.mul(0.3).add(0.7)));
+    const g: N = c.mul(filt).mul(mix(float(1), mix(0.68, 0.92, clear), dep)).toVar();
+    g.assign(mix(g, tint, mix(0.1, 0.16, clear).add(dep.mul(0.12).mul(clear.oneMinus()))));
+    g.assign(max(mix(vec3(dot(g, LUMA)), g, dep.mul(0.3).mul(clear.oneMinus()).add(1)), 0));
+    c.assign(mix(c, g, wet));
+
+    // (e) light shafts: faint stepped streaks fanning down from above the top edge, on the star's side
+    const aspect: N = grid.x.div(grid.y);
+    const q: N = ip.div(grid);
+    const sx: N = q.x.mul(2).sub(1).mul(aspect);
+    const sy: N = float(1).sub(q.y.mul(2));
+    const fan: N = sx.sub(sunXU.mul(aspect).mul(0.8)).div(max(float(1.6).sub(sy), 0.05));
+    const st: N = sin(fan.mul(9).add(t.mul(0.31))).mul(0.6).add(sin(fan.mul(23).sub(t.mul(0.19))).mul(0.4));
+    const shaft: N = smoothstep(0.3, 0.85, st).mul(smoothstep(-0.7, 1, sy));
+    c.addAssign(light.mul(mix(hue, vec3(1), 0.65)).mul(steps(shaft, 3)).mul(shaftU).mul(wet));
+
+    // (d) vignette: a stepped darker rim in the liquid's hue
+    const vig: N = steps(smoothstep(0.5, 1, length(vec2(sx, sy)).div(length(vec2(aspect, 1)))), 4);
+    c.assign(mix(c, c.mul(hue).mul(0.35), vig.mul(mix(0.6, 0.35, clear)).mul(wet)));
+
+    // (f) the waterline: a faint glint row above, the bright surface row, and a darker row under it
+    const u: N = LOOK.underwater;
+    c.assign(mix(c, vec3(PAL_LIT.bone), band(rel, -1, 0).mul(0.3).mul(u)));
+    c.assign(mix(c, vec3(PAL_LIT.bone), band(rel, 0, 1).mul(0.75).mul(u)));
+    c.assign(mix(c, tint.mul(0.45), band(rel, 1, 2).mul(0.5).mul(u)));
+  };
 
   pipeline.outputNode = Fn(() => {
-    const c: N = color.sample(screenUV).rgb.toVar();
-    if (!PIXEL) return vec4(c.add(bloomTex.sample(screenUV).rgb), 1);
+    // Underwater: which art pixels are in the water (under the waterline, with a gentle integer-row wave across x),
+    // and the refraction wobble, which shifts whole wet rows by integer art pixels so it never smears.
+    // (declared at the top so every branch below reads the same values)
+    const ipRaw: N = screenUV.mul(grid);
+    const ip: N = (PIXEL ? floor(ipRaw).add(0.5) : ipRaw).toVar(); // art-pixel centre
+    const uv: N = screenUV.toVar();
+    const wet: N = float(0).toVar();
+    const rel: N = float(-1e4).toVar();
+    If(LOOK.underwater.greaterThan(0), () => {
+      const t: N = LOOK.time;
+      const rowLine: N = float(1).sub(lineU).mul(0.5).mul(grid.y);
+      const wave: N = sin(ip.x.mul(0.09).add(t.mul(1.4))).mul(0.9).add(sin(ip.x.mul(0.031).sub(t.mul(0.8))).mul(0.6));
+      rel.assign(ip.y.sub(rowLine).sub(PIXEL ? round(wave) : wave));
+      wet.assign((PIXEL ? rel.greaterThanEqual(0).select(float(1), float(0)) : smoothstep(-0.5, 0.5, rel)).mul(LOOK.underwater));
+      const wob: N = sin(ip.y.mul(0.21).add(t.mul(1.6))).mul(WOBBLE_PX).add(sin(ip.y.mul(0.067).sub(t.mul(0.7))).mul(0.6)).mul(wet);
+      uv.assign(ip.add(vec2(PIXEL ? round(wob) : wob, 0)).div(grid));
+    });
+
+    const c: N = color.sample(uv).rgb.toVar();
+    if (!PIXEL) {
+      If(LOOK.underwater.greaterThan(0), () => {
+        const d: N = depth.sample(uv).r;
+        const wp: N = camWorldU.mul(vec4(getViewPosition(uv, d, projInvU), 1)).xyz;
+        overlay(c, ip, wet, rel, wp, perspectiveDepthToViewZ(d, nearU, farU).negate());
+      });
+      return vec4(c.add(bloomTex.sample(uv).rgb), 1);
+    }
     // Ink on the near side of silhouettes: a neighbour clearly farther than this pixel.
-    const zc: N = z(screenUV);
+    const zc: N = z(uv);
     let edge: N = float(0);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const zn: N = z(screenUV.add(vec2(dx, dy).mul(texel)));
+      const zn: N = z(uv.add(vec2(dx, dy).mul(texel)));
       edge = max(edge, zn.greaterThan(zc.mul(1.05).add(0.4)).select(float(1), float(0)));
     }
-    const worldY: N = camWorldU.mul(vec4(getViewPosition(screenUV, depth.sample(screenUV).r, projInvU), 1)).y;
-    const underSea: N = worldY.lessThan(seaU.sub(1.0)).and(camYU.greaterThan(seaU)); // the top 1 m keeps ink: shallow creatures, shore edges
-    const fade: N = float(1).sub(smoothstep(LOOK.patch.mul(FADE_FROM_PATCH), farU.mul(FADE_TO_FAR), zc)).mul(underSea.select(float(0), float(1))).mul(inkScaleU);
-    c.assign(mix(c, vec3(PAL.ink), edge.mul(fade)));
+    const wp: N = camWorldU.mul(vec4(getViewPosition(uv, depth.sample(uv).r, projInvU), 1)).xyz;
+    const underSea: N = wp.y.lessThan(seaU.sub(1.0)).and(camYU.greaterThan(seaU)); // the top 1 m keeps ink: shallow creatures, shore edges
+    // and the mirror case: from under the surface the sea hides what stands above it
+    const overSea: N = wp.y.greaterThan(seaU.add(0.05)).and(camYU.lessThan(seaU));
+    // In the water the ink takes the liquid's tint with depth and dissolves into it with distance.
+    const inkCol: N = mix(vec3(PAL.ink), vec3(LOOK.waterTint).mul(0.4), wet.mul(LOOK.waterDepth.mul(0.6).add(0.25)));
+    const inkFar: N = float(1).sub(wet.mul(smoothstep(LOOK.fogDist.mul(0.5), LOOK.fogDist.mul(2.5), zc)));
+    const fade: N = float(1).sub(smoothstep(LOOK.patch.mul(FADE_FROM_PATCH), farU.mul(FADE_TO_FAR), zc)).mul(underSea.or(overSea).select(float(0), float(1))).mul(inkScaleU).mul(inkFar);
+    c.assign(mix(c, inkCol, edge.mul(fade)));
+    If(LOOK.underwater.greaterThan(0), () => {
+      overlay(c, ip, wet, rel, wp, zc);
+    });
     // Stepped pixel bloom: sample at the internal pixel centre, quantise magnitude to quarter steps.
     const isz: N = screenSize.div(k);
-    const snap: N = floor(screenUV.mul(isz)).add(0.5).div(isz);
+    const snap: N = floor(uv.mul(isz)).add(0.5).div(isz);
     const bl: N = bloomTex.sample(snap).rgb;
     const mag: N = max(bl.r, max(bl.g, bl.b));
     const q: N = floor(mag.mul(4).add(0.15)).div(4);
@@ -125,6 +271,17 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       camWorldU.value.copy(cam.matrixWorld);
       camYU.value = cam.position.y;
       seaU.value = inputs?.seaLevel ?? -1e9;
+      // Underwater overlay: where the surface crosses the lens (camera basis from matrixWorld: right = col 0,
+      // up = col 1, forward = -col 2), which side the star is on, and how strong the shafts are.
+      const e = cam.matrixWorld.elements;
+      const depthC = seaU.value - cam.position.y;
+      lineU.value = waterlineNdc(depthC, e[5]);
+      const ld = LOOK.lightDir.value as THREE.Vector3;
+      const ll = ld.length() || 1;
+      sunXU.value = Math.max(-1, Math.min(1, ((ld.x * e[0] + ld.y * e[1] + ld.z * e[2]) / ll) * 1.2));
+      const up = Math.min(1, Math.max(0, (-e[9] + 0.8) / 1.1)); // looking up (forward.y 0.3) = 1, down (-0.8) = 0
+      const clear = LOOK.waterClear.value as number;
+      shaftU.value = SHAFT_GAIN * Math.exp(-Math.max(0, depthC) / (6 + 12 * clear)) * up * up * (3 - 2 * up);
     },
     async compile(s, c) {
       const prev = renderer.getRenderTarget();
