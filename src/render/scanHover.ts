@@ -9,6 +9,8 @@ import type { PickBounds, PickResult } from './pick';
 
 const RESOLVE_EVERY = 1 / 15; // s
 const MIN_SIZE = 28;          // px: a tiny plant still gets a visible lock
+const GRACE = 0.25;           // s a creature lock survives with no hit
+const STICKY_MARGIN = 12;     // px around the creature's rect in which the pointer keeps the lock
 const PAD = 4;                // px
 
 type Life = Extract<InspectTarget, { kind: 'organism' | 'producer' }>;
@@ -29,6 +31,7 @@ export function createScanHover(
   const canvas = app.renderer.domElement;
   let kind: 'keyboard' | 'gamepad' = 'keyboard';
   let px = 0, py = 0, pointerIn = false, dragging = false;
+  let grace = 0;
   let acc = RESOLVE_EVERY; // resolve on the first frame
   let payload: HoverPayload | null = null;
   let key = '';
@@ -62,6 +65,9 @@ export function createScanHover(
     return true;
   }
 
+  const insideRect = (x: number, y: number, r: HoverPayload['rect']) =>
+    x >= r.x - STICKY_MARGIN && x <= r.x + r.width + STICKY_MARGIN && y >= r.y - STICKY_MARGIN && y <= r.y + r.height + STICKY_MARGIN;
+
   const onMove = (e: PointerEvent) => {
     px = e.clientX; py = e.clientY; pointerIn = true;
     dragging = e.buttons !== 0;
@@ -92,6 +98,11 @@ export function createScanHover(
           canvas.style.cursor = 'pointer';
         }
         bounds = r.bounds;
+        grace = 0;
+      } else if (payload && payload.target.kind === 'organism' && insideRect(kind === 'gamepad' ? cr.left + cr.width / 2 : px, kind === 'gamepad' ? cr.top + cr.height / 2 : py, payload.rect)) {
+        grace = 0; // still on the creature's rect: a missed resolve on a small or moving body must not drop the lock
+      } else if (payload && payload.target.kind === 'organism' && (grace += RESOLVE_EVERY) < GRACE) {
+        // within the grace window: keep the lock
       } else clear();
     }
     if (!payload || !bounds) return;

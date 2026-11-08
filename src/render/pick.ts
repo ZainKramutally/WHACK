@@ -62,7 +62,8 @@ export function createPicker(deps: PickerDeps): Picker {
       target = { kind: 'producer', cell: plant.cell };
       bounds = { x: plant.x, y: plant.y, z: plant.z, height: plant.height, radius: plant.radius };
     }
-    if (org && org.dist <= best) {
+    // Water is clear: a creature seen through the sea surface (swimmers, from above) beats the sea hit, not the ground.
+    if (org && (org.dist <= best || world.target.kind === 'sea')) {
       target = { kind: 'organism', organismId: org.id };
       const l = fauna.locate(org.id);
       bounds = l ? { x: l.x, y: l.y - l.radius, z: l.z, height: 2 * l.radius, radius: l.radius } : undefined;

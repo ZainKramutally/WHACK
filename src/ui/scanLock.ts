@@ -5,6 +5,7 @@ import { el } from './dom';
 import { listen, type UiBus } from './uiBus';
 import type { WorldConfig } from '../worlds/types';
 import type { LifeRegistry } from './lifeRegistry';
+import { scanLabel } from './scanLabel';
 
 export function mountScanLock(root: HTMLElement, bus: UiBus, world: WorldConfig, registry: LifeRegistry) {
   const lock = el('div', 'wu-scan');
@@ -14,34 +15,37 @@ export function mountScanLock(root: HTMLElement, bus: UiBus, world: WorldConfig,
   lock.append(label);
   root.append(lock);
 
-  let locked: object | null = null; // identity of the locked target, to restart the snap animation on a new one
   let lockedKey = '';
+  let current: Parameters<Parameters<typeof listen<'inspect:hover'>>[2]>[0] = null;
+
+  const nameFor = (t: NonNullable<typeof current>['target']): string =>
+    t.kind === 'organism' ? scanLabel(registry.formOf(t.organismId)) : world.features.producer.name;
+  const setLabel = (text: string) => { if (label.textContent !== text) label.textContent = text; };
 
   const off = listen(bus, 'inspect:hover', (h) => {
-    if (!h) { lock.hidden = true; locked = null; lockedKey = ''; return; }
+    current = h;
+    if (!h) { lock.hidden = true; lockedKey = ''; return; }
     const t = h.target;
     const key = t.kind === 'organism' ? `o${t.organismId}` : `p${t.cell}`;
     if (key !== lockedKey) {
       lockedKey = key;
-      let name = t.kind === 'organism' ? world.features.organism.name : world.features.producer.name;
-      if (t.kind === 'organism') {
-        const f = registry.formOf(t.organismId);
-        if (f?.recognised && f.name) name = f.name;
-      }
-      label.textContent = name;
+      setLabel(nameFor(t));
       lock.classList.remove('wu-scan-snap');
       void lock.offsetWidth; // restart the snap-in animation
       lock.classList.add('wu-scan-snap');
     }
-    locked = h;
     const r = h.rect;
     lock.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
     lock.style.width = `${Math.round(r.width)}px`;
     lock.style.height = `${Math.round(r.height)}px`;
     lock.hidden = false;
   });
+  // The label follows the bestiary live: clicking and filing a kind turns NEW SPECIES into its name.
+  const refresh = () => { if (current) setLabel(nameFor(current.target)); };
+  const offChange = registry.onChange(refresh);
+  const offFind = registry.onDiscover(refresh);
 
   return {
-    dispose() { off(); lock.remove(); void locked; },
+    dispose() { off(); offChange(); offFind(); lock.remove(); },
   };
 }
