@@ -95,6 +95,10 @@ export function groundColour(comp: { c: number; si: number; o: number }, lifeBle
 
 export type Tone = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+/** Bead tone → the tone the world draws it in (fauna.ts): plates and limbs wear the body colour, horns and spots the
+ *  accent, so every view of a creature shows the world's one body colour + one accent. */
+export const WORLD_TONE: readonly Tone[] = [0, 1, 0, 0, 5, 5, 5];
+
 /** Rotates a hex colour's hue by `deg` degrees (and shifts its lightness by `dl`), keeping saturation. */
 export function shiftHue(hex: number, deg: number, dl = 0): number {
   const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;

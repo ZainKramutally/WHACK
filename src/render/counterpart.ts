@@ -11,7 +11,7 @@ import type { DevelopInputs } from '../sim/develop';
 import { gasDensity } from '../sim/models';
 import { FLORA_EPS, beadLayout } from './layout';
 import { DARK_BELOW, DIM_BELOW, cellSubmerged, floraBin, floraForm, formForBin, type FloraForm } from './floraForm';
-import { creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle, type Tone } from './palette';
+import { WORLD_TONE, creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle } from './palette';
 
 export interface CounterpartPart {
   /** Resolves when the swatch materials are compiled (never rejects). */
@@ -154,7 +154,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       q0.setFromAxisAngle(yAxis, -(b.yaw ?? 0));
       m4.compose(pos0.set(b.x * k, (b.y - cy) * k, b.z * k), q0, sc0.set(b.r * (b.sx ?? 1) * k, b.r * (b.sy ?? 1) * k, b.r * (b.sz ?? 1) * k));
       mesh.setMatrixAt(i, m4);
-      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, b.tone as Tone, hue, accent)));
+      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, WORLD_TONE[b.tone], hue, accent)));
     });
     mesh.frustumCulled = false;
     mesh.position.y = 0.6; // a little above the look-at height so hanging limbs stay in frame
@@ -179,7 +179,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
         const target = i < R.nTiers ? hub : hex;
         const idx = i < R.nTiers ? i : i - R.nTiers;
         target.setMatrixAt(idx, m4);
-        target.setColorAt(idx, c.setHex(creatureColour(true, diet, r.tone as Tone, hue, accent)));
+        target.setColorAt(idx, c.setHex(creatureColour(true, diet, WORLD_TONE[r.tone], hue, accent)));
       });
       for (const m of [hub, hex]) { m.frustumCulled = false; m.position.y = 0.6; turntable.add(m); }
     }
