@@ -10,6 +10,7 @@ import type { LandmarkSet } from './gen/landmarks';
 import { pillarCandidates, type PillarSet } from './gen/pillars';
 import { createLru } from './lruCache';
 import { attachPlayer } from './player';
+import { createDust } from './render/dust';
 import { mountAudio, type AudioApi } from './audio';
 import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
@@ -172,15 +173,16 @@ async function prepare() {
   const app = await createApp();
   const view = createWorldView(app);
   const gen = createGenerate(app);
+  const dust = createDust(app.scene);
   // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
   await view.ready;
-  return { app, view, gen };
+  return { app, view, gen, dust };
 }
 
 
 /** Pipelines for hidden meshes only build on the first visible frame: show them, compile against the real scene, then restore. */
 async function warmFeatures(app: Awaited<ReturnType<typeof prepare>>['app']) {
-  for (const name of ['rockForms', 'basaltPillars', 'landmarks', 'underwaterFx']) {
+  for (const name of ['rockForms', 'basaltPillars', 'landmarks', 'underwaterFx', 'dust']) {
     const root = app.scene.getObjectByName(name);
     if (!root || !root.children.length) continue;
     const meshes: { o: import('three/webgpu').Object3D; v: boolean }[] = [];
@@ -190,7 +192,7 @@ async function warmFeatures(app: Awaited<ReturnType<typeof prepare>>['app']) {
 }
 
 async function start(
-  { app, view, gen }: Awaited<ReturnType<typeof prepare>>,
+  { app, view, gen, dust }: Awaited<ReturnType<typeof prepare>>,
   worldId: WorldId,
   requested: Conditions,
   handle?: LaunchHandle,
@@ -334,7 +336,7 @@ async function start(
   let spawned = false;
   let appear = 1;   // the character grows in over APPEAR_SEC after it spawns (smoothstep), instead of popping
   const APPEAR_SEC = 0.35;
-  bus.on('world:selected', () => { spawned = false; player.setVisible(false); });
+  bus.on('world:selected', () => { spawned = false; player.setVisible(false); dust.setVisible(false); });
   const audioUpdate = audio?.attachWorld({
     world, camera: app.camera, playerState: () => player.state, spawned: () => spawned, heightAt: groundHeight, patchSize: 'relics' in terrain ? terrain.patchSize : 256,
     mineralAt: 'relics' in terrain ? (x, z) => {
@@ -370,6 +372,11 @@ async function start(
       if (out) { s.x = out.x; s.z = out.z; }
     }
     view.setFocus(player.state.x, player.state.y + 1, player.state.z);
+  });
+  // Footstep and landing dust (render-only): hidden until the character spawns.
+  app.registerFrameHook((dt, _t, inputs) => {
+    dust.setVisible(spawned);
+    if (spawned) dust.update(dt, player.state, latest?.stats.gravity ?? 1, inputs);
   });
   if (audioUpdate) app.registerFrameHook((dt) => audioUpdate(dt));
 
