@@ -96,6 +96,13 @@ describe('FloraForm → archetype mapping', () => {
     expect(archetypesFor(formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 2 }), 'giant', false)).toEqual(['prismTitan#1', 'prismTitan#2']);
   });
 
+  it('a submerged form picks its low ":sub" row when there is one, else the plain row', () => {
+    const crust = { ...formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 0 }), submerged: true } as ReturnType<typeof formForBin>;
+    expect(archetypesFor(crust, 'ground', false).every((k) => k === 'crystalGround#1' || k === 'crystalGround#3')).toBe(true);
+    const spire = { ...formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 2 }), submerged: true } as ReturnType<typeof formForBin>;
+    expect(archetypesFor(spire, 'giant', false)).toEqual(['prismTitan#1', 'prismTitan#2']);
+  });
+
   it('every mapped key exists and its role matches', () => {
     for (const s of [true, false]) for (const b of bins(s)) for (const role of ['ground', 'mid', 'giant'] as FloraRole[])
       for (const key of archetypesFor(formForBin(b), role, b.light === 2)) {
@@ -183,6 +190,18 @@ describe('placePlants', () => {
     const wet = roles(placePlants(inputs(() => [1, 0.9], { seaLevel: 5, lifeOnLand: false }), PATCH, { x: 0, z: 0 }, makePlantList()));
     expect(wet.mid + wet.giant).toBe(0);
     expect(wet.ground).toBeGreaterThan(0);
+  });
+
+  it('keeps a spawn clearing: ground cover only, giants further out for their overhang', () => {
+    const l = placePlants(inputs(() => [0.6, 1]), PATCH, { x: 0, z: 0 }, makePlantList(), undefined, { x: 30, z: -40, r: 25 });
+    let ground = 0;
+    for (let i = 0; i < l.n; i++) {
+      const d = Math.hypot(l.x[i] - 30, l.z[i] + 40), role = ARCHETYPE_META[l.arch[i]].role;
+      if (role === 'mid') expect(d).toBeGreaterThanOrEqual(25);
+      if (role === 'giant') expect(d).toBeGreaterThanOrEqual(25 + 12);
+      if (role === 'ground' && d < 25) ground++;
+    }
+    expect(ground).toBeGreaterThan(50);
   });
 
   it('the foreground near the camera is denser and darker', () => {

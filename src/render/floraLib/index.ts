@@ -126,18 +126,24 @@ const MAP: Record<string, Partial<Record<FloraRole, string[]>>> = {
   'carbon:capped': { ground: C_GROUND, mid: [...k('weeper', 0, 0, 1, 3), ...k('ribFan', 0, 1, 1, 2)], giant: [...k('parasolTitan', 0, 1, 2, 3), ...k('coilSpire', 0, 2)] },
   'carbon:cup': { ground: [...k('groundCover', 0, 1), ...k('jellyDome', 0, 1)], mid: [...k('lanternPods', 0), ...k('ribFan', 3), ...k('weeper', 3)], giant: [...k('lanternGiant', 3, 1), ...k('coilSpire', 0, 3)] },
   'silicon:crust': { ground: k('crystalGround', 0, 1, 2, 3) },
+  // submerged silicon crust sits low (FloraForm: "glows and sits low"): tile crusts and geode cups, no druse or needles
+  'silicon:crust:sub': { ground: k('crystalGround', 1, 3, 1) },
+  // submerged carbon mats under a dark sea are jellyshroom domes (species 'dome'); lit shallows keep low polyps and urchins
+  'carbon:tuft:sub': { ground: k('groundCover', 0, 1, 1) },
   'silicon:spire:bright': { ground: k('crystalGround', 0, 1, 2, 3), mid: k('shardTree', 0, 3, 0, 2, 3), giant: k('prismTitan', 0, 3) },
   'silicon:spire:dim': { ground: k('crystalGround', 0, 1, 2, 3), mid: k('shardTree', 1, 3, 1, 2, 3), giant: k('prismTitan', 1, 2) },
 };
 
 /**
  * Archetype keys a form may draw in a role (empty: the role is absent for this form). `bright` = light bin 2.
- * Extending: a new FloraForm species is a new MAP row. For a new per-cell axis (e.g. submerged, magnitude, shade), add
- * a suffix to the row id here and fall back to the plain row when no suffixed row exists.
+ * Extending: a new FloraForm species is a new MAP row; a new per-cell axis is a suffixed row (`…:sub` today) that falls
+ * back to the plain row. FloraForm.lush (biomass magnitude) scales density and size in place.ts, not the archetype.
  */
 export function archetypesFor(form: FloraForm, role: FloraRole, bright: boolean): readonly string[] {
   const id = form.chemistry === 'silicon' && form.species === 'spire' ? `silicon:spire:${bright ? 'bright' : 'dim'}` : `${form.chemistry}:${form.species}`;
-  return MAP[id]?.[role] ?? [];
+  // per-cell axes (FloraForm.submerged, optional until flora-tune lands everywhere) pick a suffixed row when one exists
+  const sub = (form as { submerged?: boolean }).submerged ? MAP[`${id}:sub`]?.[role] : undefined;
+  return sub ?? MAP[id]?.[role] ?? [];
 }
 
 /** Pick one archetype key for a form and role from a uniform 0..1 hash (null when the role is absent). */

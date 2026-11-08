@@ -9,7 +9,7 @@ import type { VisualInputs } from '../worlds/types';
 import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
-import { makeHeightCache, makePlantList, placePlants, resetHeightCache } from './floraLib/place';
+import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing } from './floraLib/place';
 
 const LIB_SEED = 0x5eed_f10a;
 const REBUILD_EVERY = 0.25; // s while the world builds
@@ -17,6 +17,10 @@ const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
 const CHUNKS = 4; // per side of the patch
 const UP = new THREE.Vector3(0, 1, 0);
+/** Radius (m) of the spawn clearing: ground cover only, so the spawn frame opens onto groves and giants. */
+const CLEARING_R = 25;
+/** Fallback until setClearing is wired: latch the clearing where the camera looks once the character has spawned. */
+const LATCH_AT_PROGRESS = 0.35, LATCH_AHEAD = 8;
 
 export interface FloraPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
@@ -28,6 +32,8 @@ export interface FloraPart {
   rebuildMs: number;
   /** Plants placed but not drawn at the last rebuild because their bucket was full. */
   dropped: number;
+  /** Keep a disc free of mid and giant plants (the spawn point; radius default 25 m). null: back to the fallback. */
+  setClearing(x: number, z: number, r?: number): void;
   dispose(): void;
 }
 
@@ -129,26 +135,39 @@ export function createFlora(app: App): FloraPart {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
+  let clearing: Clearing | null = null, clearingSet = false, clearingDirty = false;
+  const fwd = new THREE.Vector3();
 
   const part: FloraPart = {
     plants: 0,
     triangles: 0,
     rebuildMs: 0,
     dropped: 0,
+    setClearing(x, z, r = CLEARING_R) {
+      clearing = { x, z, r }; clearingSet = true; clearingDirty = true;
+    },
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
+      if (inputs.world.id !== lastWorld && !clearingSet) clearing = null;
+      if (!clearing && inputs.buildProgress >= LATCH_AT_PROGRESS && inputs.buildProgress < 1) {
+        app.camera.getWorldDirection(fwd);
+        const f = Math.hypot(fwd.x, fwd.z) || 1;
+        clearing = { x: cam.x + (fwd.x / f) * LATCH_AHEAD, z: cam.z + (fwd.z / f) * LATCH_AHEAD, r: CLEARING_R };
+        clearingDirty = true;
+      }
       const moved = Math.hypot(cam.x - lastCam.x, cam.z - lastCam.z) > CAMERA_MOVE;
       const needs =
         inputs.flora !== lastBuf || Math.abs(inputs.terrain.rise - lastRise) > 0.02 || inputs.world.id !== lastWorld ||
-        patch !== lastPatch || moved || inputs.lifeOnLand !== lastLand || !(Math.abs(inputs.seaLevel - lastSea) < 0.3);
+        patch !== lastPatch || moved || clearingDirty || inputs.lifeOnLand !== lastLand || !(Math.abs(inputs.seaLevel - lastSea) < 0.3);
       const every = inputs.buildProgress < 1 || moved ? REBUILD_EVERY : REBUILD_EVERY_LIVE;
       if (!needs || t - lastAt < every) return;
       const t0 = performance.now();
       if (inputs.world.id !== lastWorld || patch !== lastPatch) resetHeightCache(heights);
       lastBuf = inputs.flora; lastRise = inputs.terrain.rise; lastWorld = inputs.world.id; lastAt = t; lastPatch = patch;
+      clearingDirty = false;
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
 
-      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights);
+      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing);
       const pal = PALETTES[lookKind(inputs.world.composition)];
       counts.fill(0); maxH.fill(0); lookGlow.fill(0);
       const half = patch / 2, chunkW = patch / CHUNKS;

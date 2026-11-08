@@ -15,7 +15,7 @@ import { ARCHETYPE_INDEX, pickArchetype, plantHeight, type FloraRole } from './i
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
-const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 9; // base + extra ≤ 14 = SLOTS − GROUND_SLOT
+const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 = SLOTS − GROUND_SLOT
 const FOREGROUND_R = 30;
 /** Ground cover thins from THIN_START to none at THIN_END metres from the camera (sub-pixel at our resolution). */
 const THIN_START = 55, THIN_END = 190;
@@ -73,6 +73,12 @@ export function clumpAt(col: number, row: number): number {
  * 1/8 after it. Cuts ~10k terrain samples per rebuild to ~1–2k. Reset it when the world or patch changes.
  */
 export interface HeightCache { unit: Float32Array; ok: Uint8Array; gen: number }
+/** Density by FloraForm.lush (biomass magnitude): sparse, normal, lush. Absent (older floraForm) counts as normal. */
+const LUSH_DENSITY = [0.7, 1, 1.2] as const;
+const lushOf = (f: FloraForm): 0 | 1 | 2 => (f as { lush?: 0 | 1 | 2 }).lush ?? 1;
+/** The cell's bin with another mix: keeps every per-cell field the bin carries (submerged, lush on newer floraForm). */
+const withMix = (b: FloraBin, mix: 0 | 1 | 2): FloraBin => Object.assign({}, b, { mix });
+
 /** Plant slots per cell: 1 giant, 3 mid, the rest ground cover. */
 const SLOTS = 18, MID_SLOT = 1, GROUND_SLOT = 4;
 export function makeHeightCache(): HeightCache {
@@ -83,9 +89,15 @@ export function resetHeightCache(c: HeightCache) { c.ok.fill(0); c.gen = 0; }
 /**
  * Fill `out` with every plant to draw. Deterministic: the same inputs, patch and camera give the same list (with a
  * cache, ground heights may lag the terrain by up to a few rebuilds while it is still rising).
- * `cam` is the camera's ground position (x, z).
+ * `cam` is the camera's ground position (x, z). `clearing` (the spawn point) keeps a disc free of mid and giant plants
+ * (ground cover only), so the spawn frame opens onto groves and giants in the middle distance.
  */
-export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache): PlantList {
+export interface Clearing { x: number; z: number; r: number }
+
+/** Extra clearance for giants beyond the clearing radius: their caps overhang (m). */
+const GIANT_OVERHANG = 12;
+
+export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache, clearing?: Clearing | null): PlantList {
   out.n = 0;
   const cell = patch / FLORA_GRID;
   const cells = Math.min(inputs.flora.length / 2, FLORA_GRID * FLORA_GRID);
@@ -102,6 +114,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     cache.unit[slot] = y / rise; cache.ok[slot] = 1;
     return y;
   };
+  const cleared = (x: number, z: number, extra: number) =>
+    !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
   const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number) => {
     if (!key || out.n >= cap) return;
     const i = out.n++;
@@ -142,19 +156,21 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         }
         if (best !== c) continue;
         if (hash01(c, 0, 10) > 0.3 + (bin.mix === 2 ? 0.4 : 0) + 0.6 * canopy) continue;
-        const tall = formForBin({ ...bin, mix: 2 });
+        const tall = formForBin(withMix(bin, 2));
         const x = cc.x + (hash01(c, 0, 12) - 0.5) * cell * 0.6, z = cc.z + (hash01(c, 0, 13) - 0.5) * cell * 0.6;
+        if (cleared(x, z, GIANT_OVERHANG)) continue;
         const y = yAt(c * SLOTS, x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
         push(pickArchetype(tall, 'giant', bright, hash01(c, 0, 14)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y);
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
-        const tall = formForBin({ ...bin, mix: bin.mix === 0 ? 1 : bin.mix });
-        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row));
+        const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
+        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row)) * LUSH_DENSITY[lushOf(form)];
         const n = Math.min(GROUND_SLOT - MID_SLOT, Math.floor(want + hash01(c, 1, 20)));
         for (let k = 0; k < n; k++) {
           const x = cc.x + (hash01(c, k, 21) - 0.5) * cell, z = cc.z + (hash01(c, k, 22) - 0.5) * cell;
+          if (cleared(x, z, 0)) continue;
           const d = Math.hypot(x - cam.x, z - cam.z);
           // far groves thin to 30% (stable per plant): they read as masses in the haze, and it caps the budget
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
@@ -166,7 +182,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const dc = Math.hypot(cc.x - cam.x, cc.z - cam.z);
         if (dc > THIN_END + cell) continue;
         const grown = 1 - Math.exp(-3 * Math.max(mat, 0.3 * total));
-        const base = Math.max(1, Math.round(GROUND_PER_CELL * grown));
+        const base = Math.max(1, Math.min(GROUND_PER_CELL + 1, Math.round(GROUND_PER_CELL * grown * LUSH_DENSITY[lushOf(form)])));
         const extra = dc < FOREGROUND_R + cell ? Math.round(FOREGROUND_EXTRA * grown) : 0;
         for (let k = 0; k < base + extra; k++) {
           const x = cc.x + (hash01(c, k, 31) - 0.5) * cell, z = cc.z + (hash01(c, k, 32) - 0.5) * cell;
