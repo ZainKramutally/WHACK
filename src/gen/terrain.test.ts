@@ -100,8 +100,9 @@ describe('terrain', () => {
       const P = t.params;
       const errs: number[] = [];
       for (const [x, z] of grid(40, 400)) {
-        const a = t.height(x, z, full(0.5));
-        const b = heightCore(P, 1, 0.5, 1, 1, 1, 1, 1, Math.fround(x), Math.fround(z), kit32, 1, 1, 1);
+        // the GPU mesh leaves the M7 pillar term out (drawn as prisms), so it mirrors the CPU height with M7 progress 0
+        const a = t.height(x, z, { ...full(0.5), progress: { ...full().progress, M7: 0 } });
+        const b = heightCore(P, 1, 0.5, 1, 1, 1, 1, 1, Math.fround(x), Math.fround(z), kit32, 0, 1, 1);
         errs.push(Math.abs(a - b));
       }
       errs.sort((p, q) => p - q);
@@ -124,22 +125,6 @@ describe('terrain', () => {
       }
       expect(worst).toBeLessThan(0.05);
     }
-  });
-
-  it('M7 inland pavement: adds low steps on basalt away from the coast, nothing where basalt is absent or at progress 0', () => {
-    const noPav = { ...carbon.terrain, machines: carbon.terrain.machines.map((m) => (m.id === 'M7' ? { ...m, params: { ...m.params, inlandStepH: 0 } } : m)) };
-    const a = createTerrain(carbon.terrain, carbon.demoSeed), b = createTerrain(noPav, carbon.demoSeed);
-    const basalt = carbon.terrain.crust.minerals.findIndex((m) => m.id === 'basalt');
-    const inl = carbon.terrain.machines.find((m) => m.id === 'M7')!.params.inlandStepH;
-    expect(inl).toBeGreaterThan(0);
-    let moved = 0;
-    for (const [x, z] of grid(80, 400)) {
-      const d = Math.abs(a.height(x, z, full()) - b.height(x, z, full()));
-      if (a.crustWeights(x, z)[basalt] < 1e-9) expect(d).toBe(0);
-      if (d > 0.05) moved++;
-      expect(Math.abs(a.height(x, z, { ...full(), progress: { ...full().progress, M7: 0 } }) - b.height(x, z, { ...full(), progress: { ...full().progress, M7: 0 } }))).toBe(0);
-    }
-    expect(moved).toBeGreaterThan(10);
   });
 
   it.each([['carbon', carbon, ['M4', 'M5', 'M7', 'M8']], ['silicon', withCrustChoice(silicon, 'ironstone'), ['M4', 'M5']], ['silicon', withCrustChoice(silicon, 'nitride'), ['M9']]] as const)('%s landform machines: 0 at progress 0, 0 where their minerals are absent, something elsewhere', (_n, w, ids) => {

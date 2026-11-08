@@ -6,6 +6,10 @@
 //   - no branches (machines are multiplied by their progress, so progress 0 contributes exactly 0)
 //   - lattice noise uses a u32 integer hash, so CPU and GPU agree bit-for-bit on the random values
 //
+// EXCEPTION (basalt pillars, M7): the GPU ground mesh does NOT include the M7 term, because ~2 m vertices would make jaggy blocks
+// that z-fight the real hexagonal prisms. The mirror therefore holds for heightCore with p7 = 0; the prisms (render/basaltPillars.ts)
+// draw M7 and stand at exactly the CPU tops given by `pillarCell` below, so the player and flora still see them.
+//
 // Every coefficient comes from TerrainConfig (base + machines[].params + relics[].params); only the
 // seed-derived offsets/angles/positions are computed here.
 import type { TerrainConfig } from '../worlds/types';
@@ -36,7 +40,7 @@ export const MACHINE_KEYS: Record<MachineId, readonly string[]> = {
   M4: ['depth', 'widthWet', 'widthDry', 'steepWet', 'steepDry', 'dryStart', 'dryEnd', 'meanderAmp', 'meanderFreq', 'offsetFrac'],
   M5: ['bandH', 'sharpness', 'strength'],
   M6: ['moundHeight', 'bandCenter', 'bandWidth', 'moundFreq', 'threshold'],
-  M7: ['stepH', 'nSteps', 'groove', 'edge', 'size', 'bandCenter', 'bandWidth', 'rampKeep'],         // basalt columns
+  M7: ['stepH', 'nSteps', 'baseH', 'size', 'bandCenter', 'bandWidth', 'rampClear'],                      // basalt pillars (3D prisms drawn by render/basaltPillars.ts)
   M8: ['domeHeight', 'domeFreq', 'threshold', 'uplandMin', 'stackStep', 'stackSharp', 'stackShare'], // granite domes and tors
   M9: ['spikeHeight', 'size', 'density', 'girth', 'sharp'],                                         // nitride crystal spikes
 };
@@ -180,10 +184,33 @@ export function crustWeights(P: TerrainParams, score: number, k: Kit = kit64): n
   return out;
 }
 
+/** One basalt pillar cell of the M7 hex lattice (ids ix, iz as in Kit.hexCell). `ground` is the surface at the cell centre without M7
+ *  (so the prism top is flat); the top is `rise * (ground + p7 * step)`. `present` = the cell sits in the coastal band on an M7 mineral. */
+export interface PillarCell { cx: number; cz: number; ground: number; step: number; present: boolean; gate: number; band: number }
+export function pillarCell(
+  P: TerrainParams, ix: number, iz: number, hs: number,
+  p2: number, p3: number, p4: number, p5: number, p6: number, p8: number, p9: number, k: Kit = kit64,
+): PillarCell {
+  const m7 = P.machines.M7!;
+  const cx = ix * 0.5 * m7.size, cz = iz * 0.5 * SQRT3 * m7.size;
+  const ground = heightCore(P, 1, hs, p2, p3, p4, p5, p6, cx, cz, k, 0, p8, p9);
+  const g = P.gates.M7;
+  const cw = g ? crustWeights(P, crustScore(P, warpBase(P, cx, cz, k).bn, cx, cz, k), k) : [];
+  const gate = g ? g.reduce((a, c, j) => a + c * (cw[j] ?? 0), 0) : 1;
+  const band = 1 - k.smoothstep(0, 1, Math.abs(ground / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
+  // Spawn ramp: a flat-topped pillar on a slope is a cliff, so cells where the ramp mask exceeds `rampClear` stay smooth ground
+  // (the walk from the spawn to the sea has no steps); pillars take over beyond it.
+  const R = P.ramp;
+  const mask = 1 - k.smoothstep(R.rIn, R.rOut, Math.sqrt((cx - R.cx) ** 2 + (cz - R.cz) ** 2));
+  const q = Math.floor(k.hash(ix, iz, P.sM7) * m7.nSteps);
+  const step = m7.baseH + m7.stepH * q;
+  return { cx, cz, ground, step, present: band > 0.5 && gate > 0.5 && mask <= m7.rampClear, gate, band };
+}
+
 /**
  * The height formula. Metres. `pr` = progress per machine (missing → 0).
  * Order: warp → base fBm → M5 strata → + M3 fins + M6 mounds + M2 crusts + M8 domes + M9 crystals − M4 canyon + relic piers
- * → shore ramp → + M7 columns (post-ramp, so they can stand on the coast) → × rise.
+ * → shore ramp → M7 pillar tops replace the surface in pillar cells (post-ramp, so they can stand on the coast) → × rise.
  * p7..p9 trail the signature so older callers keep working.
  */
 export function heightCore(
@@ -301,23 +328,14 @@ export function heightCore(
   const rampH = mix(-P.rampRange * P.A, P.rampRange * P.A, smoothstep(-R.rIn, R.rIn, t)) + P.rampDetail * base;
   const hf = mix(hTerrain, rampH, mask);
 
-  // M7 basalt columns: flat-topped hexagonal columns of hash-quantised height in the coastal band of the final surface, grooved at the joints.
-  let h7 = 0;
-  if (on.M7) {
-    // On the spawn ramp they keep only `rampKeep` of their size, so the walk to the sea stays gentle.
+  // M7 basalt pillars: whole hexagonal cells are flat-topped prisms (see pillarCell). The GPU ground mesh skips this term (file header).
+  if (on.M7 && p7 > 0) {
     const m7 = M.M7!;
     const hx7 = hexCell(x / m7.size, z / m7.size);
-    const band7 = 1 - smoothstep(0, 1, Math.abs(hf / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
-    const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
-    const q7 = Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps);
-    const col7 = m7.stepH * q7 - m7.groove * rim7;
-    // Low pavement on inland basalt (outside the coastal band): same hex tiling, `inlandStepH` per step, groove scaled to match.
-    const inl7 = m7.inlandStepH ?? 0;
-    const pav7 = inl7 * q7 - (m7.stepH > 0 ? m7.groove * (inl7 / m7.stepH) : 0) * rim7;
-    h7 = p7 * (1 - mask * (1 - m7.rampKeep)) * (band7 * col7 + (1 - band7) * pav7) * gateOf('M7');
+    const pc = pillarCell(P, hx7.ix, hx7.iz, hs, p2, p3, p4, p5, p6, p8, p9, k);
+    if (pc.present) return rise * (pc.ground + p7 * pc.step);
   }
-
-  return rise * (hf + h7);
+  return rise * hf;
 }
 
 // ---------- construction ----------
@@ -333,7 +351,7 @@ const OFF: Record<MachineId, Record<string, number>> = {
   M4: { depth: 0, widthWet: 10, widthDry: 10, steepWet: 1, steepDry: 1, dryStart: 0.5, dryEnd: 1, meanderAmp: 0, meanderFreq: 0.01, offsetFrac: 0 },
   M5: { bandH: 10, sharpness: 0.5, strength: 0 },
   M6: { moundHeight: 0, bandCenter: 0, bandWidth: 1, moundFreq: 0.01, threshold: 0.5 },
-  M7: { stepH: 0, nSteps: 1, groove: 0, edge: 0.1, size: 10, bandCenter: 0, bandWidth: 1, rampKeep: 0 },
+  M7: { stepH: 0, nSteps: 1, baseH: 0, size: 10, bandCenter: 0, bandWidth: 1, rampClear: 1 },
   M8: { domeHeight: 0, domeFreq: 0.01, threshold: 0.5, uplandMin: 0, stackStep: 1, stackSharp: 0.5, stackShare: 0 },
   M9: { spikeHeight: 0, size: 10, density: 0.1, girth: 0.5, sharp: 1 },
 };

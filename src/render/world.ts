@@ -22,6 +22,7 @@ import { createCounterpart } from './counterpart';
 import { createLandmarksPart } from './landmarks';
 import { createRockFormsPart } from './rockForms';
 import type { RockFormSet } from '../gen/rockForms';
+import { createBasaltPillars } from './basaltPillars';
 import type { LandmarkSet } from '../gen/landmarks';
 import { LOOK, PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
@@ -135,6 +136,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
   const landmarks = createLandmarksPart(app);
   const rockForms = createRockFormsPart(app);
+  const pillars = createBasaltPillars(app);
   /** Radius (m) of the spawn clearing world.ts gives flora (setSpawn). */
   const SPAWN_CLEARING_R = 25;
   const counterpart = createCounterpart({
@@ -185,6 +187,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     const t4 = performance.now();
     landmarks.update(dt, t, inputs, patch);
     rockForms.update(dt, t, inputs, patch);
+    pillars.update(dt, inputs);
     const t4b = performance.now();
     counterpart.update(dt, t, inputs);
     const t5 = performance.now();
@@ -231,6 +234,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       this.setTerrain(createTerrainMesh(t, u, o), u);
       patchOverride = t.patchSize;
       patch = t.patchSize;
+      pillars.setTerrain(t);
     },
     setLandmarks(s) {
       landmarks.setSet(s);
@@ -262,6 +266,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       flora.dispose();
       landmarks.dispose();
       rockForms.dispose();
+      pillars.dispose();
       sea.dispose();
       underFx.dispose();
       backdrop.dispose();
