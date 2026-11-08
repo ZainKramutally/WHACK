@@ -19,7 +19,7 @@ Read first:
    - Canopy-dominant cells grow 20–40 m giants, with cold (heatBand) making them taller.
    - Mid species are 5–15 m. Ground cover is 0.3–2 m and dense.
    - **Composition counts**, the same as in the mockup: dense dark ground cover in the foreground near the camera, groves in the midground, and giant silhouettes in the background fading into haze.
-   - Beyond the 400 m patch, decorative backdrop rings (landforms and distant giant silhouettes) close every view. The giants appear only when `lifeOnLand` is true.
+   - Beyond the 400 m patch, decorative backdrop rings (landforms and distant giant silhouettes) close every view. The giants appear only when `lifeOnLand` is true, and only as many and as tall as the patch's land canopy allows: their count follows the share of land cells at giant canopy, and their heights stay in the 20–40 m giant band (30cd5e6). The two moons are render-only decoration.
 4. **Sim growth speed** (plants grow and turn over faster) is a logic change. It has been requested from whack-2026-a1 and the eng lead. Art does not touch `src/sim`.
 5. **Shadow maps stay off in phase 1.** The cel N·L terminator does the form work. Revisit only if fps allows.
 
