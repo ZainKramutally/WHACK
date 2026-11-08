@@ -27,13 +27,17 @@ export function mineralColour(id: string, rustLevel: number): number {
 export class RustRatchet {
   private worldId = '';
   private maxO2 = 0;
+  private lastProgress = 0;
   /** Feed the oxygen stat (%); returns rust(max seen). */
-  update(world: { id: string; rustOxygen?: number }, oxygenPct: number): number {
-    if (world.id !== this.worldId) { this.worldId = world.id; this.maxO2 = 0; }
+  /** `buildProgress` (optional): a drop in it means a new run of the same world started, so the ratchet resets. */
+  update(world: { id: string; rustOxygen?: number }, oxygenPct: number, buildProgress?: number): number {
+    const newRun = buildProgress !== undefined && buildProgress < this.lastProgress - 0.5;
+    if (buildProgress !== undefined) this.lastProgress = buildProgress;
+    if (newRun || world.id !== this.worldId) { this.worldId = world.id; this.maxO2 = 0; }
     if (Number.isFinite(oxygenPct) && oxygenPct > this.maxO2) this.maxO2 = oxygenPct;
     return world.rustOxygen ? Math.min(1, Math.max(0, this.maxO2 / world.rustOxygen)) : 0;   // same form as gen/crust rust()
   }
-  reset() { this.worldId = ''; this.maxO2 = 0; }
+  reset() { this.worldId = ''; this.maxO2 = 0; this.lastProgress = 0; }
 }
 /** The run's shared ratchet (flora and ground both read it). */
 export const crustRatchet = new RustRatchet();

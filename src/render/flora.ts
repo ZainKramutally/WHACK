@@ -265,7 +265,7 @@ export function createFlora(app: App): FloraPart {
 
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes);
       const kindOfWorld = lookKind(inputs.world.composition);
-      const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0));
+      const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress));
       counts.fill(0);
       for (let i = 0; i < list.n; i++) {
         const look = bucketId(list.arch[i], list.lod[i], list.dark[i]);

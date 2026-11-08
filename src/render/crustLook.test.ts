@@ -20,6 +20,12 @@ describe('RustRatchet', () => {
     const r = new RustRatchet();
     for (let i = 0; i < 5; i++) expect(r.update(sw, 0)).toBe(0);
   });
+  it('resets when a new run of the same world starts (build progress drops)', () => {
+    const r = new RustRatchet();
+    expect(r.update(cw, 21, 1)).toBe(1);
+    expect(r.update(cw, 21, 1)).toBe(1);
+    expect(r.update(cw, 0, 0.02)).toBe(0);
+  });
   it('resets on a world change', () => {
     const r = new RustRatchet();
     expect(r.update(cw, 21)).toBe(1);
