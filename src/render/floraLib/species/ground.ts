@@ -1,16 +1,20 @@
 // Ground cover (0.5-4 m), smooth enough to walk right up to. It is the most numerous carbon flora (thousands of
-// instances, always near-LOD), so it stays lean: ~200 tris each (spike crowns ~270). Every colour band and profile
-// ring of the Red World reference is kept; what thins is the ring sides (8 on domes, 6 on tubes) and the count of
-// repeated parts.
+// instances), so it stays lean: ~200 tris each near (spike crowns ~270). Every colour band and profile ring of the Red
+// World reference is kept; what thins is the ring sides (8 on domes, 6 on tubes) and the count of repeated parts.
+// The far LOD (beyond 30 m, a few pixels tall) also keeps every other spike, blade and bristle, so it is ~60-110 tris.
 //  0 urchin: ribbed dome bristling with radial spikes
 //  1 polyp nubs: flared, ribbed tubes with dark cupped mouths
 //  2 bristle tuft: fountain of curved crimson blades
 //  3 spike crowns: 2-4 m stalks topped with thistle-like bristle crowns (crops well along the frame bottom)
-import { MeshBuilder, add, clamp01, norm, revolve, scl, sweep, type V3 } from '../mesh';
+import { MeshBuilder, add, clamp01, detail, norm, revolve, scl, sweep, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
 export function groundCover(rng: Rng, variant: number) {
   const b = new MeshBuilder();
+  // far LOD: every other spike, blade and bristle, thickened to keep its coverage. Each part still draws its random
+  // numbers, so the parts both LODs share are identical and the swap at the LOD radius doesn't reshuffle the plant.
+  const far = detail() < 1;
+  const skip = (k: number) => far && k % 2 === 1;
   if (variant === 0) {
     const R = rng.range(0.32, 0.4);
     // on 8 sides, cos(3θ) gives the same 3-lobe ripple that the 9-rib term made on the reference's 12 sides
@@ -33,7 +37,9 @@ export function groundCover(rng: Rng, variant: number) {
       const d = norm([Math.cos(a) * rr, y, Math.sin(a) * rr]);
       const p0: V3 = add([0, R * 0.45, 0], scl(d, R * 0.72));
       const l = R * rng.range(1.4, 2.6);
-      sweep(b, [p0, add(p0, scl(d, l))], { segs: 3, radius: (s) => (s < 1 ? R * 0.08 : 0), key: () => (k % 4 ? 'crimson' : 'blush'), sway: (s) => 0.2 + 0.5 * s * y });
+      if (skip(k)) continue;
+      const pale = k % (far ? 8 : 4) === 0; // a quarter of the drawn spikes are pale in both LODs
+      sweep(b, [p0, add(p0, scl(d, l))], { segs: 3, radius: (s) => (s < 1 ? R * (far ? 0.11 : 0.08) : 0), key: () => (pale ? 'blush' : 'crimson'), sway: (s) => 0.2 + 0.5 * s * y });
     }
   } else if (variant === 1) {
     // four tubes (the reference had five), 10 % fatter: one central, three spread evenly round it
@@ -66,12 +72,13 @@ export function groundCover(rng: Rng, variant: number) {
       const lean = 0.2 + 0.8 * Math.sqrt((k + 0.5) / n);
       const d: V3 = [Math.cos(a), 0, Math.sin(a)];
       const h = H * (1.05 - 0.5 * lean) * rng.range(0.85, 1.05);
+      if (skip(k)) continue;
       const out = H * 0.55 * lean;
       const pts: V3[] = [];
       for (const s of [0, 0.3, 0.7, 1]) {
         pts.push(add(scl(d, 0.05 + out * s * s), [0, h * Math.sin(s * Math.PI * 0.5) - 0.05, 0]));
       }
-      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : 0.062 * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s });
+      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : (far ? 0.08 : 0.062) * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s });
     }
   } else {
     // spike crowns: 2-3 tall stalks, each a thistle crown of radiating bristles around a dark knob
@@ -108,8 +115,9 @@ export function groundCover(rng: Rng, variant: number) {
         const rr = Math.sqrt(Math.max(0, 1 - Math.min(1, yy * yy)));
         const dir = norm([Math.cos(az) * rr, yy, Math.sin(az) * rr]);
         const l = (yy > 0 ? 0.55 : 0.3) * rng.range(0.7, 1.2) * (k === 0 ? 1.2 : 1);
+        if (skip(q)) continue;
         const p0 = add(top, scl(dir, R * 0.8));
-        sweep(b, [p0, add(p0, scl(dir, l))], { segs: 3, radius: (s) => (s < 1 ? 0.027 : 0), key: () => (q % 3 ? 'crimson' : 'blush'), sway: (s) => clamp01(sw(h) + 0.2 * s) });
+        sweep(b, [p0, add(p0, scl(dir, l))], { segs: 3, radius: (s) => (s < 1 ? (far ? 0.035 : 0.027) : 0), key: () => (q % 3 ? 'crimson' : 'blush'), sway: (s) => clamp01(sw(h) + 0.2 * s) });
       }
     }
   }

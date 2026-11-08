@@ -21,12 +21,13 @@ export const bucketId = (arch: number, lod: number, dark: number): number => (ar
 /** One past the largest bucket id. */
 export const BUCKET_IDS = ARCHETYPE_META.length * 4;
 
-/** Every bucket: ground cover is near-LOD only and is the only role with the dark step; mid and giant have two LODs. */
+/** Every bucket: mid and giant have two LODs; ground cover has its dark (foreground, near-only) step, and a far LOD
+ * where that is lighter than the near one (carbon; place.ts keeps silicon ground cover near). */
 export function bucketDefs(): BucketDef[] {
   const out: BucketDef[] = [];
-  ARCHETYPE_META.forEach(({ role }, arch) => {
+  ARCHETYPE_META.forEach(({ role, farLod }, arch) => {
     for (const lod of [0, 1] as const) for (const dark of [0, 1] as const) {
-      if (role === 'ground' ? lod === 1 : dark === 1) continue;
+      if (role === 'ground' ? lod === 1 && (dark === 1 || !farLod) : dark === 1) continue;
       out.push({ id: bucketId(arch, lod, dark), arch, lod, dark, role, cap: role === 'ground' && dark ? BUCKET_CAP.groundDark : BUCKET_CAP[role] });
     }
   });

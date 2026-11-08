@@ -65,9 +65,14 @@ const SPECIES: SpeciesDef[] = [
 export const ARCHETYPE_KEYS: readonly string[] = SPECIES.flatMap((sp) => sp.variants.map((v) => `${sp.id}#${v}`));
 /** Archetype key → library index. */
 export const ARCHETYPE_INDEX: ReadonlyMap<string, number> = new Map(ARCHETYPE_KEYS.map((key, i) => [key, i]));
-/** Chemistry and role of each archetype, by index. */
-export const ARCHETYPE_META: readonly { chem: 'carbon' | 'silicon'; role: FloraRole; species: string }[] =
-  SPECIES.flatMap((sp) => sp.variants.map(() => ({ chem: sp.chem, role: sp.role, species: sp.id })));
+/** Ring-segment scale of the far LOD. */
+export const FAR_DETAIL = 0.35;
+/** Far-LOD detail by chemistry: silicon facets are already cheap and must stay hexagonal, so its far LOD is the near one. */
+const farDetailOf = (chem: 'carbon' | 'silicon') => (chem === 'silicon' ? 1 : FAR_DETAIL);
+
+/** Chemistry and role of each archetype, by index. `farLod`: its far LOD is lighter than its near one. */
+export const ARCHETYPE_META: readonly { chem: 'carbon' | 'silicon'; role: FloraRole; species: string; farLod: boolean }[] =
+  SPECIES.flatMap((sp) => sp.variants.map(() => ({ chem: sp.chem, role: sp.role, species: sp.id, farLod: farDetailOf(sp.chem) < 1 })));
 
 export interface Archetype {
   /** Stable index into FloraLibrary.archetypes. */
@@ -91,17 +96,13 @@ export interface FloraLibrary {
   byKey: Map<string, Archetype>;
 }
 
-/** Ring-segment scale of the far LOD. */
-export const FAR_DETAIL = 0.35;
-
 /** Build every archetype (both LODs). Deterministic for a seed. ~100–300 ms; call once at startup. */
 export function buildFloraLibrary(seed: number): FloraLibrary {
   const archetypes: Archetype[] = [];
   SPECIES.forEach((sp, si) => {
     for (const v of sp.variants) {
       const lods: BuiltPlant[] = [];
-      // silicon facets are already cheap and must stay hexagonal: its far LOD is the near one
-      for (const detail of [1, sp.chem === 'silicon' ? 1 : FAR_DETAIL]) {
+      for (const detail of [1, farDetailOf(sp.chem)]) {
         setDetail(detail);
         lods.push(sp.gen(makeRng(subSeed(seed, si, v)), v));
       }

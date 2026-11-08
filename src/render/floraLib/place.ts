@@ -11,7 +11,7 @@
 import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, cellCentre, hash01 } from '../layout';
 import { floraBin, floraForm, formForBin, type FloraBin, type FloraForm } from '../floraForm';
-import { ARCHETYPE_INDEX, pickArchetype, plantHeight, type FloraRole } from './index';
+import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
@@ -25,8 +25,9 @@ const SUPER = 5;
 const GIANT_CANOPY = 0.2, MID_CANOPY = 0.04;
 /** Mid plants thin from MID_THIN_START to 30% at MID_THIN_END metres from the camera. */
 const MID_THIN_START = 70, MID_THIN_END = 200;
-/** Near-LOD radius per role (m). */
-export const LOD_NEAR: Record<FloraRole, number> = { ground: 1e9, mid: 40, giant: 90 };
+/** Near-LOD radius per role (m). At 30 m the pixel look (360 px internal height) gives ~10 px per metre, so ground cover
+ * beyond it draws its far LOD; the dark foreground step (≤ 30 m) is always near. */
+export const LOD_NEAR: Record<FloraRole, number> = { ground: 30, mid: 40, giant: 90 };
 
 export interface PlantList {
   n: number;
@@ -124,7 +125,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     const i = out.n++;
     out.arch[i] = ARCHETYPE_INDEX.get(key)!;
     out.x[i] = x; out.y[i] = y; out.z[i] = z; out.h[i] = h; out.yaw[i] = yaw;
-    out.lod[i] = d < LOD_NEAR[role] ? 0 : 1;
+    // Mid and giant plants always split at their LOD radius: it is also the focus cut-out's boundary. Ground cover has
+    // no cut-out, so it takes the far LOD only where that is lighter (carbon; silicon's far LOD is its near one).
+    out.lod[i] = d < LOD_NEAR[role] || (role === 'ground' && !ARCHETYPE_META[out.arch[i]].farLod) ? 0 : 1;
     out.dark[i] = dark ? 1 : 0;
     out.glow[i] = glow;
   };
