@@ -65,31 +65,31 @@ const list: Source[] = [
     id: 'dessert2003',
     citation: 'Dessert C, Dupré B, Gaillardet J, François LM, Allègre CJ (2003). Basalt weathering laws and the impact of basalt weathering on the global carbon cycle. Chemical Geology 202:257.',
     doi: '10.1016/j.chemgeo.2002.10.001',
-    note: 'Bibliographic data verified; supporting claim recalled. Basalt weathers faster than granite, so it releases more nutrients.',
+    note: 'Bibliographic data verified; supporting claim recalled (no abstract in OpenAlex or Crossref, 2026-11-08). Basalt weathers faster than granite, so it releases more nutrients.',
   },
   {
     id: 'rudnick2003',
     citation: 'Rudnick RL, Gao S (2003). Composition of the continental crust. Treatise on Geochemistry 3:1-64.',
     doi: '10.1016/b978-0-08-095975-7.00301-6',
-    note: 'Bibliographic data verified (2014 reprint); supporting claim recalled. Continental crust is felsic (granitic) and ocean floors are basaltic.',
+    note: 'Bibliographic data verified (2014 reprint); supporting claim recalled (no abstract in OpenAlex, 2026-11-08). Continental crust is felsic (granitic) and ocean floors are basaltic.',
   },
   {
     id: 'holland2006',
     citation: 'Holland HD (2006). The oxygenation of the atmosphere and oceans. Philosophical Transactions of the Royal Society B 361:903.',
     doi: '10.1098/rstb.2006.1838',
-    note: 'Bibliographic data verified; supporting claim recalled. Red beds and oxidised iron appear after the Great Oxidation Event.',
+    note: 'Abstract read (OpenAlex, 2026-11-08): the atmosphere and oceans were largely anoxic until 2.45 Ga, then oxygen rose to 0.02-0.04 atm (2.45-1.85 Ga). Supports the timing of oxidation; red beds themselves are not in this abstract (see rye1998).',
   },
   {
     id: 'rye1998',
     citation: 'Rye R, Holland HD (1998). Paleosols and the evolution of atmospheric oxygen: a critical review. American Journal of Science 298:621.',
     doi: '10.2475/ajs.298.8.621',
-    note: 'Bibliographic data verified; supporting claim recalled. Iron is retained in soils above roughly 0.2-0.4% absolute oxygen: the order of magnitude for rustOxygen.',
+    note: 'Abstract read (OpenAlex, 2026-11-08): paleosols lost iron while PO2 was below about 5-8 × 10^-4 atm (before 2.2-2.44 Ga) and kept it once PO2 was at least 0.03 atm (since 2.2-2.0 Ga); red beds overlie paleosols by about 2.2 Ga. Our 0.2-0.4% threshold for rustOxygen sits inside that bracket (order of magnitude); the abstract gives no exact threshold.',
   },
   {
     id: 'keil1968',
     citation: 'Keil K (1968). Mineralogical and chemical relationships among enstatite chondrites. Journal of Geophysical Research 73:6945.',
     doi: '10.1029/jb073i022p06945',
-    note: 'Bibliographic data verified; supporting claim recalled. Silicon-bearing iron metal and nitrides occur in highly reduced meteorites.',
+    note: 'Abstract read (OpenAlex, 2026-11-08): enstatite chondrites carry kamacite and taenite metal, sulfides and sinoite (Si2N2O, a silicon oxynitride), formed where low oxygen fugacity let nitrogen react with SiO2 and Si. Supports the nitride; silicon-bearing metal is not stated outright in the abstract.',
   },
   {
     id: 'lee1995',
@@ -287,7 +287,13 @@ const list: Source[] = [
     id: 'kiang2007',
     citation: 'Kiang NY, Segura A, Tinetti G, Govindjee, Blankenship RE, Cohen M, Siefert J, Crisp D, Meadows VS (2007). Spectral signatures of photosynthesis. II. Coevolution with other stars and the atmosphere on extrasolar worlds. Astrobiology 7:252-274.',
     doi: '10.1089/ast.2006.0108',
-    note: 'Abstract read: pigment colour follows the star\'s light (blue-peaking around F stars, red-orange around K, near-infrared around M). Nothing direct about G stars.',
+    note: 'Abstract read: pigment colour follows the star\'s light (blue-peaking around F stars, red-orange around K, near-infrared around M). Nothing direct about G stars; for that see kiang2007a (Part I).',
+  },
+  {
+    id: 'kiang2007a',
+    citation: 'Kiang NY, Siefert J, Govindjee, Blankenship RE (2007). Spectral signatures of photosynthesis. I. Review of Earth organisms. Astrobiology 7:222-251.',
+    doi: '10.1089/ast.2006.0105',
+    note: 'Abstract read (OpenAlex, 2026-11-08): pigment absorbance tracks the light reaching the surface, and plants absorbing less green "may actually satisfy" those rules rather than being an inefficient legacy. Supports green plants under a Sun-like star.',
   },
   {
     id: 'dassarma2018',
@@ -305,13 +311,13 @@ const list: Source[] = [
     id: 'bekker2010',
     citation: 'Bekker A, Slack JF, Planavsky N, Krapez B, Hofmann A, Konhauser KO, Rouxel OJ (2010). Iron formation: the sedimentary product of a complex interplay among mantle, tectonic, oceanic, and biospheric processes. Economic Geology 105:467-508.',
     doi: '10.2113/gsecongeo.105.3.467',
-    note: 'Abstract not read (ironstone banding).',
+    note: 'Abstract read (OpenAlex, truncated, 2026-11-08): iron formations are Precambrian sediments whose style of deposition tracks Earth\'s environmental and geochemical evolution; banded iron formation dominates in the Archean to earliest Paleoproterozoic. The "dissolved iron meets oxygen" mechanism is not in the available text (ironstone banding).',
   },
   {
     id: 'linton1955',
     citation: 'Linton DL (1955). The problem of tors. The Geographical Journal 121:470.',
     doi: '10.2307/1791756',
-    note: 'Abstract not read (M8 granite tors).',
+    note: 'Abstract not read: none in OpenAlex (2026-11-08) (M8 granite tors).',
   },
 ];
 
