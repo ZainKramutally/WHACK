@@ -182,7 +182,7 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 | Time | The build's fast-forward and the ecology clock (below) | |
 | Air oxygen (new, ours) | The Oxygen stat and slider | Aerobic metabolism, and the largest body that can breathe (the rule already in `population.ts`). Pinned at 0 on silicon. |
 
-Other world quantities: the solvent's liquid band already feeds the sim, through `heatBand`, and absolute temperature drives the pace rule. The liquid fraction is live too: sea cover sets sea level, and the liquid grid follows it. The light spectrum is render-only, because both stars are Sun-like and only the intensity differs. Gravity does not enter creature costs: × g on walk and hover cost failed its headless A/B (3 seeds per world, no OTU or FDis gain beyond seed noise), so creatures ignore gravity, and we say so if asked.
+Other world quantities: the solvent's liquid band already feeds the sim, through `heatBand`, and absolute temperature drives the pace rule. The liquid fraction is live too: sea cover sets sea level, and the liquid grid follows it. The light spectrum is render-only, because both stars are Sun-like and only the intensity differs. **Gravity enters flight through physics, not a multiplier** (owner request, 2026-11-08; `src/sim/flight.ts`, coefficients in `life.inputs.flight`, all `assumption: true`). Powered flight needs induced power (m·g)^1.5 ÷ √(2ρ·wing area) (Pennycuick 2008; Ellington 1984), against available power ∝ muscle mass × aerobic scope (O₂ ÷ 21% on carbon; a constant on silicon, whose metabolism isn't aerobic). develop()'s hover cost is the cheaper of that powered-flight cost and the older buoyant-floater term, so g, air density and wing area decide which bodies fly. Air thins with height over the scale height H = RT/(Mg), so each flier has a ceiling where available power meets required power: h* = (2H/3)·ln(P_avail/P_req) on carbon (2H·ln on silicon). Fliers forage at about 3 body lengths, climb to 80% of their ceiling to travel or flee, and land to rest or bud. They stay over land and the shore (the habitat lock is unchanged). One headless seed on carbon: no fliers at 1.3 g, about 3% of animals at 1 g, 17% at 0.8 g, and 41% at 0.8 g with ×3 nitrogen. An earlier uniform × g on walk and hover cost failed its A/B, because it changed no shape's relative cost. Walking ignores gravity until the climate-evo pass lands.
 
 **Silicon-world specifics** (speculative, labelled as such):
 - **Plates are silicon-nitride ceramic**, not silica stone, because there's no oxygen. Silicon nitride is a real, very hard ceramic. `assumption: true`.
@@ -534,7 +534,7 @@ interface SimSnapshot {          // emitted on the bus at 20 Hz
   population: { producers: number; consumers: number };
   generation: number;
   traitAverages: Record<string, number>;   // prefTemp, tolerance, size, chem, consumerSize, consumerChem
-  organisms: Float32Array;       // one record per living animal (position, heading, locomotion mode, role, climate genes, the 12 genes,
+  organisms: Float32Array;       // one record per living animal (position, heading, locomotion mode, role, climate genes, the 12 genes, altitude in metres above the ground, grown 0..1 (current ÷ adult mass),
                                  // stable id, generation); layout in sim/organismLayout.ts, which must be extended to match (it has none of heading, mode or genes yet)
   flora: Float32Array;           // per-cell flora biomass (mat, canopy) on the 64² grid; plants are not agents
   births: { id: number; plan: Float32Array }[];   // develop() output for organisms born since the last snapshot
@@ -648,7 +648,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 - **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
 - **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `buildProgress` (0..1 across the build).
 - **Terrain:** the TSL height node and the CPU sampler, the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
-- **Life:** the `organisms` buffer, the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
+- **Life:** the `organisms` buffer (layout v3, stride 30: `altitude` is physical metres above the ground for fliers, and `grown` is current ÷ adult mass, so juveniles can draw smaller), the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
 
 **Rules for the art layer:**
 - Everything that carries meaning must follow these inputs (see "Visuals are stylised but never contradict the stats").
@@ -682,7 +682,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - consumer interference
   - spores: a dormant bank of recent survivors that germinates after a crash (owner override of the no-rescue guardrail, `assumption: true`)
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
-- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, the moons in the sky (decoration only; no stat models them), plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, and **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
+- **Illustrations (render-only):** the particle box, the live view in inspect cards, sky and fog, the moons in the sky (decoration only; no stat models them), plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, **flight altitude display**: altitude is physical (power balance, thinning air, gravity) but is drawn at 150 m · tanh(h ÷ 1.5 km), because the patch is a few hundred metres across. All flight coefficients are typical-bird orders of magnitude, `assumption: true`. And **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
 
 ## Demo script (to be rewritten)
 
