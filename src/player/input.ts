@@ -1,5 +1,5 @@
 // Keyboard + mouse + gamepad → intents. Callbacks for discrete actions, poll() for continuous ones.
-import { applyDeadZone, nextPadSprint, dragEnd, dragMove, dragStart, type DragState } from './logic';
+import { clamp, applyDeadZone, nextPadSprint, dragEnd, dragMove, dragStart, type DragState } from './logic';
 
 export type InputKind = 'keyboard' | 'gamepad';
 
@@ -24,6 +24,7 @@ export interface Intents {
   jump: boolean;     // Space, pad X or RB held (the controller edge-detects; on land it jumps, in water `rise` applies)
   orbitYaw: number;  // radians this frame, camera yaw change
   orbitPitch: number; // radians this frame, + = camera higher
+  zoom: number;      // log-distance change this frame: + out, - in (wheel, LT/RT)
 }
 
 export interface InputOptions {
@@ -40,7 +41,7 @@ export interface InputHandle {
   dispose(): void;
 }
 
-const GP = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const GP = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const REPEAT_DELAY = 0.35;
 const REPEAT_EVERY = 0.09;
 
@@ -117,6 +118,12 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
     el.releasePointerCapture?.(e.pointerId);
     if (result === 'click') cb.onInspect?.({ x: e.clientX, y: e.clientY });
   };
+  let wheelZoom = 0;
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    wheelZoom += clamp(e.deltaY * unit, -200, 200) * 0.0015;
+  };
   const onPointerCancel = () => {
     drag = null;
   };
@@ -148,6 +155,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
   el.addEventListener('pointermove', onPointerMove);
   el.addEventListener('pointerup', onPointerUp);
   el.addEventListener('pointercancel', onPointerCancel);
+  el.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('gamepadconnected', onPadConnect);
   window.addEventListener('gamepaddisconnected', onPadDisconnect);
 
@@ -166,6 +174,8 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
     orbitDy = 0;
 
     let jump = keys.has('Space');
+    let zoom = wheelZoom;
+    wheelZoom = 0;
     let sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
     const pad = findPad();
     connectedPad = !!pad;
@@ -189,6 +199,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       if (padRise !== 0) rise = padRise;
       jump = jump || down(GP.RB) || down(GP.X);
 
+      zoom += ((pad.buttons[GP.LT]?.value ?? 0) - (pad.buttons[GP.RT]?.value ?? 0)) * 1.2 * dt;
       if (edge(GP.A)) cb.onInspect?.('reticle');
       if (edge(GP.B)) cb.onClose?.();
       if (edge(GP.Y)) cb.onToggleConditions?.();
@@ -223,7 +234,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       }
       if (used) setLast('gamepad');
     }
-    return { moveX, moveZ, sprint, rise, jump, orbitYaw, orbitPitch };
+    return { moveX, moveZ, sprint, rise, jump, orbitYaw, orbitPitch, zoom };
   }
 
   return {
@@ -242,6 +253,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerCancel);
+      el.removeEventListener('wheel', onWheel);
       window.removeEventListener('gamepadconnected', onPadConnect);
       window.removeEventListener('gamepaddisconnected', onPadDisconnect);
     },

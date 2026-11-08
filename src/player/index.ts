@@ -70,6 +70,7 @@ export function attachPlayer(
     update(dt) {
       const it = input.poll(dt);
       follow.orbit(it.orbitYaw, it.orbitPitch);
+      if (it.zoom) follow.zoom(it.zoom);
       player.update(dt, {
         moveX: it.moveX,
         moveZ: it.moveZ,
