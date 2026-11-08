@@ -201,4 +201,17 @@ describe('terrain memo', () => {
     lifeOnLand(f, 1e9, s, st(2));
     expect(spy.mock.calls.length).toBe(2 * GRID * GRID);
   });
+
+  it('compares array and typed-array state fields by length and elements', () => {
+    const s = mk();
+    const st = (a: number[], t: Float32Array) => ({ ...terrainState(snap(carbon), carbon), a, t }) as TerrainState;
+    const f = new Float32Array(GRID * GRID * 2).fill(1);
+    const spy = vi.spyOn(s, 'height');
+    lifeOnLand(f, 1e9, s, st([1, 2], new Float32Array([1])));
+    lifeOnLand(f, 1e9, s, st([1, 2], new Float32Array([1])));
+    expect(spy.mock.calls.length).toBe(GRID * GRID);
+    lifeOnLand(f, 1e9, s, st([1, 2, 3], new Float32Array([1])));
+    lifeOnLand(f, 1e9, s, st([1, 2, 3], new Float32Array([2])));
+    expect(spy.mock.calls.length).toBe(3 * GRID * GRID);
+  });
 });
