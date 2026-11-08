@@ -10,7 +10,7 @@
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { floraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
+import { floraLibrary, paint, type Archetype, type FloraPalette, type FloraRole } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
@@ -44,6 +44,9 @@ export interface FloraPart {
   /** The plants drawn at the last rebuild (read-only): base x/y/z, size h, yaw, cell and slot, and each one's look
    * (vary.ts fields). Valid until the next update. */
   placed(): Readonly<PlantList>;
+  /** The plants the world drew in a flora cell at its last rebuild, exactly as drawn: after the spawn clearing and the
+   * camera's distance thinning, with their LOD, value step, glow and look. Records are fresh copies. */
+  plantsIn(cell: number): PlacedPlant[];
   /** Nearest drawn plant under a ray (world space, normalised direction): its flora cell, distance and bounds. Read-only. */
   hit(origin: Vec3, dir: Vec3): { cell: number; dist: number; x: number; y: number; z: number; height: number; radius: number } | null;
   dispose(): void;
@@ -56,6 +59,30 @@ interface Look {
   dark: boolean;
   geometry: THREE.BufferGeometry;
   painted: { pal: FloraPalette | null; glow: number };
+}
+
+/** One plant as the world drew it at the last rebuild (FloraPart.plantsIn). */
+export interface PlacedPlant {
+  /** Index into placed(), the last rebuild's plant list. */
+  index: number;
+  /** Archetype index into floraLibrary().archetypes, its key (e.g. 'parasolTitan#2') and role. */
+  arch: number; key: string; role: FloraRole;
+  /** Its LOD bucket (0 near, 1 far) and whether it is the darker foreground value step. */
+  lod: 0 | 1; dark: boolean;
+  /** Emissive amount 0..1 of its glow sites (form.glow of its cell). */
+  glow: number;
+  /** Instance matrix as drawn (size, girth, yaw, slope tilt and lean, base sink), in the flora group's frame: the
+   * world applies group.matrixWorld on top, a vertical stretch of a few % between rebuilds while the terrain rises. */
+  matrix: THREE.Matrix4;
+  /** Its centre on the ground (m): x, z and the drawn ground height there. */
+  x: number; z: number; ground: number;
+  /** Drawn height above its base and crown radius (m). */
+  height: number; radius: number;
+  cell: number; slot: number;
+  /** Instance colour (linear rgb multiplier on the painted colours) and the shape terms a material with plantAttr bends
+   * it by (crown, twist, droop, bend: floraLib/instance.ts plantShape). */
+  tint: [number, number, number];
+  shape: [number, number, number, number];
 }
 
 interface Bucket {
@@ -151,6 +178,8 @@ export function createFlora(app: App): FloraPart {
   const shapes = { foot: Float32Array.from(lib.archetypes, (a) => a.foot / a.size), height: Float32Array.from(lib.archetypes, (a) => a.height / a.size) };
   const heights = makeHeightCache();
   const lookIds = new Int32Array(list.arch.length);
+  /** 1 for every list plant drawn at the last rebuild (0: dropped because its bucket was full). */
+  const drawn = new Uint8Array(list.arch.length);
   const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
   const lookGlow = new Float32Array(BUCKET_IDS);
@@ -169,6 +198,23 @@ export function createFlora(app: App): FloraPart {
       clearing = { x, z, r }; clearingSet = true; clearingDirty = true;
     },
     placed: () => list,
+    plantsIn(cell) {
+      const out: PlacedPlant[] = [];
+      const tint = new Float32Array(3), shape = new Float32Array(4);
+      for (let i = 0; i < list.n; i++) {
+        if (list.cell[i] !== cell || !drawn[i]) continue;
+        const a = lib.archetypes[list.arch[i]];
+        plantTint(list, i, tint, 0);
+        plantShape(list, i, a, shape, 0);
+        out.push({
+          index: i, arch: list.arch[i], key: a.key, role: a.role, lod: list.lod[i] ? 1 : 0, dark: list.dark[i] === 1, glow: list.glow[i],
+          matrix: plantMatrix(list, i, a, new THREE.Matrix4()), x: list.x[i], z: list.z[i], ground: list.y[i],
+          height: (a.height / a.size) * list.h[i], radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]), cell, slot: list.slot[i],
+          tint: [tint[0], tint[1], tint[2]], shape: [shape[0], shape[1], shape[2], shape[3]],
+        });
+      }
+      return out;
+    },
     hit(origin, dir) {
       const k = group.scale.y; // the vertical stretch that keeps bases on the rising terrain between rebuilds
       const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5, 0.03, k);
@@ -234,7 +280,9 @@ export function createFlora(app: App): FloraPart {
       for (let i = 0; i < list.n; i++) {
         const id = lookIds[i];
         const b = buckets.get(id);
+        drawn[i] = 0;
         if (!b || fill[id] >= b.cap) continue;
+        drawn[i] = 1;
         const k = fill[id]++;
         const a = lib.archetypes[list.arch[i]];
         // its size, girth, yaw, slope tilt and lean, and the sink that puts its contact ring on the ground (place.ts);
