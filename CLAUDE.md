@@ -298,24 +298,20 @@ Everything else waits until the player asks for it, including the summary card.
 - a button that opens the summary card, at any time
 - on silicon, the reasoning chain and the caveat
 
-**Click to inspect.** These can be clicked:
+**Click to inspect.** Only life can be clicked (owner ruling, 2026-11-07):
 - creatures
 - producers: a patch of flora biomass (plants on carbon, crystalline crusts on silicon), inspected by grid cell
-- the sea
-- the ground
-- the sky and star
 
-Clicking one opens an inspect card beside it, never full screen. The card has:
+Clicking the sea, the ground or the sky opens nothing. It counts as clicking elsewhere and closes any open card. Their stats live in the Conditions panel.
+
+Clicking a creature or a producer opens an inspect card beside it, never full screen. The card has:
 1. What it is, in one line.
 2. Its details in plain words.
    - An organism: its body plan in words (limbs, plates, horns, eyes, how it moves), its role (plant, grazer or hunter), size, preferred temperature and tolerance, oxygen need or cold stability, its field-guide name, and which generation it is.
-   - The sea: solvent, temperature, liquid or frozen, sea cover.
-   - The ground: what the rock is.
-   - The sky and star: star type, brightness, air pressure and main gas.
 3. Why it is like this: one sentence, from config like every other world fact.
 4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one. No charts.
-   - Beside it, a small live 3D view of **the clicked thing itself**, turning: the creature in its own chemistry, or this world's sea, ground or sky.
-   - **No creature counterparts.** Carbon and silicon life are fundamentally different body architectures (see "Development"), so a creature has no "same genome in the other chemistry" twin, and the card never shows one. For the sea, ground and sky, a toggle may show the other world's version.
+   - Beside it, a small live 3D view of **the clicked thing itself**, turning: the creature in its own chemistry, or this world's patch of flora.
+   - **No creature counterparts.** Carbon and silicon life are fundamentally different body architectures (see "Development"), so a creature has no "same genome in the other chemistry" twin, and the card never shows one. For a producer, a toggle may show the other world's version.
    - The other world's numbers come from its `targets` (its default run at the end of its build), labelled "today".
 
 The card updates live while it is open. If the organism dies, the card says so and stays until closed. Only one card is open at a time; clicking elsewhere, Esc or the gamepad's B button closes it.
@@ -360,7 +356,7 @@ src/
   render/pose.ts       GPU spine, IK legs and bell pulses (F §3.5)
   render/fauna.ts      lofted bodies, limbs, plates and eyes (F §3.6)
   render/flora.ts      plant shapes drawn from the per-cell flora grid (art layer)
-  render/pick.ts       raycast picking for click-to-inspect (organisms by id, sea, ground, sky)
+  render/pick.ts       raycast picking for click-to-inspect (organisms by id, producers by cell; the sea, ground and sky are hit but open no card)
   render/counterpart.ts  the inspect card's live view of the clicked thing (no creature counterparts)
   player/              third-person character controller and camera, keyboard/mouse and gamepad input
   ui/                  selection screen, Conditions panel, field guide, captions, inspect cards, summary card (design partner)

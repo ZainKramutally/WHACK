@@ -105,8 +105,11 @@ async function start(
     {
       callbacks: {
         onInspect(at) {
+          // Only life opens a card (creatures and producers). The sea, ground and sky act as "clicking elsewhere"
+          // and close any open card, for the gamepad reticle too (owner ruling, 2026-11-07).
           const r = pick(at);
-          if (r) bus.emit('inspect:open', r);
+          if (r.target.kind === 'organism' || r.target.kind === 'producer') bus.emit('inspect:open', r);
+          else bus.emit('inspect:close', {});
         },
         onToggleConditions: () => ui.toggleConditions(),
         onClose: () => ui.close(),
