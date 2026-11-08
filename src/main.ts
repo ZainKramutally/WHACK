@@ -212,9 +212,11 @@ async function start(
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
   const pendingBirths: SimSnapshot['births'] = [];
+  const pendingKills: SimSnapshot['kills'] = [];
   bus.on('sim:snapshot', (s) => {
     latest = s;
     if (s.births.length) pendingBirths.push(...s.births);
+    if (s.kills?.length) pendingKills.push(...s.kills);
   });
 
   // VisualInputs: rebuilt once per snapshot (20 Hz), not per frame.
@@ -227,7 +229,7 @@ async function start(
       if (latest !== visualFor || births.length || (visual && visual.births.length)) {
         let built: VisualInputs;
         try {
-          built = buildVisualInputs(latest, world, terrain, births);
+          built = buildVisualInputs(latest, world, terrain, births, pendingKills.splice(0, pendingKills.length));
         } catch (e) {
           pendingBirths.unshift(...births); // keep the drained births for the next frame; app.ts warns once
           throw e;

@@ -99,7 +99,8 @@ const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame p
 // and its kills ({ hunterId, preyId, x, z }) on the snapshot, if present.
 const F_INTENT = ((OrganismField as Record<string, number>).intent ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).intent ?? -1) : -1;
 const F_TARGET = ((OrganismField as Record<string, number>).targetId ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).targetId ?? -1) : -1;
-type KillEvent = { hunterId: number; preyId: number; x: number; z: number; preyScale?: number };
+const KILL_MAX = 10;     // kill animations playing at once (about 10 kills/s once hunters establish); the rest get the plain fade
+const INTENT_HOLD = 0.3; // s an intent is latched (the sim refreshes it every 4th tick, and it can flicker)
 const BURST_N = 8; // fragments a killed prey breaks into (knob parts in the existing batch)
 
 /**
@@ -181,6 +182,8 @@ interface Entry {
   /** Hunting: eased attack pose 0..1, the forward lunge (share of body length), when it last struck (kill), the
    *  lower-jaw hinge bead (−1 none; its tip is the next bead), and the flee yaw wobble (rad) this frame. */
   atk: number; lunge: number; strikeT: number; jaw: number; wob: number;
+  /** Last time the sim said hunt / flee (latched for INTENT_HOLD), and the eased flee weight. */
+  huntT: number; fleeT: number; fleeW: number;
   /** Killed prey: when (−1 not a kill, −2 killed but still in the buffer) and its collapse 0..1 this frame. */
   killT: number; coll: number;
 }
@@ -438,7 +441,7 @@ export function createFauna(app: App): FaunaPart {
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
       pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, trail: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
-      atk: 0, lunge: 0, strikeT: -1e9, jaw: jawHinge(layout), wob: 0, killT: -1, coll: 0,
+      atk: 0, lunge: 0, strikeT: -1e9, jaw: jawHinge(layout), wob: 0, killT: -1, coll: 0, huntT: -1e9, fleeT: -1e9, fleeW: 0,
     };
   }
 
@@ -1616,7 +1619,9 @@ export function createFauna(app: App): FaunaPart {
         // Hunting: the sim's intent (when the layout carries it) or the stand-in (fast hunters), eased; a strike pulse
         // when a kill for this hunter lands; a darting wobble while fleeing.
         {
-          const intent = F_INTENT >= 0 ? buf[o + F_INTENT] : -1;
+          const raw = F_INTENT >= 0 ? buf[o + F_INTENT] : -1;
+          if (raw === INTENT.hunt) e.huntT = t; else if (raw === INTENT.flee) e.fleeT = t;
+          const intent = raw < 0 ? -1 : t - e.huntT < INTENT_HOLD ? INTENT.hunt : t - e.fleeT < INTENT_HOLD ? INTENT.flee : raw;
           let targetBL = Infinity;
           if (F_TARGET >= 0 && intent === INTENT.hunt) {
             const te = entries.get(buf[o + F_TARGET]);
@@ -1626,7 +1631,8 @@ export function createFauna(app: App): FaunaPart {
           const want = Math.max(attackTarget(buf[o + geneField('diet')], e.speed / Math.max(Lw, 1e-3), intent, targetBL), strike);
           e.atk = easeAttack(e.atk, want, dt);
           e.lunge = 0.06 * e.atk + 0.22 * strike;
-          e.wob = intent === INTENT.flee ? fleeWobble(t, e.id) : 0;
+          e.fleeW = easeAttack(e.fleeW, intent === INTENT.flee ? 1 : 0, dt);
+          e.wob = e.fleeW > 0.01 ? e.fleeW * fleeWobble(t, e.id) : 0;
         }
         // Gait from the distance the body is drawn moving (plus the sweep of a turn), so the feet stay planted.
         const lay = e.layout, rig = lay.radial ? (e.legged ? lay.radial.arms[0] : undefined) : lay.limbs[0];
@@ -1678,14 +1684,20 @@ export function createFauna(app: App): FaunaPart {
         for (const [id, p] of pending) if (snapId - p.snap > PENDING_SNAPS) pending.delete(id);
         // Kills since the last snapshot: the hunter strikes, the prey gets the kill animation instead of the plain fade
         // (a kill can land a snapshot after its prey vanished: a death younger than 0.3 s still converts).
-        const kills = (inputs as { kills?: KillEvent[] }).kills;
+        const kills = inputs.kills;
         if (kills && kills !== lastKills) {
           lastKills = kills;
+          let active = 0;
+          for (const d of dying) if (d.killT >= 0) active++;
+          const R2k = ANIM_RADIUS * ANIM_RADIUS;
           for (const k of kills) {
             const hu = entries.get(k.hunterId);
             if (hu) hu.strikeT = t;
             const pr = entries.get(k.preyId);
-            if (!pr || !pr.seen || pr.killT >= 0) continue;
+            if (!pr || !pr.seen || pr.killT >= 0 || active >= KILL_MAX) continue;
+            const kx = camPos.x - pr.x, kz = camPos.z - pr.z;
+            if (kx * kx + kz * kz > R2k) continue; // out of view distance: the plain fade
+            active++;
             if (pr.stamp === snapId) { pr.killT = -2; continue; } // still in this snapshot: the kill plays when it leaves
             if (pr.dieT < 0) { pr.dieT = t; dying.push(pr); } else if (t - pr.dieT > 0.3) continue;
             pr.killT = t; pr.atk = 0; pr.lunge = 0; pr.wob = 0;

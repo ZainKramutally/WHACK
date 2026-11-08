@@ -185,6 +185,7 @@ export function buildVisualInputs(
   world: WorldConfig,
   terrain: TerrainSampler,
   births: SimSnapshot['births'] = snapshot.births,
+  kills: SimSnapshot['kills'] = snapshot.kills ?? [],
 ): VisualInputs {
   const stats = snapshot.stats;
   const state = terrainState(snapshot, world);
@@ -211,6 +212,7 @@ export function buildVisualInputs(
     terrain: terrainMemo(terrain, state, world.terrain.crust?.minerals).terrain,
     organisms: snapshot.organisms,
     births,
+    kills,
     flora: snapshot.flora,
     lifeOnLand: lifeOnLand(snapshot.flora, seaLevel, terrain, state),
   };
