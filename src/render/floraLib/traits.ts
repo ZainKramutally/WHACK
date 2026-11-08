@@ -148,10 +148,10 @@ export const TRAITS: readonly Trait[] = [
   { id: 'T10etiolation', why: 'In dim light stems stretch toward it (shade avoidance).', param: 'size', op: 'mul', scope: 'world', driver: (e) => e.light, map: (x) => 1 + 0.15 * clamp01(1 - x / 0.4) },
   { id: 'T11gravity', why: 'Stronger gravity needs stouter stems to stand without buckling.', param: 'girth', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => e.gravity, map: (x) => Math.sqrt(Math.max(0.25, x)) },
   { id: 'T11tall', why: 'Taller plants need stouter stems (cold grows them tall here).', param: 'girth', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => 1.4 - 0.8 * clamp01(e.heatBand), map: (x) => Math.sqrt(x) },
-  { id: 'T5cold', why: 'Cold nights keep leaves and caps small.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => 1 - smooth(0.1, 0.25, e.heatBand), map: (x) => 1 - 0.3 * x },
-  { id: 'T5warmWet', why: 'Warm, wet ground grows the biggest leaves and caps.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.4, 0.55, e.heatBand) * (1 - smooth(0.8, 0.95, e.heatBand)) * smooth(0.3, 0.6, e.wet), map: (x) => 1 + 0.3 * x },
-  { id: 'T5hotDryBright', why: 'Hot, dry, bright ground keeps leaves small so they don\'t overheat.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.8, 0.95, e.heatBand) * (1 - e.wet) * smooth(1, 1.5, e.light), map: (x) => 1 - 0.25 * x },
-  { id: 'T4supply', why: 'Fertile ground (basalt) grows bigger caps than poor ground (granite, ironstone).', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => (e.supply - 1) * e.depth, map: (x) => 1 + (x >= 0 ? 0.25 : 0.375) * x },
+  { id: 'T5cold', why: 'Cold nights keep leaves and caps small.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => 1 - smooth(0.1, 0.25, e.heatBand), map: (x) => 1 - 0.35 * x },
+  { id: 'T5warmWet', why: 'Warm, wet ground grows the biggest leaves and caps.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.4, 0.55, e.heatBand) * (1 - smooth(0.8, 0.95, e.heatBand)) * smooth(0.3, 0.6, e.wet), map: (x) => 1 + 0.4 * x },
+  { id: 'T5hotDryBright', why: 'Hot, dry, bright ground keeps leaves small so they don\'t overheat.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.8, 0.95, e.heatBand) * (1 - e.wet) * smooth(1, 1.5, e.light), map: (x) => 1 - 0.3 * x },
+  { id: 'T4supply', why: 'Fertile ground (basalt) grows bigger caps than poor ground (granite, ironstone).', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => (e.supply - 1) * e.depth, map: (x) => 1 + (x >= 0 ? 0.375 : 0.5) * x },
   { id: 'T7stiffDroop', why: 'Thick, stiff leaves (bright light, poor ground, high CO₂) hold their caps up; thin ones droop.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.2, 1 + 1.2 * (LMA_DEFAULT - x)) },
   { id: 'T7stiffBend', why: 'Thick, stiff leaves bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.3, 1 + 0.8 * (LMA_DEFAULT - x)) },
   // T6 leaf-margin analysis: the share of smooth-margined species = (T − 1.14) / 0.306 % (Wing & Greenwood 1993;
@@ -203,9 +203,9 @@ const same = (c: Readonly<Rgb>) => () => c;
 
 export const TINTS: readonly TintTrait[] = [
   { id: 'T1anthocyanin', why: 'Cold, strong light, too little nitrogen, poor ground or drought flush pale tops toward crimson.', chem: 'carbon', scope: 'cell',
-    weight: (e) => 0.35 * clamp01(Math.max(1 - smooth(0.15, 0.3, e.heatBand), smooth(1.5, 2.5, e.light), 1 - smooth(0.3, 0.5, e.nitrogen),
+    weight: (e) => 0.5 * clamp01(Math.max(1 - smooth(0.15, 0.3, e.heatBand), smooth(1.5, 2.5, e.light), 1 - smooth(0.3, 0.5, e.nitrogen),
       smooth(0.6, 0.8, e.rank) * smooth(0.6, 0.8, e.heatBand)) + 0.3 * poor(e) * (e.depth / 0.4)), mul: same(CRIMSON) },
-  { id: 'T2carotenoid', why: 'Very bright light raises protective carotenoids: tops warm toward apricot.', chem: 'carbon', scope: 'world', weight: (e) => 0.25 * smooth(1, 3, e.light), mul: same(APRICOT) },
+  { id: 'T2carotenoid', why: 'Very bright light raises protective carotenoids: tops warm toward apricot.', chem: 'carbon', scope: 'world', weight: (e) => 0.35 * smooth(1, 3, e.light), mul: same(APRICOT) },
   { id: 'T3shade', why: 'Under a dim star, tissue packs more pigment and reads darker.', scope: 'world', weight: (e) => clamp01(1 - e.light / 0.4), mul: same(SHADE) },
   { id: 'T4gley', why: 'Waterlogged iron-bearing ground releases iron that bronzes the tips.', chem: 'carbon', scope: 'cell', weight: (e) => 0.5 * e.wet * (e.oxidises ? 1 : 0) * (e.depth / 0.4), mul: same(BRONZE) },
   { id: 'T8paleCoat', why: 'Hairs or wax pale the tops in hot, dry, bright spots and on cold, bright heights.', chem: 'carbon', scope: 'cell',
