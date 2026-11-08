@@ -1,5 +1,7 @@
 # The player: a void deity (character brief)
 
+**Shipped (Caden, 2026-11-08):** the player is the **astronaut** (`src/player/deity/astronaut.ts`, his qodo variant K rebuilt from primitives), which is the `createCharacter()` default. The deity variants A–D below stay in the labs (`?variant=`). Everything in this brief about the camera, the contract and the motion rules applies to both.
+
 Owner: Caden (look). Team lead: session `session/character`. Contract: `src/player/deity/rig.ts`.
 
 **Concept (Caden, 2026-11-08).** The player is a small deity who shapes worlds out of chemistry's building blocks, then walks among what it made. It is a chibi void creature: an all-black orb head floating detached above a deep-black body, with big white eyes. The reference is a flat illustration Caden shared (`/tmp/deity-reference.png`, not committed; it isn't ours). It shows a black orb head with twig antlers and white ring eyes with tiny highlight dots, a fluffy collar, mitten hands and thin stick legs. Take its proportions and charm, not its coat.
