@@ -61,7 +61,11 @@ describe('crust with up to 8 minerals', () => {
   it('real configs keep their present minerals and sum to 1', () => {
     for (const w of [carbon, silicon]) {
       const t = createTerrain(w.terrain, w.demoSeed);
-      expect(t.params.crust.bands).toHaveLength(w.terrain.crust.minerals.filter((m) => m.share[1] > 0).length);
+      const present = w.terrain.crust.minerals.map((m, i) => (m.share[1] > 0 ? i : -1)).filter((i) => i >= 0);
+      expect(t.params.crust.bands).toHaveLength(present.length);
+      const { shares } = crustMap(w, w.demoSeed);
+      shares.forEach((v, i) => { if (!present.includes(i)) expect(v).toBe(0); });
+      expect(shares.reduce((a, v) => a + v, 0)).toBeCloseTo(1, 6);
     }
   });
 });
