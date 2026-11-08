@@ -605,6 +605,18 @@ describe('WorldSimulation', () => {
     it.skipIf(!slow)('announces each form once, not once per snapshot (silicon) (SLOW)', { timeout: 60000 }, () => announcesOnce(silicon));
   });
 
+  describe('founders are adapted to the starting temperature', () => {
+    // A judge can drag Temperature to either end of the living band and click Generate: life must still start (owner bug, 2026-11-08).
+    const alive = (w: WorldConfig, temperature: number) => {
+      const sim = new WorldSimulation(quick(w), { ...EARTH, temperature });
+      sim.advance(5);
+      return sim.snapshot().population.consumers;
+    };
+    it.each([-40, 60, 100])('carbon starting at %i °C still has animals at the end of the build', (t) => {
+      expect(alive(carbon, t)).toBeGreaterThan(0);
+    });
+  });
+
   describe('end of the build, demo seeds', () => {
     // Both worlds land inside every target at the default sliders with the demo seeds.
     const memo = new Map<string, Record<string, number>>();

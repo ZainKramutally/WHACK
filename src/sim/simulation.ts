@@ -589,6 +589,8 @@ export class WorldSimulation {
       gravity: this.gravity,
       molarMass: this.air().molarMass,
       mutationSigma: this.mutationSigma(),
+      bandLow: this.tickBands.temperature.low,
+      bandHigh: this.tickBands.temperature.high,
     };
   }
 

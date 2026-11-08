@@ -20,6 +20,8 @@ export interface LifeEnv extends Environment {
   airDensity: number;  // kg/m³, real P·M/(R·T)
   gravity: number;     // g
   molarMass: number;   // kg/mol, mean molar mass of the live air
+  bandLow?: number;    // the temperature living band, °C: founders' preferred temperature is kept inside it
+  bandHigh?: number;
   mutationSigma: number; // body-gene mutation σ now: SIGMA_BUILD during the build, SIGMA after
 }
 
@@ -80,6 +82,14 @@ export class EcologyLife implements LifeModel {
     private readonly ctx: EcologyLifeContext,
   ) {}
 
+  /** Life that arises on a world is adapted to its conditions (assumption: true): with followStartTemperature, the founders prefer the starting temperature (to the degree), inside the living band. */
+  private founderPrefTemp(env: LifeEnv): number {
+    const f = this.world.life.founders;
+    if (!f.followStartTemperature) return f.prefTemp;
+    const t = Math.round(env.temperature);
+    return Math.min(env.bandHigh ?? Infinity, Math.max(env.bandLow ?? -Infinity, t));
+  }
+
   seedFounders(env: LifeEnv, near?: { x: number; y: number }): void {
     const w = this.world;
     const led = w.life.ledger;
@@ -102,7 +112,7 @@ export class EcologyLife implements LifeModel {
         economics: fixed.economics && { gravityWalk: fixed.economics.gravityWalk, gravityScaleRef: fixed.economics.gravityScaleRef },
       },
       composition: w.life.composition,
-      founderClimate: { prefTemp: w.life.founders.prefTemp, tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },
+      founderClimate: { prefTemp: this.founderPrefTemp(env), tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },
       founderLatent: w.life.founders.latent,
       ledger: led as Partial<EcologyLedger>,
     });

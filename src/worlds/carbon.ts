@@ -265,6 +265,7 @@ export const carbon: WorldConfig = {
       prefTemp: 15, // °C: Earth's mean, the Temperature slider's default
       tolerance: 8, // °C either side of prefTemp; wide enough that founders survive the whole living band, narrow enough for climate genes to matter
       chem: 0.5, // oxygen need, 0..1: half-aerobic founders, so the oxygen cap on size bites but does not starve them
+      followStartTemperature: true, // assumption: true. Life that arises on a world is adapted to its conditions, so the founders prefer the starting temperature (rounded, inside the living band); prefTemp below is the default-start value
       why: 'Founders start adapted to the starting climate with a moderate tolerance and oxygen need; mutation does the rest.',
       sources: [],
       latent: {   // the run seed draws the founders' mean for each of these inside its bounds, so every run starts from a differently-leaning lineage (Gould 1989; Blount, Borland and Lenski 2008)

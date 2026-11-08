@@ -273,6 +273,7 @@ export const silicon: WorldConfig = {
       prefTemp: -183, // °C: liquid nitrogen at about 3.6 bar, the Temperature slider's silicon default
       tolerance: 8, // °C either side of prefTemp; the same spread as carbon, so the two worlds compare fairly
       chem: 0.5, // cold stability, 0..1: moderately robust Si–Si chains
+      followStartTemperature: true, // assumption: true. Life that arises on a world is adapted to its conditions, so the founders prefer the starting temperature (rounded, inside the living band); prefTemp below is the default-start value
       why: 'Founders start adapted to the starting climate with a moderate tolerance and cold stability; mutation does the rest.',
       sources: [],
       latent: {   // the run seed draws the founders' mean for each of these inside its bounds, so every run starts from a differently-leaning lineage (Gould 1989; Blount, Borland and Lenski 2008)
