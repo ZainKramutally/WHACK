@@ -81,6 +81,7 @@ const HEAD_F = [0.45, 0.8, 1.0], HEAD_K = [0.9, 0.62, 0.08];
 // Gas bell egg profile: height from the rim (× bell height) and radius factor, closed underneath.
 const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0];
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
+const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
 
@@ -101,6 +102,8 @@ interface Entry {
   sw: Swimmer | null; swTried: boolean; swPhase: number; soc: number;
   /** Swimmer LOD: ranked camera distance (sticky while it is drawn as a swimmer) and whether it was last frame. */
   swRank: number; swOn: boolean;
+  /** Ground under it when last drawn (the view test's sphere height). */
+  yDrawn: number;
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -377,7 +380,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
-      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -1021,6 +1024,13 @@ export function createFauna(app: App): FaunaPart {
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
+  const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
+  /** Conservative: the sphere is inside or on all four side planes of the camera frustum. */
+  function inView(x: number, y: number, z: number, r: number): boolean {
+    const P = frustum.planes;
+    for (let i = 0; i < 4; i++) { const n = P[i].normal; if (n.x * x + n.y * y + n.z * z + P[i].constant < -r) return false; }
+    return true;
+  }
   // batch counts before a swimmer pose, so one that throws is rolled back (no allocation per frame)
   const saveL = new Int32Array(LOFTS.length), saveP = new Int32Array(parts.length);
   const P0 = { x: 0, z: 0, h: 0 }, P1 = { x: 0, z: 0, h: 0 }; // interpPose inputs, reused
@@ -1038,6 +1048,7 @@ export function createFauna(app: App): FaunaPart {
     const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
     let y0 = ground;
+    e.yDrawn = ground; // for next frame's view test
     if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + drawnLength(e.scale, e.g) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
     else if (mode === LOCOMOTION.swim && fSeaThere && ground < fSea) y0 = ground + (fSea - ground) * 0.35;
 
@@ -1196,6 +1207,12 @@ export function createFauna(app: App): FaunaPart {
       // Live creatures: advance their pose, then rank them by camera distance for the LOD tiers.
       let nLive = 0;
       const R2 = ANIM_RADIUS * ANIM_RADIUS;
+      // In view first: the loft, swimmer and pose slots go to creatures whose (generous) bounding sphere touches the
+      // camera's side planes; the rest rank after every one in view (R2 + d²), so slots never go behind the camera
+      // while one in front wants them. Side planes only (they hold for either depth convention), apex at the camera.
+      const cam = app.camera;
+      projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projView, cam.coordinateSystem);
       for (let i = 0; i < n; i++) {
         const o = i * ORGANISM_STRIDE;
         if (buf[o + OrganismField.role] < 0.5) continue; // producers are drawn by flora.ts
@@ -1242,8 +1259,12 @@ export function createFauna(app: App): FaunaPart {
           e.roll = (e.roll + rollAngle(e.speed * dt / (boost * drawnFactor(e.scale, e.g)), e.layout.radial.rollRadius)) % (2 * Math.PI);
         }
         const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
-        e.rank = d2 < R2 ? d2 * (e.tier === 2 ? LOFT_STICK : 1) : Infinity;
-        e.swRank = d2 < R2 ? d2 * (e.swOn ? LOFT_STICK : 1) : Infinity;
+        if (d2 < R2) {
+          const sv = boost * drawnFactor(e.scale, e.g), lay = e.layout;
+          const back = inView(e.x, e.yDrawn + lay.centreY * sv, e.z, lay.radius * sv * 1.3 + VIEW_PAD) ? 0 : R2;
+          e.rank = back + d2 * (e.tier === 2 ? LOFT_STICK : 1);
+          e.swRank = back + d2 * (e.swOn ? LOFT_STICK : 1);
+        } else { e.rank = Infinity; e.swRank = Infinity; }
         liveE[nLive++] = e;
       }
       // The two cuts: the LOFT_MAX nearest planned creatures get the loft, the ANIM_MAX nearest are posed.
