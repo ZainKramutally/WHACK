@@ -155,7 +155,10 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
 - **Ecology:** DECISIONS §3, the 12 rules. One utility loop (forage, hunt, flee, home, rest, bud) runs over relationships derived from bodies (eats, afraid, rival, kin). There's one trait ledger, where every gene pays somewhere and earns somewhere.
 - **Glow comes from darkness, on both worlds.** The `glow` gene pays for itself as a lure only when light is scarce, so the dim silicon world evolves glow without any oxygen. On silicon the chemistry behind it is non-oxygen chemiluminescence, marked `assumption: true`. This replaces F's and DECISIONS' "glow ∝ oxygen".
 - **Evolution recipe** (from Caden's measurements; without it, legs, plates, horns and hunters don't appear inside a demo):
-  - **Always-on mutation** at `SIGMA` 0.075 (about ×1.5), declared as "a stressed young world".
+  - **Gentle mutation, scheduled:** `SIGMA_BUILD` 0.02 for the build's fast-forward, easing to `SIGMA` 0.015 after `build:complete`, so species stay recognisable for minutes (the intended experience). The size gene steps 2× further (`life.rules.mutation.sizeBoost`, world config) so size can diverge.
+  - **Gentler diet payoff:** plant gain = (1 − diet)^p and meat gain = diet^p with `DIET_EXP` p = 1.15 (owner ruling #48; it was 2), so part-carnivores already gain from meat.
+  - **Megafauna payoff:** food intake scales as M^`intakeExp` (ledger, 0.9 in both worlds, `assumption: true`; 0.75 would be Kleiber), so big bodies out-eat their upkeep.
+  - **Herds:** grazers drift toward nearby kin in proportion to their `sociality` gene (ledger `cohesion`), so herds move together and low-sociality animals stay solitary.
   - **No developmental pull in the sim.** Body templates become anonymous look attractors in the art layer, applied read-only (DECISIONS §G.3, G.9).
   - **The plate-ledger fix**, so plates are cheap enough to spread.
 - **Founders:** when life appears in the build (`build.lifeSec`), a seeded group of at least 24 tiny capsule worms appears in the shallows, drawn from the world's seed. They carry standing variation: σ 0.12 on the listed genes, and about 15% start with tiny limb buds (`research/body-plans/notes/01-evolution-speed.md` §5). Complexity has to be earned.
@@ -353,7 +356,7 @@ src/
   worlds/controls.ts   the three slider definitions, shared by every world so ranges match
   sim/                 worker, build clock and fast-forward tick schedule, population model, atmosphere and sea models, seeded RNG
   sim/population.ts    the climate core of the ecology (built, tested); LifeRules is its slice of the world config
-  sim/genome.ts        the 12 animal genes (DECISIONS G.1), mutation at SIGMA, founders with standing variation
+  sim/genome.ts        the 12 animal genes (DECISIONS G.1), mutation at SIGMA_BUILD → SIGMA, founders with standing variation
   sim/develop.ts       pure develop(): genome + composition → body plan (chemistry is the grammar)
   sim/ecology.ts       the 12 rules (DECISIONS §3): agents, 64² grid with per-cell flora biomass, utility loop, ledger; grown from population.ts
   sim/guide.ts         field-guide bins (MAP-Elites) and generated names
@@ -663,7 +666,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - every feedback rate
   - the build timings, and the years counter, which is illustrative
 - **Tuning cheats:**
-  - always-on raised mutation (`SIGMA` 0.075, about ×1.5)
+  - scheduled mutation (`SIGMA_BUILD` 0.02 → `SIGMA` 0.015, size gene ×2), the gentler diet payoff (`DIET_EXP` 1.15), the megafauna intake exponent (`intakeExp` 0.9) and kin cohesion
   - the compressed pace rule, and silicon's lowered activation energy (32 kJ/mol)
   - a base lifespan of 40 ecology-seconds (scaling with mass^0.25), raised from 6 so generations turn over
   - silicon producers that saturate at 1% sunlight (`floraLightGain` 100), and then grow at full rate
