@@ -19,6 +19,7 @@ import {
 import type { Terrain } from '../gen/terrain';
 import { MACHINE_IDS } from '../gen/terrain';
 import { startingConditions } from '../sim/limits';
+import { withCrustChoice } from '../gen/crust';
 import { worldFor } from '../worlds';
 import type { Conditions, SimSnapshot, WorldId } from '../worlds/types';
 import type { App } from './app';
@@ -53,6 +54,8 @@ export interface StartOptions {
   seed: number;
   terrain: Terrain;
   handle: LaunchHandle;
+  /** Picked rock chip (mineral id); absent = the natural mix. */
+  crust?: string;
   /** Latest sim snapshot (null until the first arrives). */
   snapshot(): SimSnapshot | null;
   /** Called once as the HUD begins to fade in (T = spawnSec − 0.45): the world UI's first caption was shown while it was hidden. */
@@ -66,7 +69,7 @@ export interface StartOptions {
 
 export interface Generate {
   /** Plan and compile for this world/seed/conditions while the selection screen is up. Cheap to call repeatedly: it debounces. */
-  prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle): void;
+  prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: string): void;
   start(o: StartOptions): void;
   dispose(): void;
 }
@@ -103,7 +106,7 @@ export function createGenerate(app: App): Generate {
   let debounce = 0;
   let active: { stop(): void } | null = null;
 
-  interface PrimeArgs { worldId: WorldId; terrain: Terrain; seed: number; requested: Conditions; handle: LaunchHandle }
+  interface PrimeArgs { worldId: WorldId; terrain: Terrain; seed: number; requested: Conditions; handle: LaunchHandle; crust?: string }
 
   const dims = () => {
     const W = window.innerWidth, H = window.innerHeight;
@@ -113,11 +116,11 @@ export function createGenerate(app: App): Generate {
   const keyOf = (a: PrimeArgs) => {
     const { W, H } = dims();
     const t = Math.round(startingConditions(worldFor(a.worldId), a.requested).start.temperature);
-    return `${a.worldId}|${a.seed}|${t}|${W}x${H}`;
+    return `${a.worldId}|${a.crust ?? ''}|${a.seed}|${t}|${W}x${H}`;
   };
 
   function planInput(a: PrimeArgs): PlanInput {
-    const world = worldFor(a.worldId);
+    const world = withCrustChoice(worldFor(a.worldId), a.crust);
     const { lowW, lowH, W, H } = dims();
     const rect = a.handle.boxRect();
     const pxPerM0 = H / (2 * D0 * Math.tan((camera.fov * Math.PI) / 360));
@@ -166,12 +169,12 @@ export function createGenerate(app: App): Generate {
     } catch (e) {
       console.warn('generate: prime failed, the plain fade will be used', e);
     }
-    if (pending) { const n = pending; pending = null; prime(n.worldId, n.terrain, n.seed, n.requested, n.handle); }
+    if (pending) { const n = pending; pending = null; prime(n.worldId, n.terrain, n.seed, n.requested, n.handle, n.crust); }
   }
 
   /** GPU objects for a plan: the ghost slab, the reveal field and the grains. */
   function build(a: PrimeArgs, key: string, plan: GenPlan, inp: PlanInput): Primed {
-    const world = worldFor(a.worldId);
+    const world = withCrustChoice(worldFor(a.worldId), a.crust);
     const S = a.terrain.patchSize;
     const tu = createTerrainUniforms();
     const heightN = createHeightNode(a.terrain, tu);
@@ -263,9 +266,9 @@ export function createGenerate(app: App): Generate {
     };
   }
 
-  function prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle) {
+  function prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle, crust?: string) {
     if (!('relics' in terrain) || active) return;   // flat fallback: nothing to land on; or the transition is running
-    const a: PrimeArgs = { worldId, terrain, seed, requested, handle };
+    const a: PrimeArgs = { worldId, terrain, seed, requested, handle, crust };
     const key = keyOf(a);
     if (primedBy.get(worldId)?.key === key || job?.key === key) return;
     window.clearTimeout(debounce);
@@ -278,9 +281,9 @@ export function createGenerate(app: App): Generate {
   }
 
   function start(o: StartOptions) {
-    const world = worldFor(o.worldId);
+    const world = withCrustChoice(worldFor(o.worldId), o.crust);
     const { W, H } = dims();
-    const a: PrimeArgs = { worldId: o.worldId, terrain: o.terrain, seed: o.seed, requested: o.requested, handle: o.handle };
+    const a: PrimeArgs = { worldId: o.worldId, terrain: o.terrain, seed: o.seed, requested: o.requested, handle: o.handle, crust: o.crust };
     // A plan that is missing or stale (click before it finished, or the window resized): finish it now, synchronously.
     const key = keyOf(a);
     const cached = primedBy.get(o.worldId);

@@ -1,6 +1,7 @@
 // The worker's brain, with the clock and the message channel injected so it can be tested without a Worker.
 // Pacing: sim time follows the wall clock. A late callback (dropped frame, suspended tab) just means more ticks
 // are due at once; they run in time-boxed slices and never change the state sequence, only when it arrives.
+import { withCrustChoice } from '../gen/crust';
 import { worldFor } from '../worlds';
 import { WorldSimulation, type SimEvent } from './simulation';
 import { parseToWorker, snapshotTransferables, type FromWorker, type WorkerEvent } from './workerProtocol';
@@ -40,7 +41,7 @@ export class SimHost {
           this.o.post({ type: 'ready' }, []);
           break;
         case 'selectWorld':
-          this.sim = new WorldSimulation(worldFor(msg.worldId), msg.requested, { seed: msg.seed });
+          this.sim = new WorldSimulation(withCrustChoice(worldFor(msg.worldId), msg.crust), msg.requested, { seed: msg.seed });
           this.last = this.o.now();
           this.lastSnapshot = -Infinity;
           this.flush(); // control:blocked for sliders startingConditions moved

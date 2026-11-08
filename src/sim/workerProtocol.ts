@@ -4,7 +4,7 @@ import type { Conditions, ControlId, NewFormEvent, SimSnapshot, WorldId } from '
 
 export type ToWorker =
   | { type: 'init' }
-  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number }
+  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: string }
   | { type: 'controlSet'; controlId: ControlId; value: number }
   | { type: 'dispose' };
 
@@ -46,7 +46,8 @@ export function parseToWorker(data: unknown): { ok: true; msg: ToWorker } | { ok
       const requested = parseConditions(data.requested);
       if (!requested) return { ok: false, error: 'selectWorld: requested must be {temperature, nitrogen, oxygen} numbers' };
       if (data.seed !== undefined && !isNum(data.seed)) return { ok: false, error: 'selectWorld: seed must be a number' };
-      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined } };
+      if (data.crust !== undefined && typeof data.crust !== 'string') return { ok: false, error: 'selectWorld: crust must be a string' };
+      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined, ...(data.crust !== undefined ? { crust: data.crust as string } : {}) } };
     }
     case 'controlSet':
       if (typeof data.controlId !== 'string' || !CONTROL_IDS.includes(data.controlId)) return { ok: false, error: `unknown control '${String(data.controlId)}'` };

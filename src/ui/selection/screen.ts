@@ -3,6 +3,7 @@
 // sim/limits, and every world fact (status, caveat, reasoning, bounds, Earth values, sources) is read from the world configs.
 // Emits `selection:changed` on every change; hands Generate to the host, which emits `world:selected` once the world is built.
 import './selection.css';
+import { withCrustChoice } from '../../gen/crust';
 import { controlList, sourceFor, worldFor, worlds } from '../../worlds';
 import type { Conditions, ControlDef, ControlId, LethalLimit, WorldConfig } from '../../worlds/types';
 import { fracToValue, redSegments, valueToFrac } from '../sliderMath';
@@ -11,7 +12,7 @@ import { createBox, N_ATOMS } from './box';
 import { group14 } from './elements';
 import { elementIcon } from './icons';
 import {
-  bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, viability,
+  bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, toggleCrust, viability,
   type SelectionState,
 } from './state';
 
@@ -34,7 +35,7 @@ export interface SelectionOptions {
    * Generate was clicked (after any slider glide). The host builds the world, emits `world:selected` with this payload and drives
    * the transition through `handle`, which also removes the screen when it is done.
    */
-  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions }, handle: LaunchHandle): void;
+  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions; crust?: string }, handle: LaunchHandle): void;
 }
 
 export interface SelectionScreen {
@@ -153,6 +154,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
               <span class="tag" data-r="tagLiq" hidden></span>
               <span class="tag tagBed" data-r="tagBed" hidden></span>
             </div>
+            <div class="rock" data-r="rock" role="group" aria-label="Rock"></div>
             <figcaption class="stack" data-r="boxCaption"></figcaption>
             <p class="fail" data-r="boxFail"></p>
           </figure>
@@ -495,8 +497,33 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     stacks.footnote(Object.fromEntries(worldIds.map((id) => [id, footFor(worlds[id])])), world.id);
 
     renderRefs(world, specWorld);
-    bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond } });
+    renderRock(world);
+    bus.emit('selection:changed', { worldId: world.id, conditions: { ...cond }, ...(state.crust ? { crust: state.crust } : {}) });
   }
+
+  // Rock chips (docs/features/crust.md): the world's pickable minerals; none picked = the natural mix.
+  let rockFor = '';
+  function renderRock(world: WorldConfig) {
+    const el = r('rock');
+    if (rockFor !== world.id) {
+      rockFor = world.id;
+      el.innerHTML = `<span class="rl">Rock:</span>` + world.terrain.crust.minerals.filter((m) => m.pick)
+        .map((m) => `<button type="button" class="chip" data-m="${esc(m.id)}" title="${esc(m.pick!.hint)}" aria-pressed="false">${esc(m.pick!.label)}</button>`).join('');
+    }
+    el.querySelectorAll<HTMLButtonElement>('.chip').forEach((b) => {
+      const on = b.dataset.m === state.crust;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+  r('rock').addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!b || busy) return;
+    state = toggleCrust(state, b.dataset.m!);
+    render();
+    const m = worldFor(state.worldId).terrain.crust.minerals.find((x) => x.id === b.dataset.m)!;
+    announce(state.crust ? `${m.pick!.label} rock: ${m.pick!.hint}.` : 'Natural rock mix.');
+  });
 
   // References: every source cited by the selected world's limits and, for the appendix, the speculative world's reasoning.
   const refIndex = new Map<string, number>();
@@ -622,7 +649,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const world = worldFor(state.worldId);
+    const world = withCrustChoice(worldFor(state.worldId), state.crust);
     // While launching, the box keeps living (slowed by the transition) until its dots hand over to the grains.
     box.frame(now, launching ? dt * boxSpeed : dt, world, state.conditions);
     if (!launching) {

@@ -3,6 +3,7 @@
 // Order matters when starting a world: build and subscribe everything, THEN emit world:selected.
 import { bus } from './bus';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
+import { withCrustChoice } from './gen/crust';
 import { createLandmarks } from './gen/landmarks';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
@@ -45,15 +46,20 @@ function spawnFor(terrain: TerrainSampler | Terrain, snapshot: SimSnapshot, worl
 
 /** One seed and one terrain per world for the whole page load: the transition plans against the same terrain the run then uses. */
 const runSeeds = new Map<WorldId, number>();
-const terrains = new Map<WorldId, TerrainSampler | Terrain>();
+const terrains = new Map<string, TerrainSampler | Terrain>();
+/** The world a run uses: the config with the picked rock chip applied (the config itself when nothing is picked). */
+const runWorld = (worldId: WorldId, crust?: string) => withCrustChoice(worldFor(worldId), crust);
+/** Cache key for per-world terrain state: a rock pick changes the terrain, so it is part of the key. */
+const keyOf = (worldId: WorldId, crust?: string) => `${worldId}|${crust ?? ''}`;
 function seedFor(worldId: WorldId): number {
   let seed = runSeeds.get(worldId);
   if (seed === undefined) { seed = pickSeed(location.search, worldFor(worldId).demoSeed).seed; runSeeds.set(worldId, seed); }
   return seed;
 }
-function terrainFor(worldId: WorldId): TerrainSampler | Terrain {
-  let t = terrains.get(worldId);
-  if (!t) { t = createTerrainSampler(worldFor(worldId), seedFor(worldId)); terrains.set(worldId, t); }
+function terrainFor(worldId: WorldId, crust?: string): TerrainSampler | Terrain {
+  const k = keyOf(worldId, crust);
+  let t = terrains.get(k);
+  if (!t) { t = createTerrainSampler(runWorld(worldId, crust), seedFor(worldId)); terrains.set(k, t); }
   return t;
 }
 
@@ -61,22 +67,23 @@ function terrainFor(worldId: WorldId): TerrainSampler | Terrain {
 let simStarted = false;
 function ensureSim() { if (!simStarted) { simStarted = true; startSim(bus); } }
 /** Each world's terrain mesh is built once per page load and swapped in on demand; returns true only when it was newly built (so it needs compiling). */
-const meshes = new Map<WorldId, { mesh: ReturnType<typeof createTerrainMesh>; uniforms: ReturnType<typeof createTerrainUniforms> }>();
-let meshFor: WorldId | null = null;
-function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId): boolean {
-  const t = terrainFor(worldId);
+const meshes = new Map<string, { mesh: ReturnType<typeof createTerrainMesh>; uniforms: ReturnType<typeof createTerrainUniforms> }>();
+let meshFor: string | null = null;
+function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId, crust?: string): boolean {
+  const t = terrainFor(worldId, crust);
+  const key = keyOf(worldId, crust);
   if (!('relics' in t)) return false;
-  if (meshFor === worldId) return false;
-  let entry = meshes.get(worldId);
+  if (meshFor === key) return false;
+  let entry = meshes.get(key);
   const isNew = !entry;
   if (!entry) {
     const uniforms = createTerrainUniforms();
     entry = { mesh: createTerrainMesh(t, uniforms), uniforms };
-    meshes.set(worldId, entry);
+    meshes.set(key, entry);
   }
   view.setTerrain(entry.mesh, entry.uniforms);
   view.setPatchSize(t.patchSize);
-  meshFor = worldId;
+  meshFor = key;
   return isNew;
 }
 
@@ -97,20 +104,22 @@ async function start(
   worldId: WorldId,
   requested: Conditions,
   handle?: LaunchHandle,
+  crust?: string,
 ) {
   app.setSuspended(false);   // the selection screen is gone (or never shown): render from the first transition frame
-  const world = worldFor(worldId);
+  const world = runWorld(worldId, crust);
   const otherWorld = worldFor(worldId === 'carbon' ? 'silicon' : 'carbon');
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
   const seed = seedFor(worldId);
-  const terrain = terrainFor(worldId);
+  const terrain = terrainFor(worldId, crust);
   const landmarks = 'relics' in terrain
     ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
     : null;
-  ensureTerrainMesh(view, worldId);
+  const myKey = keyOf(worldId, crust);
+  ensureTerrainMesh(view, worldId, crust);
   // One world per page load: free the other worlds' cached terrain meshes (setTerrain already took them out of the scene).
   for (const [id, e] of meshes) {
-    if (id === worldId) continue;
+    if (id === myKey) continue;
     e.mesh.traverse((o) => { const m = o as import('three/webgpu').Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as import('three/webgpu').Material).dispose(); } });
     meshes.delete(id);
   }
@@ -149,7 +158,7 @@ async function start(
   // The Generate transition (before the player's hook: it drives the camera until the character spawns, then lets go).
   if (handle && 'relics' in terrain) {
     gen.start({
-      worldId, requested, seed, terrain, handle,
+      worldId, requested, seed, terrain, handle, crust,
       snapshot: () => latest,
       spawnFor: (s) => spawnFor(terrain, s, world),
       groundAt: (x, z) => (latest ? terrain.height(x, z, terrainState(latest, world)) : 0),
@@ -236,7 +245,7 @@ async function start(
 
   // Everything is subscribed: start the sim, then select the world.
   ensureSim();
-  bus.emit('world:selected', { worldId, requested, seed });
+  bus.emit('world:selected', { worldId, requested, seed, ...(crust ? { crust } : {}) });
 }
 
 async function boot() {
@@ -250,23 +259,23 @@ async function boot() {
   // If the renderer fails to come up, surface it; the selection screen is DOM only and must not be left covering the error.
   prepared.catch(fail);
   const screen = mountSelectionScreen(document.getElementById('ui') ?? document.body, bus, {
-    onGenerate: ({ worldId, requested }, handle) => {
-      prepared.then((p) => start(p, worldId, requested, handle)).catch(fail);
+    onGenerate: ({ worldId, requested, crust }, handle) => {
+      prepared.then((p) => start(p, worldId, requested, handle, crust)).catch(fail);
     },
   });
   // The opaque selection screen covers the canvas: skip the world's GPU work until start() resumes it.
   prepared.then((p) => p.app.setSuspended(true)).catch(() => {});
   // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
-  const prime = (worldId: WorldId, conditions: Conditions) => {
+  const prime = (worldId: WorldId, conditions: Conditions, crust?: string) => {
     prepared.then(async ({ app, view, gen }) => {
       ensureSim();
-      const t = terrainFor(worldId);
+      const t = terrainFor(worldId, crust);
       if (!('relics' in t)) return;
-      if (ensureTerrainMesh(view, worldId)) await app.compile();   // the world's terrain shader, compiled before Generate
-      gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle);
+      if (ensureTerrainMesh(view, worldId, crust)) await app.compile();   // the world's terrain shader, compiled before Generate
+      gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle, crust);
     }).catch(() => {});
   };
-  bus.on('selection:changed', ({ worldId, conditions }) => prime(worldId, conditions));
+  bus.on('selection:changed', ({ worldId, conditions, crust }) => prime(worldId, conditions, crust));
   prime('carbon', Object.fromEntries(controlList.map((c) => [c.id, c.default])) as Conditions);
 }
 

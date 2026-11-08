@@ -80,7 +80,7 @@ describe('boxState bed', () => {
     supply: { c: 1, si: 1, o: 0 }, oxidises: false, why: '', sources: [], assumption: true, ...m,
   }) as MineralDef);
   const withCrust = (world: WorldConfig, ms: MineralDef[]): WorldConfig =>
-    ({ ...world, terrain: { ...world.terrain, crust: { minerals: ms, patchCells: 8, rustOxygen: 20, why: '', sources: [], assumption: true } } });
+    ({ ...world, terrain: { ...world.terrain, crust: { minerals: ms, patchCells: 8, rustOxygen: 20, favour: 0.65, why: '', sources: [], assumption: true } } });
   const ms = minerals([{ id: 'basalt', oxidises: true }, { id: 'granite', share: [0.1, 0.3] }, { id: 'waterIce', supply: { c: 0, si: 0, o: 0 } }]);
   const carbon = withCrust(worldFor('carbon'), ms), silicon = withCrust(worldFor('silicon'), ms);
   const good = { temperature: 15, nitrogen: 1, oxygen: 0 };
@@ -116,5 +116,19 @@ describe('boxState bed', () => {
       expect(st.ok && st.phase === 'liquid' && st.frozen === 0).toBe(false);
       expect(st.bed.every((b) => b.feeds === 0)).toBe(true);
     }
+  });
+});
+
+describe('rock chip', () => {
+  it('toggles, resets on element switch, and rides the payload', async () => {
+    const { toggleCrust, selectElement, generatePayload, initialSelection } = await import('./state');
+    let s = toggleCrust(initialSelection(), 'granite');
+    expect(generatePayload(s).crust).toBe('granite');
+    expect(toggleCrust(s, 'granite').crust).toBeUndefined();
+    expect(toggleCrust(s, 'basalt').crust).toBe('basalt');
+    expect(toggleCrust(initialSelection(), 'waterIce').crust).toBeUndefined();
+    s = selectElement(s, 14);
+    expect(s.crust).toBeUndefined();
+    expect(generatePayload(initialSelection())).not.toHaveProperty('crust');
   });
 });

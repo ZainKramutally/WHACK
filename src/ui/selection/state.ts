@@ -7,6 +7,8 @@ import { group14 } from './elements';
 export interface SelectionState {
   worldId: WorldId;
   conditions: Conditions;
+  /** Picked rock chip (mineral id); absent = the natural seeded mix. Per world, so switching element clears it. */
+  crust?: string;
 }
 
 /** Carbon selected, sliders at the control defaults (15 °C, 1 × Earth, 21 % oxygen). */
@@ -21,7 +23,14 @@ export function initialSelection(): SelectionState {
 export function selectElement(s: SelectionState, z: number): SelectionState {
   const row = group14.find((r) => r.z === z);
   if (!row?.worldId || row.worldId === s.worldId) return s;
-  return { ...s, worldId: row.worldId };
+  return { worldId: row.worldId, conditions: s.conditions };
+}
+
+/** Pick a rock chip; picking the picked one again, or an id the world cannot pick, clears it. */
+export function toggleCrust(s: SelectionState, id: string): SelectionState {
+  const ok = worldFor(s.worldId).terrain.crust.minerals.some((m) => m.id === id && m.pick);
+  const crust = ok && s.crust !== id ? id : undefined;
+  return { worldId: s.worldId, conditions: s.conditions, ...(crust ? { crust } : {}) };
 }
 
 /** Move one slider anywhere in its full range: on this screen there is no world yet, so nothing is protected. */
@@ -32,8 +41,8 @@ export function setCondition(s: SelectionState, id: ControlId, value: number): S
 }
 
 /** The `world:selected` payload for Generate. */
-export function generatePayload(s: SelectionState): { worldId: WorldId; requested: Conditions } {
-  return { worldId: s.worldId, requested: { ...s.conditions } };
+export function generatePayload(s: SelectionState): { worldId: WorldId; requested: Conditions; crust?: string } {
+  return { worldId: s.worldId, requested: { ...s.conditions }, ...(s.crust ? { crust: s.crust } : {}) };
 }
 
 export type Viability = { ok: true } | { ok: false; reason: string; limitId: string };
