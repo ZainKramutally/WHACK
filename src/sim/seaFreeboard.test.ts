@@ -60,6 +60,21 @@ describe('carbon sea cover from crust and temperature', () => {
     expect(after).toBeLessThan(before - 5);
   });
 
+  it('a cold drag and back keeps the world finite and alive', () => {
+    const w0 = withCrustChoice(carbon, 'ironstone');
+    const w = { ...w0, build: { ...w0.build, durationSec: 4, lifeSec: 1, seasSec: [0.5, 1] as [number, number], ecologySec: 20 } };
+    const sim = new WorldSimulation(w, EARTH);
+    sim.advance(5);
+    const covers: number[] = [];
+    const step = (sec: number) => { for (let i = 0; i < sec * 4; i++) { sim.advance(0.25); const s = sim.snapshot(); covers.push(s.stats.seaCover); for (const v of Object.values(s.stats)) expect(Number.isFinite(v)).toBe(true); } };
+    sim.setControl('temperature', -40); step(6);
+    sim.setControl('temperature', 15); step(6);
+    const s = sim.snapshot();
+    expect(s.population.consumers).toBeGreaterThan(0);
+    expect(s.population.producers).toBeGreaterThan(0);
+    for (let i = 1; i < covers.length; i++) expect(Math.abs(covers[i] - covers[i - 1])).toBeLessThan(1.5);   // eased: under 1.5 points per 0.25 s
+  });
+
   const state: TerrainState = { rise: 1, heatSolvent: 0.5, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 } };
   it('the spawn stays on land by a reachable shore at every cover from the minimum to the maximum', () => {
     for (const seed of [1, 2, 3, 42, 99, 314, carbon.demoSeed]) {
