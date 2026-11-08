@@ -1,5 +1,5 @@
 // Dev-only deity animation playground (not part of the game, tests or the production build):
-//   /scripts/deity/anim.html          V cycles variant C/A/B/D/stand-in. WASD move, Shift sprint, Space jump (rise in water), mouse drag orbit, T slow motion, R reset
+//   /scripts/deity/anim.html          V cycles variant C/A/B/D/stand-in (or ?variant=a). WASD move, Shift sprint, Space jump (rise in water), mouse drag orbit, T slow motion, R reset
 //   /scripts/deity/anim.html?auto     scripted loop: idle + look-back, walk, run, two jumps, swim, tread water, swim back
 // Real controller, input and follow camera on flat stub ground with a pool, rendered through the real look.
 import * as THREE from 'three/webgpu';

@@ -66,8 +66,6 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   const d = rig.dims;
   // Variant D carries its eyes on the body: the head turn would show nothing, so skip the look-back there.
   const lookBackOn = opts.lookBack !== false && rig.eyes[0].parent === rig.head;
-  // Short legs (variant C) can't carry the bounce: the body squash and hop do more of the work.
-  const squashK = 1 + clamp((0.25 - rig.dims.legLength) / 0.15, 0, 1);
   const seed = opts.seed ?? 0xde17;
   const rLook = makeRand(seed);
   const rBlink = makeRand(seed ^ 0x9e3779b9);
@@ -107,7 +105,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   const pose = new Float64Array(NP), acc = new Float64Array(NP);
   const W = { idle: 1, gait: 0, air: 0, swim: 0, tread: 0 };
 
-  let t = 0, gait = 0, runK = 0, swimPh = 0, treadPh = 0, turnS = 0;
+  let t = 0, gait = 0, runK = 0, swimPh = 0, treadPh = 0, turnS = 0, bankS = 0;
   let prevHeading = 0, prevSpeed = 0, prevPy = 0, prevVpy = 0, first = true;
   // Idle behaviour.
   let idleT = 0, nextLookBack = lookBackDelayPick(), lbState = 0, lbT = 0, lbBlinked = false, lbSign = 1;
@@ -125,7 +123,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   // ---- state poses -------------------------------------------------------------------------------------------
   function idlePose(p: Float64Array) {
     const br = Math.sin(TAU * 0.3 * t);
-    p[BSY] = 1 + 0.022 * br;
+    p[BSY] = 1 + 0.02 * br;
     p[BSX] = 1 - 0.012 * br;
     p[HY] = 0.03 * Math.sin(TAU * 0.4 * t);
     p[H0Y] = p[H1Y] = 0.015 * Math.sin(TAU * 0.4 * t - 0.9);
@@ -136,17 +134,18 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     const sk = Math.min(1, speed / 5);
     const A = lerp(0.55, 0.9, runK) * (0.4 + 0.6 * sk);
     const s = Math.sin(TAU * gait), c4 = Math.cos(2 * TAU * gait);
-    const hop = lerp(0.05, 0.14, runK) * sk * (1 + 0.5 * (squashK - 1));
+    const hop = lerp(0.04, 0.07, runK) * sk; // body bob: capped, the bell cloak glides rather than hops
     p[PY] = -d.legLength * (1 - Math.cos(A)) * 0.8 + hop * (0.5 + 0.5 * c4);
-    p[RX] = -lerp(0.07, 0.22, runK) * sk;
-    p[RZ] = 0.04 * s * (1 - runK) * sk;
-    p[BSY] = 1 + 0.06 * squashK * c4 * sk;
-    p[BSX] = 1 - 0.03 * squashK * c4 * sk;
+    p[RX] = -lerp(0.07, 0.14, runK) * sk; // forward lean = negative rotation.x (top toward -z): 4 deg walk, 8 deg run
+    p[RZ] = 0.03 * s * (1 - runK) * sk;
+    const sqz = lerp(0.03, 0.05, runK) * sk;
+    p[BSY] = 1 + sqz * c4;
+    p[BSX] = 1 - 0.5 * sqz * c4;
     p[L0X] = A * s;
     p[L1X] = -A * s;
     p[L0Z] = -0.08;
     p[L1Z] = 0.08;
-    p[HY] = 0.04 * Math.cos(2 * TAU * gait - 1.0) * sk;
+    p[HY] = 0.02 * Math.cos(2 * TAU * gait - 1.0) * sk;
     p[HZ] = lerp(0.03, 0.14, runK) * sk;
     p[HRX] = lerp(0.05, 0.18, runK) * sk;
     const sw2 = 0.2 * (1 - runK * 0.5) * s;
@@ -234,7 +233,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
       sv[S_H1Y] -= 1.5;
     }
     if (s.landed > 0) {
-      sx[S_SQ] = Math.max(sx[S_SQ], 0.6 * s.landed);
+      sx[S_SQ] = Math.max(sx[S_SQ], 0.24 * s.landed); // body squash <= 12%
       sx[S_HY] -= 0.06 * s.landed;
       sv[S_HY] -= 3 * s.landed;
       sv[S_H0Y] -= 2 * s.landed;
@@ -263,7 +262,8 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     const dh = angleDelta(prevHeading, s.heading) / dt;
     prevHeading = s.heading;
     turnS = approach(turnS, clamp(dh, -12, 12), 0.1, dt);
-    const bank = clamp(turnS * s.speed * 0.025, -0.35, 0.35);
+    bankS = approach(bankS, clamp(turnS * s.speed * 0.01, -0.105, 0.105), 0.1, dt); // <= 6 deg; +rotation.z tips the top toward -x, the left
+    const bank = bankS;
 
     // Idle behaviours.
     const idleish = (grounded && s.speed < 0.3) || (swim && s.speed < 0.3);
@@ -358,9 +358,9 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     const dv = clamp(vpy - prevVpy, -6, 6);
     prevPy = acc[PY];
     prevVpy = vpy;
-    sv[S_HY] -= dv * 0.5;
-    sv[S_H0Y] -= dv * 0.3;
-    sv[S_H1Y] -= dv * 0.3;
+    sv[S_HY] -= dv * 0.3;
+    sv[S_H0Y] -= dv * 0.2;
+    sv[S_H1Y] -= dv * 0.2;
 
     // Spring targets.
     const sq = sx[S_SQ];

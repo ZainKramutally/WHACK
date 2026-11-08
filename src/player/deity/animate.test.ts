@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerState } from '../controller';
 import { createDeityAnimator, strideLength } from './animate';
+import { buildDeity } from './model';
 import { buildStandinRig } from './standin';
+import * as THREE from 'three/webgpu';
 
 const mk = (o: Partial<PlayerState> = {}): PlayerState => ({
   x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, mode: 'walk', heading: 0, swimPitch: 0, speed: 0, sprinting: false,
@@ -109,5 +111,51 @@ describe('deity animator', () => {
     const x = run();
     expect(x.every(Number.isFinite)).toBe(true);
     expect(run()).toEqual(x);
+  });
+
+  // Pose-space metrics over 2 s of steady motion on variant C (after 1.5 s warm-up).
+  const gaitMetrics = (speed: number, sprinting: boolean, turn = 0) => {
+    const rig = buildDeity('C');
+    const a = createDeityAnimator(rig);
+    const dt = 1 / 60;
+    let heading = 0;
+    const m = { yMin: 1e9, yMax: -1e9, sMin: 1e9, sMax: -1e9, rxMin: 1e9, rxMax: -1e9, rzMax: 0 };
+    const restY = rig.pose.position.y;
+    for (let i = 0; i < 210; i++) {
+      heading += turn * dt;
+      a.update(mk({ speed, sprinting, heading }), dt);
+      if (i < 90) continue;
+      const y = rig.pose.position.y - restY;
+      m.yMin = Math.min(m.yMin, y); m.yMax = Math.max(m.yMax, y);
+      m.sMin = Math.min(m.sMin, rig.body.scale.y); m.sMax = Math.max(m.sMax, rig.body.scale.y);
+      m.rxMin = Math.min(m.rxMin, rig.pose.rotation.x); m.rxMax = Math.max(m.rxMax, rig.pose.rotation.x);
+      m.rzMax = Math.max(m.rzMax, Math.abs(rig.pose.rotation.z));
+    }
+    return { m, rig };
+  };
+
+  it('C stays inside the bounce caps (walk and run)', () => {
+    const w = gaitMetrics(5, false).m, r = gaitMetrics(9, true).m;
+    expect(w.yMax - w.yMin).toBeLessThanOrEqual(0.045);
+    expect(w.sMax - w.sMin).toBeLessThanOrEqual(0.065);
+    expect(Math.abs(w.rxMin)).toBeLessThanOrEqual(0.075);
+    expect(w.rzMax).toBeLessThanOrEqual(0.04);
+    expect(r.yMax - r.yMin).toBeLessThanOrEqual(0.075);
+    expect(r.sMax - r.sMin).toBeLessThanOrEqual(0.105);
+    expect(r.rxMin).toBeGreaterThan(-0.15);
+    expect(r.rxMax).toBeLessThan(-0.08); // always leaning forward
+  });
+
+  it('leans forward when running and banks into a left turn', () => {
+    const { rig } = gaitMetrics(9, true);
+    rig.root.updateMatrixWorld(true);
+    const top = rig.body.localToWorld(new THREE.Vector3(0, rig.dims.bodyHeight, 0));
+    const foot = rig.legs[0].localToWorld(new THREE.Vector3(0, -rig.dims.legLength, 0));
+    expect(top.z).toBeLessThan(foot.z - 0.03); // forward is -z
+    const t = gaitMetrics(5, false, 2); // heading increasing = turning left (toward -x)
+    t.rig.root.updateMatrixWorld(true);
+    const tt = t.rig.body.localToWorld(new THREE.Vector3(0, t.rig.dims.bodyHeight, 0));
+    expect(tt.x).toBeLessThan(-0.01);
+    expect(t.m.rzMax).toBeLessThanOrEqual(0.12);
   });
 });
