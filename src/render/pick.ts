@@ -7,6 +7,15 @@ import type { Bus } from '../bus';
 import type { InspectTarget, VisualInputs } from '../worlds/types';
 import type { FaunaPart } from './fauna';
 import type { FloraPart } from './flora';
+import { currentEgg } from '../worlds';
+
+let noFlora: Float32Array | null = null;
+/** The flora buffer the ray march sees: empty while the lead egg is on (the sim's biomass is untouched). */
+const pickFlora = (f: Float32Array): Float32Array => {
+  if (!currentEgg()) return f;
+  if (!noFlora || noFlora.length !== f.length) noFlora = new Float32Array(f.length);
+  return noFlora;
+};
 import { cellCentre, marchRay } from './layout';
 import { chooseHit } from './pickRule';
 
@@ -49,17 +58,17 @@ export function createPicker(deps: PickerDeps): Picker {
 
     const world = marchRay(o, d, {
       maxDist: patch * 1.5, step: Math.max(0.5, patch / 400), patch,
-      heightAt: inputs.terrain.height, seaLevel: inputs.seaLevel, seaVisible, flora: inputs.flora,
+      heightAt: inputs.terrain.height, seaLevel: inputs.seaLevel, seaVisible, flora: pickFlora(inputs.flora),
     });
     let target = world.target;
     if (target.kind === 'sky' && seaVisible && o.y < inputs.seaLevel && d.y > 0) target = { kind: 'sea' }; // looking up from underwater
     const org = fauna.hit(o, d);
-    const plant = flora.hit(o, d);
+    const plant = currentEgg() ? null : flora.hit(o, d);   // lead egg: no plants, nothing to pick
     let bounds: PickBounds | undefined;
     // Solid ground along the ray: the march stops at the sea surface, so look past it for the seafloor.
     const groundDist = world.target.kind === 'sea' ? marchRay(o, d, {
       maxDist: patch * 1.5, step: Math.max(0.5, patch / 400), patch,
-      heightAt: inputs.terrain.height, seaLevel: inputs.seaLevel, seaVisible: false, flora: inputs.flora,
+      heightAt: inputs.terrain.height, seaLevel: inputs.seaLevel, seaVisible: false, flora: pickFlora(inputs.flora),
     }).dist : world.dist;
     const choice = chooseHit(org ? org.dist : null, plant ? plant.dist : null, world.dist, groundDist);
     if (choice === 'organism' && org) {

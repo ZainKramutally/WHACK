@@ -15,6 +15,9 @@ import type { InspectTarget, VisualInputs, WorldConfig, WorldId } from '../world
 import { createSky } from './sky';
 import { createSea } from './sea';
 import { createBackdrop } from './backdrop';
+import { currentEgg } from '../worlds';
+
+let zeroFlora = new Float32Array(0);
 import { createFauna } from './fauna';
 import { createFlora } from './flora';
 import { createPicker, type PickResult } from './pick';
@@ -182,14 +185,16 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     const t1 = performance.now();
     sea.update(dt, t, inputs, patch);
     underFx.update(dt, t, inputs, patch);
-    backdrop.update(dt, t, inputs, patch);
+    if (!currentEgg()) backdrop.update(dt, t, inputs, patch);   // lead egg: no far giants
     const t2 = performance.now();
     fauna.update(dt, t, inputs, patch);
     const t3 = performance.now();
-    flora.update(dt, t, inputs, patch);
+    if (!currentEgg()) flora.update(dt, t, inputs, patch);   // lead egg: no plants (sim biomass untouched)
     const t4 = performance.now();
-    landmarks.update(dt, t, inputs, patch);
-    rockForms.update(dt, t, inputs, patch);
+    // lead egg: life-built forms (shell stone, lichen) see a barren world; the sim's flora is untouched
+    const barren = currentEgg() ? { ...inputs, flora: (zeroFlora.length === inputs.flora.length ? zeroFlora : (zeroFlora = new Float32Array(inputs.flora.length))), lifeOnLand: false } : inputs;
+    landmarks.update(dt, t, barren, patch);
+    rockForms.update(dt, t, barren, patch);
     pillars.update(dt, inputs);
     const t4b = performance.now();
     counterpart.update(dt, t, inputs);
