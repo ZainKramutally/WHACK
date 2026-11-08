@@ -109,6 +109,9 @@ const SLOT_MARGIN = 0.25; // implementation constant (DECISIONS §G.2 exempt): a
 const DEEP_FLOOR = 0.3; // implementation constant (DECISIONS §G.2 exempt): the share of deep-water food the smallest swimmer can still use
 const DIGEST_FLOOR = 0.25; // implementation constant (DECISIONS §G.2 exempt): the share of a kill's assimilation a diet-0 animal keeps; a full carnivore keeps all of it
 const MATURE = 0.9; // implementation constant (DECISIONS §G.2 exempt): share of its adult mass an animal needs before it can bud
+const SEA_FAIR = 0.9; // implementation constant (DECISIONS §G.2 exempt): swimmers below this share of their recent peak share of the animals may displace non-swimmers anywhere
+const PEAK_DECAY = 0.995; // implementation constant (DECISIONS §G.2 exempt): per 2 s refresh, how fast the remembered peak swim share fades
+const SLOT_SAMPLE = 12; // implementation constant (DECISIONS §G.2 exempt): non-swimmers sampled for the weakest, when swimmers displace
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -154,6 +157,9 @@ export class Ecology {
   private readonly cellItems = new Int32Array(CAP);
   private readonly births: { id: number; plan: BodyPlan }[] = [];
   private readonly pendingBuds: number[] = [];
+  private seaShare = 0;   // share of the grid under liquid (refreshed with the derived fields)
+  private swimShare = 0;  // share of the animals that swim
+  private swimPeak = 0;   // the recent high of swimShare (decays slowly): swimmers that fell well below it are refilling after a stranding or crash
   private readonly rnd: Rng;
   private readonly inputs: DevelopInputs;
   private readonly founderClimate: ClimateGenes;
@@ -415,9 +421,12 @@ export class Ecology {
     const g = this.grid;
     g.risk.fill(0);
     let demand = 0;
+    let swimmers = 0, animals = 0;
     for (let i = 0; i < CAP; i++) {
       if (!this.alive[i]) continue;
       const p = this.plan[i];
+      animals++;
+      if (p.mode === LOCOMOTION.swim) swimmers++;
       const threat = p.meatGain;
       if (threat > 0.01) {
         const c = cellOf(this.x[i], this.y[i]);
@@ -435,6 +444,11 @@ export class Ecology {
       demand += this.L.intake * this.struct[i] ** this.L.intakeExp * p.plantGain;
     }
     for (let i = 0; i < CELLS; i++) g.risk[i] = 1 - Math.exp(-g.risk[i]);
+    let sea = 0;
+    for (let i = 0; i < CELLS; i++) if (g.liquid[i] > 0) sea++;
+    this.seaShare = sea / CELLS;
+    this.swimShare = animals > 0 ? swimmers / animals : 0;
+    this.swimPeak = Math.max(this.swimShare, this.swimPeak * PEAK_DECAY);
     let standing = 0;
     for (let i = 0; i < CELLS; i++) standing += g.mat[i] + g.canopy[i];
     const supply = (standing * this.L.cellMass) / this.L.hungerTime;
@@ -843,6 +857,27 @@ export class Ecology {
    * only one that is poorer than the parent and past its first moments. Better feeders win slots, so size and hunting get selected.
    */
   private displace(p: number): boolean {
+    // Habitat-aware slots (#80): a swimmer whose share of the animals has fallen well below its recent high may displace the weakest of a
+    // sample of non-swimmers anywhere, so slots follow sea area and the sea refills after a crash or a stranding.
+    if (this.plan[p].mode === LOCOMOTION.swim && this.swimShare < SEA_FAIR * this.swimPeak) {
+      const pr = this.energy[p] / this.struct[p];
+      let victim = -1, worst = Infinity, seen = 0;
+      const start = Math.floor(this.rnd() * CAP);
+      for (let k = 0; k < CAP && seen < SLOT_SAMPLE; k++) {
+        const j = (start + k) % CAP;
+        if (!this.alive[j] || j === p || this.age[j] < 1 || this.plan[j].mode === LOCOMOTION.swim) continue;
+        seen++;
+        const r = this.energy[j] / this.struct[j];
+        if (r < worst && r < pr * SLOT_MARGIN) { worst = r; victim = j; }
+      }
+      if (victim >= 0) {
+        const here = cellOf(this.x[victim], this.y[victim]);
+        const e = Math.max(0, this.energy[victim]);
+        this.kill(victim);
+        this.returnMatter(here, this.struct[victim] + e, clamp01(this.plan[victim].plateCover));
+        return true;
+      }
+    }
     const cx = Math.floor(this.x[p]), cy = Math.floor(this.y[p]);
     const pr = this.energy[p] / this.struct[p];
     let victim = -1, worst = Infinity;
