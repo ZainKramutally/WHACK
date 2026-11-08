@@ -261,3 +261,4 @@
 - 09:02 16: carbon sea cover physical (fc 5a67fe1) documented. Flags: carbon start at −40 °C ends the build with 0 consumers (in band!); SLOW silicon −163 °C test 877 < 900.
 - 09:03 16: merged hunt-events (#91 sim half): layout v4 intent/targetId, SimSnapshot.kills.
 - 09:02: OWNER bug: pillars red on non-iron rock. Cause: src/gen/landmarkMesh.ts paints legacy landmarks (hoodoos, buttes, arches) from fixed Red World palettes (ROCK, butte) on every world. landmark-colour agent: colour from the local mineral (ironstone keeps Red World ramp), shell/ice unchanged. Note: user's likely dev server 5173 (session/character) already had pillars + warm grey.
+- 09:04: landmark-colour merged (fe71842): hoodoo/rockStack/butte recolour from local mineral (landmarkLook.ts), ironstone keeps Red World, shell/ice unchanged. 56 tests + build green. Pushing; test tightening (silent-skip ironstone assertion) in follow-up.
