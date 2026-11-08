@@ -805,7 +805,7 @@ export class Ecology {
     const s = clamp01(stress);
     if (
       this.energy[i] <= 1e-9 ||
-      this.age[i] > rules.lifespan * m ** CONSTANTS.GEN_EXP.value ||
+      this.age[i] > rules.lifespan * Math.max(m, this.adult[i]) ** CONSTANTS.GEN_EXP.value ||
       this.rnd() < rules.stressDeath * s * s * dt
     ) {
       const e = Math.max(0, this.energy[i]);
