@@ -49,6 +49,50 @@ export function terrainState(snapshot: SimSnapshot, world: WorldConfig): Terrain
   };
 }
 
+/**
+ * Last terrain state seen. While the sampler object, patchSize, rise, heatSolvent and every progress entry are
+ * unchanged, `terrain.height` is a pure function of (x, z), so the VisualInputs `terrain` object (and its `height`
+ * identity, which floraForm's ground cache keys on) is reused, as are the lazily sampled cell-centre heights.
+ */
+interface TerrainMemo {
+  sampler: TerrainSampler;
+  patchSize: number;
+  rise: number;
+  heatSolvent: number;
+  progress: Record<string, number>; // private copy for comparison
+  terrain: VisualInputs['terrain'];
+  ground: Float64Array; // NaN = not sampled yet
+}
+let memo: TerrainMemo | null = null;
+
+function sameState(m: TerrainMemo, sampler: TerrainSampler, s: TerrainState): boolean {
+  if (m.sampler !== sampler || m.patchSize !== sampler.patchSize || m.rise !== s.rise || m.heatSolvent !== s.heatSolvent) return false;
+  const a = m.progress, b = s.progress;
+  let n = 0;
+  for (const k in b) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
+    if (!Object.prototype.hasOwnProperty.call(a, k) || a[k] !== b[k]) return false;
+    n++;
+  }
+  for (const k in a) if (Object.prototype.hasOwnProperty.call(a, k)) n--;
+  return n === 0;
+}
+
+function terrainMemo(sampler: TerrainSampler, state: TerrainState): TerrainMemo {
+  if (memo && sameState(memo, sampler, state)) return memo;
+  const frozen = { ...state, progress: { ...state.progress } }; // closure must not see later mutation of the caller's state
+  memo = {
+    sampler,
+    patchSize: sampler.patchSize,
+    rise: state.rise,
+    heatSolvent: state.heatSolvent,
+    progress: { ...state.progress },
+    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize },
+    ground: new Float64Array(GRID * GRID).fill(NaN),
+  };
+  return memo;
+}
+
 /** True once any land cell (ground above sea level) has flora biomass. Grid is row-major, z outer, centred on the patch. */
 export function lifeOnLand(
   flora: Float32Array,
@@ -59,15 +103,20 @@ export function lifeOnLand(
   const stride = Math.floor(flora.length / (GRID * GRID)); // 1 (biomass) or 2 (mat, canopy) per cell
   if (stride < 1) return false;
   const S = terrain.patchSize;
+  const m = terrainMemo(terrain, state);
+  const ground = m.ground;
   for (let cell = 0; cell < GRID * GRID; cell++) {
     let biomass = 0;
     for (let k = 0; k < stride; k++) biomass += flora[cell * stride + k];
     if (!(biomass > 0)) continue;
-    const i = cell % GRID;
-    const j = (cell - i) / GRID;
-    const x = ((i + 0.5) / GRID - 0.5) * S;
-    const z = ((j + 0.5) / GRID - 0.5) * S;
-    if (terrain.height(x, z, state) > seaLevel) return true;
+    let h = ground[cell];
+    if (h !== h) {
+      const i = cell % GRID;
+      const j = (cell - i) / GRID;
+      h = terrain.height(((i + 0.5) / GRID - 0.5) * S, ((j + 0.5) / GRID - 0.5) * S, state);
+      ground[cell] = h;
+    }
+    if (h > seaLevel) return true;
   }
   return false;
 }
@@ -104,7 +153,7 @@ export function buildVisualInputs(
     light: stats.light ?? 1,
     airDensity: world.life.inputs.airDensity.scale * gasDensity(stats.pressure, t, world.life.inputs.airDensity.molarMass),
     buildProgress: snapshot.buildProgress,
-    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => terrain.height(x, z, state), patchSize: terrain.patchSize },
+    terrain: terrainMemo(terrain, state).terrain,
     organisms: snapshot.organisms,
     births,
     flora: snapshot.flora,

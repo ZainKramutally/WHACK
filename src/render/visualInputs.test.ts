@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import { controls } from '../worlds/controls';
