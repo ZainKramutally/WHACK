@@ -2,6 +2,7 @@
 // research paper, ported from mockups/selection-screen. Slider maths is ui/sliderMath, viability and bands are
 // sim/limits, and every world fact (status, caveat, reasoning, bounds, Earth values, sources) is read from the world configs.
 // Emits `selection:changed` on every change; hands Generate to the host, which emits `world:selected` once the world is built.
+import { cinematicOn, setCinematic } from '../../cinematicSetting';
 import './selection.css';
 import { withCrustChoice } from '../../gen/crust';
 import { controlList, sourceFor, worldFor, worlds } from '../../worlds';
@@ -165,6 +166,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         <p class="note" data-r="notice"></p>
         <div class="actions">
           <button class="btn" data-r="standardise" type="button">Standardise to optimum</button>
+          <button class="btn" data-r="cinematic" type="button" aria-pressed="false" title="Start in the free camera with the interface hidden (C leaves it)"></button>
           <button class="btn primary" data-r="generate" type="button">Generate world</button>
         </div>
       </div>
@@ -689,6 +691,10 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     glideTo(start, 800, () => setTimeout(begin, 450));
   }
   r('generate').addEventListener('click', generate);
+  const cineBtn = r('cinematic');
+  const paintCine = () => { const on = cinematicOn(); cineBtn.textContent = `Cinematic: ${on ? 'on' : 'off'}`; cineBtn.setAttribute('aria-pressed', String(on)); cineBtn.classList.toggle('primary', on); };
+  cineBtn.addEventListener('click', () => { setCinematic(!cinematicOn()); paintCine(); });
+  paintCine();
 
   // ---- Main loop ----
   let last = performance.now();

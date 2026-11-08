@@ -23,6 +23,7 @@ import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
+import { cinematicOn } from './cinematicSetting';
 import { hideFreeCamHint, setCinematicUI, showFreeCamHint } from './ui/cinematic';
 import { mountSelectionScreen } from './ui/selection/screen';
 import { controlList, setEgg, worldFor } from './worlds';
@@ -330,7 +331,7 @@ async function start(
       state: () => ({ ...player.free.state(), uiHidden: document.body.classList.contains('wu-cinematic') }),
     },
   });
-  const cinematic = new URLSearchParams(location.search).has('cinematic');
+  const cinematic = cinematicOn();
 
   // The character spawns once the ground is solid (build.spawnSec); before that the player is frozen and hidden.
   let spawned = false;

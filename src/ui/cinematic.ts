@@ -13,7 +13,7 @@ export function showFreeCamHint(): void {
   if (!hintEl) {
     hintEl = document.createElement('div');
     hintEl.className = 'wu-fchint';
-    hintEl.textContent = 'FREE CAMERA · C to exit · H toggles the UI';
+    hintEl.textContent = 'FREE CAMERA · C to exit · H shows UI';
     document.body.append(hintEl);
   }
   hintEl.classList.add('wu-on');
