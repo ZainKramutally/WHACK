@@ -34,6 +34,12 @@ export function plantShape(list: PlantList, i: number, a: Archetype, out: Float3
   out[o + 3] = list.wb[i] / H;
 }
 
+/** The flora material's per-instance look (material.ts lookAttr): vec4(tint r, g, b, glow 0..1). */
+export function plantLook(list: PlantList, i: number, out: Float32Array, o: number): void {
+  plantTint(list, i, out, o);
+  out[o + 3] = list.glow[i];
+}
+
 /** Instance colour of plant `i` (linear rgb multiplier on its painted vertex colours). */
 export function plantTint(list: PlantList, i: number, out: Float32Array, o: number): void {
   out[o] = 1 + list.tr[i];

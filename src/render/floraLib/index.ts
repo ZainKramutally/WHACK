@@ -201,6 +201,19 @@ function linear(pal: FloraPalette): Float32Array {
 }
 
 /**
+ * Paint for glow per plant (flora.ts): colours as at glow 0, so glow sites show their tissue, and `aGlow` = each glow
+ * site's weight, signed by its glow colour (+ glow, − glowDeep). The flora material (lookAttr) then lights a plant's
+ * sites by its own glow, exactly as paint() would at that glow: site colour toward its glow colour by min(1, 1.5 g)
+ * and emissive weight × g.
+ */
+export function paintSites(p: Pick<BuiltPlant, 'geometry' | 'keys' | 'glowKey' | 'site'>, pal: FloraPalette, dark = false): void {
+  paint(p, pal, 0, dark);
+  const a = (p.geometry as BufferGeometry).getAttribute('aGlow').array as Float32Array;
+  const deep = FLORA_KEYS.indexOf('glowDeep');
+  for (let i = 0; i < p.keys.length; i++) a[i] = p.glowKey[i] ? (p.glowKey[i] === deep ? -1 : 1) * p.site[i] : 0;
+}
+
+/**
  * Write the `color` (linear rgb) and `aGlow` attributes of a built plant from a palette and a glow amount (form.glow).
  * glow 0 → no emissive at all and glow sites show plain tissue. `dark` shifts every tissue one step darker.
  */

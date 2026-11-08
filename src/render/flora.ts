@@ -5,22 +5,24 @@
 // chunked and not frustum-culled: from inside the patch every chunk is partly in view, so chunks only multiplied draw
 // calls. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
 // Every plant is its own (floraLib/vary.ts): per-instance girth and lean in its matrix, crown, twist, droop and bend in
-// the `aPlant` attribute the flora material bends it by, and a tint in instanceColor. All static buffers, written per
+// the `aPlant` attribute the flora material bends it by, and its tint and own glow in `aLook`. All static buffers, written per
 // rebuild, so the extra look costs no draw call and nothing per frame.
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { floraLibrary, paint, type Archetype, type FloraPalette, type FloraRole } from './floraLib';
+import { floraLibrary, paintSites, type Archetype, type FloraPalette, type FloraRole } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
-import { plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
+/** Per-instance tint and glow (floraLib/instance.ts plantLook): each plant lights its own glow sites. */
+const LOOK_ATTR = 'aLook';
 const REBUILD_EVERY = 0.25; // s while the world builds
 const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
@@ -58,7 +60,8 @@ interface Look {
   lod: 0 | 1;
   dark: boolean;
   geometry: THREE.BufferGeometry;
-  painted: { pal: FloraPalette | null; glow: number };
+  /** The palette its colours and glow sites are painted in (paintSites: glow is per plant, in aLook). */
+  painted: FloraPalette | null;
 }
 
 /** One plant as the world drew it at the last rebuild (FloraPart.plantsIn). */
@@ -79,7 +82,7 @@ export interface PlacedPlant {
   /** Drawn height above its base and crown radius (m). */
   height: number; radius: number;
   cell: number; slot: number;
-  /** Instance colour (linear rgb multiplier on the painted colours) and the shape terms a material with plantAttr bends
+  /** Tint (linear rgb multiplier on the painted colours; the world's aLook.rgb) and the shape terms a material with plantAttr bends
    * it by (crown, twist, droop, bend: floraLib/instance.ts plantShape). */
   tint: [number, number, number];
   shape: [number, number, number, number];
@@ -89,9 +92,9 @@ interface Bucket {
   mesh: THREE.InstancedMesh;
   /** Fixed instance capacity (allocated once). */
   cap: number;
-  /** Per-instance shape terms (vec4) on the bucket's own geometry, and its instance colours. */
+  /** Per-instance shape terms and look (tint, glow), both vec4, on the bucket's own geometry. */
   shape: THREE.InstancedBufferAttribute;
-  tint: THREE.InstancedBufferAttribute;
+  look: THREE.InstancedBufferAttribute;
 }
 
 export function createFlora(app: App): FloraPart {
@@ -100,7 +103,7 @@ export function createFlora(app: App): FloraPart {
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
-  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', plantAttr: PLANT_ATTR, translucent: true, side: THREE.DoubleSide } as const;
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });
   const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
   const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
@@ -118,12 +121,12 @@ export function createFlora(app: App): FloraPart {
       const a = lib.archetypes[arch];
       const built = a.lod[lod];
       // Its own geometry over the shared library one: position, normal, sway and index are shared; colour and glow are
-      // its own (paint writes them per palette, value step and glow), as are the per-instance buffers added below.
+      // its own (paintSites writes them per palette and value step), as are the per-instance buffers added below.
       const geometry = new THREE.BufferGeometry();
       for (const [name, at] of Object.entries(built.geometry.attributes)) geometry.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
       geometry.setIndex(built.geometry.index);
       geometry.boundingBox = built.geometry.boundingBox; geometry.boundingSphere = built.geometry.boundingSphere;
-      L = looks[id] = { arch: a, lod: lod as 0 | 1, dark: !!dark, geometry, painted: { pal: null, glow: -1 } };
+      L = looks[id] = { arch: a, lod: lod as 0 | 1, dark: !!dark, geometry, painted: null };
     }
     return L;
   };
@@ -133,8 +136,8 @@ export function createFlora(app: App): FloraPart {
   // (and counted). A bucket is one draw call while it has plants; it is never culled (it spans the camera's surroundings).
   // Instance matrices keep the default static usage: in three r187 a DynamicDraw attribute is re-uploaded whole on every
   // render (Attributes.update), while a static one uploads only after needsUpdate, and then only its update range.
-  // The per-plant look buffers follow the same rule. With aPlant and instanceColor a bucket binds 8 vertex buffers
-  // (position, normal, aSway, color, aGlow, aPlant, the matrix and the colour): WebGPU's default limit, and the most
+  // The per-plant look buffers follow the same rule. With aPlant and aLook a bucket binds 8 vertex buffers
+  // (position, normal, aSway, color, aGlow, aPlant, aLook and the matrix): WebGPU's default limit, and the most
   // three r187 shares one build across meshes with (Instance.js canReferenceInstanceData). Add none without removing one.
   const buckets = new Map<number, Bucket>();
   for (const d of bucketDefs()) {
@@ -142,14 +145,14 @@ export function createFlora(app: App): FloraPart {
     const shape = new THREE.InstancedBufferAttribute(new Float32Array(d.cap * 4), 4);
     L.geometry.setAttribute(PLANT_ATTR, shape); // each bucket has its own look geometry (lookOf), so this is its own
     const mesh = new THREE.InstancedMesh(L.geometry, materialFor(d.role, d.lod), d.cap);
-    const tint = new THREE.InstancedBufferAttribute(new Float32Array(d.cap * 3).fill(1), 3);
-    mesh.instanceColor = tint;
+    const look = new THREE.InstancedBufferAttribute(new Float32Array(d.cap * 4), 4);
+    L.geometry.setAttribute(LOOK_ATTR, look);
     mesh.count = 0;
     mesh.visible = false;
     mesh.frustumCulled = false;
     mesh.name = `${L.arch.key}/L${d.lod}${d.dark ? 'd' : ''}`;
     group.add(mesh);
-    buckets.set(d.id, { mesh, cap: d.cap, shape, tint });
+    buckets.set(d.id, { mesh, cap: d.cap, shape, look });
   }
 
   // Warm-up: a carbon and a silicon mesh per material, a single invisible-sized instance far below ground, so
@@ -158,14 +161,14 @@ export function createFlora(app: App): FloraPart {
   for (const chem of ['carbon', 'silicon'] as const) for (const mat of [material, materialNoCut]) {
     const ai = lib.archetypes.findIndex((a) => a.chem === chem);
     const L = lookOf(ai, 0, 0);
-    paint({ ...L.arch.lod[0], geometry: L.geometry }, PALETTES[chem], 0);
-    L.painted = { pal: PALETTES[chem], glow: 0 };
+    paintSites({ ...L.arch.lod[0], geometry: L.geometry }, PALETTES[chem]);
+    L.painted = PALETTES[chem];
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
     g.setAttribute(PLANT_ATTR, new THREE.InstancedBufferAttribute(new Float32Array(4), 4)); // its own: native shape
+    g.setAttribute(LOOK_ATTR, new THREE.InstancedBufferAttribute(new Float32Array([1, 1, 1, 0]), 4)); // white, unlit
     g.setIndex(L.geometry.index);
     const w = new THREE.InstancedMesh(g, mat, 1);
-    w.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array([1, 1, 1]), 3); // same pipeline as the buckets
     w.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0));
     w.frustumCulled = false;
     group.add(w);
@@ -182,7 +185,6 @@ export function createFlora(app: App): FloraPart {
   const drawn = new Uint8Array(list.arch.length);
   const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
-  const lookGlow = new Float32Array(BUCKET_IDS);
   const m4 = new THREE.Matrix4();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
@@ -254,12 +256,11 @@ export function createFlora(app: App): FloraPart {
 
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes);
       const pal = PALETTES[lookKind(inputs.world.composition)];
-      counts.fill(0); lookGlow.fill(0);
+      counts.fill(0);
       for (let i = 0; i < list.n; i++) {
         const look = bucketId(list.arch[i], list.lod[i], list.dark[i]);
         lookIds[i] = look;
         counts[look]++;
-        if (list.glow[i] > lookGlow[look]) lookGlow[look] = list.glow[i];
       }
       // hide every mesh; the ones in use are shown below
       for (const b of buckets.values()) { b.mesh.count = 0; b.mesh.visible = false; }
@@ -270,9 +271,9 @@ export function createFlora(app: App): FloraPart {
         const b = buckets.get(id);
         if (!b) continue; // a look with no bucket (place.ts never places one: dark is near ground only, silicon ground is near)
         const L = lookOf(id >> 2, (id >> 1) & 1, id & 1);
-        if (L.painted.pal !== pal || Math.abs(L.painted.glow - lookGlow[id]) > 0.01) {
-          paint({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, lookGlow[id], L.dark);
-          L.painted = { pal, glow: lookGlow[id] };
+        if (L.painted !== pal) {
+          paintSites({ ...L.arch.lod[L.lod], geometry: L.geometry }, pal, L.dark);
+          L.painted = pal;
         }
         if (counts[id] > b.cap) { dropped += counts[id] - b.cap; counts[id] = b.cap; }
         b.mesh.visible = true;
@@ -287,10 +288,10 @@ export function createFlora(app: App): FloraPart {
         const k = fill[id]++;
         const a = lib.archetypes[list.arch[i]];
         // its size, girth, yaw, slope tilt and lean, and the sink that puts its contact ring on the ground (place.ts);
-        // its crown, twist, droop and bend for the material; its tint
+        // its crown, twist, droop and bend for the material; its tint and own glow
         plantMatrix(list, i, a, m4).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
         plantShape(list, i, a, b.shape.array as Float32Array, k * 4);
-        plantTint(list, i, b.tint.array as Float32Array, k * 3);
+        plantLook(list, i, b.look.array as Float32Array, k * 4);
       }
       // upload only the used part of each fixed-size buffer
       const upload = (at: THREE.BufferAttribute, n: number) => { at.clearUpdateRanges(); at.addUpdateRange(0, n * at.itemSize); at.needsUpdate = true; };
@@ -300,7 +301,7 @@ export function createFlora(app: App): FloraPart {
         b.mesh.count = n;
         upload(b.mesh.instanceMatrix, n);
         upload(b.shape, n);
-        upload(b.tint, n);
+        upload(b.look, n);
       }
       if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
       part.plants = list.n - dropped;

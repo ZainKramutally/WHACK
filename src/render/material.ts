@@ -12,7 +12,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, mix, max, min, normalWorld, positionWorld, positionLocal, attribute, uniform, cameraPosition,
-  sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard,
+  sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard, step,
   positionGeometry, normalGeometry, normalLocal,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
@@ -46,6 +46,10 @@ export interface WorldMaterialOpts {
    *  each instance in its own frame before instancing (flora: every plant its own). Every geometry drawn with the
    *  material needs it (zeros draw the native shape). */
   plantAttr?: string | null;
+  /** Per-instance vec4 attribute (tint r, g, b, glow; floraLib/instance.ts plantLook): the colour multiplier and glow of
+   *  each instance. With it, `glowAttr` holds signed glow-site weights (floraLib paintSites: + glow, − glowDeep), lit by
+   *  the instance's glow. */
+  lookAttr?: string | null;
 }
 
 /** Pixel mode (the default look). `?style=smooth` is the comparison view. post.ts reads the same flag. */
@@ -197,6 +201,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
   m.userData.look = kind;
   if (opts.colorNode) m.colorNode = opts.colorNode;
   const glowW: N = opts.glowAttr ? attribute(opts.glowAttr, 'float') : null;
+  const look: N = opts.lookAttr ? attribute(opts.lookAttr, 'vec4') : null;
 
   if (opts.swayAttr) {
     // positionNode runs after instancing in r187: positionLocal is already instance-transformed (identity mesh)
@@ -225,6 +230,13 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
     }
     // diffuseColor = colorNode (or material colour) × vertex colour × instance colour, with opacity in .a
     const base = vec3(diffuseColor.rgb).toVar();
+    if (look && glowW) {
+      // this instance's glow lights its glow sites (toward glow or glowDeep by min(1, 1.5 g), as paint() does), then
+      // its tint (vertex colours stay the palette's)
+      const site = abs(glowW);
+      const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW));
+      base.assign(mix(base, key, min(look.w.mul(1.5), 1).mul(step(1e-4, site))).mul(look.xyz));
+    } else if (look) base.assign(base.mul(look.xyz));
     const N = normalWorld;
     const col = base.toVar();
     const dist = positionWorld.sub(cameraPosition).length();
@@ -272,7 +284,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
     out.assign(mix(out, vec3(LOOK.fogColor), f));
 
     if (glowW) {
-      const weight = glowW.mul(f.oneMinus()).clamp(0, 1);
+      const weight = (look ? abs(glowW).mul(look.w) : glowW).mul(f.oneMinus()).clamp(0, 1);
       out.assign(mix(out, glowHDR(), weight));
     }
     return vec4(out, diffuseColor.a);

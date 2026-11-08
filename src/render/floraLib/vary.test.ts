@@ -132,3 +132,38 @@ describe('per-plant variation (vary.ts)', () => {
     expect(sc.x).toBeCloseTo(s * 1.1, 5); expect(sc.y).toBeCloseTo(s, 5); expect(sc.z).toBeCloseTo(s * 1.1, 5);
   });
 });
+
+describe('glow per plant (paintSites + the flora material lookAttr)', () => {
+  it('lighting a site-painted plant by its own glow gives exactly what paint() gives at that glow', async () => {
+    const { paint, paintSites } = await import('./index');
+    const { Color } = await import('three/webgpu');
+    const lib = buildFloraLibrary(7);
+    const pal = { ink: 0x22060f, maroon: 0x5c0a1e, crimson: 0xa8122a, blush: 0xf2a2a0, bone: 0xf4e6dc, glow: 0x3ff5e0, glowDeep: 0x0f8f9a };
+    const lin = (hex: number) => { const c = new Color().setHex(hex); return [c.r, c.g, c.b]; };
+    const G = lin(pal.glow), D = lin(pal.glowDeep);
+    let sites = 0, deep = 0, err = 0;
+    for (const key of ['lanternPods#0', 'jellyDome#1', 'weeper#0', 'crystalGround#3']) for (const dark of [false, true]) {
+      const built = lib.byKey.get(key)!.lod[0];
+      const sited = built.geometry.clone();
+      paintSites({ ...built, geometry: sited }, pal, dark);
+      const c0 = sited.getAttribute('color').array as Float32Array, s = sited.getAttribute('aGlow').array as Float32Array;
+      for (const g of [0, 0.3, 0.7, 1]) {
+        const ref = built.geometry.clone();
+        paint({ ...built, geometry: ref }, pal, g, dark);
+        const c = ref.getAttribute('color').array as Float32Array, a = ref.getAttribute('aGlow').array as Float32Array;
+        for (let v = 0; v < s.length; v++) {
+          // the material: site colour toward its glow colour (by the sign) by min(1, 1.5 g), emissive |s| × g
+          const w = Math.abs(s[v]), k = s[v] >= 0 ? G : D, t = Math.min(1, 1.5 * g) * (w > 1e-4 ? 1 : 0);
+          for (let ch = 0; ch < 3; ch++) err = Math.max(err, Math.abs(c0[v * 3 + ch] + (k[ch] - c0[v * 3 + ch]) * t - c[v * 3 + ch]));
+          err = Math.max(err, Math.abs(w * g - a[v]));
+          if (g === 1 && w > 0) { sites++; if (s[v] < 0) deep++; }
+        }
+        ref.dispose();
+      }
+      sited.dispose();
+    }
+    expect(err).toBeLessThan(1e-5);
+    expect(sites).toBeGreaterThan(0);
+    expect(deep).toBeGreaterThan(0); // glowDeep sites keep their deep colour
+  });
+});
