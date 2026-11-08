@@ -252,3 +252,4 @@
 - ~08:50: merged astronaut polish (0e685d7): pill torso, rounded pack/boots, tori rings merged in, round disc eyes, thigh+shin knees, shoulder/armReach dims, bounded 2-bone arms. Gate green.
 - 08:52 16: merged #89 camera hand-off from the Generate transition's end pose.
 - 08:38: MAIN PUSH (pre-approved): 8786d0b skinGroundShift offset fix (freeze-review: nothing open). art-fauna shutdown requested. Remaining: flora-size (hard stop 09:20) + freeze-review for its review.
+- 08:42: flora-size done early (a600b7c size.ts truncated Pareto alpha 1.5, score g from fertility/N/wet/warm/O2, bands 0.2-3/3-20/14-45, emergent giants per superblock 0.04-0.36; c76625e §2d) -> stage 9b0e6fe on main 3bbb849; gate 577/14, SLOW, build OK; freeze-review running; follow-up comments + ground-tail cap by 09:10.
