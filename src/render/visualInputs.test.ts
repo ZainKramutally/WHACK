@@ -141,6 +141,21 @@ describe('terrain memo', () => {
     expect(b.terrain.height(10, 20)).toBe(s.height(10, 20, terrainState(snap(carbon, { buildProgress: 0.5 }), carbon)));
   });
 
+  it('carries the sampler\'s crustWeights (fresh per sampler) and builds the crust once per sampler', () => {
+    const n = carbon.terrain.crust!.minerals.length;
+    const withW = (k: number): TerrainSampler => ({ ...mk(), crustWeights: () => Array.from({ length: n }, (_, i) => (i === k ? 1 : 0)) });
+    const s = withW(1);
+    const a = run(s), b = run(s);
+    expect(a.terrain.crustWeights).toBeDefined();
+    expect(b.terrain).toBe(a.terrain);
+    expect(b.world.crust).toBe(a.world.crust);   // stable identity: palette memos key on it
+    expect(a.world.crust!.shares[1]).toBe(1);
+    const c = run(withW(2));
+    expect(c.terrain.crustWeights).not.toBe(a.terrain.crustWeights);
+    expect(c.world.crust!.shares[2]).toBe(1);   // a new sampler never reuses stale weights
+    expect(run(mk()).world.crust).toBeUndefined();
+  });
+
   it('changes identity when rise, heatSolvent, or the sampler changes', () => {
     const s = mk();
     const a = run(s);

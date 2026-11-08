@@ -119,12 +119,12 @@ function terrainMemo(sampler: TerrainSampler, state: TerrainState, minerals?: re
 }
 
 /** The run's crust for the art layer: realised shares by argmax over the 64² cell centres (the same rule as gen/crust.ts crustMap). Built once per sampler and world. */
-const crustCache = new WeakMap<object, { worldId: string; crust: NonNullable<VisualInputs['world']['crust']> }>();
+const crustCache = new WeakMap<object, { minerals: unknown; crust: NonNullable<VisualInputs['world']['crust']> }>();
 function crustOf(world: WorldConfig, sampler: TerrainSampler): VisualInputs['world']['crust'] {
   const minerals = world.terrain.crust?.minerals;
   if (!minerals || !sampler.crustWeights) return undefined;
   const hit = crustCache.get(sampler);
-  if (hit && hit.worldId === world.id) return hit.crust;
+  if (hit && hit.minerals === minerals) return hit.crust;
   const S = sampler.patchSize, counts = new Array<number>(minerals.length).fill(0);
   for (let row = 0; row < GRID; row++) {
     for (let col = 0; col < GRID; col++) {
@@ -135,7 +135,7 @@ function crustOf(world: WorldConfig, sampler: TerrainSampler): VisualInputs['wor
     }
   }
   const crust = { ids: minerals.map((m) => m.id), oxidises: minerals.map((m) => m.oxidises), shares: counts.map((c) => c / (GRID * GRID)), elevation: minerals.map((m) => m.elevation) };
-  crustCache.set(sampler, { worldId: world.id, crust });
+  crustCache.set(sampler, { minerals, crust });
   return crust;
 }
 
