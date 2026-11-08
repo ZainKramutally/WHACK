@@ -174,3 +174,4 @@
 - 04:32 16: art batch on main 0fb6f84 (5 silicon-only plants, #81 3D specimen). CLAUDE.md updated.
 - 04:29: #81 reconciled by art-fauna (256e1d0/1a364f7: ours + teammate's UI, single bestiary:window event, cache fix) -> stage 9babecf on main 20e2901 (2c pixel post at internal res) with silicon archetypes; gate 410/14, build OK; review 13 extended.
 - 04:30: review 13 (silicon archetypes): safe. flora-audit crust-map gates 47433a9 (optional VisualInputs.terrain.crust contract add; nitride crown on nitride cells; fern supply from mineral) -> stage 60e8d12; gate 413/14, SLOW 77/77, build OK. #81 reconcile reworded b0393bf/0fb6f84. 16 told of contract add. Awaiting review of #81 + crust gates, then ask push.
+- 04:31: MAIN PUSH (Caden: reviewed now + crust after review): main 0fb6f84 = 20e2901 + 5 silicon archetypes + #81 reconcile. Crust-gate commit c933517 on stage awaits review 13 addendum; pre-approved to push when clean.
