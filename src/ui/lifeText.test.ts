@@ -77,7 +77,7 @@ describe('planRows', () => {
 describe('words', () => {
   it('maps locomotion modes', () => {
     expect([0, 1, 2, 3].map((m) => movesWords(m as 0))).toEqual(['Walks on the ground', 'Swims', 'Floats and hovers in the air', 'Stays rooted in one place']);
-    expect(movesWords(1, true)).toMatch(/Rolls/);
+    expect(movesWords(1, true)).toMatch(/Rows through the liquid/);
   });
   it('maps roles', () => {
     expect(roleWords('grazer')).toMatch(/plants/);

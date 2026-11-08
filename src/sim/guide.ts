@@ -178,7 +178,7 @@ function moveWord(chem: Chem, b: BodyGenes, mode: LocomotionMode, amphibious: bo
   const si = chem === 'si';
   if (amphibious) return 'Diver';
   if (mode === LOCOMOTION.swim) {
-    if (si) return b.limbPairs >= 0.5 ? 'Spinner' : 'Roller';
+    if (si) return b.limbPairs >= 0.5 ? 'Sculler' : 'Rower';
     if (b.segments >= 0.6) return 'Eel';
     if (b.limbPairs >= LIMBS_PRESENT) return 'Paddler';
     if (b.buoy >= 0.4 || b.plates >= 0.4) return 'Drifter';

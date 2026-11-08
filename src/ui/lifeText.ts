@@ -27,7 +27,7 @@ export function movesWords(mode: LocomotionMode, radial = false, plan?: Pick<Bod
         return `Walks on ${plan.legPairs === 1 ? 'two' : 'four'} jointed rod legs${plan.shellCover >= 0.05 ? ' under a ceramic shell' : ''}`;
       }
       return 'Walks on the ground';
-    case 1: return radial ? 'Rolls and tumbles through the liquid on its faceted hub' : 'Swims';
+    case 1: return radial ? 'Rows through the liquid with its rod arms, hub level' : 'Swims';
     case 2: return 'Floats and hovers in the air';
     default: return 'Stays rooted in one place';
   }

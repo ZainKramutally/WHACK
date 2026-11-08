@@ -44,7 +44,7 @@ describe('names say how a species moves (owner, #75)', () => {
   const centroid = (b: Partial<BodyGenes>, c = 0.8, si = 0.1) => clusterForms(group(1, 5, genome(b, c, si)))[0].centroid;
   const word = (b: Partial<BodyGenes>, mode: LocomotionMode, si = 0.1, amphibious = false) =>
     nameForm(centroid(b, si > 0.5 ? 0.05 : 0.8, si), { mode, amphibious }).split(' ').pop()!;
-  const SWIM = ['Darter', 'Drifter', 'Paddler', 'Eel', 'Roller', 'Spinner'];
+  const SWIM = ['Darter', 'Drifter', 'Paddler', 'Eel', 'Rower', 'Sculler'];
   const FLY = ['Flier', 'Glider', 'Soarer', 'Flitter', 'Bell', 'Floater'];
   const WALK = ['Strider', 'Crawler', 'Stomper', 'Skitter', 'Tripod', 'Walker', 'Spoke', 'Lattice'];
   const SESSILE = ['Anchor', 'Frond', 'Spire'];
@@ -180,17 +180,17 @@ describe('names', () => {
     expect(nameForm(mk(genome({ buoy: 0.9, glow: 0.8 })))).toBe('Lantern Floater');
   });
 
-  it('silicon names use architecture nouns (Spoke, Tripod, Lattice, Roller, Bell, Spire), never carbon\'s', () => {
+  it('silicon names use architecture nouns (Spoke, Tripod, Lattice, Rower, Bell, Spire), never carbon\'s', () => {
     const mk = (b: Partial<AnimalGenome['body']>) => clusterForms([{ id: 1, genome: genome(b, 0.05, 0.9) }])[0].centroid;
     const nm = (b: Partial<AnimalGenome['body']>, mode: LocomotionMode) => nameForm(mk(b), { mode });
     expect(nm({ limbPairs: 0.7, limbLen: 0.8 }, LOCOMOTION.walk)).toMatch(/Spoke$/);
     expect(nm({ limbPairs: 0.7, limbLen: 0.2 }, LOCOMOTION.walk)).toMatch(/Tripod$/);
     expect(nm({}, LOCOMOTION.walk)).toMatch(/Lattice$/);
     expect(nm({}, LOCOMOTION.sessile)).toMatch(/Spire$/);
-    expect(nm({}, LOCOMOTION.swim)).toMatch(/Roller$/);
+    expect(nm({}, LOCOMOTION.swim)).toMatch(/Rower$/);
     expect(nm({ buoy: 0.9 }, LOCOMOTION.hover)).toMatch(/Bell$/);
     const carbonNames = (['walk', 'swim', 'hover', 'sessile'] as const).map((m) => nameForm(clusterForms(group(1, 4, carbonWorm))[0].centroid, { mode: LOCOMOTION[m] }).split(' ')[1]);
-    for (const n of carbonNames) expect(['Spoke', 'Tripod', 'Lattice', 'Roller', 'Bell', 'Spire']).not.toContain(n);
+    for (const n of carbonNames) expect(['Spoke', 'Tripod', 'Lattice', 'Rower', 'Bell', 'Spire']).not.toContain(n);
   });
 
   it('functional type combines role and locomotion', () => {
