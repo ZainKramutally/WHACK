@@ -311,7 +311,7 @@ export function createGenerate(app: App): Generate {
       z: plan.spawn.z + 0.03,
     });
     const gen0 = () => handle.seeds().slice(0, GEN0).map(toWorld);
-    const upto = refineEarly(plan, o.terrain, gen0());
+    const upto = refineEarly(plan, o.terrain, gen0(), 2);
     const geoA = p.geo.getAttribute('aA') as THREE.InstancedBufferAttribute;
     geoA.clearUpdateRanges(); geoA.addUpdateRange(0, upto * 4); geoA.needsUpdate = true;
 
