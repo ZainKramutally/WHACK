@@ -275,3 +275,4 @@
 - 09:17: card-ground merged (33a12aa): card plates use cell mineral colour; other-world views use defaultPick. 25 tests + build green.
 - 09:18: OWNER: no kelp visible; wants ocean worlds. Ocean = Basalt chip on carbon (on main; all dev servers have it). Kelp request re-sent to art lead 6a (first expired); needs owner approval in that terminal.
 - 09:25 16: merged years counter keeps rising after the build.
+- 09:16 owner: perf-height (heightCore early-outs, bit-exact vs oracle; ironstone 2.39 -> 1.29 us), perf-genstart (landmarks/rockForms/pillars precomputed in idle on the selection screen per world|chip, warmed via app.compile; restores basalt pillars dropped by my 6812548 terrain-mesh cache), perf-retint (4 Hz retints, ranged pillar uploads). Owner OK'd main.
