@@ -30,3 +30,19 @@ describe('plantsInCell (the producer card draws what the world places in the cel
     expect(plantsInCell(inputs, PATCH, beside, { x: 0, z: 0 }, out)).toEqual([]);
   });
 });
+
+describe('plantsInCell and the spawn clearing', () => {
+  it('drops the grove and giant plants the world clears around spawn, keeping its ground cover', async () => {
+    const { ARCHETYPE_META } = await import('./floraLib');
+    const cell = 20 * FLORA_GRID + 30;
+    const inputs = inputsWith({ [cell]: [0.6, 0.9] });
+    const cc = cellCentre(cell, PATCH);
+    const tall = (ids: number[], out: ReturnType<typeof makePlantList>) => ids.filter((i) => ARCHETYPE_META[out.arch[i]].role !== 'ground').length;
+    const open = makePlantList(2048), cleared = makePlantList(2048);
+    const a = plantsInCell(inputs, PATCH, cell, { x: cc.x, z: cc.z }, open);
+    const b = plantsInCell(inputs, PATCH, cell, { x: cc.x, z: cc.z }, cleared, { x: cc.x, z: cc.z, r: 25 });
+    expect(tall(a, open)).toBeGreaterThan(0);
+    expect(tall(b, cleared)).toBe(0);
+    expect(b.length).toBeGreaterThan(0); // ground cover stays
+  });
+});

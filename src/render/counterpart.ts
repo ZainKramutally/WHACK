@@ -15,7 +15,7 @@ import { beadLayout, cellCentre } from './layout';
 import { floraForm } from './floraForm';
 import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixHex, seaStyle, skyStyle } from './palette';
 import { buildFloraLibrary, paint, type FloraLibrary } from './floraLib';
-import { makePlantList } from './floraLib/place';
+import { makePlantList, type Clearing } from './floraLib/place';
 import { plantsInCell } from './cellPlants';
 import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
@@ -41,6 +41,8 @@ export interface CounterpartDeps {
     /** The creature as the world's near LOD draws it (loft and parts) at rest pose; the live view prefers this. */
     bake?: () => BakedCreature | null;
   } | null;
+  /** The world's spawn clearing (as given to flora.setClearing), so the producer view drops the plants the world clears. */
+  getClearing?: () => Clearing | null;
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -319,7 +321,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
    */
   function plantsToDraw(cell: number, inputs: VisualInputs, patch: number): CellPlant[] {
     const lib = libOf();
-    return plantsInCell(inputs, patch, cell, { x: app.camera.position.x, z: app.camera.position.z }, plants).map((i) => {
+    return plantsInCell(inputs, patch, cell, { x: app.camera.position.x, z: app.camera.position.z }, plants, deps.getClearing?.() ?? null).map((i) => {
       const a = lib.archetypes[plants.arch[i]], s = plants.h[i] / a.size;
       tq.setFromAxisAngle(UP, plants.yaw[i]);
       const m = new THREE.Matrix4().compose(tp.set(plants.x[i], plants.y[i] - 0.03 * plants.h[i], plants.z[i]), tq, ts.set(s, s, s));

@@ -18,6 +18,7 @@ import { createFauna } from './fauna';
 import { createFlora } from './flora';
 import { createPicker, type PickResult } from './pick';
 import { createCounterpart } from './counterpart';
+import type { Clearing } from './floraLib/place';
 import { createLandmarksPart } from './landmarks';
 import type { LandmarkSet } from '../gen/landmarks';
 import { LOOK, PAL, updateLook, worldMaterial } from './material';
@@ -128,7 +129,12 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const flora = createFlora(app);
   reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
   const landmarks = createLandmarksPart(app);
-  const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id) });
+  // The spawn clearing world.ts gives flora (setSpawn), shared with the producer card so it drops the same plants.
+  const SPAWN_CLEARING_R = 25;
+  let spawnClearing: Clearing | null = null;
+  const counterpart = createCounterpart({
+    app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id), getClearing: () => spawnClearing,
+  });
   const picker = createPicker({ app, bus, fauna, flora, getInputs: () => latest, getPatch: () => patch });
 
   /** Accumulated ms per part (profiling aid; reset by the caller). */
@@ -191,7 +197,8 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     },
     setSpawn(x, z) {
       // setClearing is art-flora's (optional until its branch lands)
-      (flora as typeof flora & { setClearing?: (x: number, z: number) => void }).setClearing?.(x, z);
+      spawnClearing = { x, z, r: SPAWN_CLEARING_R };
+      (flora as typeof flora & { setClearing?: (x: number, z: number, r?: number) => void }).setClearing?.(x, z, SPAWN_CLEARING_R);
     },
     update(inputs) {
       const now = performance.now();
