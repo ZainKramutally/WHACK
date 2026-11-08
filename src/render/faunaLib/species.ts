@@ -5,15 +5,16 @@
 // Colour: a bin gets a colourway of its own (hue, accent, and its founder's diet for value) once it is a real population
 // (SETTLE members) clearly apart from every coloured species (centroid ≥ SEPARATE away), picked to sit as far as
 // possible from the other live colourways. Until then it wears the colourway of the nearest coloured species, so the
-// periphery of a species' gene cloud (mutation steps ~0.26 per generation, about the join radius) and lone mutants
-// never show colours of their own. The render-only pattern (bands, spots, which develop() derives with frac() and so
-// flickers between siblings) travels with the colourway.
+// periphery of a species' gene cloud and lone mutants never show colours of their own. The pattern travels with the
+// colourway: one per species, bands or spots (develop() derives both with frac(), so on their own they flicker between
+// siblings).
 // A member is drawn from attract(plan): the colourway and pattern, and its own proportions pulled KAPPA of the way to its
 // bin's means (or, for a bin too small to have means, to the species it wears). Counts and kinds (legs, plates, horns,
 // eyes, tail, arms, tiers) stay the animal's own, so the inspect card's words always match the body.
 // Members of a species look alike; species look apart (CLAUDE.md "The intended experience of life").
 import type { BodyPlan } from '../../sim/develop';
 import { FORM_RADIUS } from '../../sim/guide';
+import { creatureRing } from '../palette';
 
 /** Floats per animal in the classifier: the 12 body genes in BODY_GENES order, then comp c and si (OrganismField 12..25). */
 export const SPECIES_DIM = 14;
@@ -24,14 +25,12 @@ export const SEPARATE = 2 * FORM_RADIUS;
 /** Pull of a member's proportions toward its species' mean (0 = own, 1 = the mean). */
 export const KAPPA = 0.75;
 const TRACK = 32;   // centroid and means follow roughly the last TRACK members (capped running mean), so slow drift is kept
-const HUES = 9;     // hue candidates across creatureColour's band (0..1)
-// Accent candidates. Silicon's accent is a pale ice rim (bone ↔ ice blue); carbon's turns the body hue by 25 + 55·accent
-// degrees on top of the hue's own ±35°, so carbon keeps the sum ≤ ACCENT_TURN_C (the accent stays in the warm Red World
-// family, never lime). The first candidate is always allowed.
-const ACCENTS_SI = [0.55, 0.15, 0.95];
-const ACCENTS_C = [0, 0.3, 0.6];
-const ACCENT_TURN_C = 35;
-const accentOk = (silicon: boolean, h: number, a: number) => silicon || a === 0 || 70 * (h - 0.5) + 55 * a <= ACCENT_TURN_C;
+const HUES = 9;     // hue candidates (0..1) for creatureColour's ring
+// Accent candidates, one per creatureColour accent family. Carbon: a deep tone of the body, pale bone, or a contrasting
+// ring hue. Silicon: ice blue, ice white or pale lilac. The first is the default.
+const ACCENTS_SI = [0.5, 0.15, 0.85];
+const ACCENTS_C = [0.15, 0.5, 0.85];
+const ACCENT_W = 0.12; // a different accent family is worth at most ~0.08 of ring distance
 
 export interface SpeciesLook { hue: number; accent: number; diet: number; bands: number; spots: number }
 
@@ -197,26 +196,32 @@ export class SpeciesBook {
     this.used[b] = 1; this.stamp[b]++; this.n[b] = 0; this.live[b] = 0; this.coloured[b] = 0; this.silicon[b] = si;
     this.cen.set(v, b * SPECIES_DIM);
     this.tm.fill(0, b * NT, (b + 1) * NT); this.tn.fill(0, b * NT, (b + 1) * NT);
-    this.diet[b] = plan.diet; this.bands[b] = plan.bands; this.spots[b] = plan.spots;
+    // One pattern per species, in its accent: bands or spots (the founder's stronger one), never both and never neither.
+    const spotty = plan.spots >= 0.5 || plan.bands === 0;
+    this.diet[b] = plan.diet; this.bands[b] = spotty ? 0 : Math.max(1, plan.bands); this.spots[b] = spotty ? Math.max(0.6, plan.spots) : 0;
     this.wears[b] = this.nearest(v, si, Infinity, true);
     if (this.wears[b] < 0) this.colour(b); // the first species of a world shows its own colourway at once
     return b;
   }
 
-  /** Give b its own colourway: the one farthest from every other live, coloured species of the same chemistry. */
+  /**
+   * Give b its own colourway: the one farthest from every other live, coloured species of the same chemistry, measured
+   * where the body colours really land (creatureRing: the hue and the founder's diet together). The accent family only
+   * breaks near-ties (ACCENT_W), so species are told apart by body colour first.
+   */
   private colour(b: number): void {
     const si = this.silicon[b] === 1, accents = si ? ACCENTS_SI : ACCENTS_C;
     let bestH = 0.5, bestA = accents[0], bestS = -1;
     for (let hi = 0; hi < HUES; hi++) {
-      // centre first, then outward: 0.5, 0.375, 0.625, ... so ties keep the palette's reference colour
+      // centre first, then outward: 0.5, 0.375, 0.625, ... so ties keep the middle of the ring
       const h = 0.5 + (hi % 2 === 1 ? -1 : 1) * Math.ceil(hi / 2) / (HUES - 1);
+      const p = creatureRing(si, this.diet[b], h);
       for (const a of accents) {
-        if (!accentOk(si, h, a)) continue;
         let s = Infinity;
         for (let o = 0; o < this.max; o++) {
           if (o === b || !this.used[o] || !this.coloured[o] || this.live[o] === 0 || this.silicon[o] !== this.silicon[b]) continue;
-          const dh = h - this.hue[o], da = 0.35 * (a - this.accent[o]);
-          s = Math.min(s, dh * dh + da * da);
+          const dp = p - creatureRing(si, this.diet[o], this.hue[o]), da = ACCENT_W * (a - this.accent[o]);
+          s = Math.min(s, dp * dp + da * da);
         }
         if (s > bestS + 1e-9) { bestS = s; bestH = h; bestA = a; }
       }

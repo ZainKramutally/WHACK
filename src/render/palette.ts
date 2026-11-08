@@ -111,31 +111,122 @@ export function shiftHue(hex: number, deg: number, dl = 0): number {
   return (q(rr) << 16) | (q(gg) << 8) | q(bb);
 }
 
+// ---- Creature colour (#57; fauna, the inspect view and the bestiary sprite) ---------------------------------------------
+// Colour is a strong species axis: each species' `hue` (0..1) picks a place on a wide ring of saturated, mid-value body
+// colours, and its diet slides that place and the value (grazers light and cool, hunters dark and warm). Worked in OKLab
+// (Ottosson 2020), so equal steps look equal and lightness can be held against the ground and the sky.
+//   carbon ring:  orchid pink → violet → periwinkle → slate → sage → leaf green → maize → amber → orange. It never
+//     passes pure red (it would vanish into the red ground) or the cyan glow hue (reserved for bioluminescence).
+//     Grazers sit lighter than the red ground (OKLab L ≈ 0.61) and darker than the white sky; hunters sit darker than
+//     the ground.
+//   silicon ring: glassy blue → cobalt → indigo → violet → plum, all dark against the pale-lilac ground (L ≈ 0.84);
+//     the fauna material adds a pale fresnel rim, and the dot eyes are the cyan glow.
+// One accent per species, picked by `accent`: carbon a deep tone of the body (flips light on dark bodies), pale bone (Red
+// World maroon on light bodies), or a contrasting ring hue; silicon a pale ice (white, ice blue or lilac). It colours the pattern (bands or spots), fins,
+// crests and horns. Inputs come from the plan (or the species look attractor), never from a world id.
+type Lab = [number, number, number];
+const toLin = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const toSrgb = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+
+function hexToLab(hex: number): Lab {
+  const r = toLin(((hex >> 16) & 255) / 255), g = toLin(((hex >> 8) & 255) / 255), b = toLin((hex & 255) / 255);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const q = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * q,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * q,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * q,
+  ];
+}
+
+/** OKLab → hex. Out-of-gamut colours lose chroma (hue and lightness kept) until they fit. */
+function labToHex(L: number, A: number, B: number): number {
+  let r = 0, g = 0, b = 0;
+  for (let k = 0; k < 10; k++) {
+    const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+    const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+    const q = (L - 0.0894841775 * A - 1.291485548 * B) ** 3;
+    r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * q;
+    g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * q;
+    b = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * q;
+    if (r >= -1e-4 && g >= -1e-4 && b >= -1e-4 && r <= 1.0001 && g <= 1.0001 && b <= 1.0001) break;
+    A *= 0.82; B *= 0.82;
+  }
+  const e = (c: number) => Math.round(clamp01(toSrgb(clamp01(c))) * 255);
+  return (e(r) << 16) | (e(g) << 8) | e(b);
+}
+
+/** OKLCH anchors [L, C, hue°] along each chemistry's ring, interpolated in OKLab. */
+// Carbon passes from slate to sage through a muted pewter, so no blend lands on the glow's cyan (OKLab hue ≈ 183°).
+const RING: Record<'carbon' | 'silicon', Lab[]> = {
+  carbon: [
+    [0.76, 0.1, 345], [0.67, 0.12, 305], [0.69, 0.1, 275], [0.67, 0.07, 248], [0.7, 0.03, 205],
+    [0.73, 0.1, 148], [0.76, 0.125, 128], [0.8, 0.13, 96], [0.75, 0.14, 72], [0.71, 0.15, 56],
+  ],
+  silicon: [[0.58, 0.1, 235], [0.55, 0.12, 255], [0.51, 0.14, 275], [0.5, 0.15, 295], [0.52, 0.14, 318], [0.55, 0.12, 340]],
+};
+const RING_LAB: Record<'carbon' | 'silicon', Lab[]> = {
+  carbon: RING.carbon.map(lchToLab), silicon: RING.silicon.map(lchToLab),
+};
+function lchToLab([L, C, h]: Lab): Lab {
+  const r = (h * Math.PI) / 180;
+  return [L, C * Math.cos(r), C * Math.sin(r)];
+}
+function ringAt(kind: 'carbon' | 'silicon', p: number): Lab {
+  const a = RING_LAB[kind], x = clamp01(p) * (a.length - 1), i = Math.min(a.length - 2, Math.floor(x)), t = x - i;
+  return [lerp(a[i][0], a[i + 1][0], t), lerp(a[i][1], a[i + 1][1], t), lerp(a[i][2], a[i + 1][2], t)];
+}
+const smooth01 = (e0: number, e1: number, x: number) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+const SI_ICE: Lab[] = [0xf6f8ff, 0xb9dcf6, 0xdccbff].map(hexToLab); // silicon accents: ice white, ice blue, pale lilac
+
+/** A species' place (0..1) on its chemistry's colour ring: hue spreads species, diet slides it (grazers → hunters). */
+export function creatureRing(silicon: boolean, diet: number, hue: number): number {
+  const k = silicon ? 0.8 : 0.62; // silicon's ring is narrower, so hue keeps more of it
+  return clamp01(k * clamp01(hue) + (1 - k) * smooth01(0.2, 0.8, diet));
+}
+
+/** The species' body colour in OKLab and its place on the ring: hunters sit darker (below the ground) and richer. */
+function creatureBody(silicon: boolean, diet: number, hue: number): { lab: Lab; p: number } {
+  const w = smooth01(0.2, 0.8, diet); // 0 grazer … 1 hunter
+  const p = creatureRing(silicon, diet, hue);
+  const [L, A, B] = ringAt(silicon ? 'silicon' : 'carbon', p);
+  const dl = silicon ? -0.08 * w : 0.04 * (1 - w) - 0.24 * w;
+  const k = silicon ? 0.95 + 0.2 * w : 1.1 + 0.15 * w; // carbon: cel shadows hide half the body, so the lit half carries more chroma
+  return { lab: [Math.min(0.82, L + dl), A * k, B * k], p };
+}
+
 /**
- * Creature colour by chemistry and diet; tones: body, eye, plate, limb, horn, accent (bands, fins, crests), spot.
- * Base is the Red World palette: carbon grazers pale blush-bone and hunters dark maroon; silicon grazers ice-bone and
- * hunters violet. The lineage's `hue` (0..1) turns that base (±35° carbon, ±18° silicon) so related lineages share a
- * colour and strangers differ, and `accent` (0..1) picks how far the accent tone sits from the body. Silicon dot eyes take
- * the glow accent (dark world), carbon ring eyes are ink. Inputs come from the plan, never from a world id.
+ * Creature colour by chemistry, diet and the species' hue and accent (each 0..1); tones: body, eye, plate, limb, horn,
+ * accent (bands, fins, crests), spot. Plates and limbs are the body a little deeper; horns and spots wear the accent.
+ * Carbon eyes are ink; silicon's dot eyes are the cyan glow.
  */
 export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5): number {
-  const p = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
-  // silicon: deep indigo-violet bodies (darker hunters) that read against the pale-lilac ground (#50)
-  const base = silicon
-    ? mixHex(mixHex(p.maroon, p.crimson, 0.35), p.ink, 0.35 * clamp01(diet))
-    : mixHex(mixHex(p.bone, p.blush, 0.5), p.maroon, clamp01(diet));
-  const band = shiftHue(base, (hue - 0.5) * (silicon ? 36 : 70));
-  switch (tone) {
-    case 1: return silicon ? p.glow : p.ink;
-    case 2: return scaleHex(band, 0.62);
-    case 3: return scaleHex(band, 0.82);
-    case 4: return mixHex(band, p.bone, 0.5);
-    case 5: return silicon
-      ? shiftHue(mixHex(p.bone, p.blush, 0.35 + 0.4 * clamp01(accent)), (hue - 0.5) * 36)   // pale ice rim
-      : shiftHue(band, 25 + 55 * accent, -0.05);
-    case 6: return mixHex(shiftHue(band, silicon ? 40 : 150, 0.05), 0xffffff, 0.35);
-    default: return band;
+  const pal = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
+  if (tone === 1) return silicon ? pal.glow : pal.ink;
+  const { lab: [L, A, B], p } = creatureBody(silicon, diet, hue);
+  if (tone === 0) return labToHex(L, A, B);
+  if (tone === 2) return labToHex(L - 0.08, A * 1.05, B * 1.05);
+  if (tone === 3) return labToHex(L - 0.04, A, B);
+  // the accent (tones 4, 5, 6)
+  const a = clamp01(accent);
+  if (silicon) {
+    const t = a * (SI_ICE.length - 1), i = Math.min(SI_ICE.length - 2, Math.floor(t)), f = t - i;
+    const [l0, a0, b0] = SI_ICE[i], [l1, a1, b1] = SI_ICE[i + 1];
+    return labToHex(lerp(l0, l1, f), lerp(a0, a1, f), lerp(b0, b1, f));
   }
+  if (a < 1 / 3) { // a deep tone of the body hue, or a light one on a dark body
+    const dark = L >= 0.55;
+    return labToHex(dark ? L - 0.3 : Math.min(0.9, L + 0.32), A * (dark ? 0.85 : 0.6), B * (dark ? 0.85 : 0.6));
+  }
+  if (a < 2 / 3) { // pale bone with a breath of the body hue; on a light body, Red World maroon instead
+    const [bl, ba, bb] = hexToLab(L > 0.68 ? pal.maroon : pal.bone);
+    return labToHex(lerp(L, bl, 0.82), lerp(A, ba, 0.82), lerp(B, bb, 0.82));
+  }
+  // a contrasting hue from the far side of the ring, pushed away from the body's value
+  const [cl, ca, cb] = ringAt('carbon', (p + 0.5) % 1);
+  void cl;
+  return labToHex(L >= 0.6 ? L - 0.2 : L + 0.22, ca, cb);
 }
 
 /** Plant value inverts with height (ART_DIRECTION rule 4): dark stems, pale tips that read against the white sky. */

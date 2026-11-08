@@ -6,6 +6,7 @@ import { BEAD_EYE, beadLayout } from '../creatureLayout';
 import { PART, describe as describeFauna } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, type SpeciesLook } from './species';
+import { creatureRing } from '../palette';
 
 const water: DevelopInputs = {
   solvent: { rho: 1.0, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] },
@@ -90,6 +91,18 @@ describe('SpeciesBook (render look attractor)', () => {
     expect(odd.girth).toBe(plans[2].girth + 0.5); // the input plan is untouched
   });
 
+  it('gives every species exactly one pattern, bands or spots, in its accent', () => {
+    for (const g of [grazer, hunter]) {
+      for (const [bands, spots] of [[0, 0], [2, 0.8], [3, 0.1], [0, 0.2]] as const) {
+        const book = new SpeciesBook(); // the founder's plan decides its species' pattern
+        const b = book.assign(vec(g), 0, { ...develop(g, day, water), bands, spots });
+        const l = book.lookOf(b, look());
+        expect((l.bands > 0) !== (l.spots > 0)).toBe(true);
+        expect(l.bands > 0).toBe(bands > 0 && spots < 0.5);
+      }
+    }
+  });
+
   it('never grows a feature an animal lacks (a fin-less member stays fin-less)', () => {
     const book = new SpeciesBook();
     const p = develop(grazer, day, water);
@@ -99,17 +112,21 @@ describe('SpeciesBook (render look attractor)', () => {
     expect(drawn.finSpan).toBe(0);
   });
 
-  it('carbon colourways stay in the warm family; silicon keeps its own chemistry apart', () => {
+  it('spreads species colourways along the real colour ring; silicon keeps its own chemistry apart', () => {
     const book = new SpeciesBook();
+    const rings: number[] = [];
     for (let s = 0; s < 4; s++) {
+      let b = -1;
       for (let k = 0; k < SETTLE; k++) {
         const g = jitter(genome({ size: 0.05 + 0.3 * s, limbPairs: 0.05 + 0.3 * s, diet: 0.05 + 0.3 * s, horns: 0.05 + 0.3 * s }), k);
-        const b = book.assign(vec(g), 0, develop(g, day, water));
-        const l = book.lookOf(b, look());
-        expect(l.accent === 0 || 70 * (l.hue - 0.5) + 55 * l.accent <= 35 + 1e-6).toBe(true);
+        b = book.assign(vec(g), 0, develop(g, day, water));
       }
+      const l = book.lookOf(b, look());
+      rings.push(creatureRing(false, l.diet, l.hue));
     }
-    expect(book.colourways()).toBeGreaterThanOrEqual(3);
+    expect(book.colourways()).toBe(4);
+    rings.sort((x, y) => x - y);
+    for (let i = 1; i < rings.length; i++) expect(rings[i] - rings[i - 1]).toBeGreaterThan(0.08);
     const si = genome({ size: 0.15, limbPairs: 0.15, diet: 0.0 }, true);
     const b = book.assign(vec(si), 0, develop(si, day, water));
     expect(b).toBeGreaterThanOrEqual(0);
