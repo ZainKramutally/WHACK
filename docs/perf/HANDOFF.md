@@ -11,11 +11,11 @@ These perf findings sit in files other agents were actively editing, so session/
 2. **The skirt pays the full 5× height cost for fogged far ground** (terrainNode.ts:285-312, about 12k vertices). Use a straight-up normal beyond ring ~8. That is ~25% of item 1. Far shading changes slightly, under fog.
 
 ## Fauna (src/render/fauna.ts): owner art layer
-3. **No frustum test on creature instances** (`frustumCulled = false`, fauna.ts:210, 224, 271). `draw()` (~L1019) ranks by distance only, so about half the beads and lofts are behind the camera, and the 64 loft/anim slots get spent on animals the player can't see.
+3. **PARTLY DONE on main (c5aa792, art layer): loft/swimmer/pose slots go to creatures in view first.** Bead instances behind the camera are still drawn. Original item: **No frustum test on creature instances** (`frustumCulled = false`, fauna.ts:210, 224, 271). `draw()` (~L1019) ranks by distance only, so about half the beads and lofts are behind the camera, and the 64 loft/anim slots get spent on animals the player can't see.
    - Fix: a conservative sphere-vs-frustum test (margin about fov × 1.3) in `draw()`, also fed into the loftCut/animCut ranking.
    - Estimated 0.2–0.5 ms on an iGPU [INFERRED].
    - Check first: compare fps looking at a herd versus looking away.
-4. **Ground height is sampled per creature per frame** (fauna.ts:868, plus the IK feet at :424 and :467). That is ~1,000+ `terrain.height` calls at 0.5 µs, about 1 ms/frame on the CPU. Fix: cache ground y per entry, and recompute only after the creature moves more than 0.25 m or rise changes.
+4. **DONE on main (72cd777, art layer).** Original item: **Ground height is sampled per creature per frame** (fauna.ts:868, plus the IK feet at :424 and :467). That is ~1,000+ `terrain.height` calls at 0.5 µs, about 1 ms/frame on the CPU. Fix: cache ground y per entry, and recompute only after the creature moves more than 0.25 m or rise changes.
 
 ## Flora (src/render/flora.ts, floraLib/place.ts): owner art layer
 5. **Buckets are `frustumCulled = false`** (flora.ts:101), and placement fills all directions around the camera.
