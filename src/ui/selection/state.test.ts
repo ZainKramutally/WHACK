@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { worldFor } from '../../worlds';
+import type { MineralDef, WorldConfig } from '../../worlds/types';
 import { boxState } from './boxState';
 import { group14 } from './elements';
 import { generatePayload, initialSelection, plannedMoves, selectElement, setCondition, viability } from './state';
@@ -70,5 +71,43 @@ describe('boxState', () => {
   it('ice floats on carbon and sinks on silicon (from solidSinks)', () => {
     expect(boxState(worldFor('carbon'), { temperature: -60, nitrogen: 1, oxygen: 21 }).iceFloats).toBe(true);
     expect(boxState(worldFor('silicon'), { temperature: -215, nitrogen: 30, oxygen: 0 }).iceFloats).toBe(false);
+  });
+});
+
+describe('boxState bed', () => {
+  const minerals = (o: Partial<MineralDef>[]) => o.map((m, i) => ({
+    id: `m${i}`, label: `M${i}`, description: '', share: [0.2, 0.4], elevation: 0.5,
+    supply: { c: 1, si: 1, o: 0 }, oxidises: false, why: '', sources: [], assumption: true, ...m,
+  }) as MineralDef);
+  const withCrust = (world: WorldConfig, ms: MineralDef[]): WorldConfig =>
+    ({ ...world, terrain: { ...world.terrain, crust: { minerals: ms, patchCells: 8, rustOxygen: 20, why: '', sources: [], assumption: true } } });
+  const ms = minerals([{ id: 'basalt', oxidises: true }, { id: 'granite', share: [0.1, 0.3] }, { id: 'waterIce', supply: { c: 0, si: 0, o: 0 } }]);
+  const carbon = withCrust(worldFor('carbon'), ms), silicon = withCrust(worldFor('silicon'), ms);
+  const good = { temperature: 15, nitrogen: 1, oxygen: 0 };
+
+  it('has no bed without crust data', () => {
+    expect(boxState(worldFor('carbon'), good).bed).toEqual([]);
+  });
+  it('shares sum to 1', () => {
+    expect(boxState(carbon, good).bed.reduce((a, b) => a + b.share, 0)).toBeCloseTo(1);
+  });
+  it('rusts only oxidising minerals, and only with oxygen', () => {
+    expect(boxState(carbon, good).bed.every((b) => b.rust === 0)).toBe(true);
+    const bed = boxState(carbon, { ...good, oxygen: 10 }).bed;
+    expect(bed.find((b) => b.id === 'basalt')!.rust).toBeCloseTo(0.5);
+    expect(bed.filter((b) => b.id !== 'basalt').every((b) => b.rust === 0)).toBe(true);
+  });
+  it('ice never feeds; rock feeds while life can live', () => {
+    const st = boxState(carbon, { ...good, oxygen: 21 });
+    expect(st.ok).toBe(true);
+    expect(st.bed.find((b) => b.id === 'waterIce')!.feeds).toBe(0);
+    expect(st.bed.find((b) => b.id === 'granite')!.feeds).toBe(1);
+  });
+  it('feeds nothing when canLive fails or the solvent is frozen', () => {
+    for (const [w, c] of [[carbon, { temperature: -183, nitrogen: 1, oxygen: 21 }], [carbon, { temperature: -80, nitrogen: 1, oxygen: 21 }], [silicon, { temperature: 15, nitrogen: 1, oxygen: 21 }]] as const) {
+      const st = boxState(w, c);
+      expect(st.ok && st.phase === 'liquid' && st.frozen === 0).toBe(false);
+      expect(st.bed.every((b) => b.feeds === 0)).toBe(true);
+    }
   });
 });

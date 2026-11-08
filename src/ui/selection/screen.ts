@@ -151,6 +151,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
               <canvas data-r="box" width="150" height="150" role="img" aria-label="Atoms and molecules of the selected world"></canvas>
               <span class="tag" style="top:8px">gas</span>
               <span class="tag" data-r="tagLiq" hidden></span>
+              <span class="tag tagBed" data-r="tagBed" hidden></span>
             </div>
             <figcaption class="stack" data-r="boxCaption"></figcaption>
             <p class="fail" data-r="boxFail"></p>
@@ -628,6 +629,9 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       const tag = box.liquidTag(world), tl = r('tagLiq');
       tl.hidden = !tag;
       if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 28px))`; }
+      const bt = box.bedTag(world), bl = r('tagBed');
+      bl.hidden = !bt;
+      if (bt) bl.textContent = bt.text;
     }
     raf = requestAnimationFrame(frame);
   }

@@ -3,7 +3,10 @@
 import { equilibriumSeaCover, canLive } from '../../sim/limits';
 import { vapourPressure } from '../../sim/models';
 import { controls } from '../../worlds/controls';
+import { bedRust, bedShares, crustMinerals } from './bedCrust';
 import type { Conditions, LethalLimit, WorldConfig } from '../../worlds/types';
+
+export interface BedGrain { id: string; share: number; rust: number; feeds: number }
 
 export interface BoxState {
   ok: boolean;                       // canLive passes: chains may link and copy
@@ -15,6 +18,7 @@ export interface BoxState {
   iceFloats: boolean;                // from Solvent.solidSinks
   n2Gas: number;                     // N₂ molecules shown in the gas (0..44)
   o2Gas: number;                     // O₂ molecules shown (0..26)
+  bed: BedGrain[];                   // the crust bed under the liquid; empty when the world has no crust
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -43,5 +47,16 @@ export function boxState(world: WorldConfig, c: Conditions): BoxState {
     ? 10 + 10 * Math.log10(vapourPressure(s, c.temperature) + 0.05)
     : 8 + 7 * Math.log10(c.nitrogen);
   const o2 = c.oxygen > 0 ? Math.max(1, Math.round((c.oxygen / controls.oxygen.max) * MAX_O2)) : 0;
-  return { ok: live.ok, effect, pool, frozen, phase, heat, iceFloats: !s.solidSinks, n2Gas: clamp(Math.round(n2), 2, MAX_N2), o2Gas: o2 };
+  // The rock feeds life only while life could live, the solvent is liquid and nothing is locked or dried.
+  const feeding = live.ok && phase === 'liquid' && frozen === 0 && effect !== 'freeze' && effect !== 'dryUp';
+  const shares = bedShares(world), rust = bedRust(world, c.oxygen);
+  const supplyKey = world.id === 'silicon' ? 'si' : 'c';
+  const ms = crustMinerals(world);
+  const top = Math.max(0, ...ms.map((m) => m.supply[supplyKey]));
+  const bed = ms.map((m) => ({
+    id: m.id, share: shares[m.id],
+    rust: m.oxidises ? rust : 0,
+    feeds: feeding && top > 0 ? clamp(m.supply[supplyKey] / top, 0, 1) : 0,
+  }));
+  return { ok: live.ok, effect, pool, frozen, phase, heat, iceFloats: !s.solidSinks, n2Gas: clamp(Math.round(n2), 2, MAX_N2), o2Gas: o2, bed };
 }

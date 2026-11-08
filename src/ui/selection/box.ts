@@ -2,6 +2,7 @@
 // mockups/selection-screen. Simulated on a 600-unit field, drawn at 150 px and upscaled with nearest-neighbour.
 // Its own random stream, so playing with it never changes the demo run. What it shows comes from boxState().
 import type { Conditions, WorldConfig } from '../../worlds/types';
+import { crustMinerals } from './bedCrust';
 import { boxState, MAX_N2, MAX_O2, type BoxState } from './boxState';
 
 export const BOX_PAL = {
@@ -12,6 +13,21 @@ export const BOX_PAL = {
   oxygen: ['#5C0E4E', '#BE1F86', '#FF4FB0', '#FFC0E6'],
   bone: ['#A8957C', '#D8CBB4', '#EFE6D4', '#FFFAEE'],
   spark: ['#FF7A00', '#FFB300', '#FFF2A0'],
+  /** Bed grains per mineral id: dark, mid, light. Unknown ids fall back to `rock`. */
+  crust: {
+    basalt: ['#1F2A26', '#3A4A42', '#58695E'],
+    granite: ['#8E8A84', '#C9C3B8', '#F2EEE4'],
+    silicide: ['#4A525C', '#8794A3', '#CDD8E4'],
+    nitride: ['#9A9484', '#CFC8B2', '#F4EEDA'],
+    waterIce: ['#A9C2DA', '#D8E8F6', '#FFFFFF'],
+    rock: ['#4A4A4A', '#808080', '#B8B8B8'],
+  } as Record<string, string[]>,
+  /** Where oxidising grains end up at full rust: basalt to rust red, silicide to grey-white silica. */
+  crustRust: {
+    basalt: ['#5A1E12', '#A8432A', '#D9694A'],
+    silicide: ['#B9B9B4', '#DCDCD6', '#F6F6F2'],
+    rock: ['#6A3A2A', '#9A5A40', '#C98060'],
+  } as Record<string, string[]>,
 };
 /** Sea ramp for a world: the solvent decides (water vs the frost ramp). */
 export const seaRamp = (world: WorldConfig) => (world.solvent.solidSinks ? BOX_PAL.frost : BOX_PAL.water);
@@ -34,6 +50,11 @@ interface Gas { x: number; y: number; vx: number; vy: number; a: number }
 const CARBON_SPRITE = ['.11.', '1232', '1222', '.00.'];
 const SILICON_SPRITE = ['..w..', '.w12.', 'w1210', '.110.', '..0..'];
 const ROCK_SPRITE = ['123', '220', '100'];
+/** Bed grain sprites (0 dark, 1 mid, 2 light); a few variants so the packed bed does not tile. */
+const GRAIN_SPRITES = [['120', '011', '100'], ['011', '121', '010'], ['210', '110', '001']];
+/** Bed geometry: grain size and rows in box pixels; BED_U is the same height in field units. */
+const GRAIN = 3, BED_ROWS = 4, BED_PX = GRAIN * BED_ROWS, BED_U = BED_PX / K;
+const BED_COLS = LO / GRAIN;
 
 export interface Box {
   frame(now: number, dt: number, world: WorldConfig, cond: Conditions): BoxState;
@@ -41,6 +62,8 @@ export interface Box {
   seeds(): { x: number; y: number }[];
   /** Region tag for the liquid ("liquid water", "ice"...) and its vertical position (0..1), or null when dry. */
   liquidTag(world: WorldConfig): { text: string; y: number } | null;
+  /** Region tag for the crust bed ("basalt · granite") and its vertical position (0..1), or null with no crust. */
+  bedTag(world: WorldConfig): { text: string; y: number } | null;
 }
 
 export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
@@ -54,6 +77,20 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   const flashes: { x: number; y: number; t: number }[] = [];
   let poolNow = 0.42;
   let lastTag: { text: string; y: number } | null = null;
+  let lastBedTag: { text: string; y: number } | null = null;
+  // The bed: each grain keeps a fixed draw (u picks its mineral from the live shares, v its sprite) and a displayed
+  // colour that eases to the target, so switching element or oxygen recolours it over about half a second.
+  interface Grain { u: number; v: number; h: number; cur: number[][] | null }
+  const grains: Grain[] = Array.from({ length: BED_COLS * BED_ROWS }, () => ({ u: rnd(), v: Math.floor(rnd() * GRAIN_SPRITES.length), h: rnd(), cur: null }));
+  const hexRgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const rgbHex = (c: number[]) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+  /** Which bed entry owns draw value u, by cumulative share in the order given. */
+  function pickBed(st: BoxState, u: number) {
+    let acc = 0;
+    for (const b of st.bed) { acc += b.share; if (u < acc) return b; }
+    return st.bed[st.bed.length - 1];
+  }
+  const floorY = S - 12 - BED_U;
 
   // Chain ids and sizes, computed in one pass per step (and patched on each new bond) instead of a BFS per pair.
   const comp = new Int32Array(N_ATOMS), compSize = new Int32Array(N_ATOMS), stack = new Int32Array(N_ATOMS);
@@ -110,7 +147,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     solvent.forEach((p, k) => {
       if (k < nFrozen && st.phase !== 'gas') {
         const row = Math.floor(k / cols), col = k % cols;
-        const ty = st.iceFloats ? yPool + 10 + row * sp * 0.8 : S - 10 - row * sp * 0.8;
+        const ty = st.iceFloats ? yPool + 10 + row * sp * 0.8 : S - 10 - BED_U - row * sp * 0.8;
         p.x += (col * sp + sp / 2 - p.x) * 0.08; p.y += (ty - p.y) * 0.08; p.vx = p.vy = 0;
         return;
       }
@@ -119,7 +156,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       const top = st.phase === 'gas' || poolNow < 0.03 ? 4 : yPool + 6;
       if (p.x < 3) { p.x = 3; p.vx *= -1; } if (p.x > S - 3) { p.x = S - 3; p.vx *= -1; }
       if (p.y < top) { p.y = top + (st.phase === 'gas' ? 0 : (top - p.y) * 0.2); p.vy = Math.abs(p.vy); }
-      if (p.y > S - 3) { p.y = S - 3; p.vy *= -1; }
+      if (p.y > S - 3 - BED_U) { p.y = S - 3 - BED_U; p.vy *= -1; }
     });
     const gasMove = (g: Gas) => {
       g.x += g.vx * (0.6 + speed); g.y += g.vy * (0.6 + speed); g.a += 0.03 * speed;
@@ -139,7 +176,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     atoms.forEach((a, i) => {
       if (a.rock) {
         a.vy += 0.25; a.vx *= 0.9; a.x += a.vx; a.y += a.vy;
-        if (a.y > S - 12) { a.y = S - 12; a.vy = 0; }
+        if (a.y > floorY) { a.y = floorY; a.vy = 0; }
         if (st.effect !== 'rust' && rnd() < 0.004) a.rock = 0;
         return;
       }
@@ -147,7 +184,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       if (dry) {
         a.vy += 0.3; a.vx = (a.vx + kick() * 0.8) * 0.9;
         a.x += a.vx; a.y += a.vy;
-        if (a.y > S - 12) { a.y = S - 12; a.vy = -Math.abs(a.vy) * 0.35 - rnd() * speed * 1.4; }
+        if (a.y > floorY) { a.y = floorY; a.vy = -Math.abs(a.vy) * 0.35 - rnd() * speed * 1.4; }
       } else {
         a.vx = (a.vx + kick()) * 0.9; a.vy = (a.vy + kick()) * 0.9;
         for (const n of a.b) {
@@ -158,7 +195,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
         a.x += a.vx; a.y += a.vy;
         const top = yPool + 14;
         if (a.y < top) { a.y = top; a.vy = Math.abs(a.vy); }
-        if (a.y > S - 12) { a.y = S - 12; a.vy = -Math.abs(a.vy); }
+        if (a.y > floorY) { a.y = floorY; a.vy = -Math.abs(a.vy); }
       }
       if (a.x < 12) { a.x = 12; a.vx = Math.abs(a.vx); } if (a.x > S - 12) { a.x = S - 12; a.vx = -Math.abs(a.vx); }
       if (st.effect === 'rust') {
@@ -168,6 +205,19 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
         }
       }
     });
+    // The rock feeds life: now and then a feeding grain gives an atom up into the liquid. An existing free atom is
+    // moved there, so the atom budget never grows. boxState.feeds is already 0 when frozen, dry or not living.
+    const feed = st.bed.reduce((m, b) => Math.max(m, b.feeds), 0);
+    if (feed > 0 && rnd() < feed * dt * 1.2) {
+      const src = atoms.filter((a) => !a.rock && a.b.length === 0);
+      const donors = grains.filter((g) => pickBed(st, g.u).feeds > 0 && g.h < 0.5);
+      if (src.length && donors.length) {
+        const g = donors[Math.floor(rnd() * donors.length)], a = src[Math.floor(rnd() * src.length)];
+        const gi = grains.indexOf(g);
+        a.x = clamp(((gi % BED_COLS) + 0.5) * GRAIN / K, 12, S - 12); a.y = floorY - 6; a.vx = 0; a.vy = -1.5;
+        flashes.push({ x: a.x, y: floorY, t: 0.6 });
+      }
+    }
     buildGrid();
     if (!frozenFx) for (let i = 0; i < N_ATOMS; i++) near(i, (j) => { if (j > i) collide(i, j); });
     if (pBreak) atoms.forEach((a, i) => { [...a.b].forEach((n) => { if (n > i && rnd() < pBreak * dt * 60 * 0.2) unbond(i, n); }); });
@@ -224,6 +274,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     for (let a = 0; a < 24; a++) { const t = (a / 24) * Math.PI * 2; dot(Math.round(cx + Math.cos(t) * r), Math.round(cy + Math.sin(t) * r), col); }
   }
 
+  let lastDt = 0.016;
   function draw(st: BoxState, yPoolS: number, now: number, world: WorldConfig) {
     const isSi = world.id === 'silicon';
     const F = seaRamp(world);
@@ -247,6 +298,23 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       if (k < nFrozen && st.phase !== 'gas') { dot(x - 1, y - 1, F[5], 2, 2); dot(x + 1, y, F[3]); return; }
       dot(x, y, gasPhase ? F[1] : F[5]);
     });
+    // Crust bed: packed grains along the bottom rows, coloured by mineral and eased towards their target each frame.
+    if (st.bed.length) {
+      const palOf = (b: { id: string; rust: number }) => {
+        const base = BOX_PAL.crust[b.id] ?? BOX_PAL.crust.rock, rusted = BOX_PAL.crustRust[b.id] ?? BOX_PAL.crustRust.rock;
+        return base.map((h, i) => { const a = hexRgb(h), z = hexRgb(rusted[i]); return a.map((v, k) => v + (z[k] - v) * b.rust); });
+      };
+      const ease = 1 - Math.exp(-lastDt * 6);
+      grains.forEach((g, gi) => {
+        const col = gi % BED_COLS, row = Math.floor(gi / BED_COLS);
+        const b = pickBed(st, g.u), tgt = palOf(b);
+        if (!g.cur) g.cur = tgt.map((c) => [...c]);
+        else g.cur.forEach((c, i) => { for (let k = 0; k < 3; k++) c[k] += (tgt[i][k] - c[k]) * ease; });
+        const x0 = col * GRAIN, y0 = LO - BED_PX + row * GRAIN;
+        const sp = GRAIN_SPRITES[g.v], cols = g.cur.map(rgbHex);
+        for (let r = 0; r < GRAIN; r++) for (let c = 0; c < GRAIN; c++) dot(x0 + c, y0 + r, cols[+sp[r][c]]);
+      });
+    }
     const pair = (g: Gas, col: string) => { const dx = Math.round(Math.cos(g.a) * 1.4), dy = Math.round(Math.sin(g.a) * 1.4); const x = px(g.x), y = px(g.y); dot(x - dx, y - dy, col); dot(x + dx, y + dy, col); };
     for (let i = 0; i < st.n2Gas; i++) pair(gasN2[i], F[1]);
     for (let i = 0; i < st.o2Gas; i++) pair(gasO2[i], BOX_PAL.oxygen[2]);
@@ -271,6 +339,9 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       ring(x, y, r, BOX_PAL.spark[1]);
       if (r > 3) ring(x, y, r + 1, BOX_PAL.spark[0]);
     }
+    const bedNames = st.bed.filter((b) => b.share >= 0.15).sort((a, b) => b.share - a.share)
+      .map((b) => (crustMinerals(world).find((m) => m.id === b.id)?.label ?? b.id).toLowerCase());
+    lastBedTag = bedNames.length ? { text: bedNames.join(' · '), y: 1 - BED_PX / 2 / LO } : null;
     lastTag = poolNow > 0.06
       ? { text: `${st.frozen >= 1 ? (st.iceFloats ? 'ice' : 'solid') : 'liquid'} ${st.frozen >= 1 && st.iceFloats ? '' : world.solvent.name.toLowerCase().replace(/^liquid /, '')}`.trim(), y: yP / LO }
       : null;
@@ -279,11 +350,13 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   return {
     frame(now, dt, world, cond) {
       const st = boxState(world, cond);
+      lastDt = dt;
       const yPool = step(st, dt, world.solvent.solidSinks);
       draw(st, yPool, now, world);
       return st;
     },
     seeds: () => [...atoms, ...solvent].map((p) => ({ x: p.x / S, y: p.y / S })),
     liquidTag: () => lastTag,
+    bedTag: () => lastBedTag,
   };
 }
