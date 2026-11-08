@@ -75,7 +75,7 @@ export const carbon: WorldConfig = {
     { id: 'solvent', label: 'Solvent', value: 'Water', earthValue: 'Water', why: 'Liquid over a wide temperature range and dissolves many carbon compounds.', sources: ['pace2001'] },
     { id: 'star', label: 'Star', value: 'Sun-like', earthValue: 'The Sun', why: 'The reference star, at a distance the Temperature slider adjusts.', sources: [], assumption: true },
     { id: 'bodyChemistry', label: 'Body chemistry', value: 'Carbon chains with some oxygen', earthValue: 'Carbon chains with some oxygen', why: 'Carbon builds strong, flexible backbones that work in water.', sources: ['petkowski2020'] },
-    { id: 'rock', label: 'Ground', value: 'Silicate rock with shell stone built by life', earthValue: 'Silicate rock with limestone built by life', why: 'Rock is mostly silicates; life in water builds shell stone in the shallows (carbonate itself is not modelled).', sources: [], assumption: true },
+    { id: 'rock', label: 'Ground', value: 'Basalt, banded ironstone and granite, with shell stone built by life', earthValue: 'Silicate rock with limestone built by life', why: 'Basalt floors the lowlands, banded ironstone the mid-slopes and granite the highlands, as ocean floors are basaltic and continents granitic on Earth; life in water builds shell stone in the shallows (carbonate itself is not modelled).', sources: ['rudnick2003'], assumption: true },
   ],
   features: {
     organism: {
