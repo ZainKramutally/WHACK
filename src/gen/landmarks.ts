@@ -142,6 +142,7 @@ function place(terrain: Terrain, opts: LandmarkOpts, plainHeight: LandmarkSet['p
   let nextId = 0;
   const add = (kind: LandmarkKind, x: number, z: number, height: number, radius: number, gate: Landmark['gate'], extra: Partial<Landmark> = {}) => {
     out.push({ id: nextId++, kind, x, z, height, radius, span: 0, angle: 0, seed: u32(), gate, heat: false, biomass: false, ...extra });
+    if (kind === 'stromatolite' || kind === 'rockStack' || kind === 'butte') taken.push({ x, z, r: radius });
   };
 
   // relics first: they are the terrain's own list, seeded and already positioned
@@ -241,9 +242,14 @@ function place(terrain: Terrain, opts: LandmarkOpts, plainHeight: LandmarkSet['p
   if (!silicon) {
     const base = -Math.PI / 2;
     [-0.75, 0.05, 0.8].forEach((off, i) => {
-      const a = base + off + (rng() - 0.5) * 0.25, d = between(0.37, 0.44) * S;
-      const x = Math.cos(a) * d, z = Math.sin(a) * d;
-      add('butte', x, z, between(52, 78) * (i === 1 ? 1.1 : 1), between(22, 34), 'M5');
+      const radius = between(22, 34), height = between(52, 78) * (i === 1 ? 1.1 : 1);
+      let x = 0, z = 0;
+      for (let t = 0; t < 24; t++) {                    // re-roll until clear of what is already placed
+        const a = base + off + (rng() - 0.5) * (0.25 + 0.04 * t), d = between(0.37, 0.44) * S;
+        x = Math.cos(a) * d; z = Math.sin(a) * d;
+        if (free(x, z, radius + 4)) break;
+      }
+      add('butte', x, z, height, radius, 'M5');
     });
   }
   return out;

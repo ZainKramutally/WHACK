@@ -119,7 +119,7 @@ export function spireRings(height: number, radius: number, seed: number, skirt =
   const rnd = mulberry(seed);
   const sides = 6 + Math.floor(rnd() * 3);
   const topY = 1.12 * height;
-  const f = (y: number) => 1.25 * radius * Math.pow(Math.max(0, 1 - y / topY), 0.75);
+  const f = (y: number) => 1.45 * radius * Math.pow(Math.max(0, 1 - y / topY), 0.75);
   const n = 7 + Math.floor(rnd() * 4);
   const rings: Ring[] = [{ y: -skirt * height, r: f(0) * 1.05, hex: ICE[2], rot: 0 }];
   for (let k = 0; k < n; k++) {

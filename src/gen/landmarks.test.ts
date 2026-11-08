@@ -55,9 +55,10 @@ describe('growth', () => {
   it('hoodoos are tallest at the freezing point and still stand at any temperature', () => {
     const h = ca.landmarks.find((l) => l.kind === 'hoodoo')!;
     const at = (hs: number) => ca.growth(h, { ...full, heatSolvent: hs });
+    const hw = createTerrain(carbonLike, 11).params.machines.M3!.halfWidth;
     expect(at(0.5)).toBe(1);
     expect(at(1)).toBeCloseTo(0.45, 5);
-    expect(at(0.75)).toBeGreaterThan(at(1));
+    expect(at(0.5 + hw / 2)).toBeGreaterThan(at(1));
   });
 
   it('relics ride the terrain rise whatever the machine progress', () => {
@@ -84,7 +85,12 @@ describe('collision', () => {
     const inside = ca.pushOut(c.x + c.r * 0.3, c.z, full);
     expect(inside).not.toBeNull();
     expect(Math.hypot(inside!.x - c.x, inside!.z - c.z)).toBeGreaterThanOrEqual(c.r);
-    expect(ca.pushOut(c.x + c.r + 5, c.z, full)).toBeNull();
+    let clear: { x: number; z: number } | null = null;
+    for (let x = -150; x <= 150 && !clear; x += 5) for (let z = -150; z <= 150 && !clear; z += 5) {
+      if (ca.landmarks.every((m) => ca.footprints(m).every((f) => Math.hypot(x - f.x, z - f.z) > f.r + 3))) clear = { x, z };
+    }
+    expect(clear).not.toBeNull();
+    expect(ca.pushOut(clear!.x, clear!.z, full)).toBeNull();
   });
 
   it('does not block before the structure has grown', () => {
@@ -146,7 +152,8 @@ describe('meshes', () => {
         const m = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3];
         const o = centre(m[0], m[1], m[2]);
         const d = [m[0] - o[0], m[1] - o[1], m[2] - o[2]];
-        if (Math.abs(n[1]) > 0.9 * Math.hypot(n[0], n[1], n[2])) continue;       // ledges and caps
+        const len = Math.hypot(n[0], n[1], n[2]);
+        if (!(len > 1e-9) || Math.abs(n[1]) > 0.9 * len) continue;       // degenerate tip triangles, ledges and caps
         total++;
         if (n[0] * d[0] + n[1] * d[1] + n[2] * d[2] > 0) good++;
       }
@@ -163,3 +170,79 @@ describe('meshes', () => {
     expect(outward(lintel, (x) => [x, mean(Math.round(x / 2)), 0])).toBeGreaterThan(0.9);
   });
 });
+
+// ---- geometry the owner's eye checks: assert it instead of screenshotting ----
+import { silicon as siWorld } from '../worlds/silicon';
+import { carbon as caWorld } from '../worlds/carbon';
+import { seaLevelFromHeights, sampleHeights, spawnPoint } from './terrain';
+
+const cases = [
+  ['silicon', siWorld, [siWorld.demoSeed, 5, 77, 31337]],
+  ['carbon', caWorld, [caWorld.demoSeed, 5, 77, 31337]],
+] as const;
+
+for (const [name, world, seeds] of cases) {
+  describe(`${name} landmark geometry`, () => {
+    for (const seed of seeds) {
+      const terrain = createTerrain(world.terrain, seed);
+      const cover = (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200;
+      const opts = { chemistry: name, seaCover: cover } as const;
+      const set = createLandmarks(terrain, opts);
+      const sea = seaLevelFromHeights(sampleHeights(terrain, full, 64), cover);
+      const spawn = spawnPoint(terrain, full, sea);
+
+      it(`seed ${seed}: deterministic`, () => {
+        expect(createLandmarks(createTerrain(world.terrain, seed), opts).landmarks).toEqual(set.landmarks);
+      });
+
+      it(`seed ${seed}: collision height covers the terrain inside each footprint`, () => {
+        for (const l of set.landmarks) {
+          for (const c of set.footprints(l)) {
+            const base = set.plainHeight(c.x, c.z, full);
+            for (let k = 0; k < 12; k++) {
+              const a = (k / 12) * TWO;
+              const h = set.plainHeight(c.x + Math.cos(a) * c.r, c.z + Math.sin(a) * c.r, full);
+              expect(h - base).toBeLessThanOrEqual(l.height);
+            }
+          }
+        }
+      });
+
+      if (name === 'silicon') {
+        it(`seed ${seed}: arch lintels join both piers at pier-top height`, () => {
+          for (const l of set.landmarks.filter((x) => x.kind === 'iceArch')) {
+            const [p0, p1] = landmarkPieces(l).filter((p) => p.kind === 'body');
+            const lintel = landmarkPieces(l).find((p) => p.kind === 'lintel')!;
+            expect(lintel.offset[1]).toBeCloseTo(0.9 * l.height, 5);
+            expect(p0.offset[0]).toBeCloseTo(-l.span / 2, 5);
+            expect(p1.offset[0]).toBeCloseTo(l.span / 2, 5);
+            let min = Infinity, max = -Infinity;
+            for (let i = 0; i < lintel.mesh.positions.length; i += 3) { min = Math.min(min, lintel.mesh.positions[i]); max = Math.max(max, lintel.mesh.positions[i]); }
+            expect(min).toBeLessThanOrEqual(l.radius * 0.5);            // starts inside pier 0
+            expect(max).toBeGreaterThanOrEqual(l.span - l.radius * 0.5);  // reaches pier 1
+          }
+        });
+
+        it(`seed ${seed}: >= 2 big landmarks (30-80 m) near spawn and ahead of the camera`, () => {
+          const good = set.landmarks.filter((l) => {
+            const tall = l.kind === 'iceArch' || l.kind === 'iceSpire' ? l.height : 0;
+            const dx = l.x - spawn.x, dz = l.z - spawn.z;
+            return tall >= 30 && tall <= 80 && Math.hypot(dx, dz) <= 150 && dz < 0;
+          });
+          expect(good.length).toBeGreaterThanOrEqual(2);
+        });
+      } else {
+        it(`seed ${seed}: reef pillars stand in shallow water cells`, () => {
+          const pillars = set.landmarks.filter((l) => l.kind === 'reefPillar');
+          expect(pillars.length).toBeGreaterThan(0);
+          const shallow = pillars.filter((l) => {
+            const g = set.plainHeight(l.x, l.z, full);
+            return g > sea - 12 && g < sea + 4;
+          });
+          expect(shallow.length / pillars.length).toBeGreaterThanOrEqual(0.5);
+        });
+      }
+    }
+  });
+}
+const TWO = Math.PI * 2;
