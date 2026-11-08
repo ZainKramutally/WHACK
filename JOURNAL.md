@@ -287,3 +287,4 @@
 - 10:15 16: merged landing-page Cinematic toggle.
 - 10:21 16: merged #97 P screenshot / V video capture.
 - 10:21 owner: time-speed chip emoji replaced by a pixel fast-forward icon (cardIcons fastForwardIcon, 9x9, .wu-ico). Owner OK'd main.
+- 10:48 16: merged #98 sea-producer resilience (sim), capture repeat-recording fix, scripts/cinematic.mjs. Video recording now on a frozen preview.

@@ -176,6 +176,12 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
   - **Megafauna payoff:** food intake scales as M^`intakeExp` (ledger, 0.9 in both worlds, `assumption: true`; 0.75 would be Kleiber), so big bodies out-eat their upkeep.
   - **Herds:** grazers drift toward nearby kin in proportion to their `sociality` gene (ledger `cohesion`), so herds move together and low-sociality animals stay solitary.
   - **Competition for space (R8):** in a full world, a parent ready to bud displaces the weakest non-kin animal within 2 cells (lowest energy per unit mass), so better feeders win slots and selection works at the population cap. **Habitat-aware slots** (#80): if a locomotion mode's share of the animals has fallen below 90% of its own slowly decaying recent peak, a parent of that mode may instead displace the weakest of 12 sampled animals of other modes anywhere. This lets swimmers win back the sea after it returns, and walkers the land, without other lineages keeping the freed slots for good. In steady state, nothing fires. In the Nitrogen halve-and-restore test, swimmers recovered to 0.78–0.90 of a control run within 180 s, up from 0.51–0.87.
+  - **Sea producers last** (owner request, 2026-11-08, #98). Kelp beds were dying because deep water gets almost no light while all flora decays 4% per ecology-second. Neither grazing nor O₂ caused it. Three carbon ledger values fix it (`assumption: true`):
+    - `waterBuffer` 0.8: submerged flora feels up to 80% less decay and edge stress with depth, because seas change temperature slowly.
+    - `seaRefuge` 0.15: grazers can't eat the last 0.15 of mat in water ≥ 2 m, so a bed survives grazing and regrows.
+    - `seaGrowth` 1: mat regrows at the land rate.
+
+    On the demo seed, kelp cells now level off at about 1,100 by +3 min instead of collapsing to about 130, and hunters remain on every seed.
   - **Size niches (R4):** canopy food is reachable only in proportion to limb reach (ledger `canopyReach`), and deep-water food scales with swimmer length (ledger `deepScale`), so tall and large bodies open food that small ones can't fully use.
   - **No developmental pull in the sim.** Body templates become anonymous look attractors in the art layer, applied read-only (DECISIONS §G.3, G.9).
   - **The plate-ledger fix**, so plates are cheap enough to spread.
