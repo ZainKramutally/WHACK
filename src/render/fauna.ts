@@ -82,6 +82,7 @@ const HEAD_F = [0.45, 0.8, 1.0], HEAD_K = [0.9, 0.62, 0.08];
 // Gas bell egg profile: height from the rim (× bell height) and radius factor, closed underneath.
 const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0];
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
+const PITCH_MAX = 0.6, PITCH_EASE = 0.3; // walkers' slope pitch cap (rad) and easing time (s)
 const G_MOVE = 0.25; // m a creature moves before its cached ground height is resampled
 const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
@@ -147,6 +148,8 @@ interface Entry {
   /** Walk weight (0 standing … 1 walking, eased), half stride in drawn world metres, smoothed turn rate (rad/s), and the
    *  plan's curl (rad per joint), which is motion only: lateral flexion while walking. */
   walkW: number; hW: number; turn: number; curl: number;
+  /** Walkers: body pitch (rad, eased) and the cached ground under head and tail (resampled like gH). */
+  pitch: number; gHead: number; gTail: number; pX: number; pZ: number; pH: number; pStamp: number;
   /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
   planned: boolean;
   /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
@@ -390,7 +393,8 @@ export function createFauna(app: App): FaunaPart {
       sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
-      speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
+      speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
+      pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
     };
   }
 
@@ -433,6 +437,7 @@ export function createFauna(app: App): FaunaPart {
     const kMax = 0.96 / Math.max(e.xspan, 1e-6);
     const kap = mode === LOCOMOTION.walk ? Math.max(-kMax, Math.min(kMax, (e.turn * s) / Math.max(e.speed, 0.3))) : 0;
     const xc = e.xmin + 0.5 * e.xspan;
+    const kp = mode === LOCOMOTION.walk ? Math.tan(e.pitch) : 0; // slope pitch, as a shear along the body
     // Body beads: copy, then bend by locomotion mode. (Hoverers ride under a bell: the body only breathes a little.)
     for (let i = 0; i < nBody; i++) {
       const f = i * 5;
@@ -451,6 +456,7 @@ export function createFauna(app: App): FaunaPart {
         // carbon's curl as motion: lateral flexion with the stride, strongest at head and tail (rest stays straight)
         const xn = (x - e.xmin) / e.xspan, c = 2 * xn - 1, dx = x - xc;
         z += e.curl * 0.5 * e.xspan * e.walkW * c * c * Math.sin(2 * Math.PI * e.gait + Math.PI * xn) + 0.5 * kap * dx * dx;
+        y += kp * dx;
       }
       const fl = e.flap[i];
       if (fl > 0) y += Math.abs(z) * 0.55 * fl * Math.sin(2 * Math.PI * 1.3 * t + e.id) * (mode === LOCOMOTION.hover ? 1 : 0.5 + moving);
@@ -471,8 +477,11 @@ export function createFauna(app: App): FaunaPart {
         } else if (mode === LOCOMOTION.hover) {
           fy = rig.hip.y - 0.8 * (rig.len1 + rig.len2); fz = rig.hip.z + rig.side * 0.3 * rig.restOut; // legs hang
         }
+        // the pitched body lifts this hip by dy: solve the leg from the rest hip to the target less dy, then lift it all
+        const dyHip = kp * (rig.hip.x - xc);
         limbOut.length = 0;
-        limbJoints(rig, fx, fy, fz, limbOut);
+        limbJoints(rig, fx, fy - dyHip, fz, limbOut);
+        limbOut[1] += dyHip; limbOut[4] += dyHip;
         const q = rig.first * 5;
         const kneeR = src[q + 3], footR = src[q + 8];
         out[q] = limbOut[0]; out[q + 1] = limbOut[1]; out[q + 2] = limbOut[2]; out[q + 3] = kneeR; out[q + 4] = 3;
@@ -480,7 +489,7 @@ export function createFauna(app: App): FaunaPart {
         // The two bones follow: hip → knee, knee → foot. Limb k's beads start at nBody + 2k, its rods at 2k.
         const rk = (rig.first - nBody) * ROD_STRIDE;
         const R = e.rods;
-        rodScratch[rk] = rig.hip.x; rodScratch[rk + 1] = rig.hip.y; rodScratch[rk + 2] = rig.hip.z;
+        rodScratch[rk] = rig.hip.x; rodScratch[rk + 1] = rig.hip.y + dyHip; rodScratch[rk + 2] = rig.hip.z;
         rodScratch[rk + 3] = limbOut[0]; rodScratch[rk + 4] = limbOut[1]; rodScratch[rk + 5] = limbOut[2];
         rodScratch[rk + 6] = R[rk + 6]; rodScratch[rk + 7] = 1; rodScratch[rk + 8] = 0;
         rodScratch[rk + 9] = limbOut[0]; rodScratch[rk + 10] = limbOut[1]; rodScratch[rk + 11] = limbOut[2];
@@ -1038,7 +1047,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
-  let fGravity = 1;
+  let fGravity = 1, fDt = 1 / 60;
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
   // Ground cache: about 1k height samples a frame (one per creature, plus posed feet) became a resample only after a
@@ -1081,6 +1090,19 @@ export function createFauna(app: App): FaunaPart {
     if (s <= 0) return;
     let y0 = ground;
     e.yDrawn = ground; // for next frame's view test
+    // Walkers on slopes: pitch the body from the ground under head and tail and stand it on whichever is higher, the
+    // centre ground or the head–tail line, so long bodies neither clip into a hill nor leave downhill feet hanging.
+    if (mode === LOCOMOTION.walk && !e.layout.radial && tier >= 1) {
+      const hx = (e.xmin + e.xspan) * s, tx = e.xmin * s, c = Math.cos(e.h), sn = Math.sin(e.h);
+      const ddx = e.x - e.pX, ddz = e.z - e.pZ;
+      if (e.pStamp !== terrainStamp || ddx * ddx + ddz * ddz > G_MOVE * G_MOVE || Math.abs(e.h - e.pH) > 0.05) {
+        e.gHead = fHeight(e.x + c * hx, e.z + sn * hx); e.gTail = fHeight(e.x + c * tx, e.z + sn * tx);
+        e.pX = e.x; e.pZ = e.z; e.pH = e.h; e.pStamp = terrainStamp;
+      }
+      const target = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, Math.atan2(e.gHead - e.gTail, Math.max(1e-3, hx - tx))));
+      e.pitch += (target - e.pitch) * Math.min(1, fDt / PITCH_EASE);
+      y0 = Math.max(ground, 0.5 * (e.gHead + e.gTail) - 0.02 * (hx - tx));
+    } else if (e.pitch !== 0) e.pitch += (0 - e.pitch) * Math.min(1, fDt / PITCH_EASE);
     if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + drawnLength(e.scale, e.g) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
     else if (mode === LOCOMOTION.swim && fSeaThere && ground < fSea) y0 = ground + (fSea - ground) * 0.35;
 
@@ -1233,7 +1255,7 @@ export function createFauna(app: App): FaunaPart {
       pn = 0;
       const boost = part.scaleBoost;
       ft = t; fBoost = boost; fSea = inputs.seaLevel; fSeaThere = (inputs.stats.seaCover ?? 1) > 0.005;
-      fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0; fGravity = inputs.stats.gravity ?? 1;
+      fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0; fGravity = inputs.stats.gravity ?? 1; fDt = dt;
       // the terrain changed enough to move the ground (formation rise, landform growth): resample every cached ground
       let form = 0;
       for (const k in inputs.terrain.progress) form += inputs.terrain.progress[k];
