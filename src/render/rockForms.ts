@@ -33,6 +33,7 @@ export function createRockFormsPart(app: App): RockFormsPart {
   app.scene.add(root);
   let entries: Entry[] = [];
   let lichen = 0;
+  let retintT = 0;
 
   function clear() {
     for (const e of entries) { root.remove(e.mesh); e.mesh.geometry.dispose(); }
@@ -96,11 +97,15 @@ export function createRockFormsPart(app: App): RockFormsPart {
       lichen = lichenStep(lichen, inputs.lifeOnLand, dt);
       const rust = crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress);
       const rise = Math.min(1, Math.max(0, inputs.terrain.rise));
+      retintT += dt;
+      const retint = retintT >= 0.25;   // 4 Hz; the key compare persists, so the final value always lands
+      let didTint = false;
       for (const e of entries) {
-        if (Math.round(rust * 32) !== e.rustKey || Math.round(lichen * 32) !== e.lichenKey) tint(e, rust, lichen);
+        if (retint && (Math.round(rust * 32) !== e.rustKey || Math.round(lichen * 32) !== e.lichenKey)) { tint(e, rust, lichen); didTint = true; }
         e.mesh.visible = rise > 0.004;
         e.mesh.position.y = -(1 - rise) * (e.fam.top + 5);   // at rise 0 everything is under the flat ground; the feet stay buried while it rises
       }
+      if (didTint) retintT = 0;
     },
     get drawCalls() { return entries.length; },
     dispose() {

@@ -66,7 +66,9 @@ export function createBasaltPillars(app: App): PillarsPart {
   let set: PillarSet | null = null;
   let cursor = 0;
   let dirty = true;
-  let last = { rise: -1, p7: -1, hs: -1, sig: '' };
+  let last = { rise: -1, p7: -1, hs: -1 };
+  const SIG_KEYS = ['M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9'];
+  const lastSig = new Int32Array(SIG_KEYS.length).fill(-1), curSig = new Int32Array(SIG_KEYS.length);
   let lastRust = -1, rustT = 0;
 
   function clear() {
@@ -77,10 +79,11 @@ export function createBasaltPillars(app: App): PillarsPart {
 
   function colours(rust: number) {
     if (!mesh || !set || !terrain) return;
-    const ids = terrain.config.crust.minerals.map((m) => m.id);
+    const mins = terrain.config.crust.minerals;
+    const hex = mins.map((m) => mineralColour(m.id, rust));   // once per mineral, not per pillar
     const a = geo!.getAttribute('pbase') as THREE.BufferAttribute;
     for (let i = 0; i < set.count; i++) {
-      _c.setHex(mineralColour(ids[set.mineral[i]], rust));
+      _c.setHex(hex[set.mineral[i]]);
       _c.multiplyScalar(0.82 + 0.36 * set.shade[i]);
       a.setXYZ(i, _c.r, _c.g, _c.b);
     }
@@ -113,30 +116,35 @@ export function createBasaltPillars(app: App): PillarsPart {
       mesh.name = 'basaltPillars';
       colours(GROUND.rust.value as number);
       root.add(mesh);
-      cursor = 0; dirty = true; last = { rise: -1, p7: -1, hs: -1, sig: '' };
+      cursor = 0; dirty = true; last = { rise: -1, p7: -1, hs: -1 }; lastSig.fill(-1);
     },
     update(dt, inputs) {
       lichenOn.value = inputs.world.id === 'carbon' ? 1 : 0;   // silicon has no lichen: its flora is crystalline
       if (!mesh || !set || !terrain) return;
       const pr = inputs.terrain.progress;
-      const sig = ['M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9'].map((k) => Math.round((pr[k] ?? 0) * 200)).join(',');
-      const rise = inputs.terrain.rise, p7 = pr.M7 ?? 0, hs = inputs.heatSolvent;
-      if (!dirty && cursor === 0 && (Math.abs(rise - last.rise) > 0.004 || Math.abs(p7 - last.p7) > 0.004 || Math.abs(hs - last.hs) > 0.004 || sig !== last.sig)) {
-        dirty = true;
-        last = { rise, p7, hs, sig };
+      let sigChanged = false;
+      for (let k = 0; k < SIG_KEYS.length; k++) {
+        curSig[k] = Math.round((pr[SIG_KEYS[k]] ?? 0) * 200);
+        if (curSig[k] !== lastSig[k]) sigChanged = true;
       }
+      const rise = inputs.terrain.rise, p7 = pr.M7 ?? 0, hs = inputs.heatSolvent;
+      if (!dirty && cursor === 0 && (Math.abs(rise - last.rise) > 0.004 || Math.abs(p7 - last.p7) > 0.004 || Math.abs(hs - last.hs) > 0.004 || sigChanged)) dirty = true;
       if (dirty) {
-        if (cursor === 0) last = { rise, p7, hs, sig };
+        if (cursor === 0) { last = { rise, p7, hs }; lastSig.set(curSig); }
         const st: TerrainState = { rise, heatSolvent: hs, progress: pr };
         const end = Math.min(set.count, cursor + CHUNK);
         for (let i = cursor; i < end; i++) { const p = pillarTops(terrain, set, i, st); setMatrix(i, p.present, p.base, p.top); }
+        const im = mesh.instanceMatrix;
+        im.clearUpdateRanges();
+        im.addUpdateRange(cursor * 16, (end - cursor) * 16);   // upload only the chunk written this frame
+        im.needsUpdate = true;
         cursor = end;
-        mesh.instanceMatrix.needsUpdate = true;
         if (cursor >= set.count) { cursor = 0; dirty = false; }
       }
       rustT += dt;
       const rust = GROUND.rust.value as number;
-      if (rustT > 0.25 && Math.abs(rust - lastRust) > 0.01) { rustT = 0; colours(rust); }
+      // 4 Hz; any change is applied, so the final value always lands within 0.25 s of the last change
+      if (rustT >= 0.25 && rust !== lastRust) { rustT = 0; colours(rust); }
     },
     get count() { return set?.count ?? 0; },
     dispose() { clear(); app.scene.remove(root); material.dispose(); },
