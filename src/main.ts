@@ -174,6 +174,7 @@ async function start(
       if (!latest || latest.timeSec < world.build.spawnSec) return;
       const p = spawnFor(terrain, latest, world);
       player.respawn(p.x, p.z);
+      view.setSpawn(p.x, p.z);
       player.setVisible(true);
       spawned = true;
     }
@@ -184,6 +185,7 @@ async function start(
       const out = landmarks.pushOut(s.x, s.z, terrainState(latest, world));
       if (out) { s.x = out.x; s.z = out.z; }
     }
+    view.setFocus(player.state.x, player.state.y + 1, player.state.z);
   });
 
 

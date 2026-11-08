@@ -120,8 +120,9 @@ export function shiftHue(hex: number, deg: number, dl = 0): number {
  */
 export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5): number {
   const p = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
+  // silicon: deep indigo-violet bodies (darker hunters) that read against the pale-lilac ground (#50)
   const base = silicon
-    ? mixHex(mixHex(p.bone, p.blush, 0.3), p.crimson, clamp01(diet))
+    ? mixHex(mixHex(p.maroon, p.crimson, 0.35), p.ink, 0.35 * clamp01(diet))
     : mixHex(mixHex(p.bone, p.blush, 0.5), p.maroon, clamp01(diet));
   const band = shiftHue(base, (hue - 0.5) * (silicon ? 36 : 70));
   switch (tone) {
@@ -129,7 +130,9 @@ export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue =
     case 2: return scaleHex(band, 0.62);
     case 3: return scaleHex(band, 0.82);
     case 4: return mixHex(band, p.bone, 0.5);
-    case 5: return shiftHue(band, silicon ? 25 + 35 * accent : 25 + 55 * accent, silicon ? -0.08 : -0.05);
+    case 5: return silicon
+      ? shiftHue(mixHex(p.bone, p.blush, 0.35 + 0.4 * clamp01(accent)), (hue - 0.5) * 36)   // pale ice rim
+      : shiftHue(band, 25 + 55 * accent, -0.05);
     case 6: return mixHex(shiftHue(band, silicon ? 40 : 150, 0.05), 0xffffff, 0.35);
     default: return band;
   }
