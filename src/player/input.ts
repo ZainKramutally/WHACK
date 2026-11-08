@@ -1,5 +1,5 @@
 // Keyboard + mouse + gamepad → intents. Callbacks for discrete actions, poll() for continuous ones.
-import { applyDeadZone, dragEnd, dragMove, dragStart, type DragState } from './logic';
+import { applyDeadZone, nextPadSprint, dragEnd, dragMove, dragStart, type DragState } from './logic';
 
 export type InputKind = 'keyboard' | 'gamepad';
 
@@ -19,6 +19,7 @@ export interface InputCallbacks {
 export interface Intents {
   moveX: number;     // right +
   moveZ: number;     // forward +
+  sprint: boolean;   // Shift held, or gamepad L3 toggled on (the controller ignores it while swimming)
   rise: number;      // up + / sink -  (swimming)
   orbitYaw: number;  // radians this frame, camera yaw change
   orbitPitch: number; // radians this frame, + = camera higher
@@ -38,7 +39,7 @@ export interface InputHandle {
   dispose(): void;
 }
 
-const GP = { A: 0, B: 1, Y: 3, LB: 4, RB: 5, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const GP = { A: 0, B: 1, Y: 3, LB: 4, RB: 5, L3: 10, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const REPEAT_DELAY = 0.35;
 const REPEAT_EVERY = 0.09;
 
@@ -122,6 +123,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
   // gamepad
   let connectedPad = false;
   const prev = new Array<boolean>(17).fill(false);
+  let padSprint = false;
   let slider = 0;
   let heldDir: -1 | 0 | 1 = 0;
   let heldTime = 0;
@@ -162,8 +164,10 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
     orbitDx = 0;
     orbitDy = 0;
 
+    let sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
     const pad = findPad();
     connectedPad = !!pad;
+    if (!pad) padSprint = false;
     if (pad) {
       const [lx, ly] = applyDeadZone(pad.axes[0] ?? 0, pad.axes[1] ?? 0, dz);
       const [rx, ry] = applyDeadZone(pad.axes[2] ?? 0, pad.axes[3] ?? 0, dz);
@@ -175,6 +179,8 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
         moveX = lx;
         moveZ = -ly; // stick up is negative
       }
+      padSprint = nextPadSprint(padSprint, edge(GP.L3), lx !== 0 || ly !== 0);
+      if (padSprint) sprint = true;
       orbitYaw += -rx * padRad * dt;
       orbitPitch += ry * padRad * dt;
       const padRise = (down(GP.RB) ? 1 : 0) - (down(GP.LB) ? 1 : 0);
@@ -214,7 +220,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       }
       if (used) setLast('gamepad');
     }
-    return { moveX, moveZ, rise, orbitYaw, orbitPitch };
+    return { moveX, moveZ, sprint, rise, orbitYaw, orbitPitch };
   }
 
   return {

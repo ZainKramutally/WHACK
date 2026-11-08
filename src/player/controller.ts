@@ -20,7 +20,9 @@ export interface PlayerTuning {
   turnRate: number;       // rad/s, how fast the body turns to face travel
   swimSurfaceOffset: number; // feet sit this far below the surface when floating
   swimClearance: number;  // minimum height above the sea floor
-  maxSpeed: number;       // hard cap on any velocity component magnitude
+  sprintMul: number;      // walkSpeed multiplier while sprinting on land
+  maxSpeed: number;       // hard cap on speed in the water
+  sprintMaxSpeed: number; // hard cap on land, raised so sprint (walkSpeed * sprintMul) fits
   /** Hard bound on the playable patch (± metres from origin); 0 disables. */
   bound: number;
 }
@@ -36,7 +38,9 @@ export const DEFAULT_PLAYER_TUNING: PlayerTuning = {
   turnRate: 9,
   swimSurfaceOffset: 1.3,
   swimClearance: 0.3,
+  sprintMul: 1.8,
   maxSpeed: 8,
+  sprintMaxSpeed: 9.5,
   bound: 0,
 };
 
@@ -44,6 +48,7 @@ export interface PlayerIntents {
   moveX: number;   // right +
   moveZ: number;   // forward +
   rise: number;    // up +
+  sprint?: boolean; // walking on land only; ignored while swimming
   camYaw: number;
   camPitch: number; // + = camera above target (looking down)
 }
@@ -59,6 +64,7 @@ export interface PlayerState {
   heading: number;   // body yaw, same convention as camera yaw
   swimPitch: number; // body lean while swimming (radians, + = head down)
   speed: number;     // current speed, m/s (for animation)
+  sprinting: boolean; // sprint is active (land, moving)
   onIce: boolean;    // standing on a frozen sea
   /** Set for one update when the mode flipped, with the previous mode. */
   switchedFrom: PlayerMode | null;
@@ -83,6 +89,7 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
     heading: 0,
     swimPitch: 0,
     speed: 0,
+    sprinting: false,
     onIce: false,
     switchedFrom: null,
   };
@@ -125,7 +132,8 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
     if (s.mode === 'walk') {
       const depth = Math.max(0, sea - ground);
       const wade = frozen ? 0 : clamp(depth / 1.3, 0, 1);
-      const speed = t.walkSpeed * (1 - t.waterDrag * wade);
+      s.sprinting = !!i.sprint && mag > 0.1;
+      const speed = t.walkSpeed * (s.sprinting ? t.sprintMul : 1) * (1 - t.waterDrag * wade);
       const dx = (rx * ix + fx * iz) * speed;
       const dz = (rz * ix + fz * iz) * speed;
       s.vx = approach(s.vx, dx, t.walkAccelTime, dt);
@@ -137,6 +145,7 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
       s.y = s.y < floor ? floor : s.y + (floor - s.y) * Math.min(1, t.groundFollow * dt);
       s.swimPitch += (0 - s.swimPitch) * Math.min(1, 8 * dt);
     } else {
+      s.sprinting = false;
       // Full 3D relative to the view: forward follows the camera's pitch.
       const cp = Math.cos(i.camPitch);
       const sp = Math.sin(i.camPitch);
@@ -161,8 +170,9 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
 
     // Cap speed (diagonals, hitches).
     const v3 = Math.hypot(s.vx, s.vy, s.vz);
-    if (v3 > t.maxSpeed) {
-      const k = t.maxSpeed / v3;
+    const cap = s.mode === 'walk' ? t.sprintMaxSpeed : t.maxSpeed;
+    if (v3 > cap) {
+      const k = cap / v3;
       s.vx *= k;
       s.vy *= k;
       s.vz *= k;

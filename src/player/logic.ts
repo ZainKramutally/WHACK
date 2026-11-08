@@ -44,6 +44,22 @@ export function angleDelta(a: number, b: number): number {
   return d;
 }
 
+// --- sprint ----------------------------------------------------------------------------------
+
+/**
+ * Gamepad sprint: clicking the left stick (L3) toggles it, but only while the stick is deflected;
+ * it clears when the stick returns to the dead zone.
+ */
+export function nextPadSprint(on: boolean, l3Edge: boolean, moving: boolean): boolean {
+  if (!moving) return false;
+  return l3Edge ? !on : on;
+}
+
+/** Eased camera FOV widening while sprinting (render-only). Returns the new extra degrees. */
+export function easeSprintFov(extra: number, sprinting: boolean, widenDeg: number, dt: number, tau = 0.25): number {
+  return approach(extra, sprinting ? widenDeg : 0, tau, dt);
+}
+
 // --- walk / swim -----------------------------------------------------------------------------
 
 /** Water deeper than this (metres, over the ground) is swum, not waded. */

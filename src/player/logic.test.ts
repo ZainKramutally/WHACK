@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  STAND_DEPTH, WADE_DEPTH, angleDelta, applyDeadZone, decideMode, dragEnd, dragMove, dragStart, walkFloor,
+  STAND_DEPTH, WADE_DEPTH, angleDelta, applyDeadZone, decideMode, easeSprintFov, nextPadSprint, dragEnd, dragMove, dragStart, walkFloor,
 } from './logic';
 import { createPlayer, type PlayerIntents } from './controller';
 import { createFollowCamera } from './camera';
@@ -156,5 +156,55 @@ describe('follow camera', () => {
 describe('angleDelta', () => {
   it('takes the short way round', () => {
     expect(angleDelta(3, -3)).toBeCloseTo(2 * Math.PI - 6);
+  });
+});
+
+describe('sprint', () => {
+  const run = (sprint: boolean, ground = 0, sea = -5) => {
+    const p = createPlayer({ heightAt: () => ground, seaLevel: () => sea, frozen: () => false, spawn: { x: 0, z: 0 } });
+    for (let k = 0; k < 120; k++) p.update(1 / 60, { ...idle, moveZ: 1, sprint });
+    return p.state;
+  };
+  it('sprints at about 1.8x walk on land, within the cap', () => {
+    const w = run(false).speed;
+    const s = run(true);
+    expect(s.speed / w).toBeCloseTo(1.8, 1);
+    expect(s.speed).toBeLessThanOrEqual(9.5);
+    expect(s.sprinting).toBe(true);
+    expect(w).toBeLessThanOrEqual(8);
+  });
+  it('does not sprint without move input, and eases back on release', () => {
+    const p = createPlayer({ heightAt: () => 0, seaLevel: () => -5, frozen: () => false, spawn: { x: 0, z: 0 } });
+    p.update(0.1, { ...idle, sprint: true });
+    expect(p.state.sprinting).toBe(false);
+    for (let k = 0; k < 120; k++) p.update(1 / 60, { ...idle, moveZ: 1, sprint: true });
+    p.update(1 / 60, { ...idle, moveZ: 1, sprint: false });
+    expect(p.state.speed).toBeGreaterThan(5);
+    for (let k = 0; k < 120; k++) p.update(1 / 60, { ...idle, moveZ: 1, sprint: false });
+    expect(p.state.speed).toBeCloseTo(5, 1);
+  });
+  it('gives no speed boost while swimming', () => {
+    const swim = (sprint: boolean) => {
+      const p = createPlayer({ heightAt: () => 0, seaLevel: () => 10, frozen: () => false, spawn: { x: 0, z: 0 } });
+      for (let k = 0; k < 240; k++) p.update(1 / 60, { ...idle, moveZ: 1, camPitch: 0, sprint });
+      return p.state;
+    };
+    expect(swim(true).mode).toBe('swim');
+    expect(swim(true).sprinting).toBe(false);
+    expect(swim(true).speed).toBeCloseTo(swim(false).speed, 5);
+  });
+  it('L3 toggles on, toggles off, and clears when the stick is released', () => {
+    expect(nextPadSprint(false, true, true)).toBe(true);
+    expect(nextPadSprint(true, true, true)).toBe(false);
+    expect(nextPadSprint(true, false, true)).toBe(true);
+    expect(nextPadSprint(true, false, false)).toBe(false);
+    expect(nextPadSprint(false, true, false)).toBe(false);
+  });
+  it('FOV widens toward the target and relaxes back', () => {
+    let e = 0;
+    for (let k = 0; k < 120; k++) e = easeSprintFov(e, true, 6, 1 / 60);
+    expect(e).toBeCloseTo(6, 1);
+    for (let k = 0; k < 120; k++) e = easeSprintFov(e, false, 6, 1 / 60);
+    expect(e).toBeLessThan(0.1);
   });
 });

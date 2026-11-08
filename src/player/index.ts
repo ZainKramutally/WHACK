@@ -6,7 +6,7 @@ import { createFollowCamera, type CameraTuning } from './camera';
 import { createCharacter } from './character';
 import { createPlayer, type PlayerEnv, type PlayerState, type PlayerTuning } from './controller';
 import { createInput, type InputCallbacks, type InputKind, type InputOptions } from './input';
-import { walkFloor } from './logic';
+import { easeSprintFov, walkFloor } from './logic';
 
 export type { PlayerEnv, PlayerState, PlayerTuning, CameraTuning, InputCallbacks, InputKind };
 
@@ -28,6 +28,8 @@ export interface AttachOptions {
   input?: InputOptions;
   player?: Partial<PlayerTuning>;
   camera?: Partial<CameraTuning>;
+  /** Degrees the FOV widens while sprinting (render-only). */
+  sprintFovDeg?: number;
 }
 
 export function attachPlayer(
@@ -47,6 +49,9 @@ export function attachPlayer(
   scene.add(character.root);
 
   const s = player.state;
+  const baseFov = camera.fov;
+  const sprintFovDeg = opts.sprintFovDeg ?? 6;
+  let fovExtra = 0;
   follow.snap(s, s.mode === 'swim');
   camera.position.set(follow.position.x, follow.position.y, follow.position.z);
   camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
@@ -66,6 +71,7 @@ export function attachPlayer(
         moveX: it.moveX,
         moveZ: it.moveZ,
         rise: it.rise,
+        sprint: it.sprint,
         camYaw: follow.yaw,
         camPitch: follow.pitch,
       });
@@ -73,6 +79,12 @@ export function attachPlayer(
       camera.position.set(follow.position.x, follow.position.y, follow.position.z);
       camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
       character.update(s, dt);
+      fovExtra = easeSprintFov(fovExtra, s.sprinting, sprintFovDeg, dt);
+      const fov = baseFov + (fovExtra < 0.005 ? 0 : fovExtra);
+      if (camera.fov !== fov) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+      }
     },
     respawn(x, z) {
       player.teleport(x, z);
