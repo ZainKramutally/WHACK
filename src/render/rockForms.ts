@@ -7,7 +7,7 @@ import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { worldMaterial } from './material';
 import { crustRatchet, mineralColour, redWorldRamp } from './crustLook';
-import { ROLE } from '../gen/rockFormMesh';
+import { lichenStep, ROLE } from '../gen/rockFormMesh';
 import type { FamilyMesh, RockFormSet } from '../gen/rockForms';
 
 export interface RockFormsPart {
@@ -19,9 +19,12 @@ export interface RockFormsPart {
 }
 
 const DARK = 0x0c0a12;
+/** Yellow-ochre crustose lichen (Icelandic basalt), on up-facing basalt only once life is on land. */
+const LICHEN = 0xb89a3a;
+const LICHEN_RUST_FREE = new Set(['basalt']);
 const c = new THREE.Color();
 
-interface Entry { fam: FamilyMesh; mesh: THREE.Mesh; colour: THREE.BufferAttribute; rustKey: number }
+interface Entry { fam: FamilyMesh; mesh: THREE.Mesh; colour: THREE.BufferAttribute; rustKey: number; lichenKey: number }
 
 export function createRockFormsPart(app: App): RockFormsPart {
   const material = worldMaterial({ kind: 'prop', vertexColors: true, flat: true });
@@ -29,13 +32,14 @@ export function createRockFormsPart(app: App): RockFormsPart {
   root.name = 'rockForms';
   app.scene.add(root);
   let entries: Entry[] = [];
+  let lichen = 0;
 
   function clear() {
     for (const e of entries) { root.remove(e.mesh); e.mesh.geometry.dispose(); }
     entries = [];
   }
 
-  function tint(e: Entry, rust: number) {
+  function tint(e: Entry, rust: number, lichen: number) {
     const { fam } = e;
     const ramp = redWorldRamp(rust);
     const rampHex = [0, ramp.redLight, ramp.red, ramp.crimson, ramp.maroon];
@@ -44,6 +48,9 @@ export function createRockFormsPart(app: App): RockFormsPart {
     const n = fam.role.length;
     let lastKey = -1;
     const rgb: [number, number, number] = [0, 0, 0];
+    c.setHex(LICHEN);
+    const lr = c.r, lg = c.g, lb = c.b;
+    const lichenMat = fam.matIds.map((id) => LICHEN_RUST_FREE.has(id));
     for (let i = 0; i < n; i++) {
       const role = fam.role[i], key = role * 16 + fam.mat[i];
       if (key !== lastKey) {
@@ -52,15 +59,20 @@ export function createRockFormsPart(app: App): RockFormsPart {
         rgb[0] = c.r; rgb[1] = c.g; rgb[2] = c.b;
       }
       const s = role === ROLE.DARK ? 1 : fam.shade[i];
-      arr[i * 3] = Math.min(1, rgb[0] * s); arr[i * 3 + 1] = Math.min(1, rgb[1] * s); arr[i * 3 + 2] = Math.min(1, rgb[2] * s);
+      let r = rgb[0] * s, g = rgb[1] * s, b = rgb[2] * s;
+      const m = lichen > 0 && lichenMat[fam.mat[i]] ? fam.lichen[i] * lichen : 0;   // up-facing mask x the eased lichen cover
+      if (m > 0) { const k = Math.min(1, m * 1.4), ls = 0.85 + 0.3 * fam.shade[i] * 0.5; r += (lr * ls - r) * k; g += (lg * ls - g) * k; b += (lb * ls - b) * k; }
+      arr[i * 3] = Math.min(1, r); arr[i * 3 + 1] = Math.min(1, g); arr[i * 3 + 2] = Math.min(1, b);
     }
     e.colour.needsUpdate = true;
     e.rustKey = Math.round(rust * 32);
+    e.lichenKey = Math.round(lichen * 32);
   }
 
   return {
     setSet(set) {
       clear();
+      lichen = 0;
       if (!set) return;
       for (const fam of set.families) {
         const g = new THREE.BufferGeometry();
@@ -74,17 +86,18 @@ export function createRockFormsPart(app: App): RockFormsPart {
         mesh.raycast = () => {};                  // never pickable
         mesh.visible = false;
         root.add(mesh);
-        const e: Entry = { fam, mesh, colour, rustKey: -1 };
-        tint(e, 0);
+        const e: Entry = { fam, mesh, colour, rustKey: -1, lichenKey: -1 };
+        tint(e, 0, lichen);
         entries.push(e);
       }
     },
-    update(_dt, _t, inputs) {
+    update(dt, _t, inputs) {
       if (!entries.length) return;
+      lichen = lichenStep(lichen, inputs.lifeOnLand, dt);
       const rust = crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress);
       const rise = Math.min(1, Math.max(0, inputs.terrain.rise));
       for (const e of entries) {
-        if (Math.round(rust * 32) !== e.rustKey) tint(e, rust);
+        if (Math.round(rust * 32) !== e.rustKey || Math.round(lichen * 32) !== e.lichenKey) tint(e, rust, lichen);
         e.mesh.visible = rise > 0.004;
         e.mesh.position.y = -(1 - rise) * (e.fam.top + 5);   // at rise 0 everything is under the flat ground; the feet stay buried while it rises
       }

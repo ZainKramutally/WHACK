@@ -10,8 +10,21 @@ import type { RockForm } from './rockForms';
 export type V3 = [number, number, number];
 export const ROLE = { MINERAL: 0, REDLIGHT: 1, RED: 2, CRIMSON: 3, MAROON: 4, DARK: 5 } as const;
 
-export interface Soup { pos: number[]; role: number[]; shade: number[]; mat: number[]; top: number }
-export const newSoup = (): Soup => ({ pos: [], role: [], shade: [], mat: [], top: -Infinity });
+export interface Soup { pos: number[]; role: number[]; shade: number[]; mat: number[]; lichen: number[]; top: number }
+export const newSoup = (): Soup => ({ pos: [], role: [], shade: [], mat: [], lichen: [], top: -Infinity });
+
+/** Lichen suitability 0..1 of a surface: upward faces only, in patches (crustose lichens settle on Icelandic basalt tops). */
+export function lichenMask(ny: number, x: number, y: number, z: number, seed: number): number {
+  const up = Math.min(1, Math.max(0, (ny - 0.45) / 0.35));
+  const patch = Math.min(1, Math.max(0, (noise3(x * 0.3, y * 0.3, z * 0.3, seed + 77) + 0.1) / 0.5));
+  return up * patch;
+}
+/** Lichen cover eases toward 1 once life is on land (about 3 s), and stays 0 before. Pure; `dt` in seconds. */
+export function lichenStep(current: number, lifeOnLand: boolean, dt: number): number {
+  if (!lifeOnLand) return current;                          // colonisation never reverses
+  const next = current + (1 - current) * (1 - Math.exp(-dt / 1.2));
+  return next > 0.999 ? 1 : next;
+}
 
 /** Ground height relative to the form's centre, at a world offset (dx, dz) from it. */
 export type Ground = (dx: number, dz: number) => number;
@@ -50,13 +63,15 @@ const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norm = (a: V3): V3 => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /** Emit one triangle, wound so its normal points away from `ref` (a point inside the solid), and coloured by `look`. */
-export function tri(s: Soup, a: V3, b: V3, c: V3, ref: V3, look: Look, mat: number, aux = 0): void {
+export function tri(s: Soup, a: V3, b: V3, c: V3, ref: V3, look: Look, mat: number, aux = 0, noLichen = false): void {
   let n = cross(sub(b, a), sub(c, a));
   if (Math.hypot(n[0], n[1], n[2]) < 1e-9) return;       // degenerate (pinched at a pole)
   const ctr: V3 = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3];
   if (dot(n, sub(ctr, ref)) < 0) { const t = b; b = c; c = t; n = [-n[0], -n[1], -n[2]]; }
-  const { role, shade } = look(ctr, norm(n), aux);
-  for (const p of [a, b, c]) { s.pos.push(p[0], p[1], p[2]); s.role.push(role); s.shade.push(shade); s.mat.push(mat); if (p[1] > s.top) s.top = p[1]; }
+  const nn = norm(n);
+  const { role, shade } = look(ctr, nn, aux);
+  const lich = noLichen || role === ROLE.DARK ? 0 : lichenMask(nn[1], ctr[0], ctr[1], ctr[2], 5);
+  for (const p of [a, b, c]) { s.pos.push(p[0], p[1], p[2]); s.role.push(role); s.shade.push(shade); s.lichen.push(lich); s.mat.push(mat); if (p[1] > s.top) s.top = p[1]; }
 }
 
 /** A closed-in-u grid surface: nu columns (wrapped) by nv rows; `at(i, j)` gives the point and an aux value, `ref(j)` an inside point. */
@@ -85,7 +100,7 @@ export const plainLook = (seed: number, role: number = ROLE.MINERAL): Look => (c
  * Tube along `path` (a ring of `radial` vertices per point, `radii` per point, noisy jitter): the Red World arch technique.
  * Both ends are closed with a dark "mouth" disc so a tunnel reads as a tunnel.
  */
-export function tubeSoup(s: Soup, path: V3[], radii: number[], radial: number, seed: number, look: Look, mat: number, mouths = true): void {
+export function tubeSoup(s: Soup, path: V3[], radii: number[], radial: number, seed: number, look: Look, mat: number, mouths: boolean | 'top' = true): void {
   const n = path.length;
   if (n < 2) return;
   const ring = (i: number, j: number): V3 => {
@@ -108,7 +123,11 @@ export function tubeSoup(s: Soup, path: V3[], radii: number[], radial: number, s
     frames.push({ n: nr, b: norm(cross(t, nr)) });
   }
   grid(s, radial, n - 1, (j, i) => { const p = ring(i, j); return [p[0], p[1], p[2], 0]; }, (i) => path[i], look, mat);
-  if (mouths) {
+  if (mouths === 'top') {
+    // a column: buried foot, flat lighter top
+    const topLook: Look = (c, nn, a) => { const o = look(c, nn, a); return { role: o.role, shade: o.shade * 1.15 }; };
+    for (let j = 0; j < radial; j++) tri(s, path[n - 1], ring(n - 1, j), ring(n - 1, (j + 1) % radial), path[n - 2], topLook, mat);
+  } else if (mouths) {
     const dark: Look = () => ({ role: ROLE.DARK, shade: 1 });
     for (const [end, other] of [[0, 1], [n - 1, n - 2]] as const) {
       const ref: V3 = path[other];
@@ -345,6 +364,39 @@ export function crystalSoup(s: Soup, f: RockForm, ground: Ground, look: Look, ma
   }
 }
 
+/**
+ * Fan cliff (basalt, reduced lava): bundles of hexagonal columns that curve and fan like Stuðlagil. Columns grow perpendicular to
+ * the cooling surface, so where lava cooled unevenly the front is curved and the columns splay out from it and bend over.
+ * Two rows along a curved front facing downhill (`angle`); each column is a 6-sided tube of segments whose direction turns
+ * progressively; tops are stepped and broken (varying heights) and flat.
+ */
+export function fanCliffSoup(s: Soup, f: RockForm, ground: Ground, look: Look, mat: number): void {
+  const W = f.length ?? 32, rad = f.size, H = f.height, SEG = 6;
+  const O: [number, number] = [Math.cos(f.angle), Math.sin(f.angle)], L: [number, number] = [-O[1], O[0]];
+  const spread = f.variant === 0 ? 0.9 : 1.35, n = Math.max(5, Math.round(W / (rad * 2.1)));
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; i < n; i++) {
+      const u = n === 1 ? 0 : i / (n - 1) - 0.5;
+      const front = -u * u * W * 0.45 - row * rad * 1.7;            // curved cooling front, the back row further in
+      const bx = L[0] * u * W + O[0] * front, bz = L[1] * u * W + O[1] * front;
+      const by = ground(bx, bz) - 2.5;
+      const phi = u * spread, tilt = 0.18 + 0.25 * Math.abs(u) + 0.1 * rnd(f.seed, i, row);
+      // start direction: up, splayed sideways by the fan angle and tipped outward
+      let d: V3 = norm([L[0] * Math.sin(phi) + O[0] * Math.sin(tilt), Math.cos(phi) * Math.cos(tilt), L[1] * Math.sin(phi) + O[1] * Math.sin(tilt)]);
+      const len = H * (row ? 1.22 : 1) * (0.45 + 0.11 * Math.floor(rnd(f.seed + row * 3, i) * 5)), step = len / SEG;   // stepped, broken tops
+      const path: V3[] = [[bx, by, bz]];
+      for (let k = 0; k < SEG; k++) {
+        const p = path[k];
+        path.push([p[0] + d[0] * step, p[1] + d[1] * step, p[2] + d[2] * step]);
+        const bend = 0.16 + 0.1 * Math.abs(u);                        // progressive curvature, columns lean over toward the outflow
+        d = norm([d[0] + (O[0] * 0.8 + L[0] * u) * bend, d[1] - 0.06, d[2] + (O[1] * 0.8 + L[1] * u) * bend]);
+      }
+      const tone = 0.9 + 0.14 * rnd(f.seed, i, 5 + row);
+      tubeSoup(s, path, path.map(() => rad), 6, f.seed + i * 3 + row, (c, nn, a) => { const o = look(c, nn, a); return { role: o.role, shade: o.shade * tone }; }, mat, 'top');
+    }
+  }
+}
+
 /** Dispatch: build the form into `s` in the form's local space (origin = its centre on the ground; y is relative to it). */
 export function buildForm(s: Soup, f: RockForm, ground: Ground, look: Look, mat: number): void {
   switch (f.kind) {
@@ -356,6 +408,7 @@ export function buildForm(s: Soup, f: RockForm, ground: Ground, look: Look, mat:
     case 'balancer': balancerSoup(s, f, ground, look, mat); break;
     case 'silicideMound': moundSoup(s, f, ground, look, mat); break;
     case 'pitBoulder': pitBoulderSoup(s, f, ground, look, mat); break;
+    case 'fanCliff': fanCliffSoup(s, f, ground, look, mat); break;
     case 'crystalCluster': crystalSoup(s, f, ground, look, mat); break;
   }
 }

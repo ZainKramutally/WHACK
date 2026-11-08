@@ -5,6 +5,8 @@ import { withCrustChoice } from './crust';
 import { createTerrain, sampleHeights, seaLevelFromHeights, spawnPoint, type TerrainState } from './terrain';
 import { createLandmarks } from './landmarks';
 import { createRockForms, MAX_FORMS, WEIGHT_MIN, type RockFormSet } from './rockForms';
+import { lichenStep } from './rockFormMesh';
+import { mineralColour, mineralFamily } from '../render/crustLook';
 import type { CrustPickId, WorldConfig } from '../worlds/types';
 
 const FULL: TerrainState = { rise: 1, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 }, heatSolvent: 0.5 };
@@ -30,7 +32,7 @@ describe('rock forms', () => {
   it('stays inside the triangle budget per family', () => {
     for (const [name] of cases) {
       const { rf } = results.get(name)!;
-      for (const f of rf.families) expect(f.triangles, `${name} ${f.family}`).toBeLessThan(8000);
+      for (const f of rf.families) expect(f.triangles, `${name} ${f.family}`).toBeLessThan(10000);
       expect(rf.families.length).toBeLessThanOrEqual(5);
     }
   });
@@ -73,6 +75,50 @@ describe('rock forms', () => {
     const out = rf.pushOut(c.x, c.z, FULL)!;
     expect(Math.hypot(out.x - c.x, out.z - c.z)).toBeGreaterThanOrEqual(c.r);
     expect(rf.pushOut(c.x, c.z, { ...FULL, rise: 0 })).toBeNull();
+  });
+});
+
+describe('basalt look', () => {
+  const warmGrey = (hex: number) => {
+    const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    expect((mx - mn) / mx, hex.toString(16)).toBeLessThan(0.2);     // low chroma
+    expect(r >= g && g >= b, hex.toString(16)).toBe(true);          // warm, never red/green/blue-leaning
+    expect(r - b, hex.toString(16)).toBeLessThan(0x1c);              // no brown or red
+  };
+  it('is warm grey at rust 0 and 1', () => {
+    for (const rust of [0, 1]) {
+      warmGrey(mineralColour('basalt', rust));
+      const f = mineralFamily('basalt', true, rust);
+      for (const h of [f.redLight, f.red, f.crimson, f.maroon]) warmGrey(h);
+    }
+  });
+});
+
+describe('fan cliffs and lichen', () => {
+  it('fan cliffs stand only on basalt or reduced lava, in the lava family', () => {
+    for (const [name] of cases) {
+      for (const f of results.get(name)!.rf.forms.filter((x) => x.kind === 'fanCliff')) {
+        expect(['basalt', 'reducedLava']).toContain(f.mineral);
+        expect(f.family).toBe('lava');
+        expect(f.length).toBeGreaterThan(20);
+      }
+    }
+    expect(results.get('carbon basalt')!.rf.forms.some((f) => f.kind === 'fanCliff')).toBe(true);
+  });
+  it('lichen cover is 0 before life on land and eases in after', () => {
+    let l = 0;
+    for (let i = 0; i < 100; i++) l = lichenStep(l, false, 0.1);
+    expect(l).toBe(0);
+    l = lichenStep(l, true, 0.5);
+    expect(l).toBeGreaterThan(0);
+    expect(l).toBeLessThan(1);
+    for (let i = 0; i < 100; i++) l = lichenStep(l, true, 0.1);
+    expect(l).toBe(1);
+  });
+  it('lichen suitability is only on up-facing surfaces', () => {
+    const lava = results.get('carbon basalt')!.rf.families.find((f) => f.family === 'lava')!;
+    expect(Math.max(...lava.lichen)).toBeGreaterThan(0.5);
+    expect(Math.min(...lava.lichen)).toBe(0);
   });
 });
 void ({} as RockFormSet);

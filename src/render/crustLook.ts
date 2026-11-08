@@ -6,7 +6,7 @@ import { LOOK_PALETTES, hexToLab, labToHex, labMix, mixHex, type RockLook } from
 
 /** [fresh, rusted] ground colour per mineral id; minerals that don't oxidise have the same colour twice. */
 export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
-  basalt: [0x2a3330, 0x6a2c22],     // charcoal, green-black → oxidised brown-red
+  basalt: [0x5e5853, 0x645a53],     // warm mid-dark grey (Stuðlagil, Iceland) → very slightly warmer; no brown, no red
   ironstone: [0xa8122a, 0xe8331f],  // red jasper → the Red World red (the ground shader draws the full Red World ramp, see RED_WORLD_GROUND_IDS)
   granite: [0xc8b4b0, 0xc8b4b0],    // pale pink-grey
   silicide: [0x3a3e4c, 0x9a9488],   // dark metallic → pale silica
@@ -109,11 +109,11 @@ const fam = (redLight: number, red: number, crimson: number, maroon: number, sha
 // anthocyanin pigments. The ratchet still runs purple → this red tint, so an iron world's flora goes purple → red, never green.
 const IRONSTONE_RED = fam(0xff5a36, 0xe8331f, 0xa8122a, 0x5c0a1e, 0x5a1040, 0xf0c4bc, 0xf6d4cc, 0xd8502a, [0x5c0a1e, 0xa8122a, 0xf2a2a0]);
 export const MINERAL_LOOK: Record<string, readonly [Family] | readonly [Family, Family]> = {
-  // charcoal teal-grey volcanic rock under cool blue-grey air (Iceland, the Faroes); emerald flora; teal over dark sand. Rusted: brown-red.
+  // warm grey columnar basalt under cool blue-grey air (Iceland, the Faroes); emerald flora; teal over dark sand. Rusted: brown-red.
   basalt: [
-    fam(0x86a0a0, 0x4a6466, 0x2c4448, 0x16282c, 0x1a3a4a, 0xc0d2dc, 0xd4e2ec, 0x1a6a78, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
-    // mild brown oxidation (dark brown-grey, no Red World red); flora stays emerald and the air cool so 'Volcanic' stays green and Earth-like
-    fam(0x968a86, 0x645a58, 0x453c3c, 0x261f20, 0x1e2e3a, 0xc0d2dc, 0xd4e2ec, 0x2a5a60, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
+    fam(0x8a827a, 0x5e5853, 0x403b37, 0x242120, 0x2a2c36, 0xc0d2dc, 0xd4e2ec, 0x1a6a78, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
+    // a hair warmer (still grey: no brown, no Red World red); flora stays emerald and the air cool so 'Volcanic' stays green and Earth-like
+    fam(0x8e847a, 0x625850, 0x433c37, 0x252120, 0x2a2c36, 0xc0d2dc, 0xd4e2ec, 0x2a5a60, [0x0c3a28, 0x1f9a5c, 0x9ae6b4]),
   ],
   ironstone: [
     // jasper before full oxidation: same family, a little darker and less saturated

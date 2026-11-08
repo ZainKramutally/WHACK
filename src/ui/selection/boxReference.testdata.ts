@@ -15,7 +15,7 @@ export const BOX_PAL = {
   spark: ['#FF7A00', '#FFB300', '#FFF2A0'],
   /** Bed grains per mineral id: dark, mid, light. Unknown ids fall back to `rock`. */
   crust: {
-    basalt: ['#1F2A26', '#3A4A42', '#58695E'],
+    basalt: ['#3A3633', '#5E5853', '#8A827A'],
     ironstone: ['#4A1710', '#8C2A1C', '#B8402A'],
     granite: ['#8E8A84', '#C9C3B8', '#F2EEE4'],
     silicide: ['#4A525C', '#8794A3', '#CDD8E4'],
@@ -24,9 +24,9 @@ export const BOX_PAL = {
     reducedLava: ['#8E8A84', '#C9C4BC', '#EEEAE2'],
     rock: ['#4A4A4A', '#808080', '#B8B8B8'],
   } as Record<string, string[]>,
-  /** Where oxidising grains end up at full rust: basalt to rust red, silicide to grey-white silica. */
+  /** Where oxidising grains end up at full rust: basalt a hair warmer, silicide to grey-white silica. */
   crustRust: {
-    basalt: ['#5A1E12', '#A8432A', '#D9694A'],
+    basalt: ['#403632', '#645850', '#8E8176'],
     ironstone: ['#6A2216', '#B8402A', '#D96A4E'],
     silicide: ['#B9B9B4', '#DCDCD6', '#F6F6F2'],
     reducedLava: ['#C8C6C0', '#E8E6E2', '#FAFAF8'],

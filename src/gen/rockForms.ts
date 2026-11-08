@@ -13,7 +13,7 @@ import { sampleHeights, seaLevelFromHeights, spawnPoint, type Terrain, type Terr
 import type { Circle, LandmarkSet } from './landmarks';
 import { buildForm, lavaTubeSoup, newSoup, noise3, plainLook, ROLE, type Look, type Soup } from './rockFormMesh';
 
-export type RockFormKind = 'lavaTube' | 'seaStack' | 'mesa' | 'dome' | 'torStack' | 'balancer' | 'silicideMound' | 'pitBoulder' | 'crystalCluster';
+export type RockFormKind = 'lavaTube' | 'fanCliff' | 'seaStack' | 'mesa' | 'dome' | 'torStack' | 'balancer' | 'silicideMound' | 'pitBoulder' | 'crystalCluster';
 /** One draw call per family. */
 export type RockFamily = 'lava' | 'iron' | 'granite' | 'silicide' | 'nitride';
 
@@ -40,6 +40,7 @@ export interface FamilyMesh {
   role: Uint8Array;           // per vertex: ROLE.* (0 = the mineral's own colour)
   shade: Float32Array;        // per vertex colour multiplier
   mat: Uint8Array;            // per vertex: index into matIds
+  lichen: Float32Array;       // per vertex: 0..1 suitability for lichen (up-facing, patchy); the render part applies it to basalt only
   triangles: number;
   top: number;                // highest vertex (m): sinking the family by this much hides all of it
 }
@@ -66,10 +67,11 @@ const SOLID_FROM = 0.2;
 
 const FAMILY_OF: Record<string, RockFamily> = { basalt: 'lava', reducedLava: 'lava', ironstone: 'iron', granite: 'granite', silicide: 'silicide', nitride: 'nitride' };
 
-interface PlanEntry { kind: RockFormKind; count: number; size: [number, number]; height: [number, number]; length?: [number, number]; where: 'inland' | 'land' | 'offshore'; variants: number }
+interface PlanEntry { kind: RockFormKind; count: number; size: [number, number]; height: [number, number]; length?: [number, number]; where: 'inland' | 'land' | 'offshore' | 'cliff'; variants: number }
 const PLAN: Record<string, PlanEntry[]> = {
   basalt: [
     { kind: 'lavaTube', count: 2, size: [5, 8], height: [0, 0], length: [60, 110], where: 'inland', variants: 3 },
+    { kind: 'fanCliff', count: 2, size: [1.7, 2.4], height: [14, 26], length: [28, 40], where: 'cliff', variants: 2 },
     { kind: 'seaStack', count: 3, size: [3.5, 6], height: [10, 22], where: 'offshore', variants: 1 },
   ],
   ironstone: [{ kind: 'mesa', count: 5, size: [18, 32], height: [14, 26], where: 'land', variants: 3 }],
@@ -104,6 +106,11 @@ function lookFor(f: RockForm): Look {
     const base = plainLook(f.seed);
     return (c, n, aux) => { const o = base(c, n, aux); return { role: o.role, shade: o.shade * (1 - 0.35 * aux) }; };   // pits read darker
   }
+  if (f.family === 'lava') {
+    // warm grey columns with lighter, stepped, broken tops
+    const base = plainLook(f.seed);
+    return (c, n, aux) => { const o = base(c, n, aux); return { role: o.role, shade: o.shade * (n[1] > 0.7 ? 1.22 : 1) }; };
+  }
   return plainLook(f.seed);
 }
 
@@ -129,6 +136,12 @@ export function createRockForms(terrain: Terrain, landmarks: LandmarkSet, opts: 
     }
   }
 
+  /** Ground gradient magnitude and the downhill heading (rad) at a point, over +-5 m. */
+  const slopeAt = (x: number, z: number) => {
+    const gx = (ground(x + 5, z) - ground(x - 5, z)) / 10, gz = (ground(x, z + 5) - ground(x, z - 5)) / 10;
+    return { g: Math.hypot(gx, gz), down: Math.atan2(-gz, -gx) };
+  };
+
   const taken: Circle[] = landmarks.landmarks.flatMap((lm) => landmarks.footprints(lm));
   const free = (x: number, z: number, r: number) => taken.every((c) => Math.hypot(x - c.x, z - c.z) > c.r + r + 6);
   const farFromSpawn = (x: number, z: number, r: number) => Math.hypot(x - spawn.x, z - spawn.z) > SPAWN_CLEAR + r;
@@ -149,7 +162,7 @@ export function createRockForms(terrain: Terrain, landmarks: LandmarkSet, opts: 
       const want = Math.max(1, Math.round(p.count * scale * boost));
       const ranked = cells
         .filter((c) => c.w[i] >= WEIGHT_MIN && farFromSpawn(c.x, c.z, 0))
-        .filter((c) => (p.where === 'offshore' ? c.gh < sea - 1.5 && c.gh > sea - 7 : p.where === 'inland' ? c.gh > sea + 2.5 : c.gh > sea + 3))
+        .filter((c) => (p.where === 'offshore' ? c.gh < sea - 1.5 && c.gh > sea - 7 : p.where === 'inland' ? c.gh > sea + 2.5 : p.where === 'cliff' ? c.gh > sea + 1 && c.gh < sea + 30 && slopeAt(c.x, c.z).g >= 0.3 : c.gh > sea + 3))
         .map((c) => ({ c, v: (0.2 + c.vis) * (0.7 + 0.6 * r()) + (p.where === 'inland' ? clamp01((c.gh - sea) / 20) : 0) }))
         .sort((a, b) => b.v - a.v);
       let got = 0;
@@ -181,6 +194,18 @@ export function createRockForms(terrain: Terrain, landmarks: LandmarkSet, opts: 
             const along = (s / 4 - 0.5) * form.length;
             taken.push({ x: c.x + Math.cos(form.angle) * along, z: c.z + Math.sin(form.angle) * along, r: size * 1.5 });
           }
+        } else if (p.kind === 'fanCliff') {
+          // faces downhill; the bundle spans `length` along the slope, so keep the whole front clear
+          form.length = between(p.length![0], p.length![1]);
+          form.angle = slopeAt(c.x, c.z).down;
+          const lx = -Math.sin(form.angle), lz = Math.cos(form.angle);
+          let ok = true;
+          for (const u of [-0.5, -0.25, 0, 0.25, 0.5]) {
+            const x = c.x + lx * u * form.length, z = c.z + lz * u * form.length;
+            ok = ok && Math.abs(x) < 0.46 * S && Math.abs(z) < 0.46 * S && farFromSpawn(x, z, 6) && free(x, z, form.length / 8 + size);
+          }
+          if (!ok) continue;
+          for (const u of [-0.375, -0.125, 0.125, 0.375]) taken.push({ x: c.x + lx * u * form.length, z: c.z + lz * u * form.length, r: form.length / 8 + size * 2 });
         } else {
           const foot = size * (p.kind === 'mesa' ? 1.5 : p.kind === 'crystalCluster' ? 1.6 : 1.3);
           if (!free(c.x, c.z, foot)) continue;
@@ -216,6 +241,10 @@ export function createRockForms(terrain: Terrain, landmarks: LandmarkSet, opts: 
         if (k % 2 || skip.has(k)) return;
         if (p[1] - t.radii[k] - g(p[0], p[2]) < 2.5) fc.push({ x: f.x + p[0], z: f.z + p[2], r: t.radii[k] * 0.9 });   // low enough to block; higher spans can be walked under
       });
+    } else if (f.kind === 'fanCliff') {
+      buildForm(local, f, g, look, mi);
+      const lx = -Math.sin(f.angle), lz = Math.cos(f.angle);
+      for (const u of [-0.375, -0.125, 0.125, 0.375]) fc.push({ x: f.x + lx * u * f.length!, z: f.z + lz * u * f.length!, r: f.length! / 8 + f.size });
     } else {
       buildForm(local, f, g, look, mi);
       const r = f.kind === 'mesa' ? f.size * 1.1 : f.kind === 'crystalCluster' ? f.size * 1.1 : f.kind === 'seaStack' ? f.size * 1.2 : f.size * 0.95;
@@ -225,11 +254,11 @@ export function createRockForms(terrain: Terrain, landmarks: LandmarkSet, opts: 
     circles.set(f.id, fc);
     const p = local.pos;
     for (let k = 0; k < p.length; k += 3) e.soup.pos.push(p[k] + f.x, p[k + 1] + f.y, p[k + 2] + f.z);
-    e.soup.role.push(...local.role); e.soup.shade.push(...local.shade); e.soup.mat.push(...local.mat);
+    e.soup.role.push(...local.role); e.soup.shade.push(...local.shade); e.soup.mat.push(...local.mat); e.soup.lichen.push(...local.lichen);
     e.soup.top = Math.max(e.soup.top, local.top + f.y);
   }
   const families: FamilyMesh[] = [...soups.entries()].map(([family, { soup, matIds }]) => ({
-    family, matIds, positions: new Float32Array(soup.pos), role: Uint8Array.from(soup.role), shade: Float32Array.from(soup.shade), mat: Uint8Array.from(soup.mat),
+    family, matIds, positions: new Float32Array(soup.pos), role: Uint8Array.from(soup.role), shade: Float32Array.from(soup.shade), mat: Uint8Array.from(soup.mat), lichen: Float32Array.from(soup.lichen),
     triangles: soup.pos.length / 9, top: soup.top,
   }));
 
