@@ -146,7 +146,20 @@ const libraries = new Map<number, FloraLibrary>();
  */
 export function floraLibrary(seed = LIB_SEED): FloraLibrary {
   let lib = libraries.get(seed);
-  if (!lib) { lib = buildFloraLibrary(seed); libraries.set(seed, lib); }
+  if (!lib) {
+    lib = buildFloraLibrary(seed);
+    // The drawn geometry carries only what a material reads: three r187 counts every geometry attribute toward its
+    // shared-build limit (Instance.js canReferenceInstanceData: attributes + instance buffers ≤ 8), and over it every
+    // instanced mesh gets its own build, compiled on first draw. The part weights (rim, cap) stay as source data in
+    // `part` until a material packs them into an existing slot.
+    for (const a of lib.archetypes) for (const l of a.lod) {
+      const at = l.geometry.getAttribute('aPart');
+      if (!at) continue;
+      l.part = at.array as Float32Array;
+      l.geometry.deleteAttribute('aPart');
+    }
+    libraries.set(seed, lib);
+  }
   return lib;
 }
 

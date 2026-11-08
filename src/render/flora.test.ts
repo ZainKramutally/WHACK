@@ -3,6 +3,8 @@ import * as THREE from 'three/webgpu';
 import { makeStubVisualInputs } from './visualInputs';
 import { cellAt } from './layout';
 import { MAX_VERTEX_BUFFERS, createFlora, vertexBuffers } from './flora';
+import { floraLibrary } from './floraLib';
+import { LOOK_INSTANCE_ATTRS, lookGeometry } from './floraLib/instance';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 
@@ -33,6 +35,17 @@ describe('flora buckets', () => {
     expect(n).toBeGreaterThan(30);
     expect(over).toEqual([]);
     flora.dispose();
+  });
+
+  it('every look geometry (the buckets\' and the producer card\'s) counts at most 8 with its per-instance buffers and matrix', () => {
+    const over: string[] = [];
+    for (const a of floraLibrary().archetypes) for (const [lod, l] of a.lod.entries()) {
+      const n = Object.keys(lookGeometry(l).attributes).length + LOOK_INSTANCE_ATTRS + 1;
+      if (n > MAX_VERTEX_BUFFERS) over.push(`${a.key}/L${lod}: ${n}`);
+      // the part weights stay as source data, one (rim, cap) pair per vertex
+      if (l.part) expect(l.part.length, a.key).toBe(2 * l.geometry.getAttribute('position').count);
+    }
+    expect(over).toEqual([]);
   });
 });
 

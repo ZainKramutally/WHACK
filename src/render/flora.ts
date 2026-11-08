@@ -17,7 +17,7 @@ import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Cle
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
-import { plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
@@ -129,10 +129,7 @@ export function createFlora(app: App): FloraPart {
       const built = a.lod[lod];
       // Its own geometry over the shared library one: position, normal, sway and index are shared; colour and glow are
       // its own (paintSites writes them per palette and value step), as are the per-instance buffers added below.
-      const geometry = new THREE.BufferGeometry();
-      for (const [name, at] of Object.entries(built.geometry.attributes)) geometry.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
-      geometry.setIndex(built.geometry.index);
-      geometry.boundingBox = built.geometry.boundingBox; geometry.boundingSphere = built.geometry.boundingSphere;
+      const geometry = lookGeometry(built);
       L = looks[id] = { arch: a, lod: lod as 0 | 1, dark: !!dark, geometry, painted: null };
     }
     return L;
@@ -158,7 +155,7 @@ export function createFlora(app: App): FloraPart {
     mesh.visible = false;
     mesh.frustumCulled = false;
     mesh.name = `${L.arch.key}/L${d.lod}${d.dark ? 'd' : ''}`;
-    if (vertexBuffers(mesh) > MAX_VERTEX_BUFFERS) console.error(`flora: ${mesh.name} binds ${vertexBuffers(mesh)} vertex buffers (max ${MAX_VERTEX_BUFFERS}): free a slot before adding one`);
+    if (vertexBuffers(mesh) > MAX_VERTEX_BUFFERS) console.error(`flora: ${mesh.name} counts ${vertexBuffers(mesh)} toward three's shared-build limit (${MAX_VERTEX_BUFFERS}): free a slot before adding one`);
     group.add(mesh);
     buckets.set(d.id, { mesh, cap: d.cap, shape, look });
   }

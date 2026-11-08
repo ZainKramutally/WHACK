@@ -3,9 +3,26 @@
 // world's plants (the producer card) can call them to draw the same plant.
 import * as THREE from 'three/webgpu';
 import { NEUTRAL_TINT, type Archetype } from './index';
+import type { BuiltPlant } from './mesh';
 import type { PlantList } from './place';
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Per-instance attributes every plant look geometry adds (aPlant shape terms, aLook tint and glow), besides the
+ * instance matrix. */
+export const LOOK_INSTANCE_ATTRS = 2;
+/**
+ * A drawable copy of a library plant for one look (archetype × LOD × value step): position, normal, sway and index are
+ * shared with the library; colour and glow are its own (paintSites writes them). flora.ts's buckets and the producer
+ * card both draw through these, then add their LOOK_INSTANCE_ATTRS per-instance buffers.
+ */
+export function lookGeometry(built: Pick<BuiltPlant, 'geometry'>): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry(), src = built.geometry;
+  for (const [name, at] of Object.entries(src.attributes)) g.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
+  g.setIndex(src.index);
+  g.boundingBox = src.boundingBox; g.boundingSphere = src.boundingSphere;
+  return g;
+}
 const q = new THREE.Quaternion(), qt = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), n = new THREE.Vector3();
 
 /**

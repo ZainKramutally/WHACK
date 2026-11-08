@@ -74,6 +74,8 @@ export interface BuiltPlant {
   glowKey: Uint8Array;
   /** Per vertex: glow site weight 0..1 (aGlow = site × form.glow). */
   site: Float32Array;
+  /** Per vertex part weights (rim, cap) once floraLibrary() has taken `aPart` off the drawn geometry (index.ts). */
+  part?: Float32Array;
 }
 
 export class MeshBuilder {

@@ -327,7 +327,8 @@ describe.skipIf(!SLOW)('flora asset audit: placement and wiring (SLOW)', () => {
       const mesh = obj as THREE.InstancedMesh;
       const g = mesh.geometry, mat = mesh.material as THREE.Material & { vertexColors: boolean };
       const n = g.getAttribute('position').count;
-      for (const [name, size] of [['color', 3], ['aGlow', 1], ['aSway', 1], ['aPart', 2], ['normal', 3]] as const) {
+      // (aPart is source data off the drawn geometry until a material reads it: floraLibrary() keeps it in BuiltPlant.part)
+      for (const [name, size] of [['color', 3], ['aGlow', 1], ['aSway', 1], ['normal', 3]] as const) {
         const at = g.getAttribute(name);
         if (!at || at.itemSize !== size || at.count !== n) fails.push(`${mesh.name}: attribute ${name}`);
       }

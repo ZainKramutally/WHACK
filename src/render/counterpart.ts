@@ -17,6 +17,7 @@ import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixH
 import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
 import type { PlacedPlant } from './flora';
 import { plantViewMaterial } from './material';
+import { lookGeometry } from './floraLib/instance';
 import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
@@ -322,9 +323,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const built = floraLibrary().archetypes[arch].lod[lod];
     let L = cardLooks.get(id);
     if (!L) {
-      const geometry = new THREE.BufferGeometry();
-      for (const [name, at] of Object.entries(built.geometry.attributes)) geometry.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
-      geometry.setIndex(built.geometry.index);
+      const geometry = lookGeometry(built); // the world's look copy: shared position, normal, sway, index
       const shape = new THREE.InstancedBufferAttribute(new Float32Array(PLANT_CAP * 4), 4);
       const look = new THREE.InstancedBufferAttribute(new Float32Array(PLANT_CAP * 4), 4);
       geometry.setAttribute('aPlant', shape);
