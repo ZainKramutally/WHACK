@@ -25,17 +25,20 @@ export type Grid = Record<GridField, Float64Array>;
 export interface GridSetup {
   /** Static liquid depth per cell (0 = dry land), from the terrain heightmap and sea level. Length CELLS. */
   liquid: ArrayLike<number>;
-  /** Starting nutrient supply per cell, in matter units. */
-  supply: { c: number; si: number; o: number };
+  /** Starting nutrient supply per cell, in matter units: one value for every cell, or one value per cell (gen/crust.ts). */
+  supply: { c: number | ArrayLike<number>; si: number | ArrayLike<number>; o: number | ArrayLike<number> };
 }
 
 export function createGrid(setup: GridSetup): Grid {
   if (setup.liquid.length !== CELLS) throw new Error(`liquid must have ${CELLS} cells, got ${setup.liquid.length}`);
   const g = {} as Grid;
   for (const f of GRID_FIELDS) g[f] = new Float64Array(CELLS);
-  g.c.fill(setup.supply.c);
-  g.si.fill(setup.supply.si);
-  g.o.fill(setup.supply.o);
+  for (const el of ['c', 'si', 'o'] as const) {
+    const v = setup.supply[el];
+    if (typeof v === 'number') g[el].fill(v);
+    else if (v.length !== CELLS) throw new Error(`supply.${el} must have ${CELLS} cells, got ${v.length}`);
+    else for (let i = 0; i < CELLS; i++) g[el][i] = v[i];
+  }
   for (let i = 0; i < CELLS; i++) g.liquid[i] = Math.max(0, setup.liquid[i]);
   return g;
 }

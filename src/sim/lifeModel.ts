@@ -5,6 +5,7 @@ import type { BodyPlan } from './develop';
 import { flightParamsFor } from './flight';
 import { CAP, Ecology, type EcologyLedger } from './ecology';
 import type { AnimalGenome } from './genome';
+import { cellSupply, crustMap } from '../gen/crust';
 import { CELLS, FLORA_STRIDE, createGrid } from './grid';
 import type { GuideAnimal } from './guide';
 import type { Environment } from './population';
@@ -79,11 +80,11 @@ export class EcologyLife implements LifeModel {
   seedFounders(env: LifeEnv, near?: { x: number; y: number }): void {
     const w = this.world;
     const led = w.life.ledger;
-    const supply = {
+    const supply = w.life.ledger.supplyC === undefined ? {
       c: led.supplyC ?? FALLBACK_SUPPLY.c,
       si: led.supplySi ?? FALLBACK_SUPPLY.si,
       o: led.supplyO ?? FALLBACK_SUPPLY.o,
-    };
+    } : cellSupply(w, crustMap(w, this.seed));
     const fixed = w.life.inputs;
     this.eco = new Ecology({
       seed: this.seed,

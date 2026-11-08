@@ -2,6 +2,7 @@
 // Terrain heights at full rise → sea level for a mid-target sea cover → per-cell liquid depth; nutrients and the
 // ledger come from the config. Not used by app code.
 import { flightParamsFor } from '../flight';
+import { cellSupply, crustMap } from '../../gen/crust';
 import { createTerrain, sampleHeights, seaLevelFromHeights } from '../../gen/terrain';
 import type { WorldConfig } from '../../worlds/types';
 import { Ecology, type EcologyEnv, type EcologyLedger } from '../ecology';
@@ -14,8 +15,10 @@ export function startEnv(world: WorldConfig): EcologyEnv {
     : { temperature: -183, oxygen: 0, light: 0.01, habitat: 1, edgeStress: 0, heatBand: 0.5 };
 }
 
-export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: EcologyEnv } {
-  const terrain = createTerrain(world.terrain, world.demoSeed);
+/** `uniform` skips the crust map (every cell gets the base supply); `seed` defaults to the demo seed. */
+export function ecologyFromWorld(world: WorldConfig, opts: { uniform?: boolean; seed?: number } = {}): { eco: Ecology; env: EcologyEnv } {
+  const seed = opts.seed ?? world.demoSeed;
+  const terrain = createTerrain(world.terrain, seed);
   const heights = sampleHeights(terrain, { rise: 1, progress: {}, heatSolvent: 0.5 });
   const cover = (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200;
   const seaLevel = seaLevelFromHeights(heights, cover);
@@ -25,8 +28,8 @@ export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: Ecolo
   const env = startEnv(world);
   const airKgM3 = world.id === 'carbon' ? 1.2 : 13; // real P·M/(R·T); the worker computes this live
   const eco = new Ecology({
-    seed: world.demoSeed,
-    grid: createGrid({ liquid, supply: { c: L.supplyC, si: L.supplySi, o: L.supplyO } }),
+    seed,
+    grid: createGrid({ liquid, supply: opts.uniform ? { c: L.supplyC, si: L.supplySi, o: L.supplyO } : cellSupply(world, crustMap(world, seed)) }),
     rules: world.life.rules,
     inputs: {
       solvent: world.life.inputs.solvent,
