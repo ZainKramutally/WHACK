@@ -54,3 +54,4 @@ These perf findings sit in files other agents were actively editing, so session/
 15. **FIXED by the art layer on integrate/stage d1cc845 (crust object stable per sampler + place.ts keyed on it).** Original: **floraLib/place.ts `mineralIx` (1c63df8) cached per placePlants call** (`MIN_AT[c] !== call`), so every flora rebuild (up to 4×/s) re-samples `crust.weights` plus the argmax for every planted cell. Measured: 1.4–1.5 ms per 4,096-cell pass.
    - Fix: key CELL_MIN on the `crust` (or `crust.weights`) identity.
    - Optionally, visualInputs.ts hands out one crust object per sampler (WeakMap), so the identity is stable during the build too.
+16. **Nit, selection box (box.ts, d34b1f5):** `columnMinerals(world)` builds a new Set (filter + flatMap) on every draw frame, at 60 Hz. Memoise it per world in a WeakMap. Tiny, but it puts a per-frame allocation back into a loop that was allocation-free.
