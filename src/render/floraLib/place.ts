@@ -75,6 +75,9 @@ export function clumpAt(col: number, row: number): number {
 export interface HeightCache { unit: Float32Array; ok: Uint8Array; gen: number }
 /** Density by FloraForm.lush (biomass magnitude): sparse, normal, lush. Absent (older floraForm) counts as normal. */
 const LUSH_DENSITY = [0.7, 1, 1.2] as const;
+/** Mid groves thin in sparse cells but never thicken past normal: mids are the costliest plants, and the worst case
+ * (canopy over the whole patch, every cell lush) must hold the mid budget. Lush thickens ground cover only. */
+const MID_DENSITY = LUSH_DENSITY.map((d) => Math.min(1, d));
 const lushOf = (f: FloraForm): 0 | 1 | 2 => (f as { lush?: 0 | 1 | 2 }).lush ?? 1;
 /** The cell's bin with another mix: keeps every per-cell field the bin carries (submerged, lush on newer floraForm). */
 const withMix = (b: FloraBin, mix: 0 | 1 | 2): FloraBin => Object.assign({}, b, { mix });
@@ -166,7 +169,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
-        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row)) * LUSH_DENSITY[lushOf(form)];
+        const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row)) * MID_DENSITY[lushOf(form)];
         const n = Math.min(GROUND_SLOT - MID_SLOT, Math.floor(want + hash01(c, 1, 20)));
         for (let k = 0; k < n; k++) {
           const x = cc.x + (hash01(c, k, 21) - 0.5) * cell, z = cc.z + (hash01(c, k, 22) - 0.5) * cell;
