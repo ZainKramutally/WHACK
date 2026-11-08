@@ -93,3 +93,4 @@
 - 02:35 16: merged #51 (radial swimmers roll; nearest announced species within 1.8× form radius). Held back jumpRateBuild (no build-count gain; live discoveries 0–3). #39/#47 re-check: carbon 50–100% at 60 s, silicon seed 2 fails.
 - 02:46 16: merged #74 (sticky creature lock, NEW SPECIES label until found; swimmers pickable from above water).
 - 02:52 16: merged loud NEW SPECIES lock (gold, pulse, ping; UNCLASSIFIED dim). #75 (swimmer name) with sim-worker.
+- 02:55 16: merged #75 (mode-aware species mapping; movement words by mode and traits, Diver for swim+fly).
