@@ -12,6 +12,8 @@
 import type { VisualInputs } from '../worlds/types';
 import { FLORA_EPS, cellCentre } from './layout';
 
+const GRID_CELLS = 64 * 64;
+
 export type FloraSpecies = 'tuft' | 'capped' | 'cup' | 'dome' | 'spire' | 'crust';
 
 export interface FloraForm {
@@ -56,12 +58,29 @@ export const DIM_BELOW = 0.4;
 export const SPARSE_BELOW = 0.35;
 export const LUSH_ABOVE = 0.9;
 
+// Ground height per cell centre, cached by the identity of the `height` function and the patch size. Exact: a different
+// terrain state or sampler arrives as a different function (buildVisualInputs makes one per state), and nothing is
+// quantised. Filled lazily (NaN = not sampled yet). Float64 so the `< seaLevel` test matches the uncached one bit for bit.
+let groundFn: VisualInputs['terrain']['height'] | null = null;
+let groundPatch = 0;
+let ground = new Float64Array(0);
+
 /** True when the cell centre lies below sea level. Needs terrain.patchSize; false without it. */
 export function cellSubmerged(cell: number, i: Pick<VisualInputs, 'terrain' | 'seaLevel'>): boolean {
   const patch = i.terrain.patchSize;
   if (!patch) return false;
-  const c = cellCentre(cell, patch);
-  return i.terrain.height(c.x, c.z) < i.seaLevel;
+  const fn = i.terrain.height;
+  if (fn !== groundFn || patch !== groundPatch || cell >= ground.length) {
+    groundFn = fn; groundPatch = patch;
+    ground = new Float64Array(Math.max(GRID_CELLS, cell + 1)).fill(NaN);
+  }
+  let h = ground[cell];
+  if (h !== h) {
+    const c = cellCentre(cell, patch);
+    h = fn(c.x, c.z);
+    ground[cell] = h;
+  }
+  return h < i.seaLevel;
 }
 
 /** Quantise the inputs for a cell with this biomass into a bin. `submerged` is per cell (see cellSubmerged). */

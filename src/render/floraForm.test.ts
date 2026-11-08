@@ -96,4 +96,21 @@ describe('floraForm', () => {
     const a = floraBin(0.5, 0.5, inputs({ heatBand: 0.5 })), b = floraBin(0.5, 0.52, inputs({ heatBand: 0.52 }));
     expect(formForBin(a)).toBe(formForBin(b));
   });
+
+  it('cellSubmerged cache agrees with direct sampling and skips repeat height calls', () => {
+    const base = makeStubVisualInputs();
+    let calls = 0;
+    const mk = (off: number) => (x: number, z: number) => { calls++; return Math.sin(x * 0.05 + off) * 5 + z * 0.01; };
+    const direct = (f: (x: number, z: number) => number, sea: number) =>
+      Array.from({ length: 4096 }, (_, c) => { const w = 400 / 64; return f(((c % 64) + 0.5) * w - 200, (Math.floor(c / 64) + 0.5) * w - 200) < sea; });
+    for (const [off, sea] of [[0, 0], [0, 1.5], [1, 1.5]] as const) {   // sea level move, then new terrain function
+      const f = mk(off);
+      const i = { ...base, seaLevel: sea, terrain: { ...base.terrain, patchSize: 400, height: f } };
+      const got = Array.from({ length: 4096 }, (_, c) => cellSubmerged(c, i));
+      expect(got).toEqual(direct(mk(off), sea));
+      const before = calls;
+      Array.from({ length: 4096 }, (_, c) => cellSubmerged(c, { ...i, seaLevel: sea + 0.3 }));
+      expect(calls).toBe(before);
+    }
+  });
 });
