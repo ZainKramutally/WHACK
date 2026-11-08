@@ -196,3 +196,48 @@ describe('nudgeToWater: shoreline swimmers are drawn over deep enough water', ()
     expect(nudgeToWater(0, 0, 0, 1, () => 0.2, 6.25, out)).toBe(false); // flat dry ground
   });
 });
+
+import { HUNTER_DIET, INTENT, JAW_OPEN_RAD, KILL_SEC, STRIKE_SEC, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse } from './motion';
+
+describe('hunting animation', () => {
+  it('opens a fast hunter, never a grazer, and intent overrides the stand-in', () => {
+    expect(attackTarget(0.2, 3)).toBe(0);
+    expect(attackTarget(HUNTER_DIET, 0)).toBe(0);
+    expect(attackTarget(0.9, 3)).toBeGreaterThan(0.5);
+    expect(attackTarget(0.9, 3, INTENT.forage)).toBe(0);
+    expect(attackTarget(0.1, 0, INTENT.hunt)).toBe(1);
+    expect(attackTarget(0.9, 0, INTENT.hunt, 1)).toBeCloseTo(1);
+    expect(attackTarget(0.9, 0, INTENT.hunt, 10)).toBeCloseTo(0.35);
+  });
+  it('eases toward the target, opening faster than closing, independent of steps', () => {
+    let a = 0;
+    for (let i = 0; i < 10; i++) a = easeAttack(a, 1, 0.012);
+    expect(a).toBeCloseTo(easeAttack(0, 1, 0.12), 6);
+    expect(easeAttack(0, 1, 0.12)).toBeGreaterThan(1 - easeAttack(1, 0, 0.12));
+    expect(easeAttack(0.4, 0.4, 1)).toBeCloseTo(0.4);
+    expect(easeAttack(0, 1, 5)).toBeCloseTo(1, 4);
+  });
+  it('the strike pulse rises, peaks and ends', () => {
+    expect(strikePulse(-0.1)).toBe(0);
+    expect(strikePulse(STRIKE_SEC * 0.25)).toBeCloseTo(1);
+    expect(strikePulse(STRIKE_SEC)).toBe(0);
+  });
+  it('opening the jaw keeps the tip attached at the hinge and drops it', () => {
+    const o = { 0: 0, 1: 0 };
+    jawTip(1, 2, 3, 2, 0, o);
+    expect(o[0]).toBeCloseTo(3); expect(o[1]).toBeCloseTo(2);
+    jawTip(1, 2, 3, 2.5, JAW_OPEN_RAD, o);
+    expect(Math.hypot(o[0] - 1, o[1] - 2)).toBeCloseTo(Math.hypot(2, 0.5));
+    expect(o[1]).toBeLessThan(2.5);
+  });
+  it('the kill timeline runs flash → collapse → fade and is done by KILL_SEC', () => {
+    const k = { flash: 0, collapse: 0, burst: 0, alpha: 0, done: false };
+    killFrame(0.06, k); expect(k.flash).toBeCloseTo(1); expect(k.alpha).toBe(1); expect(k.collapse).toBeLessThan(0.1);
+    killFrame(0.6, k); expect(k.flash).toBe(0); expect(k.collapse).toBeCloseTo(1); expect(k.alpha).toBeGreaterThan(0); expect(k.alpha).toBeLessThan(1);
+    killFrame(KILL_SEC, k); expect(k.alpha).toBe(0); expect(k.done).toBe(true);
+    expect(KILL_SEC).toBeLessThanOrEqual(1.2);
+  });
+  it('the flee wobble stays bounded', () => {
+    for (let t = 0; t < 3; t += 0.07) expect(Math.abs(fleeWobble(t, 1.3))).toBeLessThanOrEqual(0.22 + 1e-9);
+  });
+});

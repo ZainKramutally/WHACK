@@ -252,3 +252,69 @@ export function nudgeToWater(
   }
   return false;
 }
+
+// --- hunting: attack pose, strike and the kill animation (render-only illustration) ----------------------------
+/** Diet at which an animal reads as a hunter for the attack pose (the creatureLayout jaw ramps in from 0.35 to 0.75). */
+export const HUNTER_DIET = 0.6;
+/** Intent codes in the organism buffer (layout v4): what the utility loop chose this tick. */
+export const INTENT = { forage: 0, hunt: 1, flee: 2, home: 3, rest: 4, bud: 5 } as const;
+
+const smooth01 = (x: number) => { const k = x <= 0 ? 0 : x >= 1 ? 1 : x; return k * k * (3 - 2 * k); };
+
+/**
+ * How open a creature's attack pose wants to be, 0..1. With the sim's intent (−1 when the buffer has none): hunting
+ * opens fully, scaled by closeness to the target when known (`targetBL`, distance in body lengths; Infinity unknown).
+ * Without intent, a stand-in: a hunter (diet ≥ HUNTER_DIET) opens with speed (`speedBL`, body lengths per second).
+ */
+export function attackTarget(diet: number, speedBL: number, intent = -1, targetBL = Infinity): number {
+  if (intent >= 0) {
+    if (intent !== INTENT.hunt) return 0;
+    return Number.isFinite(targetBL) ? 0.35 + 0.65 * smooth01((5 - targetBL) / 4) : 1;
+  }
+  if (diet < HUNTER_DIET) return 0;
+  return 0.6 * smooth01((speedBL - 0.25) / 0.75);
+}
+
+/** Ease `cur` toward `target`: quick to open (0.12 s), slower to close (0.35 s), frame-rate independent. */
+export function easeAttack(cur: number, target: number, dt: number): number {
+  const tau = target > cur ? 0.12 : 0.35;
+  return target + (cur - target) * Math.exp(-Math.max(0, dt) / tau);
+}
+
+/** A strike when a kill lands for this hunter: a sharp snap-and-lunge pulse 0..1 over STRIKE_SEC, 0 outside it. */
+export const STRIKE_SEC = 0.35;
+export function strikePulse(age: number): number {
+  if (!(age >= 0) || age >= STRIKE_SEC) return 0;
+  const u = age / STRIKE_SEC;
+  return u < 0.25 ? smooth01(u / 0.25) : 1 - smooth01((u - 0.25) / 0.75);
+}
+
+/** Jaw gape in radians at attack a (0 closed). */
+export const JAW_OPEN_RAD = 0.75;
+/**
+ * Open a jaw: rotate the tip (tx, ty) about the hinge (hx, hy) in the body's x–y plane by `ang` radians, downward
+ * (the lower jaw drops). Writes the new tip into out[0..1]; the hinge–tip distance is kept, so the tip stays attached.
+ */
+export function jawTip(hx: number, hy: number, tx: number, ty: number, ang: number, out: { 0: number; 1: number }): void {
+  const dx = tx - hx, dy = ty - hy, c = Math.cos(ang), s = Math.sin(ang);
+  out[0] = hx + dx * c + dy * s; out[1] = hy - dx * s + dy * c;
+}
+
+/** The kill animation's length: flash → collapse → burst → fade, done by KILL_SEC. */
+export const KILL_SEC = 1.2;
+export interface KillFrame { flash: number; collapse: number; burst: number; alpha: number; done: boolean }
+/** The prey's kill timeline at `age` seconds since the kill (writes into `out`). */
+export function killFrame(age: number, out: KillFrame): KillFrame {
+  const a = Math.max(0, age);
+  out.flash = a < 0.06 ? a / 0.06 : Math.max(0, 1 - (a - 0.06) / 0.24);   // a bright pulse in the first 0.3 s
+  out.collapse = smooth01((a - 0.05) / 0.55);                              // falls over between 0.05 and 0.6 s
+  out.burst = a < 0.1 ? 0 : Math.min(1, (a - 0.1) / 0.6);                   // fragments fly 0.1 → 0.7 s
+  out.alpha = 1 - smooth01((a - 0.45) / (KILL_SEC - 0.45));                 // fades out from 0.45 s, gone at KILL_SEC
+  out.done = a >= KILL_SEC;
+  return out;
+}
+
+/** A darting yaw wobble (rad) for a fleeing animal: two incommensurate sines, so it reads as panic, not a wag. */
+export function fleeWobble(t: number, phase: number, amp = 0.22): number {
+  return amp * (0.65 * Math.sin(13 * t + phase) + 0.35 * Math.sin(29 * t + 2.3 * phase));
+}

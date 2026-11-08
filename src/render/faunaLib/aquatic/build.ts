@@ -39,7 +39,7 @@ export interface SwimSink {
 }
 
 /** Per individual: start distance along its path, a time phase, a school offset (m, across/up the path) and its index. */
-export interface SwimInstance { s0: number; phase: number; off: [number, number]; k: number }
+export interface SwimInstance { s0: number; phase: number; off: [number, number]; k: number; /** Extra jaw gape (rad) while attacking (render-only; 0 or absent closed). */ gape?: number }
 
 export interface Swimmer {
   params: SwimmerParams;
@@ -508,7 +508,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
     } else if (p.head.mouth === 'jaw') {
       spineAt(sp, 0.04, f);
       const o = madd3(T1, f.p, f.U, -(rh(0.04) * 0.5));
-      const gape = 0.12 + 0.1 * Math.sin(2 * Math.PI * kin.freq * 0.5 * t + ph);
+      const gape = 0.12 + 0.1 * Math.sin(2 * Math.PI * kin.freq * 0.5 * t + ph) + (inst.gape ?? 0);
       blade(sink, 'blade', o, norm3(T2, madd3(T2, f.T, f.U, -gape)), 0.12 * L, f.R, rw(0.04) * 1.2, p.colour.body, p.colour.accent, 0, false);
     }
     // lateral line glow and dorsal armour

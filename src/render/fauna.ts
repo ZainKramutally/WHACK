@@ -35,10 +35,10 @@ import {
 } from './layout';
 import {
   armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY, swimNeed, nudgeToWater,
-  turnRateMax,
+  turnRateMax, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse, INTENT, JAW_OPEN_RAD, type KillFrame,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
-import { MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
+import { BEAD_HORN, MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
 import { worldMaterial } from './material';
 import {
   AX_RINGS, AX_SIDES, BELL_RINGS, BELL_SIDES, GLOW_MIN, PART, RAD_RINGS, RAD_SIDES, SLOT, SLOTS, TENDRILS, TENDRIL_LINKS, bellSphere,
@@ -95,6 +95,12 @@ const NUDGE_EASE = 0.4; // s: a shoreline swimmer's drawn nudge eases in and out
 const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
+// Hunting (render-only): the sim's intent and target fields (organism layout v4), read only when the layout has them,
+// and its kills ({ hunterId, preyId, x, z }) on the snapshot, if present.
+const F_INTENT = ((OrganismField as Record<string, number>).intent ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).intent ?? -1) : -1;
+const F_TARGET = ((OrganismField as Record<string, number>).targetId ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).targetId ?? -1) : -1;
+type KillEvent = { hunterId: number; preyId: number; x: number; z: number; preyScale?: number };
+const BURST_N = 8; // fragments a killed prey breaks into (knob parts in the existing batch)
 
 /**
  * Declared illustration: flight altitude. The sim's ceilings are kilometres (flight.ts); the patch is a few hundred metres with fog.
@@ -172,6 +178,11 @@ interface Entry {
   /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
   legged: boolean;
   seen: boolean; stamp: number; born: number; dieT: number; mode: number; id: number; diet: number;
+  /** Hunting: eased attack pose 0..1, the forward lunge (share of body length), when it last struck (kill), the
+   *  lower-jaw hinge bead (−1 none; its tip is the next bead), and the flee yaw wobble (rad) this frame. */
+  atk: number; lunge: number; strikeT: number; jaw: number; wob: number;
+  /** Killed prey: when (−1 not a kill, −2 killed but still in the buffer) and its collapse 0..1 this frame. */
+  killT: number; coll: number;
 }
 
 const tmpColour = new THREE.Color();
@@ -401,6 +412,12 @@ export function createFauna(app: App): FaunaPart {
   const scratch = new Float32Array(MAX_BEADS_PER_ORGANISM * 5);  // animated bead pose, same layout as Entry.flat
   const rodScratch = new Float32Array(MAX_RODS_PER_ORGANISM * ROD_STRIDE); // animated rods (radial bodies, carbon limb bones)
   const armOut: number[] = [];
+  const JT = { 0: 0, 1: 0 }; // jaw tip out
+  const KF: KillFrame = { flash: 0, collapse: 0, burst: 0, alpha: 1, done: false };
+  let FLASH = 0; // the kill's hit flash on the creature being drawn, added to its glow
+  let LUNGE_X = 0, LUNGE_Z = 0; // the attack lunge of the creature being drawn (world metres), render-only
+  let ROLL_C = 1, ROLL_S = 0; // a killed swimmer's roll about its long axis (swW, swD)
+  let lastKills: unknown = null;
   const limbOut: number[] = [];
   const camPos = app.camera.position;
   // Live creatures this frame (reused) and scratch for the two LOD cuts.
@@ -421,7 +438,29 @@ export function createFauna(app: App): FaunaPart {
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
       pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, trail: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
+      atk: 0, lunge: 0, strikeT: -1e9, jaw: jawHinge(layout), wob: 0, killT: -1, coll: 0,
     };
+  }
+
+  /** The lower jaw's hinge bead (creatureLayout: a horn-tone hinge with sx set, then its tip), or −1. */
+  function jawHinge(lay: BeadLayout): number {
+    if (lay.radial) return -1;
+    const b = lay.beads;
+    for (let i = 0; i + 1 < lay.nBody; i++) if (b[i].tone === BEAD_HORN && b[i].sx !== undefined && b[i + 1].tone === BEAD_HORN && b[i + 1].sx !== undefined) return i;
+    return -1;
+  }
+
+  /** Killed prey falls over: roll the posed beads and rods about the body's long axis by `ang` (rad). */
+  function rollPose(nb: number, nRods: number, ang: number): void {
+    const c = Math.cos(ang), sn = Math.sin(ang);
+    for (let i = 0; i < nb; i++) {
+      const f = i * 5, y = scratch[f + 1], z = scratch[f + 2];
+      scratch[f + 1] = y * c - z * sn; scratch[f + 2] = y * sn + z * c;
+    }
+    for (let i = 0; i < nRods * 2; i++) {
+      const f = (i >> 1) * ROD_STRIDE + (i & 1 ? 4 : 1), y = rodScratch[f], z = rodScratch[f + 1]; // each rod's two ends
+      rodScratch[f] = y * c - z * sn; rodScratch[f + 1] = y * sn + z * c;
+    }
   }
 
   /** First sighting: bin the animal by its genes (buffer record at `o`), draw its plan in its species' look. */
@@ -475,6 +514,7 @@ export function createFauna(app: App): FaunaPart {
     const kap = mode === LOCOMOTION.walk ? turnKap(e, s) : 0;
     const xc = e.xmin + 0.5 * e.xspan;
     const kp = mode === LOCOMOTION.walk ? Math.tan(e.pitch) : 0; // slope pitch, as a shear along the body
+    const lunge = e.lunge * e.xspan; // attack: the head leads forward, the tail stays (stretch ∝ xn²)
     // Body beads: copy, then bend by locomotion mode. (Hoverers ride under a bell: the body only breathes a little.)
     for (let i = 0; i < nBody; i++) {
       const f = i * 5;
@@ -495,11 +535,18 @@ export function createFauna(app: App): FaunaPart {
       }
       const fl = e.flap[i];
       if (fl > 0) y += Math.abs(z) * 0.55 * fl * Math.sin(2 * Math.PI * 1.3 * t + e.id) * (mode === LOCOMOTION.hover ? 1 : 0.5 + moving);
+      if (lunge > 0) { const xn = (src[f] - e.xmin) / e.xspan; x += lunge * xn * xn; }
       out[f] = x; out[f + 1] = y; out[f + 2] = z; out[f + 3] = r; out[f + 4] = src[f + 4];
+    }
+    // Attack: the lower jaw drops open about its hinge (the tip stays attached).
+    if (e.jaw >= 0 && e.atk > 0.01) {
+      const h = e.jaw * 5, q = h + 5;
+      jawTip(out[h], out[h + 1], out[q], out[q + 1], JAW_OPEN_RAD * Math.min(1, e.atk), JT);
+      out[q] = JT[0]; out[q + 1] = JT[1];
     }
     // Limbs.
     if (lay.limbs.length > 0) {
-      const walking = mode === LOCOMOTION.walk;
+      const walking = mode === LOCOMOTION.walk && e.coll === 0; // a killed walker's legs go still as it falls
       const amp = walking ? e.walkW : 0, stride = (e.hW / Math.max(s, 1e-6)) * amp, pairs = lay.limbs.length >> 1;
       for (const rig of lay.limbs) {
         let fx = rig.hip.x, fy = rig.r, fz = rig.hip.z + rig.side * rig.restOut;
@@ -621,7 +668,7 @@ export function createFauna(app: App): FaunaPart {
     const carr = (mesh.instanceColor as THREE.InstancedBufferAttribute).array as Float32Array;
     const c3 = idx * 3, t3 = tone * 3;
     carr[c3] = rgb[t3]; carr[c3 + 1] = rgb[t3 + 1]; carr[c3 + 2] = rgb[t3 + 2];
-    glowArr[idx] = glow;
+    glowArr[idx] = glow + FLASH;
   }
 
   // ---- near LOD: loft + sculpted parts ---------------------------------------------------------------------------
@@ -649,7 +696,7 @@ export function createFauna(app: App): FaunaPart {
     xx /= xl; xy /= xl; xz /= xl;
     const zx = xy * nz - xz * ny, zy = xz * nx - xx * nz, zz = xx * ny - xy * nx; // x × y
     const c = colOf(slot), rgb = ENT.slotRgb;
-    b.push(ax, ay, az, xx * r, xy * r, xz * r, yx, yy, yz, zx * r * flat, zy * r * flat, zz * r * flat, rgb[c], rgb[c + 1], rgb[c + 2], glow);
+    b.push(ax, ay, az, xx * r, xy * r, xz * r, yx, yy, yz, zx * r * flat, zy * r * flat, zz * r * flat, rgb[c], rgb[c + 1], rgb[c + 2], glow + FLASH);
   }
 
   /** A static part from the description, on the animated beads (axial) or rods (radial). */
@@ -682,13 +729,13 @@ export function createFauna(app: App): FaunaPart {
     toW(beads[fa], beads[fa + 1], beads[fa + 2]);
     const ox = W[0] + (fx * p.ox - fz * p.oz) * rw, oy = W[1] + p.oy * rw, oz = W[2] + (fz * p.ox + fx * p.oz) * rw;
     const c = colOf(p.slot), rgb = ENT.slotRgb;
-    batch.push(ox, oy, oz, fx * p.sx * rw, 0, fz * p.sx * rw, 0, p.sy * rw, 0, -fz * p.sz * rw, 0, fx * p.sz * rw, rgb[c], rgb[c + 1], rgb[c + 2], glow);
+    batch.push(ox, oy, oz, fx * p.sx * rw, 0, fz * p.sx * rw, 0, p.sy * rw, 0, -fz * p.sz * rw, 0, fx * p.sz * rw, rgb[c], rgb[c + 1], rgb[c + 2], glow + FLASH);
   }
 
   /** A small sphere (knee, catchlight, tip) at world W-point with radius r: smooth on carbon, faceted (and rimmed) on silicon. */
   function knob(x: number, y: number, z: number, r: number, slot: number, glow: number): void {
     const c = colOf(slot), rgb = ENT.slotRgb;
-    parts[ENT.silicon ? PART.knobSi : PART.knob].push(x, y, z, r, 0, 0, 0, r, 0, 0, 0, r, rgb[c], rgb[c + 1], rgb[c + 2], glow);
+    parts[ENT.silicon ? PART.knobSi : PART.knob].push(x, y, z, r, 0, 0, 0, r, 0, 0, 0, r, rgb[c], rgb[c + 1], rgb[c + 2], glow + FLASH);
   }
 
   function drawAxialNear(e: Entry, d: AxialDesc, t: number, mode: number): boolean {
@@ -934,11 +981,15 @@ export function createFauna(app: App): FaunaPart {
   let SW_S = 1;
   const D = new Float32Array(3);
   /** Body-space point → world, into W (the swimmer's scale). */
-  const swW = (x: number, y: number, z: number) => {
+  const swW = (x: number, y0: number, z0: number) => {
+    const y = y0 * ROLL_C - z0 * ROLL_S, z = y0 * ROLL_S + z0 * ROLL_C;
     W[0] = EX + (x * CH - z * SH) * SW_S; W[1] = EY + y * SW_S; W[2] = EZ + (x * SH + z * CH) * SW_S;
   };
   /** Body-space direction → world (rotation only), into D. */
-  const swD = (x: number, y: number, z: number) => { D[0] = x * CH - z * SH; D[1] = y; D[2] = x * SH + z * CH; };
+  const swD = (x: number, y0: number, z0: number) => {
+    const y = y0 * ROLL_C - z0 * ROLL_S, z = y0 * ROLL_S + z0 * ROLL_C;
+    D[0] = x * CH - z * SH; D[1] = y; D[2] = x * SH + z * CH;
+  };
 
   /** The creature's aquatic body, built once at its adult drawn length the first time it swims near (null if it can't be). */
   function swimmerOf(e: Entry): Swimmer | null {
@@ -1032,13 +1083,13 @@ export function createFauna(app: App): FaunaPart {
       swD(X[0], X[1], X[2]); const x0 = D[0] * SW_S, x1 = D[1] * SW_S, x2 = D[2] * SW_S;
       swD(Y[0], Y[1], Y[2]); const y0 = D[0] * SW_S, y1 = D[1] * SW_S, y2 = D[2] * SW_S;
       swD(Z[0], Z[1], Z[2]);
-      parts[P].push(px, py, pz, x0, x1, x2, y0, y1, y2, D[0] * SW_S, D[1] * SW_S, D[2] * SW_S, rgb[c], rgb[c + 1], rgb[c + 2], glow);
+      parts[P].push(px, py, pz, x0, x1, x2, y0, y1, y2, D[0] * SW_S, D[1] * SW_S, D[2] * SW_S, rgb[c], rgb[c + 1], rgb[c + 2], glow + FLASH);
     },
   };
 
   // One instance for every swimmer pose (the path is TRAIL_PATH, pooled): nothing is allocated per pose.
   let swimHeadX = 0;
-  const swimInst = { s0: 0, phase: 0, off: [0, 0] as [number, number], k: 0 };
+  const swimInst = { s0: 0, phase: 0, off: [0, 0] as [number, number], k: 0, gape: 0 };
   // ---- swimmer trails: the head's recent world positions, so a body curves through its own turns and banks ----------
   // One ring of TRAIL_N head points per swimmer slot (SWIM_MAX + slack for the one-frame release lag), all preallocated.
   // Each pose converts its swimmer's trail to body space once (TB, TS: points head first and their arc lengths), and
@@ -1092,6 +1143,7 @@ export function createFauna(app: App): FaunaPart {
     swimHeadX = sw.params.chemistry === 'carbon' ? 0.5 * sw.L
       : sw.params.plan === 'bell' ? 0.5 * ((bells > 1 ? 0.55 : 0) + 1.08 * bells) * sw.L : 0;
     if (live) trailFor(e, sw, swimHeadX); else TRAIL_PATH.straightOn(swimHeadX); // the card bake poses straight
+    swimInst.gape = live ? 0.55 * Math.min(1, e.atk) : 0; // attack: a jaw mouth opens wide
     const nAx = axLoft.n, nHub = hubLoft.n;
     sw.pose(tau, TRAIL_PATH, swimInst, SINK);
     return axLoft.n > nAx || hubLoft.n > nHub;
@@ -1108,8 +1160,8 @@ export function createFauna(app: App): FaunaPart {
       try { e.desc = describe(e.plan, e.layout); e.bellS = e.desc.kind === 'axial' ? bellSphere(e.desc, e.layout) : null; } catch { return null; }
     }
     const L0 = LOFTS.map((l) => l.n), P0 = parts.map((b) => b.n);
-    const speed = e.speed, flat0 = () => 0;
-    e.speed = 0;
+    const speed = e.speed, flat0 = () => 0, atk = e.atk, lunge = e.lunge;
+    e.speed = 0; e.atk = 0; e.lunge = 0; // the card shows the rest pose, jaws closed
     baking = true;
     for (const l of LOFTS) l.n = Math.min(l.n, l.slots - l.reserve); // write into the reserve
     const L1 = LOFTS.map((l) => l.n);
@@ -1136,7 +1188,7 @@ export function createFauna(app: App): FaunaPart {
     }
     LOFTS.forEach((l, i) => { l.n = L0[i]; });
     parts.forEach((b, i) => { b.n = P0[i]; });
-    baking = false; e.speed = speed;
+    baking = false; e.speed = speed; e.atk = atk; e.lunge = lunge;
     return ok ? out : null;
   }
 
@@ -1190,9 +1242,10 @@ export function createFauna(app: App): FaunaPart {
       bHi = Math.max(R ? (R.pivotY + R.rollRadius) * s : 2 * c, c + hS);
     }
     if (mode === LOCOMOTION.swim || e.nx !== 0 || e.nz !== 0) nudge(e, s > 0 && mode === LOCOMOTION.swim && fSeaThere ? swimNeed(bLo, bHi) : -1);
-    // Render-only: draw at the sim position plus the nudge, then put the sim position back (interpolation never sees it).
+    // Render-only: draw at the sim position plus the nudge (and an attack lunge, drawE), then put the sim position back
+    // (interpolation never sees it).
     const sx = e.x, sz = e.z;
-    e.x = sx + e.nx; e.z = sz + e.nz;
+    e.x = sx + e.nx + LUNGE_X; e.z = sz + e.nz + LUNGE_Z;
     try { drawAt(e, alpha, mode, live, tier, s, bLo, bHi); } finally { e.x = sx; e.z = sz; }
   }
 
@@ -1230,6 +1283,12 @@ export function createFauna(app: App): FaunaPart {
       e.beached = beached;
     }
     if (mode !== LOCOMOTION.swim) e.beached = false;
+    if (mode === LOCOMOTION.hover) {
+      // attack: a flier swoops down at its prey; killed, it tumbles to the ground
+      const Lw = drawnLength(e.scale, e.g) * fBoost;
+      y0 -= Math.min(0.5 * (y0 - ground), 2 * Lw) * Math.min(1, e.atk);
+      if (e.coll > 0) y0 = ground + (y0 - ground) * (1 - e.coll * e.coll);
+    } else if (mode === LOCOMOTION.swim && e.coll > 0) y0 = Math.max(ground, y0 - e.coll * 0.5 * drawnLength(e.scale, e.g) * fBoost); // killed: sinks
     const tA = e.beached ? e.beachT : ft; // a beached swimmer's pose time: its stroke stops
 
     const lay = e.layout;
@@ -1255,6 +1314,7 @@ export function createFauna(app: App): FaunaPart {
     const feetOn = tier === 2 ? fHeight : planeAt;
     if (lay.radial) animateRadial(e, tA, s0, mode, feetOn, y0, cosH, sinH);
     else animate(e, tA, s0, mode, feetOn, y0, cosH, sinH);
+    if (e.coll > 0) rollPose(lay.beads.length, lay.radial ? lay.radial.rods.length : lay.limbRods?.length ?? 0, rollOf(e));
     if (tier === 2) {
       if (!e.desc && e.plan) {
         try {
@@ -1268,11 +1328,15 @@ export function createFauna(app: App): FaunaPart {
         if (sw) {
           S = s; EX = e.x; EY = y0 + lay.centreY * s; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
           SW_S = swimScale(e, alpha);
+          if (e.coll > 0) { const ra = rollOf(e); ROLL_C = Math.cos(ra); ROLL_S = Math.sin(ra); }
           for (let i = 0; i < LOFTS.length; i++) saveL[i] = LOFTS[i].n;
           for (let i = 0; i < parts.length; i++) saveP[i] = parts[i].n;
           try {
-            if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; e.swOn = true; return; }
+            const ok = drawSwimmerNear(e, sw);
+            ROLL_C = 1; ROLL_S = 0;
+            if (ok) { fSwim++; e.tier = 2; e.swOn = true; return; }
           } catch {
+            ROLL_C = 1; ROLL_S = 0;
             // a pose that throws never stops the frame: undo what it wrote, and this creature keeps the bead loft
             for (let i = 0; i < LOFTS.length; i++) LOFTS[i].n = saveL[i];
             for (let i = 0; i < parts.length; i++) parts[i].n = saveP[i];
@@ -1344,6 +1408,49 @@ export function createFauna(app: App): FaunaPart {
     return sw.L * (0.5 * p.aspect * p.depth + Math.max(p.fins.dorsal, p.fins.ventral, 0.5 * p.tailSize));
   }
 
+  /** A killed creature falls onto its side (which side from its id), as far as collapse has gone. */
+  const rollOf = (e: Entry) => e.coll * 1.35 * (e.id % 2 === 0 ? 1 : -1);
+
+  /**
+   * draw() with the hunting overlays: an attacker lunges forward along its heading (swimmers, radial bodies and fliers
+   * as a whole; axial walkers also stretch, in animate), a fleeing one darts its yaw, a killed one flashes. The entry's
+   * pose is restored after, so interpolation and picking never see the offsets.
+   */
+  function drawE(e: Entry, alpha: number, mode: number, live: boolean, tier: number) {
+    const h = e.h;
+    if (e.lunge > 0 && (mode !== LOCOMOTION.walk || e.layout.radial)) {
+      const d = e.lunge * drawnLength(e.scale, e.g) * fBoost;
+      LUNGE_X = Math.cos(h) * d; LUNGE_Z = Math.sin(h) * d; // added to the drawn position in draw(), after the nudge
+    }
+    e.h += e.wob;
+    const sg = e.slotGlow, gb = sg[SLOT.body], ga = sg[SLOT.accent], gh = sg[SLOT.hard];
+    if (FLASH > 0) { sg[SLOT.body] = gb + FLASH; sg[SLOT.accent] = ga + FLASH; sg[SLOT.hard] = gh + FLASH; }
+    try { draw(e, alpha, mode, live, tier); } finally {
+      if (FLASH > 0) { sg[SLOT.body] = gb; sg[SLOT.accent] = ga; sg[SLOT.hard] = gh; }
+      e.h = h; LUNGE_X = 0; LUNGE_Z = 0;
+    }
+  }
+
+  /** A killed prey's burst: BURST_N fragments in its own colours flying out and dropping, shrinking away. No gore. */
+  function burst(e: Entry, k: number): void {
+    if (k <= 0 || k >= 1) return;
+    const Lw = drawnLength(e.scale, e.g) * fBoost;
+    const cx = e.x + e.nx, cy = e.yDrawn + e.layout.centreY * fBoost * drawnFactor(e.scale, e.g), cz = e.z + e.nz; // drawn = sim + nudge
+    const shrink = 1 - k, r = 0.07 * Lw * shrink * (0.6 + 0.4 * shrink);
+    if (r <= 1e-4) return;
+    ENT = e;
+    const saved = FLASH; FLASH = 0.6 * shrink;
+    for (let i = 0; i < BURST_N; i++) {
+      // a fixed spray per creature: hashed directions, mostly outward and up
+      const a = (i / BURST_N) * 2 * Math.PI + (e.id % 7) * 0.9, up = 0.35 + 0.5 * (((e.id * 31 + i * 17) % 11) / 10);
+      const v = 0.55 * Lw * (0.7 + 0.3 * ((i * 5 + e.id) % 3));
+      const px = cx + Math.cos(a) * v * k, pz = cz + Math.sin(a) * v * k;
+      const py = Math.max(e.yDrawn, cy + up * v * k - 1.2 * Lw * k * k);
+      knob(px, py, pz, r * (i % 2 ? 0.75 : 1), i % 3 === 0 ? SLOT.accent : SLOT.body, 0);
+    }
+    FLASH = saved;
+  }
+
   /** Proxies: ellipsoid beads (and round limb bones), or prisms for radial bodies, from rest or posed arrays. */
   function drawFar(e: Entry, s: number, y0: number, cosH: number, sinH: number, beads: Float32Array, rods: Float32Array) {
     const lay = e.layout, rad = lay.radial;
@@ -1389,7 +1496,7 @@ export function createFauna(app: App): FaunaPart {
       arr[m + 12] = e.x + lx * cosH - lz * sinH; arr[m + 13] = y0 + beads[f + 1] * s; arr[m + 14] = e.z + lx * sinH + lz * cosH;
       const tone = e.flat[f + 4], c3 = idx * 3, t3 = tone * 3;
       carr[c3] = rgb[t3]; carr[c3 + 1] = rgb[t3 + 1]; carr[c3 + 2] = rgb[t3 + 2];
-      garr[idx] = tone === 1 && e.silicon ? glow : tone === 6 ? glow : 0;
+      garr[idx] = (tone === 1 && e.silicon ? glow : tone === 6 ? glow : 0) + FLASH;
     }
   }
 
@@ -1506,6 +1613,21 @@ export function createFauna(app: App): FaunaPart {
         e.h = slewAngle(oh, pose.h, turnRateMax(Lw) * dt);
         const dh = Math.atan2(Math.sin(e.h - oh), Math.cos(e.h - oh));
         if (dt > 0) e.turn += (dh / dt - e.turn) * Math.min(1, dt / 0.2);
+        // Hunting: the sim's intent (when the layout carries it) or the stand-in (fast hunters), eased; a strike pulse
+        // when a kill for this hunter lands; a darting wobble while fleeing.
+        {
+          const intent = F_INTENT >= 0 ? buf[o + F_INTENT] : -1;
+          let targetBL = Infinity;
+          if (F_TARGET >= 0 && intent === INTENT.hunt) {
+            const te = entries.get(buf[o + F_TARGET]);
+            if (te && te.init && te.dieT < 0) targetBL = Math.hypot(te.x - e.x, te.z - e.z) / Math.max(Lw, 1e-3);
+          }
+          const strike = strikePulse(t - e.strikeT);
+          const want = Math.max(attackTarget(buf[o + geneField('diet')], e.speed / Math.max(Lw, 1e-3), intent, targetBL), strike);
+          e.atk = easeAttack(e.atk, want, dt);
+          e.lunge = 0.06 * e.atk + 0.22 * strike;
+          e.wob = intent === INTENT.flee ? fleeWobble(t, e.id) : 0;
+        }
         // Gait from the distance the body is drawn moving (plus the sweep of a turn), so the feet stay planted.
         const lay = e.layout, rig = lay.radial ? (e.legged ? lay.radial.arms[0] : undefined) : lay.limbs[0];
         if (rig) {
@@ -1544,23 +1666,49 @@ export function createFauna(app: App): FaunaPart {
           : e.plan && r <= loftCut && lofted < LOFT_MAX ? 2
           : r <= animCut && fPosed < ANIM_MAX ? 1 : 0;
         if (tier === 2) lofted++;
-        draw(e, fadeScale(t - e.born, FADE_SEC), e.mode, true, tier);
+        drawE(e, fadeScale(t - e.born, FADE_SEC), e.mode, true, tier);
       }
 
       // Deaths: anything seen before that is missing from the newest snapshot fades out where it stood, at the tier it was
       // last drawn (while there are slots), so a death near the player never pops to a proxy or its rest pose.
       if (snapshot) {
         for (const e of entries.values()) {
-          if (e.seen && e.stamp !== snapId && e.dieT < 0) { e.dieT = t; dying.push(e); }
+          if (e.seen && e.stamp !== snapId && e.dieT < 0) { e.dieT = t; dying.push(e); if (e.killT === -2) e.killT = t; }
         }
         for (const [id, p] of pending) if (snapId - p.snap > PENDING_SNAPS) pending.delete(id);
+        // Kills since the last snapshot: the hunter strikes, the prey gets the kill animation instead of the plain fade
+        // (a kill can land a snapshot after its prey vanished: a death younger than 0.3 s still converts).
+        const kills = (inputs as { kills?: KillEvent[] }).kills;
+        if (kills && kills !== lastKills) {
+          lastKills = kills;
+          for (const k of kills) {
+            const hu = entries.get(k.hunterId);
+            if (hu) hu.strikeT = t;
+            const pr = entries.get(k.preyId);
+            if (!pr || !pr.seen || pr.killT >= 0) continue;
+            if (pr.stamp === snapId) { pr.killT = -2; continue; } // still in this snapshot: the kill plays when it leaves
+            if (pr.dieT < 0) { pr.dieT = t; dying.push(pr); } else if (t - pr.dieT > 0.3) continue;
+            pr.killT = t; pr.atk = 0; pr.lunge = 0; pr.wob = 0;
+          }
+        }
       }
       for (let i = dying.length - 1; i >= 0; i--) {
         const e = dying[i];
         if (e.dieT < 0) { dying.splice(i, 1); continue; } // came back (should not happen: ids are never reused)
+        if (e.killT >= 0) {
+          // killed: hit flash → falls over (walkers), sinks and rolls (swimmers) or tumbles down (fliers), bursts, fades
+          killFrame(t - e.killT, KF);
+          if (KF.done) { dying.splice(i, 1); forget(e); continue; }
+          e.coll = KF.collapse; e.atk = 0; e.lunge = 0; e.wob = 0;
+          FLASH = 1.4 * KF.flash;
+          drawE(e, Math.max(1e-3, KF.alpha), e.mode, false, e.tier);
+          FLASH = 0;
+          burst(e, KF.burst);
+          continue;
+        }
         const a = 1 - fadeScale(t - e.dieT, FADE_SEC);
         if (a <= 0) { dying.splice(i, 1); forget(e); continue; }
-        draw(e, a, e.mode, false, e.tier);
+        drawE(e, a, e.mode, false, e.tier);
       }
 
       const warm = !hadLife;
