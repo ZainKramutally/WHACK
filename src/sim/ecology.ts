@@ -671,7 +671,7 @@ export class Ecology {
         this.ty[i] = py + 2 * Math.sin(h);
         this.wandering[i] = 1;
       } else { this.tx[i] = fx; this.ty[i] = fy; }
-      if (kinN > 0) { const pull = (L.cohesion * soc) / kinN; this.tx[i] += pull * kinDx; this.ty[i] += pull * kinDy; }   // herd cohesion: drift toward kin
+      if (kinN > 0) { const pull = (L.cohesion * soc * p.plantGain) / kinN; this.tx[i] += pull * kinDx; this.ty[i] += pull * kinDy; }   // herd cohesion: drift toward kin; herding is a grazer habit, so hunters (low plant gain) do not drift together
     }
     else if (a === ACT.hunt) { this.tgt[i] = huntJ; this.tgtId[i] = this.id[huntJ]; }
     else if (a === ACT.flee) { this.tgt[i] = fleeJ; this.tgtId[i] = this.id[fleeJ]; }
