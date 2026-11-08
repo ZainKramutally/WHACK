@@ -250,7 +250,7 @@ describe('gated archetypes', () => {
   });
 
   it('draw budget: silicon thick air + reefs + glass kelp + supply ferns + every §2b archetype ≤ 33 draws, < 4.5M tris, nothing dropped', () => {
-    const inp = siShore({ seaLevel: -3 }), f = inp.flora;
+    const inp = siShore({ seaLevel: -1.5 }), f = inp.flora;   // the margin's rank (≈ 0.44–0.54) is nitride under the rank fallback
     for (let c = 0; c < 4096; c++) { f[c * 2] = 0.6; f[c * 2 + 1] = 1; }
     const l = placed(inp, shapesOf());
     const keys = new Set(Array.from(l.arch.subarray(0, l.n), (a) => ARCHETYPE_KEYS[a]));
@@ -275,6 +275,29 @@ describe('gated archetypes', () => {
     expect(d.draws).toBeLessThanOrEqual(45);
     expect(d.triangles).toBeLessThan(4.5e6);
     expect(d.dropped).toBe(0);
+  });
+
+  it('on the real crust map: nitride crowns stand only on nitride cells, frost ferns only where Si supply × B > 1.2 (never water ice)', () => {
+    const l = demoWorld(silicon, 0.016, 0.65, 0.6, {});
+    const minerals = silicon.terrain.crust.minerals;
+    const cellMineral = (x: number, z: number) => {
+      const col = Math.floor((x / PATCH + 0.5) * 64), row = Math.floor((z / PATCH + 0.5) * 64);
+      const w = l.terrain.crustWeights(((col + 0.5) / 64 - 0.5) * PATCH, ((row + 0.5) / 64 - 0.5) * PATCH);
+      return { m: minerals[w.indexOf(Math.max(...w))], c: row * 64 + col };
+    };
+    let crowns = 0, ferns = 0;
+    for (let i = 0; i < l.n; i++) {
+      const k = keyOf(l, i);
+      if (k === 'nitrideCrown#0') { crowns++; expect(cellMineral(l.x[i], l.z[i]).m.id).toBe('nitride'); }
+      if (k === 'frostFern#0') {
+        ferns++;
+        const { m, c } = cellMineral(l.x[i], l.z[i]);
+        expect(m.id).not.toBe('waterIce');
+        expect(m.supply.si * (l.inp.flora[c * 2] + l.inp.flora[c * 2 + 1])).toBeGreaterThan(1.2);
+      }
+    }
+    console.log(`silicon demo seed on the crust map: ${crowns} crowns, ${ferns} ferns`);
+    expect(ferns).toBeGreaterThan(0);
   });
 
   it('§2b: at least 2 silicon-only archetypes grow on the default silicon demo seed (−183 °C, default N, thick air, dim)', () => {
@@ -304,8 +327,8 @@ function demoWorld(world: WorldConfig, light: number, air: number, heatBand: num
     ...stub, flora, lifeOnLand: true, light, airDensity: air, heatBand, heatSolvent: hs, seaLevel: sea,
     world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition },
     stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
-    terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH },
+    terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH, crust: { minerals: world.terrain.crust.minerals, weights: (x, z) => terrain.crustWeights(x, z) } },
   };
   const sp = spawnPoint(terrain, st, sea);
-  return placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf());
+  return Object.assign(placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf()), { inp, terrain, sea });
 }

@@ -173,7 +173,8 @@ counts never change:
 ### A7 Frost fern (silicon): "rich supply branches the crystals"
 - **Why:** fast growth at high supersaturation destabilises flat faces into 60° dendrites (Mullins & Sekerka 1964;
   Libbrecht 2005 for ice) [sci mechanism, speculative on silicon]. Our supersaturation proxy is mineral silicon supply ×
-  biomass, so ferns gather on silicide margins.
+  biomass, with the supply from the crust map (silicide 1.6, nitride 1.2, water ice 0), so ferns gather on silicide
+  margins and never grow on ice.
 - **Silhouette.** Three vertical sector-plate blades at 120°, each a spine with 60° side branches. Near: feathery
   frost on glass. Mid: white-violet hedges along the shore. **Cost:** ≈ 140.
 
@@ -195,15 +196,20 @@ base kind still grows beside the new one).
 
 | | Archetype | Role | Gate (replaces) | Tris | Why |
 |---|---|---|---|---|---|
-| S1 | Nitride crown | ground | dry sea margin, 0–2.5 m above the sea in a shoreline cell (crystalGround#0 druse) | 252 | nitride precipitates where liquid N₂ evaporates off the margin: the M2 crust bands, grown as a crown of hex columns out of a glowing geode dish |
+| S1 | Nitride crown | ground | dry sea margin, 0–2.5 m above the sea in a shoreline cell, on a nitride crust cell (crystalGround#0 druse) | 252 | nitride precipitates where liquid N₂ evaporates off the margin: the M2 crust bands, grown as a crown of hex columns out of a glowing geode dish |
 | S2 | Lace fan | mid | air ≥ 5 × Earth's density (shardTree#2 basalt columns, all) | 363 | a 60° lattice spread across the dense air as a filter, on the sea-fan analogy (gorgonians catch plankton across the flow) [analogue] |
 | S3 | Air-plankton raft | mid | air ≥ 5 × Earth's density, share 0.5 (shardTree#1 pod shards) | 165 | ≈ 11 × Earth's air density gives a gas bladder ≈ 11 × the lift [physics]; the lifting gas and living rafts are speculative (as A6). A hex raft of seven bladders on a tether |
 | S4 | Glass kelp | mid (aquatic) | silicon water 4–12 m deep; whisker reefs keep 1–4 m (`aquaticFor` `deep`) | 228 | liquid nitrogen is colourless, so light reaches deeper water and tall blades can reach up; top kept 0.5 m under the surface (crystals don't float) |
 | S5 | Lantern bulbs | ground | light < `DARK_BELOW` (0.05), on land, share 0.5 (crystalGround#1 tile crust) | 135 | glow pays as a lure only where light is scarce (glow from darkness, CLAUDE.md); faceted bulbs on struts with glowing waists |
 
 **On the default silicon demo seed** (−183 °C, default N, thick air, 1.6% light; the mixed-world fixture on
-`createTerrain(silicon.terrain, silicon.demoSeed)`), all five grow: lantern 249, glass kelp 135, crown 83, lace 73,
-plankton 71 plants. A test asserts at least 2.
+`createTerrain(silicon.terrain, silicon.demoSeed)` with its crust map), all five grow: lantern 248, glass kelp 138,
+lace 75, plankton 72, crown 39 plants. A test asserts at least 2.
+
+**Crust source.** Mineral gates (A7 frost fern's Si supply, S1 crown's nitride) read the real crust map: each cell's
+mineral is the argmax of `Terrain.crustWeights` at the cell centre, the same rule `gen/crust.ts` `crustMap` gives the
+sim, carried to the art layer as the optional `VisualInputs.terrain.crust`. The height-rank proxy (§3.1) is used only
+when a world has no `terrain.crust`.
 
 ## 3. Substrate colour field (ground and what plants take from it)
 

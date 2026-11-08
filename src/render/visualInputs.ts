@@ -1,7 +1,7 @@
 // Assembles VisualInputs (CLAUDE.md "Logic → art interface") from the latest SimSnapshot + WorldConfig + a terrain sampler.
 // Pure: no DOM, no three.js. The art layer only ever reads the VisualInputs shape.
 import { gasDensity } from '../sim/models';
-import type { SimSnapshot, VisualInputs, WorldConfig } from '../worlds/types';
+import type { MineralDef, SimSnapshot, VisualInputs, WorldConfig } from '../worlds/types';
 
 /** Inputs that move the terrain (same shape as gen/terrain.ts TerrainState). */
 export interface TerrainState {
@@ -14,6 +14,8 @@ export interface TerrainState {
 export interface TerrainSampler {
   patchSize: number;
   height(x: number, z: number, state: TerrainState): number;
+  /** gen/terrain.ts Terrain.crustWeights: mineral weights at (x, z) in crust config order (absent on flat ground). */
+  crustWeights?(x: number, z: number): number[];
 }
 
 /** Flat ground placeholder until src/gen/terrain.ts is wired in (see main.ts `createTerrainSampler`). */
@@ -96,14 +98,20 @@ function copyValue<T>(v: T): T {
   return out as T;
 }
 
-function terrainMemo(sampler: TerrainSampler, state: TerrainState): TerrainMemo {
-  if (memo && memo.sampler === sampler && memo.patchSize === sampler.patchSize && sameValue(memo.state, state)) return memo;
+function terrainMemo(sampler: TerrainSampler, state: TerrainState, minerals?: readonly MineralDef[]): TerrainMemo {
+  // the crust map is static per sampler (one world, one seed); carried whenever the world has one and the sampler can answer
+  const crustOf = () => (minerals?.length && sampler.crustWeights ? { minerals, weights: (x: number, z: number) => sampler.crustWeights!(x, z) } : undefined);
+  if (memo && memo.sampler === sampler && memo.patchSize === sampler.patchSize && sameValue(memo.state, state)) {
+    if (minerals && !memo.terrain.crust) memo.terrain.crust = crustOf();   // a memo first built by lifeOnLand (no world to hand)
+    return memo;
+  }
   const frozen = copyValue(state); // closure must not see later mutation of the caller's state
+  const crust = crustOf();
   memo = {
     sampler,
     patchSize: sampler.patchSize,
     state: copyValue(state),
-    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize },
+    terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize, crust },
     ground: new Float64Array(GRID * GRID).fill(NaN),
   };
   return memo;
@@ -170,7 +178,7 @@ export function buildVisualInputs(
     light: stats.light ?? 1,
     airDensity: world.life.inputs.airDensity.scale * gasDensity(stats.pressure, t, world.life.inputs.airDensity.molarMass),
     buildProgress: snapshot.buildProgress,
-    terrain: terrainMemo(terrain, state).terrain,
+    terrain: terrainMemo(terrain, state, world.terrain.crust?.minerals).terrain,
     organisms: snapshot.organisms,
     births,
     flora: snapshot.flora,

@@ -15,7 +15,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, NEUTRAL_TINT, ROLE_BAND, pickPlant, plantHeight, type FloraRole } from './index';
-import { AQUATIC_B, activeGates, aquaticFor, gateKey, worldEnv, type CellProbe } from './gates';
+import { AQUATIC_B, activeGates, aquaticFor, gateKey, mineralByRank, supplySi, worldEnv, type CellProbe } from './gates';
 import { varyPlant, type PlantVary } from './vary';
 import { makeEnv, plantEnv, worldEnv as traitWorld } from './traits';
 
@@ -152,6 +152,7 @@ const RING_C = new Float32Array(6), RING_S = new Float32Array(6), RING_H = new F
 /** Gate probes' scratch (gates.ts CellProbe): cell-centre ground heights stamped per call, and a 32² rank sample. */
 const CELL_Y = new Float32Array(FLORA_GRID * FLORA_GRID), CELL_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);
 const RANK_N = 32, RANK_SAMPLE = new Float32Array(RANK_N * RANK_N);
+const CELL_MIN = new Int16Array(FLORA_GRID * FLORA_GRID), MIN_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);   // crust argmax per cell
 let placeCall = 0;
 for (let k = 0; k < 6; k++) { RING_C[k] = Math.cos((k * Math.PI) / 3); RING_S[k] = Math.sin((k * Math.PI) / 3); }
 
@@ -268,6 +269,18 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     return CELL_Y[c];
   };
   let ranked = false;
+  // the crust map (gen/crust.ts): each cell's mineral is the argmax of the weights at its centre, as crustMap gives the sim
+  const crust = inputs.terrain.crust;
+  const mineralIx = (c: number) => {
+    if (MIN_AT[c] !== call) {
+      const w = crust!.weights(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
+      let best = 0;
+      for (let i = 1; i < w.length; i++) if (w[i] > w[best]) best = i;
+      CELL_MIN[c] = best;
+      MIN_AT[c] = call;
+    }
+    return CELL_MIN[c];
+  };
   const probe: CellProbe = {
     shore(c) {
       const col = c % FLORA_GRID, row = Math.floor(c / FLORA_GRID);
@@ -292,6 +305,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       return a / RANK_SAMPLE.length;
     },
     total: (c) => (inputs.flora[c * 2] ?? 0) + (inputs.flora[c * 2 + 1] ?? 0),
+    mineral: (c) => (crust ? crust.minerals[mineralIx(c)].id : mineralByRank(env.carbon, probe.rank(c))),
+    si: (c) => (crust ? crust.minerals[mineralIx(c)].supply.si : supplySi(probe.rank(c))),
   };
   /** The gated archetype for a plant at its own ground height (its base pick when no gate holds). */
   const gated = (key: string | null, role: FloraRole, c: number, y: number, h: number) =>

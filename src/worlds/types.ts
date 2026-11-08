@@ -216,7 +216,12 @@ export interface VisualInputs {
   light: number;
   airDensity: number;
   buildProgress: number;
-  terrain: { rise: number; progress: Record<string, number>; height: (x: number, z: number) => number; /** metres; lets the art layer map flora cells to world positions */ patchSize?: number };
+  terrain: {
+    rise: number; progress: Record<string, number>; height: (x: number, z: number) => number; /** metres; lets the art layer map flora cells to world positions */ patchSize?: number;
+    /** The crust map (gen/crust.ts): mineral weights at (x, z) in `minerals` (config) order, sum 1. Absent on a world without
+     *  terrain.crust or on flat ground; the art layer then falls back to its height-rank proxy. Read-only. */
+    crust?: { minerals: readonly Pick<MineralDef, 'id' | 'supply'>[]; weights: (x: number, z: number) => number[] };
+  };
   organisms: Float32Array;
   births: SimSnapshot['births'];
   flora: Float32Array;

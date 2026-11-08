@@ -37,12 +37,16 @@ export function worldEnv(i: VisualInputs): WorldEnv {
 }
 
 /**
- * Silicon supply of a cell's crust, by height rank until session/crust's mineral map is on main (flora-traits §3.1
- * fallback): silicide in the lowest 40% (Si supply 1.6), nitride up to 80% (1.2), water-ice bedrock above (0: it holds
- * no silicon). Supplies from docs/features/crust.md (nierite: Lee 1995).
+ * Fallback only, for a world without `terrain.crust` (VisualInputs.terrain.crust absent): the cell's mineral and its
+ * silicon supply by height rank (flora-traits §3.1 proxy). Silicon: silicide in the lowest 40% (Si supply 1.6), nitride up
+ * to 80% (1.2), water-ice bedrock above (0: it holds no silicon); carbon: basalt below 0.55, granite above. The real map
+ * (gen/crust.ts, the same minerals and multipliers in silicon.ts) replaces both whenever the world has one.
  */
 export function supplySi(rank: number): number {
   return rank < 0.4 ? 1.6 : rank < 0.8 ? 1.2 : 0;
+}
+export function mineralByRank(carbon: boolean, rank: number): string {
+  return carbon ? (rank < 0.55 ? 'basalt' : 'granite') : rank < 0.4 ? 'silicide' : rank < 0.8 ? 'nitride' : 'waterIce';
 }
 
 /** Gas floats lift in air at least this many times Earth's density (A5 air niche, A6). */
@@ -75,6 +79,10 @@ export interface CellProbe {
   shore(c: number): boolean;
   /** Height rank of the cell in the patch, 0 (lowest) .. 1. */
   rank(c: number): number;
+  /** The cell's crust mineral id: the crust map's argmax at the cell centre, as gen/crust crustMap gives the sim (rank fallback). */
+  mineral(c: number): string;
+  /** The cell's silicon supply multiplier (its mineral's `supply.si`; 1 = the world's base supply). */
+  si(c: number): number;
   /** Cell biomass B = mat + canopy. */
   total(c: number): number;
 }
@@ -120,13 +128,14 @@ export const GATES: readonly GateSpec[] = [
   { id: 'rosette', chem: 'carbon', role: 'giant', replaces: /^(parasolTitan|parasolTitanDense|coilSpire)#/, by: 'woollyRosette#0', world: (e) => e.T < 8 && e.L >= 0.4, cell: (c, p) => p.rank(c) > 0.7 },
   // A7 frost fern: rich silicon supply × biomass (a supersaturation proxy) branches crystals into 60° dendrites
   // (Mullins & Sekerka 1964), so ferns gather on silicide margins.
-  { id: 'fern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#2$/, by: 'frostFern#0', world: () => true, cell: (c, p) => supplySi(p.rank(c)) * p.total(c) > 1.2, land: true },
+  { id: 'fern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#2$/, by: 'frostFern#0', world: () => true, cell: (c, p) => p.si(c) * p.total(c) > 1.2, land: true },
   // A6 air-kelp float: gas floats in air ≥ 5 × Earth's density (silicon ≈ 11 ×). World-wide, so it replaces the
   // candelabra patch-wide (net 0 draws). A tethered float: upright, giant sink rule.
   { id: 'airFloat', chem: 'silicon', role: 'giant', replaces: /^prismTitan#2$/, by: 'airKelpFloat#0', world: (e) => e.air >= AIR_FLOAT },
   // §2b silicon-only, all [speculative] (species/silicon.ts):
-  // S1 nitride crown: on the dry sea margin, where evaporating liquid N₂ leaves the nitride crust bands (M2)
-  { id: 'crown', chem: 'silicon', role: 'ground', replaces: /^crystalGround#0$/, by: 'nitrideCrown#0', world: () => true, band: MARGIN_BAND },
+  // S1 nitride crown: on the dry sea margin, where evaporating liquid N₂ leaves the nitride crust bands (M2), on nitride
+  // (nierite) crust, which is the rock the crown grows from
+  { id: 'crown', chem: 'silicon', role: 'ground', replaces: /^crystalGround#0$/, by: 'nitrideCrown#0', world: () => true, band: MARGIN_BAND, cell: (c, p) => p.mineral(c) === 'nitride' },
   // S5 lantern bulbs: glow pays as a lure only where light is scarce (glow from darkness, CLAUDE.md); half the land
   // tile crusts in the dark, so the crusts stay
   { id: 'lantern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#1$/, by: 'lanternBulb#0', world: (e) => e.L < DARK_BELOW, land: true, share: 0.5 },

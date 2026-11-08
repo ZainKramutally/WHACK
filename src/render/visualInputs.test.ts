@@ -215,3 +215,21 @@ describe('terrain memo', () => {
     expect(spy.mock.calls.length).toBe(3 * GRID * GRID);
   });
 });
+
+describe('crust map in VisualInputs', () => {
+  const W = (x: number) => [x > 0 ? 1 : 0, x > 0 ? 0 : 1, 0];
+  const crusty = (): TerrainSampler => ({ patchSize: 400, height: () => 0, crustWeights: (x) => W(x) });
+
+  it('carries the world crust minerals and the sampler weights; absent on flat ground', () => {
+    const v = buildVisualInputs(snap(silicon), silicon, crusty());
+    expect(v.terrain.crust?.minerals.map((m) => m.id)).toEqual(silicon.terrain.crust.minerals.map((m) => m.id));
+    expect(v.terrain.crust?.weights(5, 0)).toEqual([1, 0, 0]);
+    expect(buildVisualInputs(snap(silicon), silicon, flatTerrain).terrain.crust).toBeUndefined();
+  });
+
+  it('a memo first built by lifeOnLand still gets the crust', () => {
+    const s = crusty(), sn = snap(silicon);
+    lifeOnLand(new Float32Array(GRID * GRID * 2), 0, s, terrainState(sn, silicon));
+    expect(buildVisualInputs(sn, silicon, s).terrain.crust?.weights(-5, 0)).toEqual([0, 1, 0]);
+  });
+});
