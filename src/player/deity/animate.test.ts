@@ -156,6 +156,6 @@ describe('deity animator', () => {
     t.rig.root.updateMatrixWorld(true);
     const tt = t.rig.body.localToWorld(new THREE.Vector3(0, t.rig.dims.bodyHeight, 0));
     expect(tt.x).toBeLessThan(-0.01);
-    expect(t.m.rzMax).toBeLessThanOrEqual(0.12);
+    expect(t.m.rzMax).toBeLessThanOrEqual(0.105 + 0.035); // bank cap 6 deg + walk sway 2 deg
   });
 });
