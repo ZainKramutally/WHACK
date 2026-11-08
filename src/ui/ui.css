@@ -55,7 +55,7 @@
 .wu-drawer {
   position: absolute; top: 52px; right: 12px; bottom: 12px; width: 372px; max-width: calc(100vw - 24px); box-sizing: border-box;
   background: var(--wu-bg); border: 2px solid var(--wu-line); padding: 14px 16px; clip-path: var(--notch6);
-  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bone1) transparent;
+  overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bone1) transparent;   /* scrolls up and down only */
   transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; transition: transform .2s steps(4, end), opacity .2s steps(4, end);
 }
 .wu-drawer.wu-open { transform: none; opacity: 1; pointer-events: auto; }
@@ -97,6 +97,7 @@
 .wu-table td { padding: 3px 4px; vertical-align: top; }
 .wu-num { text-align: right; font-family: var(--wu-mono); font-size: 18px; line-height: 1.05; white-space: nowrap; }
 .wu-stat-name { white-space: normal; }
+.wu-stat-name .wu-tag { display: inline-block; max-width: 100%; box-sizing: border-box; white-space: normal; }   /* long tags (e.g. "compressed in the time-lapse") wrap instead of widening the table */
 .wu-num.wu-wrap { white-space: normal; font-family: var(--wu-font); font-size: 13px; line-height: 1.25; }
 .wu-why td { color: var(--wu-dim); font-size: 12px; padding: 0 4px 6px; border-bottom: 1px solid var(--wu-rule); }
 
@@ -116,7 +117,7 @@
 }
 .wu-inspect { width: 340px; max-height: calc(100vh - 60px); }
 .wu-cmp td, .wu-cmp th { padding-left: 3px; padding-right: 3px; }   /* placed at least 52px down, below the tabs (inspectCard.ts TOP) */
-.wu-summary { top: 60px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 68px); }   /* scrolls inside, like the inspect card */
+.wu-summary { top: 60px; left: calc((100% - var(--wu-reserve, 0px)) / 2); transform: translateX(-50%); width: min(600px, calc(100% - var(--wu-reserve, 0px) - 32px)); max-height: calc(100vh - 68px); }   /* scrolls inside, like the inspect card; centred in the space left of an open drawer (--wu-reserve, ui/index.ts) */
 .wu-card > .wu-h { padding-right: 28px; }   /* room for the × button, long titles wrap */
 .wu-summary .wu-table { width: 100%; }
 .wu-summary .wu-table td:first-child { width: 34%; }
