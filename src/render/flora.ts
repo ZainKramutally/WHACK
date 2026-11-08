@@ -15,7 +15,9 @@ const LIB_SEED = 0x5eed_f10a;
 const REBUILD_EVERY = 0.25; // s while the world builds
 const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
-const CHUNKS = 4; // per side of the patch
+const CHUNKS = 4; // per side of the patch, for mid and giant plants (spread over the whole patch: culling pays)
+// Ground cover lives within ~150 m of the camera, so fine chunks would only multiply draw calls: 2 × 2 for ground.
+const CHUNKS_GROUND = 2;
 const UP = new THREE.Vector3(0, 1, 0);
 /** Radius (m) of the spawn clearing: ground cover only, so the spawn frame opens onto groves and giants. */
 const CLEARING_R = 25;
@@ -82,7 +84,7 @@ export function createFlora(app: App): FloraPart {
   // only writes instance buffers: it never creates a mesh or triggers a compile. Overflow is dropped (and counted).
   // Ground cover is always near-LOD; only ground cover has the dark foreground step.
   const buckets = new Map<number, Bucket>();
-  const CAP: Record<string, number> = { ground: 768, groundDark: 384, mid: 160, giant: 16 };
+  const CAP: Record<string, number> = { ground: 2048, groundDark: 768, mid: 160, giant: 16 };
   for (let ai = 0; ai < nA; ai++) {
     const role = lib.archetypes[ai].role;
     for (let lod = 0; lod < 2; lod++) for (let dark = 0; dark < 2; dark++) {
@@ -90,7 +92,8 @@ export function createFlora(app: App): FloraPart {
       const lookId = (ai * 2 + lod) * 2 + dark;
       const L = lookOf(ai, lod, dark);
       const cap = role === 'ground' ? (dark ? CAP.groundDark : CAP.ground) : CAP[role];
-      for (let chunk = 0; chunk < CHUNKS * CHUNKS; chunk++) {
+      const nC = role === 'ground' ? CHUNKS_GROUND : CHUNKS;
+      for (let chunk = 0; chunk < nC * nC; chunk++) {
         // per-mesh geometry that shares every vertex attribute (and the index) with the look
         const g = new THREE.BufferGeometry();
         for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
@@ -170,12 +173,14 @@ export function createFlora(app: App): FloraPart {
       placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing);
       const pal = PALETTES[lookKind(inputs.world.composition)];
       counts.fill(0); maxH.fill(0); lookGlow.fill(0);
-      const half = patch / 2, chunkW = patch / CHUNKS;
+      const half = patch / 2;
+      const groundRole = lib.archetypes.map((a) => a.role === 'ground');
       for (let i = 0; i < list.n; i++) {
         const look = (list.arch[i] * 2 + list.lod[i]) * 2 + list.dark[i];
-        const cx = Math.min(CHUNKS - 1, Math.max(0, Math.floor((list.x[i] + half) / chunkW)));
-        const cz = Math.min(CHUNKS - 1, Math.max(0, Math.floor((list.z[i] + half) / chunkW)));
-        const chunk = cz * CHUNKS + cx;
+        const nC = groundRole[list.arch[i]] ? CHUNKS_GROUND : CHUNKS, w = patch / nC;
+        const cx = Math.min(nC - 1, Math.max(0, Math.floor((list.x[i] + half) / w)));
+        const cz = Math.min(nC - 1, Math.max(0, Math.floor((list.z[i] + half) / w)));
+        const chunk = cz * nC + cx;
         lookIds[i] = look; chunkOf[i] = chunk;
         const id = look * CHUNKS * CHUNKS + chunk;
         counts[id]++;
@@ -200,7 +205,8 @@ export function createFlora(app: App): FloraPart {
         b.mesh.visible = true;
         b.mesh.frustumCulled = true;
         // chunk bounds: the 100 m square plus the tallest plant (and a sway margin)
-        const ccx = -half + ((chunk % CHUNKS) + 0.5) * chunkW, ccz = -half + (Math.floor(chunk / CHUNKS) + 0.5) * chunkW;
+        const nC = groundRole[look >> 2] ? CHUNKS_GROUND : CHUNKS, chunkW = patch / nC;
+        const ccx = -half + ((chunk % nC) + 0.5) * chunkW, ccz = -half + (Math.floor(chunk / nC) + 0.5) * chunkW;
         const r = Math.hypot(chunkW / 2 + maxH[id] * 0.6, chunkW / 2 + maxH[id] * 0.6, maxH[id]);
         b.mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(ccx, inputs.terrain.height(ccx, ccz) + maxH[id] * 0.5, ccz), r + 4);
         tris += counts[id] * L.arch.lod[L.lod].triangles;

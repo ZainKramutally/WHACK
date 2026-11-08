@@ -18,7 +18,7 @@ export const MAX_PLANTS = 16000;
 const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 = SLOTS − GROUND_SLOT
 const FOREGROUND_R = 30;
 /** Ground cover thins from THIN_START to none at THIN_END metres from the camera (sub-pixel at our resolution). */
-const THIN_START = 55, THIN_END = 190;
+const THIN_START = 45, THIN_END = 150;
 /** Giants: at most one per SUPER × SUPER cells (~31 m). */
 const SUPER = 5;
 /** Canopy biomass needed for a giant / a mid plant in a cell. */

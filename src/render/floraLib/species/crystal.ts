@@ -5,7 +5,7 @@
 //                              2 candelabra (dim: branches snap back vertical), 3 pagoda (bright: stacked hex plates)
 //   shardTree (mid, ~10 m):    0 opposite shards, 1 pod shards (dim), 2 basalt column cluster, 3 lattice fan
 //   crystalGround (0.3–2 m):   0 druse, 1 tile crust, 2 needle tuft, 3 geode cup
-import { MeshBuilder, add, clamp01, norm, revolve, rod, rotate, scl, type ProfilePt, type V3 } from '../mesh';
+import { MeshBuilder, add, clamp01, norm, revolve, rod, rotate, scl, sub, type ProfilePt, type V3 } from '../mesh';
 import type { Rng } from '../rng';
 
 const UP: V3 = [0, 1, 0];
@@ -153,37 +153,51 @@ export function shardTree(rng: Rng, variant: number) {
   return b.build({ flat: true });
 }
 
+/** Lean faceted prism for ground cover: one body band and a pointed tip (≈ 3·segs triangles). */
+function prism(b: MeshBuilder, a: V3, e: V3, r: number, segs: number, body: 'maroon' | 'crimson', sway: (s: number) => number, tip: number) {
+  const ax = sub(e, a), L = Math.hypot(ax[0], ax[1], ax[2]);
+  revolve(b, a, ax, [
+    { r, y: 0, key: body, sway: sway(0), crease: true },
+    { r: r * 0.9, y: L, key: 'bone', sway: sway(1), crease: true },
+    { r: 0, y: L + tip, key: 'bone', sway: sway(1) },
+  ], segs);
+}
+
+// Ground cover is the most numerous flora (thousands of instances), so it stays lean: ~100–160 triangles each.
 export function crystalGround(rng: Rng, variant: number) {
   const b = new MeshBuilder();
   const H = [1.2, 0.5, 1.6, 0.9][variant] * rng.range(0.9, 1.1);
   const sw = (y: number) => STIFF * clamp01(y / H) * 0.6;
   if (variant === 0 || variant === 2) {
     // druse / needle tuft: crystals from one point, tilts snapped to 15°
-    const n = variant === 0 ? rng.int(7, 10) : rng.int(12, 16);
+    const n = variant === 0 ? rng.int(5, 7) : rng.int(8, 11);
     for (let k = 0; k < n; k++) {
       const tilt = snap15(k === 0 ? 0 : rng.range(0.25, variant === 0 ? 0.9 : 0.75));
       const d = dirAt(tilt, k * 2.39996);
       const L = H * (k === 0 ? 1 : rng.range(0.45, 0.9));
-      const r = variant === 0 ? L * 0.12 : L * 0.04;
+      const r = variant === 0 ? L * 0.13 : L * 0.045;
       const e = scl(d, L);
-      rod(b, [0, -0.05, 0], e, r, r * 0.9, variant === 0 ? 6 : 4, (s) => (s < 0.3 ? 'maroon' : s < 0.8 ? 'crimson' : 'bone'),(s) => sw(e[1] * s), r * 1.6);
+      prism(b, [0, -0.05, 0], e, r, variant === 0 ? 6 : 4, k === 0 ? 'maroon' : 'crimson', (s) => sw(e[1] * s), r * 1.6);
     }
     return b.build({ flat: true });
   }
   if (variant === 1) {
     // tile crust: low hex tiles of mixed size; a few carry a glow-site core
-    const n = rng.int(5, 8);
+    const n = rng.int(4, 6);
     for (let k = 0; k < n; k++) {
-      const a = k * 2.39996, rr = k === 0 ? 0 : 0.35 * Math.sqrt(k);
-      const R = rng.range(0.22, 0.4), h = H * rng.range(0.4, 1);
+      const a = k * 2.39996, rr = k === 0 ? 0 : 0.38 * Math.sqrt(k);
+      const R = rng.range(0.24, 0.42), h = H * rng.range(0.4, 1);
       const o: V3 = [Math.cos(a) * rr, -0.05, Math.sin(a) * rr];
       const core = k % 3 === 0;
-      revolve(b, o, UP, [
+      revolve(b, o, UP, core ? [
         { r: R, y: 0, key: 'maroon', sway: 0, crease: true },
-        { r: R, y: h * 0.6, key: 'crimson', sway: sw(h * 0.6), crease: true },
         { r: R * 0.9, y: h, key: 'blush', sway: sw(h), crease: true },
-        { r: R * 0.35, y: h * 1.05, key: core ? 'glow' : 'bone', glow: core ? 1 : 0, sway: sw(h), crease: true },
-        { r: 0, y: h * 1.1, key: core ? 'glow' : 'bone', glow: core ? 1 : 0, sway: sw(h) },
+        { r: R * 0.35, y: h * 1.05, key: 'glow', glow: 1, sway: sw(h), crease: true },
+        { r: 0, y: h * 1.1, key: 'glow', glow: 1, sway: sw(h) },
+      ] : [
+        { r: R, y: 0, key: 'maroon', sway: 0, crease: true },
+        { r: R * 0.9, y: h, key: 'blush', sway: sw(h), crease: true },
+        { r: 0, y: h * 1.1, key: 'bone', sway: sw(h) },
       ], 6, rng.range(0, 1));
     }
     return b.build({ flat: true });
@@ -192,18 +206,17 @@ export function crystalGround(rng: Rng, variant: number) {
   const R = H * 0.55;
   revolve(b, [0, -0.05, 0], UP, [
     { r: R * 0.5, y: 0, key: 'ink', sway: 0, crease: true },
-    { r: R, y: H * 0.45, key: 'maroon', sway: sw(H * 0.45), crease: true },
-    { r: R * 1.1, y: H, key: 'blush', sway: sw(H), crease: true },
+    { r: R * 1.1, y: H, key: 'maroon', sway: sw(H), crease: true },
     { r: R * 0.85, y: H * 1.02, key: 'bone', sway: sw(H), crease: true },
     { r: R * 0.55, y: H * 0.6, key: 'glow', glow: 1, sway: sw(H), crease: true },
     { r: 0, y: H * 0.35, key: 'glow', glow: 1, sway: sw(H) },
   ], 6, rng.range(0, 1));
-  // a few spikes on the rim
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
+  // three spikes on the rim
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.5;
     const o: V3 = [Math.cos(a) * R, H * 0.95, Math.sin(a) * R];
     const d = rotate(UP, norm([-Math.sin(a), 0, Math.cos(a)]), -D60 * 0.5);
-    rod(b, o, add(o, scl(d, H * 0.35)), H * 0.05, H * 0.04, 4, () => 'bone', () => sw(H), H * 0.08);
+    prism(b, o, add(o, scl(d, H * 0.3)), H * 0.05, 3, 'crimson', () => sw(H), H * 0.08);
   }
   return b.build({ flat: true });
 }
