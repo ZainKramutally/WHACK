@@ -168,7 +168,9 @@ function axialLayout(plan: BodyPlan): BeadLayout {
   // tailBeads is tip → base; the spine is built tip first as well.
   const N = tailBeads.length + n;
   const spine: SpineBead[] = [];
-  let hx = 0, hz = 0, ang = -(plan.curl * (N - 1)) / 2;
+  // The rest spine is straight for every body (owner ruling): plan.curl is motion only (fauna.ts: lateral flexion while
+  // walking, bending into turns), never a static sideways arc.
+  let hx = 0;
   const stripe = Math.max(1, Math.round(n / (2 * (plan.bands + 1))));
   for (let j = 0; j < N; j++) {
     const isTail = j < tailBeads.length;
@@ -177,10 +179,8 @@ function axialLayout(plan: BodyPlan): BeadLayout {
     const sx = isTail ? tailBeads[j].sx : Math.max(1, 0.62 * s / Math.max(r, 1e-6));
     const sy = isTail ? tailBeads[j].sy : flatten;
     const sz = isTail ? tailBeads[j].sz : 1 + 0.25 * (1 - flatten);
-    spine.push({ x: hx, z: hz, r, yaw: ang, sx, sy, sz, y: nLegs > 0 ? lift : r * sy });
-    hx += Math.cos(ang) * s;
-    hz += Math.sin(ang) * s;
-    ang += plan.curl;
+    spine.push({ x: hx, z: 0, r, yaw: 0, sx, sy, sz, y: nLegs > 0 ? lift : r * sy });
+    hx += s;
   }
   // Centre the chain on the origin and rotate so the head faces +x.
   const last = spine[N - 1];

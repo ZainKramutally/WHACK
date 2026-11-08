@@ -105,14 +105,19 @@ describe('beadLayout', () => {
       expect(JSON.stringify(beadLayout(plan(w)))).toBe(JSON.stringify(l));
     }
   });
-  it('carbon is an axial ellipsoid chain that curls, with paired eyes; silicon is a radial prism lattice with no spine', () => {
+  it('carbon is a straight axial ellipsoid chain at rest, with paired eyes; silicon is a radial prism lattice with no spine', () => {
     const p = plan('carbon');
     const c = beadLayout(p), s = beadLayout(plan('silicon'));
     expect(c.radial).toBeUndefined();
     expect(s.radial).toBeDefined();
     const trunk = c.beads.slice(0, p.segmentCount + p.tailSegments);
     const zs = trunk.map((b) => b.z);
-    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(1e-4);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeLessThan(1e-9); // owner ruling: the rest spine is straight (curl is motion only)
+    for (const curl of [0, 0.255, 1]) {
+      const b = beadLayout({ ...p, curl }).beads.slice(0, p.segmentCount + p.tailSegments);
+      expect(Math.max(...b.map((q) => Math.abs(q.z))), `curl ${curl}`).toBeLessThan(1e-9);
+      expect(Math.max(...b.map((q) => Math.abs(q.yaw ?? 0))), `curl ${curl}`).toBeLessThan(1e-9);
+    }
     // Eyes are mirrored pairs about the body axis.
     const eyes = c.beads.filter((b) => b.tone === 1);
     expect(eyes.length).toBe(p.eyeCount);
