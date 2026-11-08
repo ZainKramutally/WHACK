@@ -197,3 +197,21 @@
 .wu-bt-frame .wu-bt-sprite { width: 240px; height: 156px; }
 .wu-specimen-extinct .wu-bt-frame .wu-bt-sprite { filter: grayscale(1) contrast(.85); }
 @media (max-width: 760px) { .wu-specimen { right: auto; left: 12px; } }
+
+/* Scanner hover lock (inspect:hover): pixel corner brackets that snap in around the living thing under the pointer. */
+.wu-scan { position: fixed; left: 0; top: 0; pointer-events: none !important; z-index: 9; --scan-in: 0px; }
+.wu-scan-c { position: absolute; width: 10px; height: 10px; border: 0 solid var(--wu-accent);
+  filter: drop-shadow(1px 1px 0 var(--ink)) drop-shadow(-1px -1px 0 var(--ink)); }
+.wu-scan-tl { left: -3px; top: -3px; border-width: 3px 0 0 3px; }
+.wu-scan-tr { right: -3px; top: -3px; border-width: 3px 3px 0 0; }
+.wu-scan-bl { left: -3px; bottom: -3px; border-width: 0 0 3px 3px; }
+.wu-scan-br { right: -3px; bottom: -3px; border-width: 0 3px 3px 0; }
+.wu-scan-label { position: absolute; left: -3px; bottom: calc(100% + 8px); white-space: nowrap; padding: 1px 6px; font-size: 12px;
+  color: var(--bone4); background: var(--wu-bg); border: 2px solid var(--wu-accent); }
+.wu-scan-snap .wu-scan-c { animation: wu-scan-snap .24s steps(4, end); }
+.wu-scan-snap .wu-scan-label { animation: wu-scan-label .24s steps(3, end); }
+.wu-scan-tl { --tx: -14px; --ty: -14px; } .wu-scan-tr { --tx: 14px; --ty: -14px; }
+.wu-scan-bl { --tx: -14px; --ty: 14px; } .wu-scan-br { --tx: 14px; --ty: 14px; }
+@keyframes wu-scan-snap { from { transform: translate(var(--tx), var(--ty)); opacity: .2; } }
+@keyframes wu-scan-label { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .wu-scan-snap .wu-scan-c, .wu-scan-snap .wu-scan-label { animation: none; } }

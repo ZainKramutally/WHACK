@@ -16,7 +16,7 @@ import { createSea } from './sea';
 import { createBackdrop } from './backdrop';
 import { createFauna } from './fauna';
 import { createFlora } from './flora';
-import { createPicker } from './pick';
+import { createPicker, type PickResult } from './pick';
 import { createCounterpart } from './counterpart';
 import { createLandmarksPart } from './landmarks';
 import type { LandmarkSet } from '../gen/landmarks';
@@ -53,7 +53,7 @@ export interface WorldView {
    * What is under client pixels (or the screen centre for the gamepad reticle). Does NOT emit: main.ts emits
    * `inspect:open` with the returned `{ target, at }` (matches its PickFn).
    */
-  pick(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } };
+  pick(at: { x: number; y: number } | 'reticle'): PickResult;
   /** Visual scale multiplier for creature bodies (default 3; readability only). */
   setCreatureScale(k: number): void;
   /** Resolves when every material in the scene (including the card swatches) is compiled. Await this instead of calling compileAsync yourself. Never rejects. */
@@ -124,7 +124,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
   const landmarks = createLandmarksPart(app);
   const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id) });
-  const picker = createPicker({ app, bus, fauna, getInputs: () => latest, getPatch: () => patch });
+  const picker = createPicker({ app, bus, fauna, flora, getInputs: () => latest, getPatch: () => patch });
 
   /** Accumulated ms per part (profiling aid; reset by the caller). */
   const prof = { frames: 0, total: 0, terrain: 0, sky: 0, sea: 0, fauna: 0, flora: 0, landmarks: 0, counterpart: 0 };

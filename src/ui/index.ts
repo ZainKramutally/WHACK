@@ -3,6 +3,7 @@
 // Consumes bus events: sim:snapshot, world:selected, build:life, control:blocked, inspect:open, inspect:close.
 // (Species enter the bestiary when the sim announces them (guide:newForm); the player then finds them by clicking one.)
 // Emits: control:set, inspect:window (card rect, or null), inspect:close.
+import { mountScanLock } from './scanLock';
 import './ui.css';
 import { mountCaptions } from './captions';
 import { mountConditions } from './conditions';
@@ -58,6 +59,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     bestiaryBadge.hidden = total === 0;
   }, () => summary.close());
   const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged);
+  const scanLock = mountScanLock(host, bus, world, registry);
   const offInspect = listen(bus, 'inspect:open', () => summary.close());
   const offFind = registry.onDiscover((name) => captions.show(`New entry: ${name}`));
 
@@ -175,6 +177,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
       offInspect();
       bestiary.dispose();
       inspect.dispose();
+      scanLock.dispose();
       summary.dispose();
       registry.dispose();
       host.remove();

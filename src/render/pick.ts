@@ -6,29 +6,35 @@ import type { App } from './app';
 import type { Bus } from '../bus';
 import type { InspectTarget, VisualInputs } from '../worlds/types';
 import type { FaunaPart } from './fauna';
-import { marchRay } from './layout';
+import type { FloraPart } from './flora';
+import { cellCentre, marchRay } from './layout';
 
 export interface PickerDeps {
   app: App;
   bus: Bus;
   fauna: FaunaPart;
+  flora: FloraPart;
   getInputs: () => VisualInputs;
   getPatch: () => number;
 }
+
+/** A target's vertical extent in the world, for the hover lock: base centre, height and half-width (m). */
+export interface PickBounds { x: number; y: number; z: number; height: number; radius: number }
+export interface PickResult { target: InspectTarget; at: { x: number; y: number }; bounds?: PickBounds }
 
 export interface Picker {
   /** Pick at client pixels or the screen centre; emits inspect:open and returns the target. */
   pick(at: { x: number; y: number } | 'reticle'): InspectTarget;
   /** Pick without emitting (for tests and hover). */
-  resolve(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } };
+  resolve(at: { x: number; y: number } | 'reticle'): PickResult;
 }
 
 export function createPicker(deps: PickerDeps): Picker {
-  const { app, bus, fauna } = deps;
+  const { app, bus, fauna, flora } = deps;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
 
-  function resolve(at: { x: number; y: number } | 'reticle') {
+  function resolve(at: { x: number; y: number } | 'reticle'): PickResult {
     const rect = app.renderer.domElement.getBoundingClientRect();
     const sx = at === 'reticle' ? rect.left + rect.width / 2 : at.x;
     const sy = at === 'reticle' ? rect.top + rect.height / 2 : at.y;
@@ -47,8 +53,25 @@ export function createPicker(deps: PickerDeps): Picker {
     let target = world.target;
     if (target.kind === 'sky' && seaVisible && o.y < inputs.seaLevel && d.y > 0) target = { kind: 'sea' }; // looking up from underwater
     const org = fauna.hit(o, d);
-    if (org && org.dist <= world.dist) target = { kind: 'organism', organismId: org.id };
-    return { target, at: { x: sx, y: sy } };
+    const plant = flora.hit(o, d);
+    let bounds: PickBounds | undefined;
+    let best = world.dist;
+    // Nearest of the organism, the drawn plant and the terrain march wins (a creature in front of a plant wins).
+    if (plant && plant.dist <= best) {
+      best = plant.dist;
+      target = { kind: 'producer', cell: plant.cell };
+      bounds = { x: plant.x, y: plant.y, z: plant.z, height: plant.height, radius: plant.radius };
+    }
+    if (org && org.dist <= best) {
+      target = { kind: 'organism', organismId: org.id };
+      const l = fauna.locate(org.id);
+      bounds = l ? { x: l.x, y: l.y - l.radius, z: l.z, height: 2 * l.radius, radius: l.radius } : undefined;
+    }
+    if (target.kind === 'producer' && !bounds) {
+      const c = cellCentre(target.cell, patch);
+      bounds = { x: c.x, y: inputs.terrain.height(c.x, c.z), z: c.z, height: 1, radius: patch / 128 };
+    }
+    return { target, at: { x: sx, y: sy }, bounds };
   }
 
   return {

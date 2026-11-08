@@ -7,6 +7,7 @@ import { createLandmarks } from './gen/landmarks';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
+import { createScanHover } from './render/scanHover';
 import { createWorldView } from './render/world';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
 import { cellSubmerged } from './render/floraForm';
@@ -140,6 +141,7 @@ async function start(
 
   // Player.
   const pick = view.pick;
+  const scan = createScanHover(app, bus, pick, view.locate);
   const groundHeight = (x: number, z: number) =>
     latest ? terrain.height(x, z, terrainState(latest, world)) : 0;
   const player = attachPlayer(
@@ -166,7 +168,7 @@ async function start(
         onClose: () => ui.close(),
         onSliderSelect: (i) => ui.selectSlider(i),
         onSliderNudge: (i, d) => ui.nudgeSlider(i, d),
-        onLastUsedChange: (k) => ui.setInputKind(k),
+        onLastUsedChange: (k) => { ui.setInputKind(k); scan.setInputKind(k); },
       },
     },
   );

@@ -12,6 +12,8 @@ import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing } from './floraLib/place';
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
+import { rayPlants } from './floraHit';
+import { cellAt, type Vec3 } from './layout';
 
 const LIB_SEED = 0x5eed_f10a;
 const REBUILD_EVERY = 0.25; // s while the world builds
@@ -35,6 +37,8 @@ export interface FloraPart {
   dropped: number;
   /** Keep a disc free of mid and giant plants (the spawn point; radius default 25 m). null: back to the fallback. */
   setClearing(x: number, z: number, r?: number): void;
+  /** Nearest drawn plant under a ray (world space, normalised direction): its flora cell, distance and bounds. Read-only. */
+  hit(origin: Vec3, dir: Vec3): { cell: number; dist: number; x: number; y: number; z: number; height: number; radius: number } | null;
   dispose(): void;
 }
 
@@ -112,6 +116,7 @@ export function createFlora(app: App): FloraPart {
     warm.push(w);
   }
 
+  const radiusPerHeight = lib.archetypes.map((a) => a.radius / a.size);
   const list = makePlantList();
   const heights = makeHeightCache();
   const lookIds = new Int32Array(list.arch.length);
@@ -131,6 +136,14 @@ export function createFlora(app: App): FloraPart {
     dropped: 0,
     setClearing(x, z, r = CLEARING_R) {
       clearing = { x, z, r }; clearingSet = true; clearingDirty = true;
+    },
+    hit(origin, dir) {
+      const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5);
+      if (!h) return null;
+      const i = h.index;
+      const cell = cellAt(list.x[i], list.z[i], lastPatch);
+      if (cell < 0) return null;
+      return { cell, dist: h.dist, x: list.x[i], y: list.y[i], z: list.z[i], height: list.h[i], radius: list.h[i] * radiusPerHeight[list.arch[i]] };
     },
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
