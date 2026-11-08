@@ -2,7 +2,9 @@
 // plane in a foreground / midground / background composition). Three draw calls:
 //   1. landforms: two layers of strata-banded mesas and spires, plus two far mountain rings fading into the haze
 //      (one merged mesh, rising with the terrain's `rise`, so it builds with the world);
-//   2. giant plant silhouettes (instanced), drawn ONLY when inputs.lifeOnLand, and only where their foot is above the sea;
+//   2. giant plant silhouettes (instanced) that mirror the patch's own giants: none until land cells hold canopy that
+//      can carry a giant, then as many as the patch's land canopy share and no taller than the flora's giants
+//      (visibleGiants), only where their foot is above the sea;
 //   (3. the terrain skirt itself lives in terrainNode.ts, on the real height function.)
 // A pure, seeded function of the inputs: the layout depends only on the world's chemistry and the patch size, never on
 // time. Never pickable. Colours are palette roles (PAL) through the world material, so star dimming and fog apply.
@@ -14,14 +16,25 @@ import type { VisualInputs } from '../worlds/types';
 import { makeRng, type Rng } from '../sim/rng';
 import { worldMaterial, PAL } from './material';
 import { lookKind } from './palette';
+import { FLORA_GRID } from './layout';
+import { cellSubmerged, floraBin, formForBin, type FloraForm } from './floraForm';
+import { plantHeight } from './floraLib';
+import { GIANT_CANOPY } from './floraLib/place';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
 
 export interface Mesa { x: number; z: number; r: number; h: number; taper: number; seed: number }
 export interface Ridge { R: number; depth: number; H: number; seed: number; tone: number }
-export interface Giant { x: number; z: number; h: number; seed: number }
+/** `jitter` (0..1) varies the height inside the flora's giant band; `rank` (k / giants) is the land canopy share at
+ * which this giant starts to grow, a seeded permutation so the ring fills evenly rather than one side first. */
+export interface Giant { x: number; z: number; jitter: number; rank: number; seed: number }
 export interface BackdropLayout { mesas: Mesa[]; ridges: Ridge[]; giants: Giant[] }
+/** A giant to draw: its foot height `y` and its height `h` (m). */
+export interface StandingGiant { x: number; z: number; y: number; h: number; seed: number }
+/** The patch's land canopy (landCanopy): share of land cells that can hold a giant, and their mean canopy biomass. */
+export interface LandCanopy { share: number; mean: number }
+export const NO_CANOPY: LandCanopy = Object.freeze({ share: 0, mean: 0 });
 
 /** Chebyshev distance from the patch centre: the patch is the square |x|, |z| ≤ patch/2. */
 const cheb = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z));
@@ -67,23 +80,71 @@ export function backdropLayout(kind: 'carbon' | 'silicon', patch: number): Backd
   const rg = rng('backdrop:giants');
   const giants: Giant[] = [];
   const NG = 36;
+  // growth order: a seeded permutation (own stream, so the positions below keep their draws)
+  const order = Array.from({ length: NG }, (_, i) => i);
+  const ro = rng('backdrop:giantOrder');
+  for (let i = NG - 1; i > 0; i--) { const j = Math.floor(ro() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   for (let i = 0; i < NG; i++) {
     const ang = ((i + rg()) / NG) * Math.PI * 2;
-    const h = lerp(0.1, 0.22, rg()) * patch;
+    const jitter = rg();
     let [x, z] = clearOut(ang, lerp(0.62, 1.6, rg()) * patch, 0.02 * patch, half, 0.04 * patch);
     // keep clear of mesa footprints
     for (const m of mesas) {
       if (Math.hypot(x - m.x, z - m.z) < m.r * 1.8) [x, z] = clearOut(ang, Math.hypot(x, z) + m.r * 2.5, 0.02 * patch, half, 0.04 * patch);
     }
-    giants.push({ x, z, h, seed: Math.floor(rg() * 1e6) });
+    giants.push({ x, z, jitter, rank: order[i] / NG, seed: Math.floor(rg() * 1e6) });
   }
   return { mesas, ridges, giants };
 }
 
-/** The giants to draw: none unless life has reached land, and only those whose foot stands above the sea. */
-export function visibleGiants(layout: BackdropLayout, lifeOnLand: boolean, heightAt: (x: number, z: number) => number, seaLevel: number): Giant[] {
-  if (!lifeOnLand) return [];
-  return layout.giants.filter((g) => heightAt(g.x, g.z) > seaLevel + 0.5);
+/**
+ * Land mask over the flora grid: 1 where a cell is land, by the flora's own test (floraForm's cellSubmerged: the cell
+ * centre against sea level), with cell centres on this patch. 4096 terrain samples: redo it only when the sea or the
+ * relief moves.
+ */
+export function landMask(i: Pick<VisualInputs, 'terrain' | 'seaLevel'>, patch: number, out = new Uint8Array(FLORA_GRID * FLORA_GRID)): Uint8Array {
+  const at = { terrain: { ...i.terrain, patchSize: patch }, seaLevel: i.seaLevel };
+  for (let c = 0; c < out.length; c++) out[c] = cellSubmerged(c, at) ? 0 : 1;
+  return out;
+}
+
+/**
+ * The patch's land canopy from the flora grid ([mat, canopy] per cell): the share of land cells whose canopy can hold a
+ * giant (≥ GIANT_CANOPY, the flora's own giant threshold), and the mean canopy of those cells. Pure; 0 with no land.
+ */
+export function landCanopy(flora: Float32Array, land: Uint8Array): LandCanopy {
+  const cells = Math.min(flora.length >> 1, land.length);
+  let nLand = 0, n = 0, sum = 0;
+  for (let c = 0; c < cells; c++) {
+    if (!land[c]) continue;
+    nLand++;
+    const canopy = flora[c * 2 + 1];
+    if (canopy >= GIANT_CANOPY) { n++; sum += canopy; }
+  }
+  return n ? { share: n / nLand, mean: sum / n } : NO_CANOPY;
+}
+
+/**
+ * The giants to draw, mirroring the patch's own giants (floraLib place.ts). None without land canopy (share 0, which
+ * covers "no life on land"). Giant k of N starts to grow once the share passes its rank k / N and is full grown one
+ * giant's share (1 / N) later, so the count (about share × N) and every height rise monotonically with the share. Full
+ * height is the flora's giant height for the world's canopy form and the mean giant-cell canopy (plantHeight: inside
+ * the giant band, cold → taller), so a backdrop giant never outgrows the patch's. Only feet above the sea.
+ */
+export function visibleGiants(
+  layout: BackdropLayout, canopy: LandCanopy, form: FloraForm, heightAt: (x: number, z: number) => number, seaLevel: number,
+): StandingGiant[] {
+  if (!(canopy.share > 0)) return [];
+  const N = layout.giants.length, out: StandingGiant[] = [];
+  for (const g of layout.giants) {
+    const ramp = Math.min(1, (canopy.share - g.rank) * N);
+    if (ramp <= 0) continue;
+    const y = heightAt(g.x, g.z);
+    if (y <= seaLevel + 0.5) continue;
+    // the same biomass a patch giant gets (place.ts: its cell's canopy × 2)
+    out.push({ x: g.x, z: g.z, y, h: plantHeight('giant', form, canopy.mean * 2, g.jitter) * ramp, seed: g.seed });
+  }
+  return out;
 }
 
 // ---------------- geometry (aTone: 0 ink/maroon → 0.33 crimson → 0.66 red → 1 lit crest) ----------------
@@ -228,9 +289,11 @@ export function createBackdrop(app: App): BackdropPart {
   let giants: THREE.InstancedMesh | null = null;
   let layout: BackdropLayout | null = null;
   let builtKey = '';
-  let giantKey = '';
+  let landKey = '';
+  const landCells = new Uint8Array(FLORA_GRID * FLORA_GRID);
+  let lastFlora: Float32Array | null = null, lastLife = false;
   let grow = 0;
-  let drawn: Giant[] = [];
+  let drawn: StandingGiant[] = [];
   let drawnCount = 0;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
@@ -251,7 +314,7 @@ export function createBackdrop(app: App): BackdropPart {
     giants.count = 0;
     giants.name = 'backdropGiants';
     app.scene.add(giants);
-    giantKey = '';
+    landKey = ''; lastFlora = null; drawn = []; grow = 0;
   }
 
   function dispose() {
@@ -268,14 +331,23 @@ export function createBackdrop(app: App): BackdropPart {
       uRise.value = inputs.terrain.rise;
       if (!giants || !layout) return;
 
-      // which giants stand: re-evaluated when life, sea level or the relief changes noticeably
+      // Which giants stand, and how tall: from the patch's land canopy, re-evaluated only when the flora grid, life on
+      // land, or the land under the grid (sea level, relief) changes, never per frame. The land mask is the costly
+      // part (a terrain sample per cell), so it waits for the sea or the relief to move noticeably.
       let dirty = false;
-      const gk = `${inputs.lifeOnLand}|${Math.round(inputs.seaLevel * 4)}|${Math.round(inputs.terrain.rise * 50)}`;
-      if (gk !== giantKey) {
-        giantKey = gk;
-        drawn = visibleGiants(layout, inputs.lifeOnLand, inputs.terrain.height, inputs.seaLevel);
+      let landMoved = false;
+      if (inputs.lifeOnLand) {
+        const lk = `${Math.round(inputs.seaLevel * 4)}|${Math.round(inputs.terrain.rise * 50)}`;
+        if (lk !== landKey) { landKey = lk; landMask(inputs, patch, landCells); landMoved = true; }
+      }
+      if (inputs.flora !== lastFlora || inputs.lifeOnLand !== lastLife || landMoved) {
+        lastFlora = inputs.flora; lastLife = inputs.lifeOnLand;
+        const canopy = inputs.lifeOnLand ? landCanopy(inputs.flora, landCells) : NO_CANOPY;
+        // the world's canopy form: plantHeight reads only its heat-band height scale
+        const next = canopy.share > 0 ? visibleGiants(layout, canopy, formForBin(floraBin(0, 1, inputs)), inputs.terrain.height, inputs.seaLevel) : [];
+        if (next.length || drawn.length) dirty = true; // nothing to rewrite while no giant stands
+        drawn = next;
         if (!inputs.lifeOnLand) grow = 0;
-        dirty = true;
       }
       // grow in over ~3 s once life reaches land (render easing only)
       const target = drawn.length > 0 ? 1 : 0;
@@ -289,7 +361,7 @@ export function createBackdrop(app: App): BackdropPart {
       giants.count = drawnCount;
       for (let i = 0; i < drawnCount; i++) {
         const g = drawn[i];
-        p.set(g.x, inputs.terrain.height(g.x, g.z) - 0.5, g.z);
+        p.set(g.x, g.y - 0.5, g.z);
         q.setFromAxisAngle(up, (g.seed % 628) / 100);
         s.setScalar(g.h * grow);
         giants.setMatrixAt(i, m4.compose(p, q, s));
