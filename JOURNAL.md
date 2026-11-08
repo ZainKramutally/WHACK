@@ -195,3 +195,4 @@
 - 04:53 16: merged #84 (live gas-mix air density, airDensity stat, flight ceiling card row, plan v5 liftSpan).
 - 04:45 16: owner: no gravity slider; #84 started (flight); apex hunters + giants retry with structural levers (sim-worker, 90 min).
 - 05:08 16: merged hunters (#48): opportunistic predation, pleiotropic jaws, dietBoost 8, R8 per M^0.75; carbon hunters 39/7/2/0 over seeds 1–4. Giants still not.
+- 06:23 16: merged solitary hunters (cohesion × plant gain; apex ≤ 3 on 4/4 carbon seeds) + SLOW test. Giants unmet (plant competition at cap).

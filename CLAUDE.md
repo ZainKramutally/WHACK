@@ -223,8 +223,8 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
     - Pleiotropic jaws: effective gape = gape + 0.6 × diet, so meat-eating lineages get the mouth with the same mutation.
     - R8 displacement by energy per M^0.75 (metabolic scaling), so big animals aren't automatically the weakest.
   - **Results:** at +3 min, carbon seeds 1–4 had 39, 7, 2 and 0 hunters (diet > 0.65), with 6, 7, 2 and 0 in the top size decile.
-  - **Still off target:** apex hunters can be several, and in big runs they are social packs rather than solitary.
-  - **Giants:** animals ≥ 2 m stay at 0–1 per seed. Jump-born giants appear singly: growth is energy-limited and the population sits at the 1,024 cap.
+  - **Solitary apex:** herd cohesion now scales with plant gain (herding is a grazer's anti-predator habit), so meat-eaters don't drift towards kin. At +3 min, carbon seeds 1–4 had 2, 6, 1 and 29 hunters, with 1, 3, 1 and 1 apex (top size decile), and mean hunter sociality 0.2–0.5.
+  - **Giants:** animals ≥ 2 m stay at 0–1 per seed. Jump-born giants appear singly, and a juvenile giant has no surplus energy to grow: at the 1,024 cap it competes with every small animal for the same plants. Faster growth laws, longer lifespan, parental care and bigger newborns didn't change this (West et al. 2001 growth was tried and reverted). Fixing it would need food that big bodies can reach and small ones can't, which is a niche change.
   - **Say so if asked.**
 - Targets the sim is tuned and tested against: 4–5 forms with ≥ 40 members each at build end; 8–10 forms by about +3 min; never more than ~10 at once; grazer packs of ~5–20 that move together; ≤ 3 apex hunters, each solitary.
 
