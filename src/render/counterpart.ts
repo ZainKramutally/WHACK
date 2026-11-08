@@ -1,7 +1,7 @@
 // The inspect card's 3D window: while the UI holds an `inspect:window` rect, draw a small scissored viewport of the
 // inspected thing, turning slowly. Organisms: the creature itself, built from its own cached BodyPlan as beads (never
 // another chemistry's rebuild). Producer: the clicked cell's own plants, the real flora archetypes the world places
-// there (near LOD, the world's palette and glow). Sea/ground/sky: this world's swatch, or the other world's via the toggle.
+// there (near LOD, the world's palette and glow). Sea/ground/sky: this world's swatch. There is no other-world view.
 // Runs only while the window is set. Drawn as an app overlay: after the post pipeline has written the frame, straight to the
 // canvas at full resolution, so the card's view stays crisp (never pixelated or outlined).
 import { flightParamsFor } from '../sim/flight';
@@ -72,7 +72,6 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   let backdrop: THREE.Mesh | null = null;
 
   let rect: { x: number; y: number; width: number; height: number } | null = null;
-  let mode: 'self' | 'other' = 'self';
   let target: InspectTarget | null = null;
   let builtFor = '';
   const disposables: { dispose(): void }[] = [];
@@ -309,6 +308,25 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   // Two-sided like the world's plants (open webs, sieve plates and parasol discs); vertex colours from paint().
   const plantMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.7 });
   const plants = makePlantList(2048); // ≥ 81 cells × ~20 plants: the clicked cell's plants are never dropped for its neighbours'
+  /** One plant the world draws in a cell: its archetype index, world instance transform, the ground height under it
+   *  (the card stands every plant on its plate), and the world's paint for it (value step, glow). */
+  interface CellPlant { arch: number; m: THREE.Matrix4; ground: number; dark: boolean; glow: number }
+  const UP = new THREE.Vector3(0, 1, 0), tq = new THREE.Quaternion(), tp = new THREE.Vector3(), ts = new THREE.Vector3();
+
+  /**
+   * The plants the world draws in `cell`. Today re-derived with the world's own placement (cellPlants.ts) and composed
+   * as flora.ts composes its instances; when FloraPart.plantsIn(cell) lands, this is the only function to change.
+   */
+  function plantsToDraw(cell: number, inputs: VisualInputs, patch: number): CellPlant[] {
+    const lib = libOf();
+    return plantsInCell(inputs, patch, cell, { x: app.camera.position.x, z: app.camera.position.z }, plants).map((i) => {
+      const a = lib.archetypes[plants.arch[i]], s = plants.h[i] / a.size;
+      tq.setFromAxisAngle(UP, plants.yaw[i]);
+      const m = new THREE.Matrix4().compose(tp.set(plants.x[i], plants.y[i] - 0.03 * plants.h[i], plants.z[i]), tq, ts.set(s, s, s));
+      return { arch: plants.arch[i], m, ground: plants.y[i], dark: plants.dark[i] === 1, glow: plants.glow[i] };
+    });
+  }
+
   /** The clicked cell's plants on a plate of this world's ground: real archetypes, painted as the world paints them. */
   function producerContent(cell: number, inputs: VisualInputs, aspect: number) {
     const world = deps.worldFor(inputs.world.id);
@@ -319,25 +337,26 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const group = new THREE.Group();
     let reach = 0.3, top = 0.3;
     const painted = new Set<string>();
-    for (const i of plantsInCell(inputs, patch, cell, { x: app.camera.position.x, z: app.camera.position.z }, plants)) {
-      const a = lib.archetypes[plants.arch[i]];
-      const built = a.lod[0], dark = plants.dark[i] === 1;
+    const toCard = new THREE.Matrix4();
+    for (const p of plantsToDraw(cell, inputs, patch)) {
+      const a = lib.archetypes[p.arch];
+      const built = a.lod[0];
       let g = built.geometry;
-      if (dark) {
+      if (p.dark) {
         g = darkGeo.get(a.index) ?? built.geometry.clone();
         darkGeo.set(a.index, g);
       }
-      const tag = `${a.index}|${dark ? 1 : 0}`;
-      if (!painted.has(tag)) { paint({ ...built, geometry: g }, pal, plants.glow[i], dark); painted.add(tag); }
-      const s = plants.h[i] / a.size, x = plants.x[i] - cc.x, z = plants.z[i] - cc.z;
+      const tag = `${a.index}|${p.dark ? 1 : 0}`;
+      if (!painted.has(tag)) { paint({ ...built, geometry: g }, pal, p.glow, p.dark); painted.add(tag); }
       const mesh = new THREE.Mesh(g, plantMat);
-      mesh.position.set(x, 0, z);
-      mesh.rotation.y = plants.yaw[i];
-      mesh.scale.setScalar(s);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.multiplyMatrices(toCard.makeTranslation(-cc.x, -p.ground, -cc.z), p.m); // around the cell, on the plate
       mesh.frustumCulled = false;
       group.add(mesh);
-      reach = Math.max(reach, Math.hypot(x, z) + a.radius * s);
-      top = Math.max(top, a.height * s);
+      const e = mesh.matrix.elements;
+      const sc = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
+      reach = Math.max(reach, Math.hypot(e[12], e[14]) + a.radius * sc);
+      top = Math.max(top, e[13] + a.height * sc);
     }
     const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1, 1, 0.2, 24)), mat(groundColour(world.life.composition, 1)));
     const thick = Math.max(0.05, 0.08 * top);
@@ -363,12 +382,11 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function build(inputs: VisualInputs) {
-    // 'self' shows this world's version of the thing; 'other' the opposite chemistry's.
-    const other = deps.worldFor(mode === 'self' ? inputs.world.id : inputs.world.id === 'carbon' ? 'silicon' : 'carbon');
+    const other = deps.worldFor(inputs.world.id); // the view always shows this world's own thing
     // A producer is always this world's own cell (no other-world view, owner ruling), and follows its live form: the view
     // rebuilds if the sea rises over it or its biomass mix shifts.
     const form = target?.kind === 'producer' ? floraForm(target.cell, inputs) : null;
-    const key2 = `${inputs.world.id}|${mode}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}|${target?.kind === 'producer' ? `${target.cell}:${form?.key ?? '-'}` : ''}`;
+    const key2 = `${inputs.world.id}|${target?.kind}|${target && 'organismId' in target ? target.organismId : ''}|${target?.kind === 'producer' ? `${target.cell}:${form?.key ?? '-'}` : ''}`;
     if (key2 === builtFor) return;
     builtFor = key2;
     clearContent();
@@ -378,9 +396,9 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     setBackdrop(other);
     switch (target.kind) {
       case 'organism': organismContent(target.organismId); break;
-      case 'sea': seaContent(other, mode === 'self' && inputs.frozen); break;
+      case 'sea': seaContent(other, inputs.frozen); break;
       case 'ground': groundContent(other); break;
-      case 'producer': setBackdrop(deps.worldFor(inputs.world.id)); producerContent(target.cell, inputs, rect ? rect.width / rect.height : 2); break;
+      case 'producer': producerContent(target.cell, inputs, rect ? rect.width / rect.height : 2); break;
       case 'sky': skyContent(other); break;
     }
     r.compileAsync(scene, cam).catch(console.error);
@@ -422,12 +440,10 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   const onWindow = (w: BusEvents['inspect:window']) => {
     rect = w;
-    const m = target?.kind === 'organism' ? 'self' : (w?.mode ?? 'self'); // creatures never show another chemistry
-    if (m !== mode) { mode = m; builtFor = ''; }
     if (!w) { builtFor = ''; clearContent(); }
   };
-  const onOpen = (e: { target: InspectTarget }) => { target = e.target; mode = 'self'; builtFor = ''; };
-  const onClose = () => { rect = null; target = null; mode = 'self'; builtFor = ''; clearContent(); };
+  const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
+  const onClose = () => { rect = null; target = null; builtFor = ''; clearContent(); };
   bus.on('inspect:window', onWindow);
   bus.on('inspect:open', onOpen);
   bus.on('inspect:close', onClose);

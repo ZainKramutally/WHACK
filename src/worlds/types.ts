@@ -173,7 +173,7 @@ export interface BusEvents {
   'control:blocked': { controlId: ControlId; limitId: string; start?: true };   // start: moved by startingConditions at world start
   'guide:newForm': NewFormEvent;
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };
-  'inspect:window': { x: number; y: number; width: number; height: number; /** what the window shows: the thing itself (default) or the other world's version */ mode?: 'self' | 'other' } | null;
+  'inspect:window': { x: number; y: number; width: number; height: number } | null;
   'inspect:close': Record<string, never>;
   /** Render → UI: the living thing under the pointer or gamepad reticle (a scanner lock), or null. Never sea, ground or sky.
    *  `rect` is its screen bounds in CSS pixels. While the same target stays locked, the render layer re-emits the SAME

@@ -221,7 +221,7 @@ export function mountInspectCard(
     else { card.style.maskImage = ''; card.style.removeProperty('-webkit-mask-image'); }
     if (key === lastRect) return;
     lastRect = key;
-    bus.emit('inspect:window', visible ? { x: left, y: top, width: right - left, height: bottom - top, mode: 'self' } : null);
+    bus.emit('inspect:window', visible ? { x: left, y: top, width: right - left, height: bottom - top } : null);
   }
 
   function open(t: InspectTarget, at: { x: number; y: number }) {
