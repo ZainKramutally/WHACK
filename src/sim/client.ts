@@ -3,6 +3,7 @@
 //   worker snapshot → bus 'sim:snapshot'           worker events → bus 'build:life' / 'build:complete' / 'control:blocked' / 'guide:newForm'
 // Drop-in for the stub: `startSim(bus)` returns a stop function.
 import type { Bus } from '../bus';
+import { currentEgg } from '../worlds';
 import type { CrustPickId, SimSnapshot } from '../worlds/types';
 import type { FromWorker, ToWorker } from './workerProtocol';
 
@@ -44,7 +45,7 @@ export function startSimClient(bus: Bus, opts: SimClientOptions = {}): () => voi
   worker.onerror = (e) => console.error('[sim worker]', e);
 
   const onSelected = (p: { worldId: 'carbon' | 'silicon'; requested: { temperature: number; nitrogen: number; oxygen: number }; seed?: number; crust?: CrustPickId }) =>
-    send({ type: 'selectWorld', worldId: p.worldId, requested: p.requested, seed: p.seed, ...(p.crust ? { crust: p.crust } : {}) });
+    send({ type: 'selectWorld', worldId: p.worldId, requested: p.requested, seed: p.seed, ...(p.crust ? { crust: p.crust } : {}), ...(currentEgg() ? { egg: currentEgg() } : {}) });
   const onControl = (p: { controlId: 'temperature' | 'nitrogen' | 'oxygen'; value: number }) =>
     send({ type: 'controlSet', controlId: p.controlId, value: p.value });
   bus.on('world:selected', onSelected);

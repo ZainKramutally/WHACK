@@ -36,7 +36,7 @@ export interface SelectionOptions {
    * Generate was clicked (after any slider glide). The host builds the world, emits `world:selected` with this payload and drives
    * the transition through `handle`, which also removes the screen when it is done.
    */
-  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions; crust?: CrustPickId }, handle: LaunchHandle): void;
+  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions; crust?: CrustPickId; egg?: 'lead' }, handle: LaunchHandle): void;
 }
 
 export interface SelectionScreen {
@@ -224,6 +224,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   // selectable element selected (the box always shows a selectable element).
   const track = r('track');
   const pips = r('pips');
+  let leadClicks = 0, eggArmed = new URLSearchParams(location.search).has('lead'), eggOn = false;
   const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id']; via?: HTMLElement }[] = [];
   for (const e of group14) {
     const el = document.createElement('div');
@@ -245,6 +246,15 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     el.addEventListener('click', () => {
       if (suppressClick) return;
       const i = cards.findIndex((c) => c.el === el);
+      if (e.z !== 82) { eggOn = false; leadClicks = 0; }
+      if (e.z === 82 && (eggArmed || ++leadClicks >= 3)) {   // hidden easter egg: Pb after 3 clicks (or ?lead) picks the lead world
+        eggArmed = true; eggOn = true;
+        el.querySelector('.estat')!.textContent = 'Easter egg: not science';
+        el.querySelector('.via')!.textContent = 'Tardigrades only. Lead is not a life chemistry.';
+        toast('Lead world selected: an easter egg, not science. Carbon rock and sky, tardigrades only.', 3200);
+        goTo(cards.findIndex((c) => c.worldId === 'carbon'));
+        return;
+      }
       goTo(i);
       if (!e.worldId) {
         el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
@@ -670,7 +680,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const world = worldFor(state.worldId);
     const { start, moves } = plannedMoves(state);
     const payload = generatePayload(state);   // the settings at the click: the sim moves them itself and reports why
-    const begin = () => { launching = true; busy = true; root.classList.add('launching'); opts.onGenerate(payload, handle); };
+    const begin = () => { launching = true; busy = true; root.classList.add('launching'); opts.onGenerate(eggOn && state.worldId === 'carbon' ? { ...payload, egg: 'lead' } : payload, handle); };
     if (!moves.length) { busy = true; begin(); return; }
     const m = moves[0];
     toast(`${esc(world.displayName)} life cannot survive at ${fmt(m.controlId, m.from)}, so this world starts at ${fmt(m.controlId, m.to)}.`, 2600);

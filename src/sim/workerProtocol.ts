@@ -4,7 +4,7 @@ import type { Conditions, ControlId, CrustPickId, NewFormEvent, SimSnapshot, Wor
 
 export type ToWorker =
   | { type: 'init' }
-  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: CrustPickId }
+  | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: CrustPickId; egg?: 'lead' }
   | { type: 'controlSet'; controlId: ControlId; value: number }
   | { type: 'timeSet'; factor: number }
   | { type: 'dispose' };
@@ -51,7 +51,7 @@ export function parseToWorker(data: unknown): { ok: true; msg: ToWorker } | { ok
       if (!requested) return { ok: false, error: 'selectWorld: requested must be {temperature, nitrogen, oxygen} numbers' };
       if (data.seed !== undefined && !isNum(data.seed)) return { ok: false, error: 'selectWorld: seed must be a number' };
       if (data.crust !== undefined && typeof data.crust !== 'string') return { ok: false, error: 'selectWorld: crust must be a string' };
-      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined, ...(data.crust !== undefined ? { crust: data.crust as CrustPickId } : {}) } };
+      return { ok: true, msg: { type: 'selectWorld', worldId: data.worldId as WorldId, requested, seed: data.seed as number | undefined, ...(data.crust !== undefined ? { crust: data.crust as CrustPickId } : {}), ...(data.egg === 'lead' ? { egg: 'lead' as const } : {}) } };
     }
     case 'controlSet':
       if (typeof data.controlId !== 'string' || !CONTROL_IDS.includes(data.controlId)) return { ok: false, error: `unknown control '${String(data.controlId)}'` };

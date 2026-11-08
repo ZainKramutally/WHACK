@@ -18,7 +18,7 @@ import { pickSeed } from './seed';
 import { startSim } from './sim/client';
 import { mountWorldUI } from './ui';
 import { mountSelectionScreen } from './ui/selection/screen';
-import { controlList, worldFor } from './worlds';
+import { controlList, setEgg, worldFor } from './worlds';
 import type { Conditions, CrustPickId, SimSnapshot, VisualInputs, WorldConfig, WorldId } from './worlds/types';
 
 // ---- injection points ----
@@ -273,7 +273,8 @@ async function boot() {
   // If the renderer fails to come up, surface it; the selection screen is DOM only and must not be left covering the error.
   prepared.catch(fail);
   const screen = mountSelectionScreen(document.getElementById('ui') ?? document.body, bus, {
-    onGenerate: ({ worldId, requested, crust }, handle) => {
+    onGenerate: ({ worldId, requested, crust, egg }, handle) => {
+      setEgg(egg);
       prepared.then((p) => start(p, worldId, requested, handle, crust)).catch(fail);
     },
   });

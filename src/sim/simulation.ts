@@ -303,6 +303,12 @@ export class WorldSimulation {
     if (!this.complete) this.tracker.configure({ minMembers: Math.max(ANNOUNCE_MEMBERS, Math.round(BUILD_SHARE * animalsNow)), gapSec: 0 });
     else if (!this.trackerLive) { this.trackerLive = true; this.tracker.configure({ minMembers: ANNOUNCE_MEMBERS, gapSec: ANNOUNCE_GAP_SEC, forgetPending: true }); }
     for (const f of this.tracker.update(this.life.guideAnimals(), this.ticks / TICK_HZ)) {
+      if (this.world.easterEgg) {   // easter egg: exactly one species, the tardigrade
+        if (this.eggAnnounced) continue;
+        this.eggAnnounced = true;
+        this.events.push({ type: 'guide:newForm', ...f, name: 'Tardigrade', scientific: 'Hypsibius lead-ii' });
+        continue;
+      }
       this.events.push({ type: 'guide:newForm', ...f });
     }
 
@@ -564,8 +570,9 @@ export class WorldSimulation {
   private airDensity(): number { return this.air().density; }
 
   /** Body-gene mutation σ on the tick clock (see mutationSigmaAt). */
+  private eggAnnounced = false;
   private mutationSigma(): number {
-    return mutationSigmaAt(this.ticks, this.buildTicks);
+    return this.world.easterEgg ? 0 : mutationSigmaAt(this.ticks, this.buildTicks);
   }
 
   private heatBand(band: LivingBand): number {

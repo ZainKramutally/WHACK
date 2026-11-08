@@ -142,6 +142,8 @@ export interface LifeInputs {
 
 export interface WorldConfig {
   id: WorldId;
+  /** Set only on the hidden lead easter-egg variant of carbon (worlds/lead.ts): zero mutation, tardigrades only, labelled not science. */
+  easterEgg?: 'lead';
   displayName: string;
   status: WorldStatus;
   demoSeed: number;

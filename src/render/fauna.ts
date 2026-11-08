@@ -22,6 +22,8 @@
 // planted feet, hoverers ride under a breathing gas bell trailing tendrils with lag, sessile ones sway. Radial: walkers
 // tripod-step on their arms (planted feet), swimmers roll like a wheel, hoverers pulse as a bell with arms hanging and
 // trailing rod tendrils, sessile ones stay rooted as a still crystal colony with prongs raised.
+import { currentEgg } from '../worlds';
+import { tardigradePlan } from './tardigrade';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
@@ -1412,7 +1414,8 @@ export function createFauna(app: App): FaunaPart {
         for (const b of inputs.births) {
           if (entries.has(b.id) || pending.has(b.id)) continue;
           try {
-            pending.set(b.id, { plan: unpackBodyPlan(b.plan), snap: snapId });
+            const bp = unpackBodyPlan(b.plan);
+            pending.set(b.id, { plan: currentEgg() ? tardigradePlan(bp) : bp, snap: snapId });
           } catch { /* malformed plan: fall back to a capsule when the organism shows up */ }
         }
       }
