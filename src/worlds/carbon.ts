@@ -259,6 +259,8 @@ export const carbon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
+      meatAssim: 0.5, // assumption: true. A hunter keeps about half of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
+      grazeReach: 1, // assumption: true. A grazer feeds one extra cell out per metre of body length, up to 2 cells
       canopyReach: 0.6, // assumption: true. Metres of limb a body needs to reach canopy biomass: tall bodies open food small ones cannot get (megafauna niche, owner ruling 2026-11-08)
       deepScale: 0.9, // assumption: true. Body length (m) a swimmer needs to feed below the shallows: only large swimmers use deep-water food
       intakeExp: 1.0, // assumption: true. Food intake scales as M^0.9 against upkeep at M^0.75, so big bodies out-eat their upkeep (megafauna niche, owner ruling 2026-11-08). Real intake of large herbivores scales above Kleiber (grazing time and gut capacity), so this is a modelling choice

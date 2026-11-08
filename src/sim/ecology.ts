@@ -53,6 +53,8 @@ export interface EcologyLedger {
   founders: number; // seeded capsule worms when life appears (≥ 24)
   canopyReach: number; // metres of limb a body needs to reach canopy biomass (fliers always reach it); small bodies graze the mat only
   deepScale: number; // body length (m) a swimmer needs to feed in water deeper than the shallows (shallowMax); smaller swimmers feed only in the shallows
+  meatAssim: number; // share of a kill's whole body (tissue + energy) a hunter keeps; 0 = use the plant transfer ε. Eating a whole animal is far more efficient than grazing a thin mat
+  grazeReach: number; // metres of body length per extra cell of grazing radius (0 = grazers feed only in their own cell): big bodies feed over a footprint, so their intake does not saturate at one cell
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
@@ -61,7 +63,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, cohesion: 1, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, cohesion: 1, intakeExp: 0.75,
 };
 
 export interface EcologyOptions {
@@ -87,6 +89,7 @@ const SPORE_ENERGY = 1.9; // implementation constant (DECISIONS §G.2 exempt): a
 const SLOT_RADIUS = 2; // implementation constant (DECISIONS §G.2 exempt): cells within which a full world's ready parent can displace the weakest animal
 const SLOT_MARGIN = 0.25; // implementation constant (DECISIONS §G.2 exempt): a victim must have less than this share of the parent's energy per unit mass
 const DEEP_FLOOR = 0.3; // implementation constant (DECISIONS §G.2 exempt): the share of deep-water food the smallest swimmer can still use
+const DIGEST_FLOOR = 0.25; // implementation constant (DECISIONS §G.2 exempt): the share of a kill's assimilation a diet-0 animal keeps; a full carnivore keeps all of it
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -507,7 +510,9 @@ export class Ecology {
           if (this.genome[j].lineage === this.genome[i].lineage) nKin += kinStrength({ plan: p, lineage: 0, sociality: soc }, { plan: pj, lineage: 0, sociality: this.genome[j].body.sociality });
           const eats = eatsIntensity(p, pj);
           if (eats > 0) {
-            const v = (drive * eats * (1 - REF * this.shelter(cellOf(this.x[j], this.y[j])))) / (1 + d);
+            // A kill is worth the whole prey body: its energy for the hunter, in units of one cell's transfer at plant ε, so big prey pays more.
+            const worth = L.meatAssim > 0 ? 1 + ((this.struct[j] + this.energy[j]) * L.meatAssim * (DIGEST_FLOOR + (1 - DIGEST_FLOOR) * p.meatGain)) / (L.cellMass * CONSTANTS.EPS0.value) : 1;
+            const v = (drive * eats * worth * (1 - REF * this.shelter(cellOf(this.x[j], this.y[j])))) / (1 + d);
             if (v > huntV) { huntV = v; huntJ = j; }
           }
           const a = eatsIntensity(pj, p);
@@ -643,15 +648,30 @@ export class Ecology {
     // eat (R1/R4): graze the cell; ε = EPS0·(1 + 2·Hunger) of what is eaten becomes energy, the rest goes back
     const eps = Math.min(1, CONSTANTS.EPS0.value * (1 + 2 * this.hunger) * efficiency);
     if (act === ACT.forage && p.plantGain > 0 && this.energy[i] < 3 * m) {
-      const avail = this.deepOk(p, g.liquid[here]) * (g.mat[here] + this.canopyAccess(p) * g.canopy[here]);
-      const bite = Math.min(avail * rules.consumer.grazeShare, (L.intake * m ** L.intakeExp * p.plantGain * match * dt) / L.cellMass);
-      if (bite > 0) {
-        const fromMat = Math.min(bite, g.mat[here]);
-        g.mat[here] -= fromMat;
-        g.canopy[here] -= bite - fromMat;
-        const matter = bite * L.cellMass;
-        this.returnMatter(here, matter * (1 - eps), 0);
-        this.gain(i, matter * eps, here);
+      // A grazer feeds over a footprint that grows with its length (grazeReach): own cell first, then the ring around it.
+      const R = L.grazeReach > 0 ? Math.min(2, Math.floor(p.scale / L.grazeReach)) : 0;
+      let want = (L.intake * m ** L.intakeExp * p.plantGain * match * dt) / L.cellMass;
+      const hx = here % GRID, hy = (here / GRID) | 0;
+      for (let ring = 0; ring <= R && want > 1e-12; ring++) {
+        for (let dy = -ring; dy <= ring && want > 1e-12; dy++) {
+          for (let dx = -ring; dx <= ring && want > 1e-12; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+            const nx = hx + dx, ny = hy + dy;
+            if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+            const c = ny * GRID + nx;
+            if (!this.habitable(p, g.liquid[c])) continue;
+            const avail = this.deepOk(p, g.liquid[c]) * (g.mat[c] + this.canopyAccess(p) * g.canopy[c]);
+            const bite = Math.min(avail * rules.consumer.grazeShare, want);
+            if (bite <= 0) continue;
+            want -= bite;
+            const fromMat = Math.min(bite, g.mat[c]);
+            g.mat[c] -= fromMat;
+            g.canopy[c] -= bite - fromMat;
+            const matter = bite * L.cellMass;
+            this.returnMatter(c, matter * (1 - eps), 0);
+            this.gain(i, matter * eps, c);
+          }
+        }
       }
     } else if (act === ACT.hunt && this.tgt[i] >= 0) {
       const j = this.tgt[i];
@@ -661,8 +681,9 @@ export class Ecology {
           const matter = this.struct[j] + this.energy[j];
           const jc = cellOf(this.x[j], this.y[j]);
           this.kill(j);
-          this.returnMatter(jc, matter * (1 - eps), 0);
-          this.gain(i, matter * eps, jc);
+          const epsMeat = L.meatAssim > 0 ? Math.min(1, L.meatAssim * efficiency * (DIGEST_FLOOR + (1 - DIGEST_FLOOR) * p.meatGain)) : eps;   // a gut built for meat keeps more of a kill
+          this.returnMatter(jc, matter * (1 - epsMeat), 0);
+          this.gain(i, matter * epsMeat, jc);
         }
       }
     } else if (act === ACT.rest && cell === this.home[i] && this.comp.o > 0 && this.comp.si > 0) {
