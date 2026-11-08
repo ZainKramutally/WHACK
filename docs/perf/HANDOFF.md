@@ -26,7 +26,7 @@ These perf findings sit in files other agents were actively editing, so session/
    - The terrain-height part (2 ms) is already fixed on session/perf: the floraForm cache plus the stable `terrain.height` in visualInputs.
 
 ## Inspect card (src/ui/inspectCard.ts): owner art layer / session/crust
-7. **The card rebuilds its DOM and forces layout at 20 Hz while open** (inspectCard.ts:266-269 → render() :136-172, place() :176, reportWindow() :205).
+7. **DONE on main (5b9fe6d, logic team): the card rebuilt its DOM and forced layout at 20 Hz while open** (inspectCard.ts).
    - Fix: build a row signature string, and skip `replaceChildren`/`place()`/`reportWindow()` when it hasn't changed.
    - Estimated 1–2 ms of layout per snapshot while a card is open [INFERRED].
 
