@@ -172,8 +172,10 @@ export function plantHeight(role: FloraRole, form: FloraForm, biomass: number, j
 
 // ---- paint -------------------------------------------------------------------------------------------------------
 
-/** One-step darker remap for foreground ground cover (value inversion kept: tops still lighter than bases). */
-const DARKER: Record<FloraKey, FloraKey> = { ink: 'ink', maroon: 'ink', crimson: 'maroon', blush: 'crimson', bone: 'blush', glow: 'glow', glowDeep: 'glowDeep' };
+/** One-step darker remap for foreground ground cover (value inversion kept: tops still lighter than bases). Maroon is
+ * the floor: ink stays for feet and outlines only, so a dark plant reads as a dark form, never a black blob (maroon → ink
+ * left polyps and tile crusts ~78% ink). */
+const DARKER: Record<FloraKey, FloraKey> = { ink: 'ink', maroon: 'maroon', crimson: 'maroon', blush: 'crimson', bone: 'blush', glow: 'glow', glowDeep: 'glowDeep' };
 
 const col = new Color();
 function linear(pal: FloraPalette): Float32Array {

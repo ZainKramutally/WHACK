@@ -202,10 +202,12 @@ export function crystalGround(rng: Rng, variant: number) {
     }
     return b.build({ flat: true });
   }
-  // geode cup: an open hex cup; its inner lining is a glow site
+  // geode cup: an open hex cup; its inner lining is a glow site. The wall is ink only at its foot (bases ink, then
+  // maroon): an all-ink wall left 58% of the cup ink, a black blob on the dim silicon world.
   const R = H * 0.55;
   revolve(b, [0, -0.05, 0], UP, [
     { r: R * 0.5, y: 0, key: 'ink', sway: 0, crease: true },
+    { r: R * 0.68, y: H * 0.3, key: 'maroon', sway: sw(H * 0.3), crease: true },
     { r: R * 1.1, y: H, key: 'maroon', sway: sw(H), crease: true },
     { r: R * 0.85, y: H * 1.02, key: 'bone', sway: sw(H), crease: true },
     { r: R * 0.55, y: H * 0.6, key: 'glow', glow: 1, sway: sw(H), crease: true },
