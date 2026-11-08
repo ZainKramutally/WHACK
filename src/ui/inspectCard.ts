@@ -190,7 +190,7 @@ export function mountInspectCard(
       return li;
     }));
     const flags = feat.assumption ? ' (assumption)' : '';
-    whyP.textContent = why ? `Why: ${why} (assumption)` : `Why: ${feat.why}${flags}`;
+    whyP.textContent = why ? `Why: ${why} (our assumption)` : `Why: ${feat.why}${flags}`;
     whyP.hidden = hasModelExplanation;
     whyTitle.hidden = !hasModelExplanation;
     whyList.hidden = !hasModelExplanation;
@@ -201,7 +201,7 @@ export function mountInspectCard(
         li.append(el('strong', undefined, label), el('span', undefined, text));
         return li;
       }));
-      whyNote.textContent = 'These are model mechanisms and trade-offs, not proof of why a trait spread. Colour and pattern are render-only; glow has an upkeep cost.';
+      whyNote.textContent = 'This is how our model explains it, not a proven history. Colours are for show.';
     } else {
       whyList.replaceChildren();
       whyNote.textContent = '';

@@ -3,7 +3,7 @@ import { LOCOMOTION, develop, type DevelopInputs } from '../sim/develop';
 import { makeFounders } from '../sim/genome';
 import type { BodyPlan } from '../sim/develop';
 import type { OrganismRecord } from '../sim/organismLayout';
-import { biomassWords, dominantRows, geneRows, lengthWords, livingRange, livingRangeText, minOxygen, movesWords, organismRows, organismTags, planRows, producerRows, roleWords } from './lifeText';
+import { organismExplanations, biomassWords, dominantRows, geneRows, lengthWords, livingRange, livingRangeText, minOxygen, movesWords, organismRows, organismTags, planRows, producerRows, roleWords } from './lifeText';
 import { bitmapPath, habitatOf } from './cardIcons';
 import { maxBodySize } from '../sim/population';
 import { carbon } from '../worlds/carbon';
@@ -182,5 +182,26 @@ describe('producerRows and dominantRows', () => {
     const r = dominantRows({ name: 'Mote Walker', alive: 300, type: { role: 'grazer', locomotion: 'walker', label: 'grazer · walker' } }, plan());
     expect(r.slice(0, 4)).toEqual([['Form', 'Mote Walker'], ['Alive now', '300'], ['Type', 'grazer · walker'], ['Moves', 'Walks on the ground']]);
     expect(dominantRows({ name: 'X', alive: 1, type: { role: 'hunter', locomotion: 'swimmer', label: 'hunter · swimmer' } }, undefined)).toHaveLength(3);
+  });
+});
+
+describe('organismExplanations', () => {
+  const labels = (e: { label: string }[]) => e.map((x) => x.label);
+  it('carbon: one plain line per trait, oxygen last, nothing marked speculative', () => {
+    const e = organismExplanations(rec(), plan(), carbon, { oxygen: 18 });
+    expect(labels(e)).toEqual(['Body shape', 'How it moves', 'What it eats', 'Armour', 'Oxygen']);
+    expect(e.some((x) => /speculative/i.test(x.label + x.text))).toBe(false);
+    expect(e.find((x) => x.label === 'What it eats')!.text).toMatch(/^Plants/);
+  });
+  it('hunters eat animals, and a bare body says so', () => {
+    const e = organismExplanations(rec(), plan({ diet: 0.9, plateCover: 0, hornCount: 0 }), carbon, { oxygen: 18 });
+    expect(e.find((x) => x.label === 'What it eats')!.text).toMatch(/^Other animals/);
+    expect(e.find((x) => x.label === 'Armour')!.text).toMatch(/^No plates or horns/);
+  });
+  it('silicon: body shape, armour and cold stability carry the speculative flag; no oxygen line', () => {
+    const e = organismExplanations(rec(), plan({ chemistry: 'silicon', architecture: 'axial' }), silicon, {});
+    expect(labels(e)).toEqual(['Body shape (speculative)', 'How it moves', 'What it eats', 'Armour (speculative)', 'Cold stability (speculative)']);
+    const radial = organismExplanations(rec(), plan({ chemistry: 'silicon', architecture: 'radial' }), silicon, {});
+    expect(radial[0]!.text).toMatch(/design guess/);
   });
 });

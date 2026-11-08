@@ -164,71 +164,75 @@ export function organismDescription(plan: BodyPlan): string {
 }
 
 /**
- * Explain the model rules acting on this animal's genes. These describe implemented effects and trade-offs;
- * they deliberately do not claim to identify why a lineage spread in a particular run.
+ * "Why these traits?": one plain line per trait, cause then effect, written as a museum label. Each line states only what the
+ * model does with the genes. It does not claim to know why a lineage spread in a particular run.
  */
 export function organismExplanations(
   rec: OrganismRecord, plan: BodyPlan, world: WorldConfig, stats: Record<string, number>,
 ): TraitExplanation[] {
   const explanations: TraitExplanation[] = [];
-  const genes = rec.body;
-  const legsFromGene = Math.round(4 * genes.limbPairs);
-  const gene = (v: number) => v.toFixed(2);
+  const silicon = plan.chemistry === 'silicon';
+  const spec = silicon ? ' (speculative)' : '';
 
-  if (plan.chemistry === 'silicon' && plan.architecture === 'axial') {
+  if (silicon && plan.architecture === 'axial') {
     explanations.push({
-      label: 'Body plan · speculative rule',
-      text: `Segment gene ${gene(genes.segments)} meets the ≥ ${SILICON_WALKER_SEGMENT_THRESHOLD.toFixed(2)} gate, and the limb gene resolves to ${legsFromGene} pairs (gate: 1–2). That triggers our assumed front-first silicon branch; the plates gene separately sets shell coverage.`,
+      label: `Body shape${spec}`,
+      text: 'A walker with a front end and one or two pairs of legs. Our model builds this shape from silicon when a genome has enough segments and one or two leg pairs. It is a design guess, not known biology.',
     });
-  } else if (plan.chemistry === 'silicon') {
-    const missedGates: string[] = [];
-    if (genes.segments < SILICON_WALKER_SEGMENT_THRESHOLD) {
-      missedGates.push(`segment gene ${gene(genes.segments)} is below ${SILICON_WALKER_SEGMENT_THRESHOLD.toFixed(2)}`);
-    }
-    if (legsFromGene < 1 || legsFromGene > 2) {
-      missedGates.push(`${legsFromGene} leg pair${legsFromGene === 1 ? '' : 's'} ${legsFromGene === 1 ? 'falls' : 'fall'} outside the 1–2 gate`);
-    }
+  } else if (silicon) {
     explanations.push({
-      label: 'Body plan · speculative rule',
-      text: `This genome misses the walker gate: ${missedGates.join('; ')}. Radial ${plan.symmetry}-fold crystals are the model’s fallback; both silicon forms are design assumptions, not established biology.`,
+      label: `Body shape${spec}`,
+      text: 'A crystal star: arms around a central hub. This is our default silicon shape. The walker shape needs more segments plus one or two leg pairs, and this genome falls short. It is a design guess, not known biology.',
     });
   } else {
+    const legs = plan.legPairs === 0 ? 'no legs' : plural(plan.legPairs, 'pair of legs', 'pairs of legs');
     explanations.push({
-      label: 'Body plan · model grammar',
-      text: `The model reads carbon body genes through a bilateral, front-to-back grammar; this genome develops ${plan.segmentCount} segments and ${plan.legPairs} leg pairs. That is our simplifying body-plan rule, not a claim that all carbon life must have this shape.`,
+      label: 'Body shape',
+      text: `A head-to-tail body with ${plural(plan.segmentCount, 'segment')} and ${legs}. Our model gives every carbon animal this layout. That is a simplification: real animals come in many more shapes.`,
     });
   }
 
-  const modeNames: Record<LocomotionMode, string> = { 0: 'walking', 1: 'swimming', 2: 'hovering', 3: 'staying put' };
-  const costs = plan.modeCosts;
+  const how: Record<LocomotionMode, string> = {
+    0: 'Walking costs this body the least energy, so it walks.',
+    1: 'Swimming costs this body the least energy, so it swims.',
+    2: 'Hovering costs this body the least energy, so it floats in the air.',
+    3: 'Moving costs more than it pays back, so it stays put.',
+  };
+  explanations.push({ label: 'How it moves', text: `${how[plan.mode]} In another habitat, the model can pick a different way.` });
+
+  const role = roleOf(plan.diet);
   explanations.push({
-    label: 'Movement · modeled cost',
-    text: `${modeNames[plan.mode]} has the lowest relative cost at birth: walk ${costs.walk.toFixed(2)}, swim ${costs.swim.toFixed(2)}, hover ${costs.hover.toFixed(2)}, stay put ${costs.sessile.toFixed(2)}. The ecology can choose again in another medium; these are model scores, not measured energy use.`,
+    label: 'What it eats',
+    text: role === 'hunter'
+      ? 'Other animals. Meat gives it most of its energy, but it only eats if prey is within reach.'
+      : role === 'grazer'
+        ? 'Plants. Plants give it most of its energy.'
+        : 'Plants and other animals. Both feed it.',
   });
 
+  const plated = plan.plateCover >= 0.05;
+  const horned = plan.hornCount > 0;
+  const parts = plated && horned ? 'Plates and horns' : plated ? 'Plates' : 'Horns';
   explanations.push({
-    label: 'Feeding · modeled trade-off',
-    text: `Diet gene ${gene(plan.diet)} makes it a ${roleOf(plan.diet)} in the model. Plant-gain and meat-gain weights are ${pct(plan.plantGain)} and ${pct(plan.meatGain)}; hunting still needs reachable prey.`,
-  });
-
-  explanations.push({
-    label: 'Protection · modeled trade-off',
-    text: `${pct(plan.plateCover)} plate coverage and ${plan.hornCount} horn${plan.hornCount === 1 ? '' : 's'} set its predator-defense score to ${plan.defence.toFixed(2)}. Plates and horns add mass; silicon plates also slow modeled dissolution in liquid. This is a possible trade-off, not proof of selection.`,
+    label: `Armour${spec}`,
+    text: !plated && !horned
+      ? 'No plates or horns, so nothing on its body makes it harder to eat.'
+      : `${parts} make it harder for hunters to eat. The cost is extra weight.${silicon && plated ? ' Hard ceramic plates add even more defence in our model, which is a guess.' : ''}`,
   });
 
   const chemistryTrait = world.life.rules.chemTrait;
   if (chemistryTrait.kind === 'coldStability') {
     explanations.push({
-      label: 'Climate · cold stability',
-      text: `Cold-stability gene ${pct(rec.chem)} shrinks the above-preference temperature difference by ${pct(chemistryTrait.warmRelief * rec.chem)} before the stress calculation. It also raises upkeep by ${pct(chemistryTrait.cost * rec.chem)}, so greater stability has a cost.`,
+      label: `Cold stability${spec}`,
+      text: 'Its chemistry stays steady when the temperature climbs above what it likes, which eases heat stress. Keeping that up uses energy, so more stability is not free.',
     });
   } else {
     const oxygen = Math.max(0, stats.oxygen ?? 0);
     const oxygenAvailable = oxygen / (oxygen + chemistryTrait.halfSaturation);
     const foodFactor = 1 - rec.chem + rec.chem * (1 + chemistryTrait.aerobicBonus) * oxygenAvailable;
     explanations.push({
-      label: 'Climate · oxygen need',
-      text: `At ${oxygen.toFixed(1)}% oxygen, this gene gives a modeled food-use factor of ${foodFactor.toFixed(1)}×. The same rule raises the size ceiling with oxygen; low oxygen constrains large consumers.`,
+      label: 'Oxygen',
+      text: `Part of its energy comes from burning oxygen. At ${oxygen.toFixed(1)}% oxygen it gets ${foodFactor.toFixed(1)}× the energy from food that an animal without this trait would. Less oxygen means a smaller boost, and big bodies need it most.`,
     });
   }
 
