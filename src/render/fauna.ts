@@ -430,6 +430,19 @@ export function createFauna(app: App): FaunaPart {
     entries.delete(e.id);
   }
 
+  /** Walking bends into turns along the path's curvature κ = turn rate ÷ speed (layout units, ends ≤ 12% of the length
+   *  off the chord), toward the side it turns to. `s`: layout → world scale. */
+  function turnKap(e: Entry, s: number): number {
+    const kMax = 0.96 / Math.max(e.xspan, 1e-6);
+    return Math.max(-kMax, Math.min(kMax, (e.turn * s) / Math.max(e.speed, 0.3)));
+  }
+  /** A walker's lateral bend at layout x: carbon's curl as motion (flexion with the stride, strongest at head and tail;
+   *  the rest pose stays straight) plus the bend into a turn. Shared by the pose and picking, so a click follows it. */
+  function walkBendZ(e: Entry, x: number, kap: number): number {
+    const xn = (x - e.xmin) / e.xspan, c = 2 * xn - 1, dx = x - (e.xmin + 0.5 * e.xspan);
+    return e.curl * 0.5 * e.xspan * e.walkW * c * c * Math.sin(2 * Math.PI * e.gait + Math.PI * xn) + 0.5 * kap * dx * dx;
+  }
+
   /** Fill `scratch` (stride 5) and the limb bones in rodScratch with this creature's animated pose; returns the bead count. */
   function animate(
     e: Entry, t: number, s: number, mode: number, heightAt: (x: number, z: number) => number,
@@ -438,10 +451,7 @@ export function createFauna(app: App): FaunaPart {
     const lay = e.layout, src = e.flat, nb = lay.beads.length, nBody = lay.nBody;
     const out = scratch;
     const moving = Math.min(1, e.speed / (0.12 * drawnLength(e.scale, e.g))); // 0 idle … 1 at 0.12 body lengths per second
-    // Walking bends into turns along the path's curvature κ = turn rate ÷ speed (layout units, ends ≤ 12% of the
-    // length off the chord), toward the side it turns to.
-    const kMax = 0.96 / Math.max(e.xspan, 1e-6);
-    const kap = mode === LOCOMOTION.walk ? Math.max(-kMax, Math.min(kMax, (e.turn * s) / Math.max(e.speed, 0.3))) : 0;
+    const kap = mode === LOCOMOTION.walk ? turnKap(e, s) : 0;
     const xc = e.xmin + 0.5 * e.xspan;
     const kp = mode === LOCOMOTION.walk ? Math.tan(e.pitch) : 0; // slope pitch, as a shear along the body
     // Body beads: copy, then bend by locomotion mode. (Hoverers ride under a bell: the body only breathes a little.)
@@ -459,10 +469,8 @@ export function createFauna(app: App): FaunaPart {
         const hn = Math.min(1, y / e.ymax);
         z += swayOffset(hn, t, e.id, 0.08 * e.xspan);
       } else if (mode === LOCOMOTION.walk) {
-        // carbon's curl as motion: lateral flexion with the stride, strongest at head and tail (rest stays straight)
-        const xn = (x - e.xmin) / e.xspan, c = 2 * xn - 1, dx = x - xc;
-        z += e.curl * 0.5 * e.xspan * e.walkW * c * c * Math.sin(2 * Math.PI * e.gait + Math.PI * xn) + 0.5 * kap * dx * dx;
-        y += kp * dx;
+        z += walkBendZ(e, x, kap);
+        y += kp * (x - xc);
       }
       const fl = e.flap[i];
       if (fl > 0) y += Math.abs(z) * 0.55 * fl * Math.sin(2 * Math.PI * 1.3 * t + e.id) * (mode === LOCOMOTION.hover ? 1 : 0.5 + moving);
@@ -1167,6 +1175,10 @@ export function createFauna(app: App): FaunaPart {
     const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
     if (live) {
       pid[pn] = e.id; px[pn] = e.x; py[pn] = y0 + lay.centreY * s; pz[pn] = e.z; pr[pn] = Math.max(lay.radius * s * 0.85, 0.3); // tight: 85% of the bead bounds, at least 30 cm
+      if (mode === LOCOMOTION.walk && !lay.radial) { // a walking body swings its head and tail off the axis
+        const h = 0.5 * e.xspan;
+        pr[pn] += (Math.abs(e.curl) * h * e.walkW + 0.5 * Math.abs(turnKap(e, s)) * h * h) * s;
+      }
       pe[pn] = e; pS[pn] = s; pY0[pn] = y0;
       pn++;
     }
@@ -1478,7 +1490,13 @@ export function createFauna(app: App): FaunaPart {
           const d = raySphereEntry(origin, dir, c, r * s * 1.2 + 0.05);
           if (d > 0 && (t < 0 || d < t)) t = d;
         };
-        for (const b of e.layout.beads) test(b.x, b.y, b.z, b.r * Math.max(b.sx ?? 1, b.sz ?? 1, b.sy ?? 1) * 0.8);
+        // body beads where the walking pose puts them (bend and slope pitch, as animate()); the rest at rest pose
+        const walk = e.mode === LOCOMOTION.walk && !e.layout.radial, nBody = e.layout.nBody;
+        const kap = walk ? turnKap(e, s) : 0, kp = walk ? Math.tan(e.pitch) : 0, xc = e.xmin + 0.5 * e.xspan;
+        e.layout.beads.forEach((b, j) => {
+          const bend = walk && j < nBody;
+          test(b.x, b.y + (bend ? kp * (b.x - xc) : 0), b.z + (bend ? walkBendZ(e, b.x, kap) : 0), b.r * Math.max(b.sx ?? 1, b.sz ?? 1, b.sy ?? 1) * 0.8);
+        });
         for (const r of e.layout.radial?.rods ?? e.layout.limbRods ?? []) {
           for (const f of [0, 0.33, 0.67, 1]) test(r.ax + (r.bx - r.ax) * f, r.ay + (r.by - r.ay) * f, r.az + (r.bz - r.az) * f, r.r);
         }
