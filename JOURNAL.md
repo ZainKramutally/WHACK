@@ -285,3 +285,4 @@
 - 09:53 16: merged #96 free cinematic camera + window.lifeCam API.
 - 09:48 Pushed fly-clear (big fliers clear terrain) + flora ranged upload to main aecc56f (owner OK).
 - 10:15 16: merged landing-page Cinematic toggle.
+- 10:21 16: merged #97 P screenshot / V video capture.
