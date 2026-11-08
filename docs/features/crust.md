@@ -31,7 +31,7 @@ Proposed minerals. Agents may tune the numbers, and every value needs `why` plus
 | Silicon | Nitride (nierite) | 0.5 | 0.25–0.40 | 1, 1.2, 1 | no | Hard silicon-nitride rock, found in oxygen-poor meteorites |
 | Silicon | Water ice | 0.9 | 0.15–0.30 | 0, 0, 0 | no | Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it |
 
-Carbon `rustOxygen` is 1% (`assumption: true`). Its order of magnitude comes from `rye1998`: paleosols keep their iron above about 0.01–0.02 PAL, roughly 0.2–0.4% absolute. Silicon's value hardly matters, because its oxygen is pinned at 0, but the box uses it.
+Carbon `rustOxygen` is 10% (`assumption: true`). Rust begins with the first oxygen: `rye1998` has paleosols keeping their iron above about 0.01–0.02 PAL, roughly 0.2–0.4% absolute. The world is drawn fully rusted by about 10%, half of today's level, a declared look choice so the rust and the flora's purple-to-green shift play out across the oxygen rise. Silicon's value hardly matters, because its oxygen is pinned at 0, but the box uses it.
 
 ## API (`src/gen/crust.ts`)
 
