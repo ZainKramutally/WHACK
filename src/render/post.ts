@@ -165,10 +165,13 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const q: N = ip.div(grid);
     const sx: N = q.x.mul(2).sub(1).mul(aspect);
     const sy: N = float(1).sub(q.y.mul(2));
-    const fan: N = sx.sub(sunXU.mul(aspect).mul(0.8)).div(max(float(1.6).sub(sy), 0.05));
-    const st: N = sin(fan.mul(9).add(t.mul(0.31))).mul(0.6).add(sin(fan.mul(23).sub(t.mul(0.19))).mul(0.4));
-    const shaft: N = smoothstep(0.3, 0.85, st).mul(smoothstep(-0.7, 1, sy));
-    c.addAssign(light.mul(mix(hue, vec3(1), 0.65)).mul(steps(shaft, 3)).mul(shaftU).mul(wet));
+    // Skipped when shaftU is 0 (looking down, or deep): the term is multiplied by shaftU, so it adds exactly 0.
+    If(shaftU.greaterThan(0), () => {
+      const fan: N = sx.sub(sunXU.mul(aspect).mul(0.8)).div(max(float(1.6).sub(sy), 0.05));
+      const st: N = sin(fan.mul(9).add(t.mul(0.31))).mul(0.6).add(sin(fan.mul(23).sub(t.mul(0.19))).mul(0.4));
+      const shaft: N = smoothstep(0.3, 0.85, st).mul(smoothstep(-0.7, 1, sy));
+      c.addAssign(light.mul(mix(hue, vec3(1), 0.65)).mul(steps(shaft, 3)).mul(shaftU).mul(wet));
+    });
 
     // (d) vignette: a stepped darker rim in the liquid's hue
     const vig: N = steps(smoothstep(0.5, 1, length(vec2(sx, sy)).div(length(vec2(aspect, 1)))), 4);
