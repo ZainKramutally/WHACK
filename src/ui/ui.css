@@ -1,122 +1,198 @@
-/* In-world UI. Plain, readable defaults; the art layer restyles via the --wu-* variables. */
+/* In-world UI in the pixel style of the selection screen (docs/features/selection-screen.md palette and fonts).
+   HUD (tabs, Conditions and Bestiary drawers, subtitles, hints): dark ink panels with a cream pixel border.
+   Cards (inspect, summary, bestiary specimen page): cream paper with an ink border, like specimen plates.
+   No rounded corners anywhere: corners are square or stepped (clip-path notches). Colours are tokens only. */
 .wu-root {
-  --wu-bg: rgba(14, 18, 24, 0.82);
-  --wu-fg: #e8edf2;
-  --wu-dim: #8d98a5;
-  --wu-line: rgba(255, 255, 255, 0.14);
-  --wu-accent: #7fd1b9;
-  --wu-red: #e0514a;
-  --wu-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ink: #120D1C; --bone1: #A8957C; --bone2: #D8CBB4; --bone3: #EFE6D4; --bone4: #FFFAEE;
+  --lethal: #B3260F; --earth: #8ec5ff;
+  --wu-bg: rgba(18, 13, 28, 0.93);
+  --wu-fg: var(--bone4);
+  --wu-dim: #c4b59d;
+  --wu-line: var(--bone3);
+  --wu-rule: rgba(239, 230, 212, 0.2);
+  --wu-accent: #FF6A3D;
+  --wu-on-accent: var(--ink);
+  --wu-red: var(--lethal);
+  --wu-reason: #ff8a70;
+  --wu-spec: #FFB300;
+  --wu-font: "Pixelify Sans", "Silkscreen", ui-monospace, "Courier New", monospace;
+  --wu-mono: "VT323", ui-monospace, "Courier New", monospace;
+  --checker: conic-gradient(var(--lethal) 25%, #6e1708 0 50%, var(--lethal) 0 75%, #6e1708 0) 0 0 / 4px 4px;
+  --notch6: polygon(0 6px, 6px 6px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px));
+  --notch4: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px));
   position: fixed; inset: 0; pointer-events: none; z-index: 10;
-  font: 13px/1.4 var(--wu-font); color: var(--wu-fg);
+  font: 14px/1.35 var(--wu-font); color: var(--wu-fg);
+  -webkit-font-smoothing: none; font-smooth: never;
 }
+.wu-root[data-world="silicon"] { --wu-accent: #3FE3F2; }
 .wu-root [hidden] { display: none !important; }
-.wu-root button { font: inherit; color: inherit; cursor: pointer; }
+.wu-root button { font: inherit; color: inherit; cursor: pointer; border-radius: 0; }
 .wu-root > * { pointer-events: auto; }
+.wu-root :focus-visible { outline: 2px solid var(--wu-accent); outline-offset: 2px; }
+
+/* Paper: every card. Re-points the tokens so shared rules (tables, details, tags) read ink on cream. */
+.wu-card {
+  --wu-bg: var(--bone4);
+  --wu-fg: var(--ink);
+  --wu-dim: #6e6152;
+  --wu-line: var(--ink);
+  --wu-rule: var(--bone2);
+  --wu-accent: #D2332A;
+  --wu-on-accent: var(--bone4);
+  --wu-reason: var(--lethal);
+  --wu-spec: #9a5a00;
+}
+.wu-root[data-world="silicon"] .wu-card { --wu-accent: #1B8FD6; }
 
 /* Tabs */
 .wu-tabs { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 3; }
-.wu-tab { background: var(--wu-bg); border: 1px solid var(--wu-line); border-radius: 999px; padding: 6px 14px; position: relative; }
-.wu-tab.wu-active { border-color: var(--wu-accent); color: var(--wu-accent); }
-.wu-badge { margin-left: 6px; background: var(--wu-accent); color: #0b1016; border-radius: 999px; padding: 0 6px; font-size: 11px; }
+.wu-tab { background: var(--wu-bg); border: 2px solid var(--wu-line); padding: 5px 12px; position: relative; clip-path: var(--notch4); }
+.wu-tab.wu-active { background: var(--bone3); color: var(--ink); }
+.wu-badge { margin-left: 6px; font-family: var(--wu-mono); font-size: 17px; line-height: 1; }
+.wu-tab:not(.wu-active) .wu-badge { color: var(--wu-accent); }
 
 /* Drawers */
 .wu-drawer {
-  position: absolute; top: 52px; right: 12px; bottom: 12px; width: 360px; max-width: calc(100vw - 24px);
-  background: var(--wu-bg); border: 1px solid var(--wu-line); border-radius: 12px; padding: 14px 16px;
-  overflow-y: auto; backdrop-filter: blur(8px);
-  transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; transition: transform .2s, opacity .2s;
+  position: absolute; top: 52px; right: 12px; bottom: 12px; width: 372px; max-width: calc(100vw - 24px); box-sizing: border-box;
+  background: var(--wu-bg); border: 2px solid var(--wu-line); padding: 14px 16px; clip-path: var(--notch6);
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bone1) transparent;
+  transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; transition: transform .2s steps(4, end), opacity .2s steps(4, end);
 }
 .wu-drawer.wu-open { transform: none; opacity: 1; pointer-events: auto; }
-.wu-h { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-.wu-h3 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--wu-dim); font-weight: 600; }
-.wu-note, .wu-hint, .wu-sub { margin: 0 0 8px; color: var(--wu-dim); font-size: 12px; }
-.wu-tag { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; margin-left: 6px; padding: 1px 5px; border: 1px solid var(--wu-line); border-radius: 4px; color: var(--wu-dim); white-space: nowrap; }
-.wu-spec { color: #f0b86e; border-color: #f0b86e66; }
+.wu-h { margin: 0 0 8px; font-size: 18px; font-weight: 700; letter-spacing: .02em; }
+.wu-h3 { margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 2px solid var(--wu-rule); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--wu-dim); font-weight: 600; }
+.wu-note, .wu-hint, .wu-sub { margin: 0 0 8px; color: var(--wu-dim); font-size: 13px; }
+.wu-tag { font-style: normal; font-family: var(--wu-mono); font-size: 14px; line-height: 1; text-transform: uppercase; letter-spacing: .04em; margin-left: 6px; padding: 1px 4px; border: 1px solid currentColor; color: var(--wu-dim); white-space: nowrap; vertical-align: 1px; }
+.wu-spec { color: var(--wu-spec); }
 .wu-dim { color: var(--wu-dim); }
 
 /* Sliders */
-.wu-slider { margin-bottom: 18px; padding: 4px; border-radius: 8px; }
-.wu-slider.wu-selected { outline: 1px dashed var(--wu-line); }
-.wu-slider-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.wu-label { font-weight: 600; }
-.wu-readout { font-variant-numeric: tabular-nums; }
-.wu-track { position: relative; height: 10px; border-radius: 5px; background: #2f6f5e; touch-action: none; cursor: pointer; margin: 4px 0 20px; }
-.wu-reds { position: absolute; inset: 0; border-radius: 5px; overflow: hidden; pointer-events: none; }
-.wu-red { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, var(--wu-red), var(--wu-red) 4px, #a13630 4px, #a13630 8px); }
-.wu-red.wu-pulse { animation: wu-pulse .6s ease-out; }
+.wu-slider { margin-bottom: 14px; padding: 6px; }
+.wu-slider.wu-selected { outline: 2px dashed var(--wu-rule); outline-offset: 0; }
+.wu-slider-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.wu-label { font-weight: 700; }
+.wu-readout { font-family: var(--wu-mono); font-size: 20px; line-height: 1; }
+.wu-track { position: relative; height: 10px; background: #2f6f5e; box-shadow: 0 0 0 2px var(--wu-line); touch-action: none; cursor: pointer; margin: 6px 2px 22px; }
+.wu-reds { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.wu-red { position: absolute; top: 0; bottom: 0; background: var(--checker); }
+.wu-red.wu-pulse { animation: wu-pulse .6s steps(3, end); }
 @keyframes wu-pulse { 0% { filter: brightness(2.2); } 100% { filter: none; } }
-.wu-thumb { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; border: 2px solid #0b1016; box-shadow: 0 0 0 1px var(--wu-line); cursor: grab; }
-.wu-thumb:focus-visible { outline: 2px solid var(--wu-accent); outline-offset: 2px; }
-.wu-earth { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #8ec5ff; pointer-events: auto; }
-.wu-earth-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; font-size: 10px; color: #8ec5ff; white-space: nowrap; }
-.wu-chips { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--wu-dim); }
-.wu-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; background: var(--wu-red); border-radius: 2px; vertical-align: -1px; }
-.wu-reason { min-height: 21px; margin-top: 4px; opacity: 0; color: #ff9a94; font-size: 12px; line-height: 1.3; transition: opacity .2s; }   /* height reserved, so showing a reason never moves the sliders below */
+.wu-thumb { position: absolute; top: 50%; width: 10px; height: 20px; margin: -10px 0 0 -5px; background: var(--bone4); border: 2px solid var(--ink); box-shadow: 0 0 0 2px var(--bone4); box-sizing: border-box; cursor: grab; }
+.wu-thumb:focus-visible { outline: 2px solid var(--wu-accent); outline-offset: 3px; }
+.wu-earth { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--earth); pointer-events: auto; }
+.wu-earth-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; font-family: var(--wu-mono); font-size: 15px; line-height: 1; color: var(--earth); white-space: nowrap; }
+.wu-chips { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--wu-dim); }
+.wu-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; background: var(--checker); box-shadow: 0 0 0 1px var(--ink); vertical-align: -1px; }
+.wu-reason { min-height: 21px; margin-top: 4px; opacity: 0; color: var(--wu-reason); font-size: 13px; line-height: 1.3; transition: opacity .2s steps(2, end); }   /* height reserved, so showing a reason never moves the sliders below */
 .wu-reason.wu-on { opacity: 1; }
 
 /* Years */
-.wu-years { margin: 6px 0 10px; font-size: 13px; }
+.wu-years { margin: 6px 0 10px; font-size: 14px; }
+.wu-years strong { font-family: var(--wu-mono); font-size: 19px; font-weight: 400; }
 
 /* Tables */
-.wu-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.wu-table th { text-align: right; font-weight: 600; color: var(--wu-dim); padding: 2px 4px; }
+.wu-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.wu-table th { text-align: right; font-weight: 600; color: var(--wu-dim); padding: 2px 4px; border-bottom: 2px solid var(--wu-line); }
 .wu-table th:first-child { text-align: left; }
 .wu-table td { padding: 3px 4px; vertical-align: top; }
-.wu-num { text-align: right; font-variant-numeric: tabular-nums; }
+.wu-num { text-align: right; font-family: var(--wu-mono); font-size: 18px; line-height: 1.05; white-space: nowrap; }
 .wu-stat-name { white-space: normal; }
-.wu-why td { color: var(--wu-dim); font-size: 11px; padding: 0 4px 6px; border-bottom: 1px solid var(--wu-line); }
+.wu-num.wu-wrap { white-space: normal; font-family: var(--wu-font); font-size: 13px; line-height: 1.25; }
+.wu-why td { color: var(--wu-dim); font-size: 12px; padding: 0 4px 6px; border-bottom: 1px solid var(--wu-rule); }
 
 /* Reasoning */
-.wu-reasoning ol { margin: 8px 0; padding-left: 18px; font-size: 12px; }
+.wu-reasoning ol { margin: 8px 0; padding-left: 20px; font-size: 13px; }
 .wu-reasoning li { margin-bottom: 6px; }
-.wu-caveat { margin: 8px 0; padding: 8px; border: 1px solid #f0b86e66; border-radius: 8px; font-size: 12px; }
-.wu-btn { margin-top: 14px; width: 100%; background: transparent; border: 1px solid var(--wu-accent); color: var(--wu-accent); border-radius: 8px; padding: 8px; }
+.wu-reasoning li::marker { font-family: var(--wu-mono); font-size: 17px; color: var(--wu-dim); }
+.wu-caveat { margin: 8px 0; padding: 8px; border: 2px solid var(--wu-spec); font-size: 13px; }
+.wu-btn { margin-top: 14px; width: 100%; background: transparent; border: 2px solid var(--wu-line); color: var(--wu-fg); padding: 7px; clip-path: var(--notch4); }
+.wu-btn:hover { background: var(--bone3); color: var(--ink); }
 
-/* Field guide */
-.wu-forms { margin: 8px 0 0; padding-left: 18px; }
-.wu-forms li { margin-bottom: 6px; }
-
-/* Cards (inspect, summary) */
+/* Cards (inspect, summary, bestiary page) */
 .wu-card {
   position: absolute; box-sizing: border-box; width: 300px; max-height: calc(100vh - 16px); overflow-y: auto;
-  background: var(--wu-bg); border: 1px solid var(--wu-line); border-radius: 12px; padding: 14px 16px; backdrop-filter: blur(8px); z-index: 4;
+  background: var(--wu-bg); color: var(--wu-fg); border: 3px solid var(--ink); padding: 14px 16px; z-index: 4; clip-path: var(--notch6);
+  scrollbar-width: thin; scrollbar-color: var(--bone1) transparent;
 }
+.wu-inspect { width: 340px; max-height: calc(100vh - 60px); }
+.wu-cmp td, .wu-cmp th { padding-left: 3px; padding-right: 3px; }   /* placed at least 52px down, below the tabs (inspectCard.ts TOP) */
 .wu-summary { top: 60px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 68px); }   /* scrolls inside, like the inspect card */
 .wu-card > .wu-h { padding-right: 28px; }   /* room for the × button, long titles wrap */
 .wu-summary .wu-table { width: 100%; }
 .wu-summary .wu-table td:first-child { width: 34%; }
-.wu-x { position: absolute; top: 8px; right: 10px; background: none; border: 0; font-size: 20px; line-height: 1; color: var(--wu-dim); }
-.wu-status { color: #ff9a94; margin: 0 0 6px; }
+.wu-root .wu-x { position: absolute; top: 8px; right: 10px; width: 22px; height: 22px; padding: 0; background: var(--ink); color: var(--bone4); border: 0; font-family: var(--wu-mono); font-size: 20px; line-height: 20px; text-align: center; }
+.wu-root .wu-x:hover { background: var(--wu-accent); }
+.wu-status { color: var(--wu-reason); margin: 0 0 6px; }
 .wu-details { list-style: none; margin: 6px 0; padding: 0; }
-.wu-details li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+.wu-details li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--wu-rule); }
 .wu-k { color: var(--wu-dim); }
 .wu-v { text-align: right; }
-.wu-why-line { margin: 8px 0; font-size: 12px; color: var(--wu-dim); }
-.wu-window { height: 140px; margin-top: 8px; border: 1px dashed var(--wu-line); border-radius: 8px; background: transparent; }
+.wu-why-line { margin: 8px 0; font-size: 13px; color: var(--wu-dim); }
+.wu-window { height: 140px; margin-top: 8px; border: 2px dashed var(--ink); background: transparent; }
 .wu-toggle { display: flex; gap: 4px; margin-top: 6px; }
-.wu-toggle-btn { flex: 1; font-size: 11px; padding: 3px 6px; border: 1px solid var(--wu-line); border-radius: 6px; background: transparent; color: var(--wu-dim); cursor: pointer; }
-.wu-toggle-btn.wu-on { color: #fff; background: #ffffff1c; border-color: #ffffff55; }
-.wu-window-label { margin: 4px 0 0; font-size: 11px; color: var(--wu-dim); }
+.wu-toggle-btn { flex: 1; font-size: 12px; padding: 3px 6px; border: 2px solid var(--ink); background: transparent; color: var(--wu-fg); cursor: pointer; }
+.wu-toggle-btn.wu-on { color: var(--bone4); background: var(--ink); }
+.wu-window-label { margin: 4px 0 0; font-size: 12px; color: var(--wu-dim); }
 
-/* Captions */
-.wu-caption { position: absolute; left: 50%; bottom: 7vh; transform: translateX(-50%); max-width: 70vw; text-align: center; font-size: 20px; text-shadow: 0 1px 6px #000; opacity: 0; transition: opacity .6s; pointer-events: none !important; }
+/* Captions: game subtitles, cream text with a hard one-pixel-step ink outline, no box */
+.wu-caption {
+  position: absolute; left: 50%; bottom: 7vh; transform: translateX(-50%); max-width: 70vw; text-align: center;
+  font-size: 22px; font-weight: 600; color: var(--bone4); letter-spacing: .02em;
+  text-shadow: 2px 0 var(--ink), -2px 0 var(--ink), 0 2px var(--ink), 0 -2px var(--ink), 2px 2px var(--ink), -2px -2px var(--ink), 2px -2px var(--ink), -2px 2px var(--ink), 4px 4px 0 rgba(18, 13, 28, 0.5);
+  opacity: 0; transition: opacity .6s steps(4, end); pointer-events: none !important;
+}
 .wu-caption.wu-on { opacity: 1; }
 
 /* Hint + reticle */
-.wu-hint-bar { position: absolute; left: 50%; bottom: 2vh; transform: translateX(-50%); font-size: 12px; color: var(--wu-dim); opacity: 0; transition: opacity .8s; pointer-events: none !important; text-shadow: 0 1px 4px #000; }
+.wu-hint-bar {
+  position: absolute; left: 50%; bottom: 2vh; transform: translateX(-50%); font-size: 13px; color: var(--bone3);
+  text-shadow: 1px 0 var(--ink), -1px 0 var(--ink), 0 1px var(--ink), 0 -1px var(--ink), 1px 1px var(--ink), -1px -1px var(--ink);
+  opacity: 0; transition: opacity .8s steps(4, end); pointer-events: none !important;
+}
 .wu-hint-bar.wu-on { opacity: 1; }
-.wu-reticle { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 2px solid #fff; border-radius: 50%; opacity: .8; pointer-events: none !important; }
+.wu-reticle { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; pointer-events: none !important; opacity: .9;
+  background: linear-gradient(var(--bone4), var(--bone4)) center / 2px 10px no-repeat, linear-gradient(var(--bone4), var(--bone4)) center / 10px 2px no-repeat;
+  filter: drop-shadow(1px 1px 0 var(--ink)) drop-shadow(-1px -1px 0 var(--ink)); }
 
-/* Field guide entries */
-.wu-form-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.wu-form-type { font-size: 12px; opacity: .75; white-space: nowrap; }
-.wu-forms .wu-dim { font-size: 12px; }
 .wu-details li .wu-v { text-align: right; }
 
 /* Seed line at the bottom of the Conditions panel */
-.wu-seed { margin: 14px 0 0; font-size: 12px; color: var(--wu-dim); }
-.wu-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.wu-seed { margin: 14px 0 0; font-size: 13px; color: var(--wu-dim); }
+.wu-link { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; text-decoration-thickness: 2px; cursor: pointer; }
 
 /* Eased live value shown while it catches up with the slider's target */
-.wu-ghost { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 2px solid var(--wu-dim); background: transparent; pointer-events: none; }
+.wu-ghost { position: absolute; top: 50%; width: 8px; height: 14px; margin: -7px 0 0 -4px; border: 2px dashed var(--bone3); box-sizing: border-box; background: transparent; pointer-events: none; }
+
+/* Bestiary drawer: living kinds (found on paper, locked as dashed "?" slots), then kinds that died out (stamped) */
+.wu-bt-head { display: flex; justify-content: space-between; align-items: baseline; }
+.wu-bt-count { font-family: var(--wu-mono); font-size: 16px; letter-spacing: 0; text-transform: none; }
+.wu-bt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wu-root .wu-bt {
+  position: relative; height: 96px; padding: 6px 4px 5px; box-sizing: border-box; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px;
+  font-size: 12px; line-height: 1.1; text-align: center; clip-path: var(--notch4);
+}
+.wu-root .wu-bt-found { background: var(--bone4); color: var(--ink); border: 2px solid var(--bone3); }
+.wu-root .wu-bt-found:hover, .wu-root .wu-bt-sel { background: var(--bone3); border-color: var(--wu-accent); }
+.wu-root .wu-bt-locked { background: #1d1630; color: var(--bone1); border: 2px dashed var(--bone1); cursor: help; }
+.wu-root .wu-bt-extinct { background: var(--bone2); color: #4d4250; border: 2px solid var(--bone1); }
+.wu-root .wu-bt-extinct:hover { border-color: var(--bone3); }
+.wu-bt-extinct .wu-bt-sprite { filter: grayscale(1) contrast(.8) opacity(.6); }
+.wu-bt-sprite { width: 96px; height: 68px; image-rendering: pixelated; image-rendering: crisp-edges; }
+.wu-bt-name { font-weight: 600; }
+.wu-bt-q { margin-top: 10px; font-size: 34px; font-weight: 700; line-height: 1; }
+.wu-bt-alive { font-family: var(--wu-mono); font-size: 16px; }
+.wu-bt-stamp {
+  position: absolute; top: 26px; left: 50%; transform: translateX(-50%) rotate(-12deg);
+  padding: 0 4px; border: 2px solid var(--lethal); color: var(--lethal); background: rgba(255, 250, 238, 0.75);
+  font-family: var(--wu-mono); font-size: 16px; line-height: 1.1; text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* Specimen page: a paper card to the left of the drawer */
+.wu-specimen { top: 52px; right: 396px; width: 300px; max-height: calc(100vh - 64px); }
+.wu-bt-status { margin: 0 0 6px; font-family: var(--wu-mono); font-size: 18px; }
+.wu-bt-status.wu-bt-dead { color: var(--lethal); }
+.wu-bt-frame { display: flex; justify-content: center; padding: 6px 0; margin: 4px 0 8px; border: 2px dashed var(--ink); background: var(--bone3); }
+.wu-bt-frame .wu-bt-sprite { width: 240px; height: 156px; }
+.wu-specimen-extinct .wu-bt-frame .wu-bt-sprite { filter: grayscale(1) contrast(.85); }
+@media (max-width: 760px) { .wu-specimen { right: auto; left: 12px; } }

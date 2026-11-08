@@ -92,27 +92,34 @@ describe('mountLifeRegistry', () => {
     return { timeSec: t, organisms: buf, births } as SimSnapshot;
   }
 
-  it('maps animals to forms, recognising a name only after guide:newForm, and lists the guide with live counts', () => {
+  it('files common kinds locked, finds a kind when one of its animals is clicked, and files it extinct when all are gone', () => {
     const bus = createBus();
     const reg = mountLifeRegistry(bus);
     const worms = makeFounders(3, 24, { c: 0.8, si: 0, o: 0.2 });
+    const found: string[] = [];
+    reg.onDiscover((n) => found.push(n));
     bus.emit('sim:snapshot', snapshot(5, buffer(worms)));
     const f = reg.formOf(100)!;
     expect(f.name).toBeTruthy();
     expect(f.recognised).toBe(false);
-    expect(reg.forms()).toEqual([]);
+    const locked = reg.bestiary().living();
+    expect(locked.length).toBeGreaterThan(0);              // the founders' kinds are common enough to be filed
+    expect(locked.every((e) => !e.found)).toBe(true);
 
-    bus.emit('guide:newForm', { binId: 1, name: f.name, organismId: 100 });
+    bus.emit('inspect:open', { target: { kind: 'organism', organismId: 100 }, at: { x: 0, y: 0 } });
     expect(reg.formOf(100)!.recognised).toBe(true);
-    const row = reg.forms()[0]!;
-    expect(row.name).toBe(f.name);
-    expect(row.firstSeenSec).toBe(5);
-    expect(row.alive).toBeGreaterThan(0);
-    expect(row.type).toMatch(/ · /);
+    expect(found).toEqual([f.name]);
+    const e = reg.bestiary().get(f.name)!;
+    expect(e).toMatchObject({ found: true, foundAtSec: 5, generation: 1 });
+    expect(e.type).toMatch(/ · /);
+    bus.emit('inspect:open', { target: { kind: 'organism', organismId: 100 }, at: { x: 0, y: 0 } });
+    expect(found).toEqual([f.name]);                         // announced once
 
-    // later: the whole population is gone → none alive, the entry stays
+    // later: the whole population is gone → filed as extinct after the grace period, still found
     bus.emit('sim:snapshot', snapshot(9, new Float32Array(0)));
-    expect(reg.forms()[0]!.alive).toBe(0);
+    expect(reg.bestiary().get(f.name)!.extinct).toBe(false);
+    bus.emit('sim:snapshot', snapshot(11, new Float32Array(0)));
+    expect(reg.bestiary().get(f.name)!).toMatchObject({ extinct: true, found: true, alive: 0 });
     expect(reg.dominant()).toBeNull();
     reg.dispose();
   });

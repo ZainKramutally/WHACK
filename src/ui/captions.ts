@@ -34,7 +34,7 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig,
     fadeTimer = setTimeout(() => box.classList.remove('wu-on'), SHOW_MS);
     pumpTimer = setTimeout(() => { busy = false; pump(); }, MIN_MS);
   }
-  /** Queue a caption. `low` ones (e.g. new forms) are dropped if anything is already waiting or showing. */
+  /** Queue a caption. `low` ones are dropped if anything is already waiting or showing. */
   function show(text: string, low = false) {
     if (low && (queue.length > 0 || busy)) return;
     if (queue[queue.length - 1] === text || (busy && current === text && queue.length === 0)) return;
@@ -68,7 +68,6 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig,
         show(`${r}, so ${def.label.toLowerCase()} starts at ${formatValue(start, def.unit)}`);
       } else show(r);
     }),
-    listen(bus, 'guide:newForm', ({ name }) => show(`New form: ${name}`, true)),
   ];
 
   return {

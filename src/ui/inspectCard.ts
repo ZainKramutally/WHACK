@@ -12,8 +12,9 @@ import { organismRows, producerRows, speciesName } from './lifeText';
 import type { LifeRegistry } from './lifeRegistry';
 import type { InspectTarget, SimSnapshot, WorldConfig } from '../worlds/types';
 
-const CARD_W = 300;
+const CARD_W = 340; // matches .wu-inspect width in ui.css: four comparison columns of unbroken numbers fit
 const GAP = 16;
+const TOP = 52; // clear of the Conditions / Bestiary tabs (ui.css .wu-inspect max-height matches)
 
 type Rows = [string, string][];
 
@@ -160,7 +161,8 @@ export function mountInspectCard(
     for (const h of ['', 'This world', otherName ? `${otherName} (at start)` : '', 'Earth']) head.append(el('th', undefined, h));
     const body = compareRows(target, last).map((r) => {
       const tr = el('tr');
-      r.forEach((c, i) => tr.append(el('td', i === 0 ? 'wu-stat-name' : 'wu-num', c)));
+      // Numbers stay on one line ("14.6 °C"); text facts (body chemistry) wrap.
+      r.forEach((c, i) => tr.append(el('td', i === 0 ? 'wu-stat-name' : c.length > 12 ? 'wu-num wu-wrap' : 'wu-num', c)));
       return tr;
     });
     const thead = el('thead');
@@ -190,7 +192,7 @@ export function mountInspectCard(
     const h = card.offsetHeight;
     let x = anchor.x + GAP;
     if (x + CARD_W > window.innerWidth - 8) x = Math.max(8, anchor.x - GAP - CARD_W);
-    const y = Math.max(8, Math.min(anchor.y - 20, window.innerHeight - h - 8));
+    const y = Math.max(TOP, Math.min(anchor.y - 20, window.innerHeight - h - 8)); // below the tab row
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
   }

@@ -1,7 +1,7 @@
 // In-world DOM UI. Mount once the world is generated; call dispose() to tear everything down.
 //
-// Consumes bus events: sim:snapshot, world:selected, build:life, control:blocked, guide:newForm,
-//   inspect:open, inspect:close.
+// Consumes bus events: sim:snapshot, world:selected, build:life, control:blocked, inspect:open, inspect:close.
+// (guide:newForm is no longer shown: kinds enter the bestiary when the player finds them.)
 // Emits: control:set, inspect:window (card rect, or null), inspect:close.
 import './ui.css';
 import { mountCaptions } from './captions';
@@ -9,7 +9,7 @@ import { mountConditions } from './conditions';
 import { controlList } from '../worlds/controls';
 import { mountControlsHint } from './controlsHint';
 import { el } from './dom';
-import { mountFieldGuide } from './fieldGuide';
+import { mountBestiary } from './bestiaryPanel';
 import { mountInspectCard } from './inspectCard';
 import { mountLifeRegistry } from './lifeRegistry';
 import { replayUrl } from '../seed';
@@ -35,7 +35,7 @@ export interface WorldUIOptions {
   floraSubmerged?: (cell: number) => boolean;
 }
 
-type Panel = 'conditions' | 'guide';
+type Panel = 'conditions' | 'bestiary';
 
 export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, opts: WorldUIOptions = {}) {
   const host = el('div', 'wu-root');
@@ -46,13 +46,17 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   const captions = mountCaptions(host, bus, world, opts.controls ?? controlList);
   const summary = mountSummaryCard(host, world, registry);
   const conditions = mountConditions(bus, world, opts.controls ?? controlList, () => summary.toggle());
-  const guide = mountFieldGuide(registry, (n) => { guideBadge.textContent = String(n); guideBadge.hidden = false; });
+  const bestiaryBadge = el('span', 'wu-badge'); // declared before mountBestiary, which reports counts as it mounts
+  bestiaryBadge.hidden = true;
+  const bestiary = mountBestiary(host, bus, world, registry, (found, total) => {
+    bestiaryBadge.textContent = `${found}/${total}`;
+    bestiaryBadge.hidden = total === 0;
+  });
   const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged);
+  const offFind = registry.onDiscover((name) => captions.show(`New entry: ${name}`));
 
   // Tabs: closed by default.
   const tabs = el('nav', 'wu-tabs');
-  const guideBadge = el('span', 'wu-badge');
-  guideBadge.hidden = true;
   const mkTab = (label: string, panel: Panel) => {
     const b = el('button', 'wu-tab', label);
     b.type = 'button';
@@ -60,9 +64,9 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     return b;
   };
   const condTab = mkTab('Conditions', 'conditions');
-  const guideTab = mkTab('Field guide', 'guide');
-  guideTab.append(guideBadge);
-  tabs.append(condTab, guideTab);
+  const bestiaryTab = mkTab('Bestiary', 'bestiary');
+  bestiaryTab.append(bestiaryBadge);
+  tabs.append(condTab, bestiaryTab);
   if (opts.seed !== undefined) {
     const seedLine = el('p', 'wu-seed', `Seed ${opts.seed} · `);
     const copy = el('button', 'wu-link', 'Copy link');
@@ -76,17 +80,18 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     seedLine.append(copy);
     conditions.el.append(seedLine);
   }
-  host.append(tabs, conditions.el, guide.el);
+  host.append(tabs, conditions.el, bestiary.el);
 
   let open: Panel | null = null;
   let latest: SimSnapshot | null = null;
   function show(p: Panel | null) {
     open = p;
     conditions.el.classList.toggle('wu-open', p === 'conditions');
-    guide.el.classList.toggle('wu-open', p === 'guide');
+    bestiary.el.classList.toggle('wu-open', p === 'bestiary');
+    bestiary.setOpen(p === 'bestiary');
     condTab.classList.toggle('wu-active', p === 'conditions');
     if (p === 'conditions') { if (latest) conditions.update(latest); conditions.focusSelected(); }
-    guideTab.classList.toggle('wu-active', p === 'guide');
+    bestiaryTab.classList.toggle('wu-active', p === 'bestiary');
     if (p !== 'conditions' && conditions.el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
   }
   const toggle = (p: Panel) => show(open === p ? null : p);
@@ -94,6 +99,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
   /** Esc / B: close the topmost thing. */
   function closeTop() {
     if (inspect.isOpen()) inspect.close();
+    else if (bestiary.pageOpen()) bestiary.closePage();
     else if (summary.isOpen()) summary.close();
     else if (open) show(null);
   }
@@ -154,7 +160,8 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
       hint.dispose();
       captions.dispose();
       conditions.dispose();
-      guide.dispose();
+      offFind();
+      bestiary.dispose();
       inspect.dispose();
       summary.dispose();
       registry.dispose();

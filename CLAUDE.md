@@ -194,7 +194,7 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
 
 **The intended experience of life (owner ruling, 2026-11-08). Evolution is tuned backwards from this.**
 - **At spawn (end of the build):** the player sees **4–5 species**, each clearly a different kind of animal, with many members each. Herbivores move in **packs or herds**. An **apex predator** is rare, large and **solitary**.
-- **Over the next few minutes:** the player **discovers about 5 more species**, one every ~30–40 s, as new forms split off live and are announced in the field guide. That makes about **8–10 species in total**, never a cloud of dozens.
+- **Over the next few minutes:** the player **discovers about 5 more species**, one every ~30–40 s, as new forms split off live and appear in the bestiary as locked kinds for the player to find. That makes about **8–10 species in total**, never a cloud of dozens.
 - **Each species looks really distinct and unique.** Members of a species look alike, while different species look nothing like each other.
 - **Founders start small.** Size and complexity are earned, with big bodies (megafauna) and the apex predator arriving as evolution goes on.
 - **Mutation is gentle** enough that species stay recognisable for minutes. New species come from niche splits (habitat: land, sea or air; diet: grazer or hunter; size), not from noise.
@@ -204,9 +204,13 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
 
 **Presentation, under the clean-screen rule.**
 - **No camera pull-out:** the camera follows the player.
-- **New forms:** when a body plan first fills a field-guide bin, its generated name shows as a one-line caption ("New form: Glass Strider"). Clicking the creature opens its inspect card, which serves as the specimen plate.
-- **Field guide tab:** next to Conditions, closed by default. It lists the forms found so far.
-- **What counts as a form:** the DECISIONS §A definition. A form is a cluster on the 12 genes plus composition (c, si), at radius 0.25, with at least 4 live animals, labelled by functional type (look attractor × trophic role × locomotion mode). `guide:newForm` fires when a cluster first reaches 4 live animals. Names come from a trait-based name generator.
+- **Bestiary tab** (replaces the field guide; owner ruling, 2026-11-08): next to Conditions, closed by default, badge "found/total". Logic in `ui/bestiary.ts`, drawn by `ui/bestiaryPanel.ts`.
+  - **Discovery is the player's job.** Living kinds show as locked "?" tiles with their live count until the player clicks one of their animals; that click files the kind as found (a rare kind below 4 animals counts too) and shows the caption "New entry: Glass Strider". Names are never announced before they are found, so there is no "New form" caption.
+  - **Extinction is filed automatically.** A kind with no live animals for `EXTINCT_AFTER_SEC` (5 s on the snapshot clock, so a dip to zero doesn't flicker) moves to "Died out" with an EXTINCT stamp, found or not. If the name comes back, it returns to the living.
+  - Clicking a found or extinct tile opens its specimen page, a paper card: status, when it was found and first recorded, the most alive at once, the specimen's generation, and its body plan in words.
+  - Each tile and page shows a pixel sprite drawn from the kind's real body plan (`render/sprite.ts`, read-only): the clicked specimen's plan once found, otherwise a typical member's.
+  - The bestiary is per run: a new world starts empty.
+- **What counts as a kind (form):** the DECISIONS §A definition. A form is a cluster on the 12 genes plus composition (c, si), at radius 0.25, with at least 4 live animals, labelled by functional type (look attractor × trophic role × locomotion mode). Names come from a trait-based name generator, and the bestiary keys kinds by name. The UI files a kind when its own clustering of the live animals (the same `sim/guide.ts` functions) first shows a cluster of 4 under that name; `guide:newForm` still fires from the sim but nothing in the UI shows it.
 
 **Metabolism (pace of life).** Each world's `life.rules.metabolism` holds an activation energy, a reference temperature and a compression exponent. With a typical activation energy (about 50 kJ/mol), the real Arrhenius factor at −183 °C is around 10⁻²⁰ of Earth's, which would mean no generations at all in a demo. The sim raises that factor to the compression exponent, 0.03. The same exponent applies to both worlds, so their paces compare fairly. It also stops carbon running away when the Temperature slider is pushed hot (about 1.2× at 122 °C). Silicon's activation energy is lower than carbon's, to reflect steps 2 and 6 of the reasoning chain: 32 kJ/mol, which is 50 × Si–Si ÷ C–C (222 ÷ 346), on the idea that weaker bonds have lower barriers (Bell–Evans–Polanyi). That puts silicon's pace at −183 °C at about 0.42 of carbon's, and its uncompressed estimate at around 10⁻¹³. Bell–Evans–Polanyi holds within one reaction family, so applying it across elements is our extrapolation. Both the exponent and the lowered activation energy are `assumption: true`, and the pace stat shows the uncompressed estimate with the label "compressed in the time-lapse". Silicon's slower generations come out of these rules, never from a hardcoded speed.
 
@@ -299,6 +303,8 @@ Both worlds' heightmaps come only from their demo seeds, so they are generated w
 
 Everything else waits until the player asks for it, including the summary card.
 
+**Look of the in-world UI** (owner ruling, 2026-11-08; `src/ui/ui.css`): the selection screen's pixel style carried into the world. The tabs, the Conditions and Bestiary drawers, the captions (cream text with a hard ink outline, like game subtitles) and the hints are a dark ink HUD with a cream pixel border. Every card (inspect, summary, bestiary specimen page) is cream paper with an ink border, like a specimen plate. Pixelify Sans for text, VT323 for numbers, and no rounded corners: corners are square or stepped.
+
 **The Conditions tab.** A small icon in a corner opens the Conditions panel. Tab or the gamepad's Y button toggles it, and using the D-pad sliders opens it too. It is closed by default, and the world keeps running while it's open. It holds:
 - the three condition sliders (still available the whole run, as in "Condition sliders")
 - the stats panel: every stat beside Earth's, with its "why", and assumptions marked
@@ -315,7 +321,7 @@ Clicking the sea, the ground or the sky opens nothing. It counts as clicking els
 Clicking a creature or a producer opens an inspect card beside it, never full screen. The card has:
 1. What it is, in one line.
 2. Its details in plain words.
-   - An organism: its body plan in words (limbs, plates, horns, eyes, how it moves), its role (plant, grazer or hunter), size, preferred temperature and tolerance, oxygen need or cold stability, its field-guide name, and which generation it is.
+   - An organism: its body plan in words (limbs, plates, horns, eyes, how it moves), its role (plant, grazer or hunter), size, preferred temperature and tolerance, oxygen need or cold stability, its kind's name (clicking it files the kind in the bestiary), and which generation it is.
 3. Why it is like this: one sentence, from config like every other world fact.
 4. **The comparison: "This world" beside "A carbon world"** (on the carbon world, "A silicon world"). It is rows of plain facts, with Earth's value where there is one. No charts.
    - Beside it, a small live 3D view of **the clicked thing itself**, turning: the creature in its own chemistry, or this world's patch of flora.
@@ -367,7 +373,8 @@ src/
   render/pick.ts       raycast picking for click-to-inspect (organisms by id, producers by cell; the sea, ground and sky are hit but open no card)
   render/counterpart.ts  the inspect card's live view of the clicked thing (no creature counterparts)
   player/              third-person character controller and camera, keyboard/mouse and gamepad input
-  ui/                  selection screen, Conditions panel, field guide, captions, inspect cards, summary card (design partner)
+  ui/                  selection screen, Conditions panel, bestiary, captions, inspect cards, summary card (design partner)
+  render/sprite.ts     the bestiary's pixel sprite of a body plan (pure, read-only)
   bus.ts               typed event bus between sim, render and UI
 ```
 
@@ -539,7 +546,7 @@ declare function startingConditions(world: WorldConfig, requested: Conditions): 
 };
 ```
 
-Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on every element click and slider move on the selection screen; drives the particle box), `world:selected` (`{ worldId, requested: Conditions }`, fired when Generate is clicked, with the slider settings at that moment), `sim:snapshot`, `build:life` (sim to UI: when the founders appear), `build:complete` (sim to UI: when `buildProgress` reaches 1), `control:set` (UI to sim: `{ controlId, value }`, with value in display units: °C, × Earth's or %; the worker clamps it to the living band), `control:blocked` (sim to UI: `{ controlId, limitId }`, fired when a drag or a drift from life's feedbacks hits a red zone, and at world start for each slider `startingConditions` moved), `guide:newForm` (sim to UI: `{ binId, name, organismId }`, when a body plan first fills a field-guide bin), `inspect:open` (render to UI: `{ target: InspectTarget, at: { x, y } }`, the screen position to place the card), `inspect:window` (UI to render: the card's counterpart window as `{ x, y, width, height }` in CSS pixels, or `null`), and `inspect:close` (UI to render).
+Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on every element click and slider move on the selection screen; drives the particle box), `world:selected` (`{ worldId, requested: Conditions }`, fired when Generate is clicked, with the slider settings at that moment), `sim:snapshot`, `build:life` (sim to UI: when the founders appear), `build:complete` (sim to UI: when `buildProgress` reaches 1), `control:set` (UI to sim: `{ controlId, value }`, with value in display units: °C, × Earth's or %; the worker clamps it to the living band), `control:blocked` (sim to UI: `{ controlId, limitId }`, fired when a drag or a drift from life's feedbacks hits a red zone, and at world start for each slider `startingConditions` moved), `guide:newForm` (sim to UI: `{ binId, name, organismId }`, when a body plan first fills a field-guide bin; no longer shown, since the bestiary files kinds on discovery), `inspect:open` (render to UI: `{ target: InspectTarget, at: { x, y } }`, the screen position to place the card), `inspect:window` (UI to render: the card's counterpart window as `{ x, y, width, height }` in CSS pixels, or `null`), and `inspect:close` (UI to render).
 
 **Changes from the first draft of this contract, pending the design partner's OK:**
 - Added `DerivedStat` and `Solvent`, so derived stats and solvent data have a home in config instead of in code.
@@ -686,7 +693,7 @@ Rehearse silicon as well, so we can switch to it if the judges ask "what about s
 
 | Priority | Work |
 |---|---|
-| P0 (MVP) | Selection screen. Carbon world fully working end to end: the 20 s build, stats panel, captions, life–atmosphere feedback, population evolving during the build and live after it, third-person walking. Silicon world with its own build, stats, reasoning, caveat and feedback. Temperature, Nitrogen and Oxygen sliders with live red zones in both worlds. The particle box on the selection screen and the zoom-and-duplicate Generate transition. A clean in-world screen: the Conditions panel (closed by default), brief fading captions, and click-to-inspect cards with the side-by-side comparison and a live 3D render of the counterpart. Caden's creatures and plants: genome, `develop()`, the ecology with its state machine, lofted bodies with IK legs, L-system flora, and the field guide tab. Summary card beside Earth, opened from the Conditions panel. Deterministic demo seeds. 60 fps. Recorded backup video. Devpost submission. |
+| P0 (MVP) | Selection screen. Carbon world fully working end to end: the 20 s build, stats panel, captions, life–atmosphere feedback, population evolving during the build and live after it, third-person walking. Silicon world with its own build, stats, reasoning, caveat and feedback. Temperature, Nitrogen and Oxygen sliders with live red zones in both worlds. The particle box on the selection screen and the zoom-and-duplicate Generate transition. A clean in-world screen: the Conditions panel (closed by default), brief fading captions, and click-to-inspect cards with the side-by-side comparison and a live 3D render of the counterpart. Caden's creatures and plants: genome, `develop()`, the ecology with its state machine, lofted bodies with IK legs, L-system flora, and the bestiary tab. Summary card beside Earth, opened from the Conditions panel. Deterministic demo seeds. 60 fps. Recorded backup video. Devpost submission. |
 | P1 | Nothing yet. Creature inspection became click-to-inspect, which is now P0. |
 | P2 | Animated creature locomotion. Sound design that shifts per world. Procedural variation across non-demo seeds. Extra lighting and sky polish. |
 
@@ -712,7 +719,7 @@ Do not start P1 work until every P0 item works on the demo laptop.
   1. `gen/terrain.ts` (heights, rise, seaLevel, spawn shore) with tests, then seas (level and frozen state), and sky and light from the star.
   2. The character and camera, including swimming: keyboard first, then gamepad.
   3. The particle box and `boxState()` (this needs only `sim/limits.ts`).
-  4. The selection screen, the Conditions panel, the field guide tab, captions and the summary card.
+  4. The selection screen, the Conditions panel, the bestiary tab, captions and the summary card.
 
 **Checkpoint, about 01:00:** the carbon world runs end to end. The sliders work, and bead-bodied worms graze and evolve. If it doesn't, cut now, using the list below.
 
@@ -726,7 +733,7 @@ If time runs short, cut in this order:
 1. Gamepad support (keyboard handover still works).
 2. F's verlet tentacles, then FABRIK (keep 2-bone IK legs), then frills (dorsal rods only).
 3. A bespoke silicon look (palette-swap carbon's).
-4. Field-guide thumbnails (keep the names).
+4. Bestiary sprites (keep the names and tiles).
 5. Lofted skinning, falling back to bead bodies.
 
 Never cut the sliders, the particle box, the Generate transition, the Conditions panel, the inspect cards and their live views, the summary card, silicon's faceted development, or IK legs.

@@ -44,7 +44,7 @@ export function mountSummaryCard(root: HTMLElement, world: WorldConfig, registry
     });
     for (const f of world.facts) {
       const tr = el('tr');
-      tr.append(el('td', 'wu-stat-name', f.label), el('td', 'wu-num', f.value), el('td', 'wu-num wu-dim', f.earthValue));
+      tr.append(el('td', 'wu-stat-name', f.label), el('td', 'wu-num wu-wrap', f.value), el('td', 'wu-num wu-dim wu-wrap', f.earthValue));
       rows.push(tr);
     }
     table.replaceChildren(thead, ...rows);
