@@ -55,7 +55,7 @@
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   transition: opacity 0.4s steps(4, end);
 }
-&.launching .desk { opacity: 0; pointer-events: none; }
+&.launching { pointer-events: none; }
 .shadowbox { width: 100%; max-width: 1360px; margin: 0 auto; filter: drop-shadow(8px 8px 0 var(--f0)); }
 .sheet {
   position: relative; box-sizing: border-box;
@@ -230,8 +230,6 @@ tr.flash td { animation: flash 0.4s steps(2, end); }
   opacity: 0; transition: opacity 0.3s steps(3, end); pointer-events: none;
 }
 .toast.show { opacity: 1; }
-#launch { position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%; display: none; image-rendering: pixelated; }
-&.launching #launch { display: block; }
 .endcard {
   position: fixed; z-index: 55; left: 50%; top: 50%; transform: translate(-50%, -50%);
   background: var(--bone4); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--f0);

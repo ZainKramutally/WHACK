@@ -7,22 +7,38 @@ import { controlList, sourceFor, worldFor, worlds } from '../../worlds';
 import type { Conditions, ControlDef, ControlId, LethalLimit, WorldConfig } from '../../worlds/types';
 import { fracToValue, redSegments, valueToFrac } from '../sliderMath';
 import type { UiBus } from '../uiBus';
-import { createBox } from './box';
+import { createBox, N_ATOMS } from './box';
 import { group14 } from './elements';
-import { LAUNCH_SOLID_SEC, startLaunch, type Launch } from './launch';
 import {
   bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, viability,
   type SelectionState,
 } from './state';
 
+/** What the Generate transition (render/generate.ts) needs from the screen: the sheet, the live box and a way to remove it. */
+export interface LaunchHandle {
+  root: HTMLElement;
+  boxCanvas: HTMLCanvasElement;
+  boxRect(): DOMRect;
+  /** The box's dots as 0..1 fractions of the box (y down): the element's atoms first. */
+  seeds(): { x: number; y: number }[];
+  /** How many of the seeds are element atoms (the rest are solvent). */
+  atomCount: number;
+  /** Time dilation for the live box (1 = normal, 0 = frozen). */
+  setBoxSpeed(k: number): void;
+  dispose(): void;
+}
+
 export interface SelectionOptions {
-  /** Generate was clicked. The host builds the world and emits `world:selected` with this payload, then calls worldStarted(). */
-  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions }): void;
+  /**
+   * Generate was clicked (after any slider glide). The host builds the world, emits `world:selected` with this payload and drives
+   * the transition through `handle`, which also removes the screen when it is done.
+   */
+  onGenerate(payload: { worldId: WorldConfig['id']; requested: Conditions }, handle: LaunchHandle): void;
 }
 
 export interface SelectionScreen {
-  /** The host has emitted `world:selected`; the cover may lift once the ground is solid. */
-  worldStarted(): void;
+  /** Same object that onGenerate receives: usable while the screen is up, to prepare the transition. */
+  handle: LaunchHandle;
   dispose(): void;
 }
 
@@ -144,7 +160,6 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   </article></div>
 </div>
 <div class="toast" data-r="toast" role="status" aria-live="polite"></div>
-<canvas data-r="launch" id="launch" aria-hidden="true"></canvas>
 <div class="scrim" data-r="appScrim" hidden>
   <div class="appendix" role="dialog" aria-modal="true" aria-labelledby="appTitle">
     <h2 id="appTitle" data-r="appTitle"></h2>
@@ -162,9 +177,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   let state: SelectionState = initialSelection();
   let busy = false;      // gliding or launching: input is ignored
   let launching = false;
-  let started = false;
-  let startedAt = 0;
-  let launch: Launch | null = null;
+  let boxSpeed = 1;
   let raf = 0;
   let alive = true;
 
@@ -441,8 +454,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     if (busy) return;
     const world = worldFor(state.worldId);
     const { start, moves } = plannedMoves(state);
-    opts.onGenerate(generatePayload(state));
-    const begin = () => { launching = true; busy = true; root.classList.add('launching'); launch = startLaunch(r('launch') as HTMLCanvasElement, boxCanvas, r('frame').getBoundingClientRect(), world, box.seeds(), performance.now()); };
+    const payload = generatePayload(state);   // the settings at the click: the sim moves them itself and reports why
+    const begin = () => { launching = true; busy = true; root.classList.add('launching'); opts.onGenerate(payload, handle); };
     if (!moves.length) { busy = true; begin(); return; }
     const m = moves[0];
     toast(`${esc(world.displayName)} life cannot survive at ${fmt(m.controlId, m.from)}, so this world starts at ${fmt(m.controlId, m.to)}.`, 2600);
@@ -452,27 +465,17 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   // ---- Main loop ----
   let last = performance.now();
-  let fading = false;
   function frame(now: number) {
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    const world = worldFor(state.worldId);
+    // While launching, the box keeps living (slowed by the transition) until its dots hand over to the grains.
+    box.frame(now, launching ? dt * boxSpeed : dt, world, state.conditions);
     if (!launching) {
-      const world = worldFor(state.worldId);
-      box.frame(now, dt, world, state.conditions);
       const tag = box.liquidTag(world), tl = r('tagLiq');
       tl.hidden = !tag;
       if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 28px))`; }
-    } else if (launch) {
-      const t = launch.draw(now);
-      // Lift the cover once the particles are ground and the real world has had time to spawn the character.
-      const spawnIn = worldFor(state.worldId).build.spawnSec - 0.6;
-      if (!fading && started && t >= LAUNCH_SOLID_SEC && (now - startedAt) / 1000 >= spawnIn) {
-        fading = true;
-        root.style.transition = 'opacity 0.6s steps(6, end)';
-        root.style.opacity = '0';
-        setTimeout(() => dispose(), 700);
-      }
     }
     raf = requestAnimationFrame(frame);
   }
@@ -489,8 +492,14 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   render();
   raf = requestAnimationFrame(frame);
 
-  return {
-    worldStarted() { started = true; startedAt = performance.now(); },
+  const handle: LaunchHandle = {
+    root,
+    boxCanvas,
+    boxRect: () => boxCanvas.getBoundingClientRect(),
+    seeds: () => box.seeds(),
+    atomCount: N_ATOMS,
+    setBoxSpeed: (k) => { boxSpeed = k; },
     dispose,
   };
+  return { handle, dispose };
 }

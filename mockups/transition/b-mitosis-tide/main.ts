@@ -97,6 +97,12 @@ async function main() {
   renderer.setSize(W, H);
   document.body.appendChild(renderer.domElement);
   await renderer.init();
+  // Diagnostics: GPU errors the browser would otherwise swallow (device lost, validation).
+  const gpuErrors: string[] = [];
+  const dev = (renderer as unknown as { backend: { device?: GPUDevice } }).backend?.device;
+  dev?.lost.then((i) => { gpuErrors.push(`DEVICE LOST ${i.reason}: ${i.message}`); console.error('DEVICE LOST', i.reason, i.message); });
+  dev?.addEventListener('uncapturederror', (e) => { const m = (e as GPUUncapturedErrorEvent).error.message; gpuErrors.push(m); console.error('GPU', m); });
+  Object.assign(window, { __gpuErrors: gpuErrors, __renderer: renderer });
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 1000);
@@ -445,13 +451,25 @@ async function main() {
   const dts: number[] = [];
   const stats: Record<string, unknown> = { done: false, avg: 0, min: 0, over20: 0, frames: 0, slow: [] as number[][] };
   Object.assign(window, { __stats: stats });
-  addEventListener('keydown', (ev) => { if (ev.key.toLowerCase() === 'r') { t0 = performance.now(); last = t0; dts.length = 0; frames = 0; stats.done = false; } });
+  // Replay: reset the clock. The box is rebuilt (150 pre-roll steps) right away, outside the next frame's time budget.
+  const restart = () => { t0 = performance.now(); last = t0; dts.length = 0; (stats.slow as number[][]).length = 0; frames = 0; stats.done = false; renderAt(0); };
+  const onKey = (ev: KeyboardEvent) => { if (ev.key.toLowerCase() === 'r' && !ev.repeat && !ev.metaKey && !ev.ctrlKey) restart(); };
+  addEventListener('keydown', onKey);
+  // Teardown: free the GPU device when the page goes away, so quick reloads never stack devices.
+  addEventListener('pagehide', (ev) => {
+    if (ev.persisted) return;   // entering the back/forward cache: the page may come back, keep the device
+    removeEventListener('keydown', onKey);
+    renderer.setAnimationLoop(null);
+    renderer.dispose();
+    dev?.destroy();
+  });
   renderer.setAnimationLoop((now: number) => {
-    const t = Math.min((now - t0) / 1000, T_END + 0.5);
-    renderAt(Math.min(t, T_END));
-    if (frames++ > 0 && (now - t0) / 1000 <= T_END) { dts.push(now - last); if (now - last > 20) (stats.slow as number[][]).push([+((now - t0) / 1000).toFixed(2), Math.round(now - last)]); }
+    // rAF timestamps can precede the performance.now() taken in the key handler: never feed the scene a negative time.
+    const el = Math.max(0, now - t0) / 1000;
+    renderAt(Math.min(el, T_END));
+    if (frames++ > 0 && el <= T_END) { dts.push(now - last); if (now - last > 20) (stats.slow as number[][]).push([+el.toFixed(2), Math.round(now - last)]); }
     last = now;
-    if (!stats.done && (now - t0) / 1000 > T_END && dts.length) {
+    if (!stats.done && el > T_END && dts.length) {
       const s = dts.slice(2);
       stats.avg = 1000 / (s.reduce((a, b) => a + b, 0) / s.length);
       stats.min = 1000 / Math.max(...s); stats.over20 = s.filter((d) => d > 20).length; stats.frames = s.length; stats.done = true;
