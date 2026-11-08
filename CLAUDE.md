@@ -629,6 +629,7 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions, crust? }`
 - 2026-11-08 owner-requested additions:
   - Bus events: `inspect:hover` (the scanner lock) and `bestiary:window { rect; plan } | null` (the 3D specimen page; it replaces `bestiary:specimen`). `inspect:window` lost its `mode` (no plant counterparts).
   - Organism buffer layout v3, stride 30: `altitude` (metres above the ground) and `grown` (current ÷ adult mass).
+  - Organism buffer layout v4, stride 32: `intent` (`INTENT`: forage 0, hunt 1, flee 2, home 3, rest 4, bud 5; refreshed every 4th tick) and `targetId` (the hunter's live prey id, or −1). `SimSnapshot.kills: { hunterId, preyId, x, z, preyScale? }[]` lists the predation kills since the last snapshot, so the art layer can draw stalking, strikes and visible deaths (#91). At defaults that's about 10 kills/s once hunters establish.
   - Body plan v4: `shellCover` (the silicon walkers' ceramic shell). v5 appends `liftSpan`, the wing span the flight model uses, so the card can show a flier's ceiling.
   - Stat `airDensity` (kg/m³) on both worlds, shown beside gravity. It comes from the live gas mix (see "How F's inputs come from our worlds").
   - `life.inputs.flight`, `life.inputs.economics` and `life.founders.latent` in world config.

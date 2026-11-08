@@ -259,3 +259,4 @@
 - 08:54: merged basalt-pillars (instanced hex pillars, floor pattern removed, lighter tops + lichen), rock-forms round 2 (warm-grey basalt, fan cliffs, lichen on basalt forms), binomial inspect card. 567 related tests + build green. Pushing to main. ocean-level fixing SLOW targets test (use default pick).
 - 08:56: merged ocean-level (seaFreeboard: base + 0.28×(basalt−default) + ice(T); default 74.2% exact; basalt 97%; rampRange 0.18→0.38; SLOW targets use default chip). 607 related tests + build green. Pushing. SLOW silicon −163 °C 90 s test 877<900 (pre-existing from silicon terrain changes?) → told logic lead.
 - 09:02 16: carbon sea cover physical (fc 5a67fe1) documented. Flags: carbon start at −40 °C ends the build with 0 consumers (in band!); SLOW silicon −163 °C test 877 < 900.
+- 09:03 16: merged hunt-events (#91 sim half): layout v4 intent/targetId, SimSnapshot.kills.
