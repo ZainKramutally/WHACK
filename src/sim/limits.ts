@@ -168,6 +168,12 @@ export function livingBands(world: WorldConfig, conditions: Conditions, env?: Li
   return out;
 }
 
+/** livingBands(...)[id] without computing the other two bands. */
+function oneBand(world: WorldConfig, c: Conditions, id: ControlId, env?: LimitsEnv): LivingBand {
+  const def = controlsOf(env).find((d) => d.id === id);
+  return def ? bandFor(world, c, def, env) : livingBands(world, c, env)[id];
+}
+
 export function insideBand(band: LivingBand, value: number): boolean {
   if (band.empty) return false;
   const slack = EDGE_EPS * Math.max(1, Math.abs(value));
@@ -191,7 +197,7 @@ export function applyControl(
   value: number,
   env?: LimitsEnv,
 ): { conditions: Conditions; blockedBy?: string } {
-  const band = livingBands(world, conditions, env)[id];
+  const band = oneBand(world, conditions, id, env);
   if (band.empty) return { conditions, blockedBy: band.blockingLimitId };
   const clamped = clampToBand(band, value);
   const blockedBy = clamped === value ? undefined : value < band.low ? band.lowLimitId : band.highLimitId;
@@ -207,16 +213,35 @@ export function startingConditions(
   requested: Conditions,
   env?: LimitsEnv,
 ): { start: Conditions; moved: { controlId: ControlId; limitId: string }[] } {
+  // Last-call memo (the selection screen asks twice per pointermove). Skipped when env is given. Fresh copies out.
+  const m = lastStart;
+  if (!env && m && m.world === world && m.t === requested.temperature && m.n === requested.nitrogen && m.o === requested.oxygen) {
+    return { start: { ...m.start }, moved: m.moved.map((x) => ({ ...x })) };
+  }
+  const r = computeStart(world, requested, env);
+  if (!env) lastStart = { world, t: requested.temperature, n: requested.nitrogen, o: requested.oxygen, start: { ...r.start }, moved: r.moved.map((x) => ({ ...x })) };
+  return r;
+}
+
+let lastStart:
+  | { world: WorldConfig; t: number; n: number; o: number; start: Conditions; moved: { controlId: ControlId; limitId: string }[] }
+  | undefined;
+
+function computeStart(
+  world: WorldConfig,
+  requested: Conditions,
+  env?: LimitsEnv,
+): { start: Conditions; moved: { controlId: ControlId; limitId: string }[] } {
   let start = { ...requested };
   const moved: { controlId: ControlId; limitId: string }[] = [];
   CONTROL_ORDER.forEach((id, i) => {
     // A red zone may be caused by a slider not yet processed (silicon at 21 % oxygen has no living temperature at all),
     // so a value also counts as fine if it is inside its band once the later sliders sit at their defaults.
-    const strict = livingBands(world, start, env)[id];
+    const strict = oneBand(world, start, id, env);
     if (insideBand(strict, start[id])) return;
     const later = { ...start };
     for (const l of CONTROL_ORDER.slice(i + 1)) later[l] = world.startDefaults[l];
-    const lenient = livingBands(world, later, env)[id];
+    const lenient = oneBand(world, later, id, env);
     if (insideBand(lenient, start[id])) return;
     const band = strict.empty ? lenient : strict;
     const limitId = band.empty ? band.blockingLimitId : start[id] < band.low ? band.lowLimitId : band.highLimitId;

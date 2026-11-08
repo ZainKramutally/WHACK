@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { carbonFixture as carbon, siliconFixture as silicon } from './__fixtures__/worlds';
-import { applyControl, canLive, clampToBand, livingBands, startingConditions, CONTROL_ORDER } from './limits';
+import { applyControl, canLive, clampToBand, insideBand, livingBands, startingConditions, CONTROL_ORDER } from './limits';
 import { vapourPressure } from './models';
 import { makeRng } from './rng';
 import type { Conditions, WorldConfig } from '../worlds/types';
@@ -169,5 +169,46 @@ describe('no sequence of clamped control values lands in a red zone', () => {
   it('clampToBand stops at the edge', () => {
     expect(clampToBand({ low: -50, high: 122 }, 500)).toBe(122);
     expect(clampToBand({ low: -50, high: 122 }, -500)).toBe(-50);
+  });
+});
+
+describe('startingConditions: perf rewrite', () => {
+  // Oracle: the original implementation, built on full livingBands calls.
+  function oracle(world: WorldConfig, requested: Conditions) {
+    let start = { ...requested };
+    const moved: { controlId: string; limitId: string }[] = [];
+    CONTROL_ORDER.forEach((id, i) => {
+      const strict = livingBands(world, start)[id];
+      if (insideBand(strict, start[id])) return;
+      const later = { ...start };
+      for (const l of CONTROL_ORDER.slice(i + 1)) later[l] = world.startDefaults[l];
+      const lenient = livingBands(world, later)[id];
+      if (insideBand(lenient, start[id])) return;
+      const band = strict.empty ? lenient : strict;
+      const limitId = band.empty ? band.blockingLimitId : start[id] < band.low ? band.lowLimitId : band.highLimitId;
+      start = { ...start, [id]: world.startDefaults[id] };
+      moved.push({ controlId: id, limitId: limitId ?? 'unknown' });
+    });
+    return { start, moved };
+  }
+
+  it('matches the old implementation across a sweep on both worlds', () => {
+    for (const w of [carbon, silicon])
+      for (const temperature of [-250, -183, -150, 15, 130])
+        for (const nitrogen of [0.01, 1, 30])
+          for (const oxygen of [0, 21]) {
+            const c = { temperature, nitrogen, oxygen };
+            expect(startingConditions(w, c)).toEqual(oracle(w, c));
+          }
+  });
+
+  it('returns fresh copies, so mutating a result cannot corrupt the next call', () => {
+    const c = { temperature: 15, nitrogen: 1, oxygen: 21 };
+    const a = startingConditions(silicon, c);
+    const snapshot = JSON.parse(JSON.stringify(a));
+    a.start.temperature = 999;
+    a.moved.push({ controlId: 'oxygen', limitId: 'x' });
+    a.moved[0].limitId = 'corrupt';
+    expect(startingConditions(silicon, c)).toEqual(snapshot);
   });
 });
