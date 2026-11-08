@@ -118,6 +118,20 @@ export function buildFloraLibrary(seed: number): FloraLibrary {
   return { archetypes, byKey: new Map(archetypes.map((a) => [a.key, a])) };
 }
 
+/** The seed of the world's flora library: the world (flora.ts) and the producer card draw the same archetypes. */
+export const LIB_SEED = 0x5eed_f10a;
+const libraries = new Map<number, FloraLibrary>();
+/**
+ * The flora library for a seed, built on the first call (~100–300 ms) and shared after. Read-only: callers draw its
+ * geometry through their own geometries (copies of colour and glow, shared position, normal, sway and index) and
+ * never paint, extend or dispose it.
+ */
+export function floraLibrary(seed = LIB_SEED): FloraLibrary {
+  let lib = libraries.get(seed);
+  if (!lib) { lib = buildFloraLibrary(seed); libraries.set(seed, lib); }
+  return lib;
+}
+
 // ---- mapping -----------------------------------------------------------------------------------------------------
 
 const k = (species: string, ...vs: number[]) => vs.map((v) => `${species}#${v}`);

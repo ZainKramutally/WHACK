@@ -10,7 +10,7 @@
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
+import { floraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
@@ -19,7 +19,6 @@ import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
 import { plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
-const LIB_SEED = 0x5eed_f10a;
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
 const REBUILD_EVERY = 0.25; // s while the world builds
@@ -69,7 +68,7 @@ interface Bucket {
 }
 
 export function createFlora(app: App): FloraPart {
-  const lib = buildFloraLibrary(LIB_SEED);
+  const lib = floraLibrary(); // shared with the producer card: read-only here (every look has its own geometry)
   // The world material for every plant (cel terminator, translucency, fog, sway from aSway, HDR glow from aGlow).
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
@@ -91,8 +90,12 @@ export function createFlora(app: App): FloraPart {
     if (!L) {
       const a = lib.archetypes[arch];
       const built = a.lod[lod];
-      // the dark (foreground) step needs its own colour array; everything else is shared
-      const geometry = dark ? built.geometry.clone() : built.geometry;
+      // Its own geometry over the shared library one: position, normal, sway and index are shared; colour and glow are
+      // its own (paint writes them per palette, value step and glow), as are the per-instance buffers added below.
+      const geometry = new THREE.BufferGeometry();
+      for (const [name, at] of Object.entries(built.geometry.attributes)) geometry.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
+      geometry.setIndex(built.geometry.index);
+      geometry.boundingBox = built.geometry.boundingBox; geometry.boundingSphere = built.geometry.boundingSphere;
       L = looks[id] = { arch: a, lod: lod as 0 | 1, dark: !!dark, geometry, painted: { pal: null, glow: -1 } };
     }
     return L;
@@ -128,7 +131,7 @@ export function createFlora(app: App): FloraPart {
   for (const chem of ['carbon', 'silicon'] as const) for (const mat of [material, materialNoCut]) {
     const ai = lib.archetypes.findIndex((a) => a.chem === chem);
     const L = lookOf(ai, 0, 0);
-    paint(L.arch.lod[0], PALETTES[chem], 0);
+    paint({ ...L.arch.lod[0], geometry: L.geometry }, PALETTES[chem], 0);
     L.painted = { pal: PALETTES[chem], glow: 0 };
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
