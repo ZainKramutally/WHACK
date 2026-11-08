@@ -55,9 +55,14 @@ interface Bucket {
 
 export function createFlora(app: App): FloraPart {
   const lib = buildFloraLibrary(LIB_SEED);
-  // One world material for every plant (cel terminator, translucency, fog, sway from aSway, HDR glow from aGlow).
-  // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets.
-  const material = worldMaterial({ kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', translucent: true, side: THREE.DoubleSide });
+  // The world material for every plant (cel terminator, translucency, fog, sway from aSway, HDR glow from aGlow).
+  // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
+  // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
+  // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', translucent: true, side: THREE.DoubleSide } as const;
+  const material = worldMaterial({ ...FLORA_MAT, cutout: true });
+  const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
+  const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
   // Vertex colours are the unmodulated look palette; the material applies the star (palette.ts LOOK_PALETTES).
   const PALETTES: Record<'carbon' | 'silicon', FloraPalette> = { carbon: LOOK_PALETTES.carbon, silicon: LOOK_PALETTES.silicon };
   const group = new THREE.Group();
@@ -84,7 +89,7 @@ export function createFlora(app: App): FloraPart {
   const buckets = new Map<number, Bucket>();
   for (const d of bucketDefs()) {
     const L = lookOf(d.arch, d.lod, d.dark);
-    const mesh = new THREE.InstancedMesh(L.geometry, material, d.cap);
+    const mesh = new THREE.InstancedMesh(L.geometry, materialFor(d.role, d.lod), d.cap);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
     mesh.visible = false;
@@ -94,10 +99,10 @@ export function createFlora(app: App): FloraPart {
     buckets.set(d.id, { mesh, cap: d.cap });
   }
 
-  // Warm-up: one carbon and one silicon mesh, a single invisible-sized instance far below ground, so world.ts's
-  // compileAsync builds the flora pipelines before Generate. Hidden at the first rebuild that draws plants.
+  // Warm-up: a carbon and a silicon mesh per material, a single invisible-sized instance far below ground, so
+  // world.ts's compileAsync builds the flora pipelines before Generate. Hidden at the first rebuild that draws plants.
   const warm: THREE.InstancedMesh[] = [];
-  for (const chem of ['carbon', 'silicon'] as const) {
+  for (const chem of ['carbon', 'silicon'] as const) for (const mat of [material, materialNoCut]) {
     const ai = lib.archetypes.findIndex((a) => a.chem === chem);
     const L = lookOf(ai, 0, 0);
     paint(L.arch.lod[0], PALETTES[chem], 0);
@@ -105,7 +110,7 @@ export function createFlora(app: App): FloraPart {
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
     g.setIndex(L.geometry.index);
-    const w = new THREE.InstancedMesh(g, material, 1);
+    const w = new THREE.InstancedMesh(g, mat, 1);
     w.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0));
     w.frustumCulled = false;
     group.add(w);
@@ -215,6 +220,7 @@ export function createFlora(app: App): FloraPart {
       for (const w of warm) { w.geometry.dispose(); w.dispose(); }
       for (const L of looks) L?.geometry.dispose();
       material.dispose();
+      materialNoCut.dispose();
     },
   };
   group.userData.flora = part; // debug/profiling: scene.getObjectByName('flora').userData.flora
