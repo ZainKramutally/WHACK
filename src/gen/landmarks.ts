@@ -79,7 +79,7 @@ export function createLandmarks(terrain: Terrain, opts: LandmarkOpts): LandmarkS
 
   const plainHeight = (x: number, z: number, st: TerrainState) => {
     const pr = st.progress;
-    return heightCore(plainP, st.rise, st.heatSolvent, pr.M2 ?? 0, pr.M3 ?? 0, pr.M4 ?? 0, pr.M5 ?? 0, pr.M6 ?? 0, x, z);
+    return heightCore(plainP, st.rise, st.heatSolvent, pr.M2 ?? 0, pr.M3 ?? 0, pr.M4 ?? 0, pr.M5 ?? 0, pr.M6 ?? 0, x, z, kit64, pr.M7 ?? 0, pr.M8 ?? 0, pr.M9 ?? 0);
   };
 
   const growth = (lm: Landmark, st: TerrainState) => {
@@ -152,7 +152,7 @@ function place(terrain: Terrain, opts: LandmarkOpts, plainHeight: LandmarkSet['p
   const taken: Circle[] = out.map((l) => ({ x: l.x, z: l.z, r: l.radius + l.span / 2 }));
 
   // sea level and spawn at the end of the build, to bias sites toward what the opening camera sees
-  const full: TerrainState = { rise: 1, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1 }, heatSolvent: 0.5 };
+  const full: TerrainState = { rise: 1, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 }, heatSolvent: 0.5 };
   const sea = seaLevelFromHeights(sampleHeights(terrain, full, 64), Math.min(0.999, Math.max(0.001, opts.seaCover)));
   const spawn = spawnPoint(terrain, full, sea);
 

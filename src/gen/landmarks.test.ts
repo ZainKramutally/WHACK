@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { carbon } from '../worlds/carbon';
+import { silicon } from '../worlds/silicon';
 import { createTerrain, type TerrainState } from './terrain';
 import { biomassAround, biomassFactors, createLandmarks, type LandmarkSet } from './landmarks';
 import { bumpRadius, landmarkPieces, spireRings } from './landmarkMesh';
@@ -246,3 +248,20 @@ for (const [name, world, seeds] of cases) {
   });
 }
 const TWO = Math.PI * 2;
+
+describe('landmark base height includes M7/M8/M9 (real worlds)', () => {
+  for (const [name, w] of [['carbon', carbon], ['silicon', silicon]] as const) {
+    it(`${name}: plainHeight matches the full terrain away from piers`, () => {
+      const t = createTerrain(w.terrain, w.demoSeed);
+      const set = createLandmarks(t, { chemistry: name, seaCover: 0.5 });
+      const st: TerrainState = { rise: 1, progress: { M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1, M8: 1, M9: 1 }, heatSolvent: 0.5 };
+      let checked = 0;
+      for (const l of set.landmarks) {
+        if (t.params.piers.some((p) => Math.hypot(l.x - p.x, l.z - p.z) < p.radius * 2 + 4)) continue;
+        expect(set.plainHeight(l.x, l.z, st)).toBeCloseTo(t.height(l.x, l.z, st), 3);
+        checked++;
+      }
+      expect(checked).toBeGreaterThan(0);
+    });
+  }
+});
