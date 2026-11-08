@@ -309,3 +309,13 @@ export function killFrame(age: number, out: KillFrame): KillFrame {
 export function fleeWobble(t: number, phase: number, amp = 0.22): number {
   return amp * (0.65 * Math.sin(13 * t + phase) + 0.35 * Math.sin(29 * t + 2.3 * phase));
 }
+
+// --- flier ground clearance ----------------------------------------------------------------------------------
+/**
+ * Lowest y0 for a hovering body so its lowest drawn point stays off the terrain. groundMax is the highest ground under
+ * the body's footprint, lowest the drawn body's lowest point relative to y0 (metres, ≤ 0 when it hangs below),
+ * k 0..1 how airborne it is (0 landed: the lowest point just touches the ground; 1 in flight: plus margin).
+ */
+export function hoverFloor(groundMax: number, lowest: number, k: number, margin: number): number {
+  return groundMax - Math.min(0, lowest) + Math.max(0, Math.min(1, k)) * Math.max(0, margin);
+}

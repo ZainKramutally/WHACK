@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hoverFloor } from './motion';
 import {
   EXTRAPOLATE_CAP, IDLE_BL, WALK_EASE, gaitStep, halfStride, slewAngle, turnRateMax, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
   STANCE, swayOffset, swimWave, swimY, SWIM_MARGIN, SWIM_EMBED, swimNeed, nudgeToWater,
@@ -239,5 +240,16 @@ describe('hunting animation', () => {
   });
   it('the flee wobble stays bounded', () => {
     for (let t = 0; t < 3; t += 0.07) expect(Math.abs(fleeWobble(t, 1.3))).toBeLessThanOrEqual(0.22 + 1e-9);
+  });
+});
+
+describe('hoverFloor', () => {
+  it('lifts a hanging body so its lowest point clears the ground, more for bigger bodies', () => {
+    expect(hoverFloor(10, -3, 1, 0.5)).toBeCloseTo(13.5);
+    expect(hoverFloor(10, -30, 1, 5)).toBeGreaterThan(hoverFloor(10, -3, 1, 0.5));
+  });
+  it('landed (k=0) just touches the ground, never sinks', () => {
+    expect(hoverFloor(10, -3, 0, 0.5)).toBeCloseTo(13);
+    expect(hoverFloor(10, 2, 0, 0.5)).toBeCloseTo(10);
   });
 });

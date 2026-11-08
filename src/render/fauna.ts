@@ -36,6 +36,7 @@ import {
 import {
   armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY, swimNeed, nudgeToWater,
   turnRateMax, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse, JAW_OPEN_RAD, type KillFrame,
+  hoverFloor,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
 import { BEAD_HORN, MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
@@ -1288,6 +1289,11 @@ export function createFauna(app: App): FaunaPart {
       const Lw = drawnLength(e.scale, e.g) * fBoost;
       y0 -= Math.min(0.5 * (y0 - ground), 2 * Lw) * Math.min(1, e.atk);
       if (e.coll > 0) y0 = ground + (y0 - ground) * (1 - e.coll * e.coll);
+      // keep the lowest drawn point (wings, legs, bell skirt: the bounding sphere's bottom) above the ground under the footprint
+      const rr = e.layout.radius * s, fk = Math.min(1, (e.alt ?? 0) / (3 * e.scale)), cx = Math.cos(e.h) * rr * 0.8, cz = Math.sin(e.h) * rr * 0.8;
+      let gm = ground;
+      gm = Math.max(gm, fHeight(e.x + cx, e.z + cz), fHeight(e.x - cx, e.z - cz), fHeight(e.x - cz, e.z + cx), fHeight(e.x + cz, e.z - cx));
+      y0 = Math.max(y0, hoverFloor(gm, (e.layout.centreY - e.layout.radius) * s, fk * (1 - e.coll), 0.15 * rr));
     } else if (mode === LOCOMOTION.swim && e.coll > 0) y0 = Math.max(ground, y0 - e.coll * 0.5 * drawnLength(e.scale, e.g) * fBoost); // killed: sinks
     const tA = e.beached ? e.beachT : ft; // a beached swimmer's pose time: its stroke stops
 
