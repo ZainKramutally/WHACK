@@ -5,6 +5,8 @@ import { LOOK_PALETTES } from '../palette';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_META } from './index';
 import { TINTS, TRAITS, heightRank, heightSample, makeEnv, mineralAt, plantEnv, traitTint, traited, worldEnv, type CellEnv } from './traits';
+import { worldFor } from '../../worlds';
+import { floraPigment } from '../crustLook';
 import { varyPlant } from './vary';
 import { lookW } from './instance';
 
@@ -104,7 +106,7 @@ describe('plant traits (traits.ts, flora-traits.md §1)', () => {
     expect(env({}, { y: -1 }).wet).toBe(1);
     expect(env({}, { y: 10 }).wet).toBe(0);
     expect(env({ frozen: true }, { y: -1 }).wet).toBe(0);
-    expect([mineralAt(true, 0.2), mineralAt(true, 0.8), mineralAt(false, 0.2), mineralAt(false, 0.6), mineralAt(false, 0.9)]).toEqual(['basalt', 'granite', 'silicide', 'nitride', 'ice']);
+    expect([mineralAt(true, 0.2), mineralAt(true, 0.8), mineralAt(false, 0.2), mineralAt(false, 0.6), mineralAt(false, 0.9)]).toEqual(['basalt', 'granite', 'silicide', 'nitride', 'waterIce']);
     const sorted = heightSample((x) => x, 400);
     expect(heightRank(sorted, -1000)).toBe(0);
     expect(heightRank(sorted, 1000)).toBe(1);
@@ -114,5 +116,50 @@ describe('plant traits (traits.ts, flora-traits.md §1)', () => {
     for (const t of [...TRAITS, ...TINTS]) expect(t.why.length, t.id).toBeGreaterThan(10);
     const inp: VisualInputs = { ...makeStubVisualInputs(), stats: { temperature: 15, oxygen: 21, co2: 0.04 } };
     expect(worldEnv(inp, makeEnv()).photoresp).toBeCloseTo(1, 5); // Earth's O₂/CO₂ today
+  });
+});
+
+describe('mineral uptake from the crust map (flora-traits.md §3.3)', () => {
+  it('a plant takes its own cell\'s mineral, supply and oxidising from the crust; without crust the height-rank proxy holds', () => {
+    const carbon = worldFor('carbon'), silicon = worldFor('silicon');
+    // a toy crust map: cell → mineral id (place.ts hands plantEnv the crust map's mineral for the plant's cell)
+    const def = (w: typeof carbon, id: string) => w.terrain.crust.minerals.find((m) => m.id === id)!;
+    const cells: Record<number, [typeof carbon, string]> = { 100: [carbon, 'granite'], 101: [carbon, 'basalt'], 102: [carbon, 'ironstone'], 7: [silicon, 'silicide'], 8: [silicon, 'waterIce'] };
+    const at = (cell: number, rank = 0.1, crust = true, si = false, y = 10) =>
+      plantEnv(Object.assign(makeEnv(), { carbon: !si }), 0.6, 0.6, y, 0, rank, 'ground', crust ? def(...cells[cell]) : null); // y 10: dry ground
+    expect([at(100).mineral, at(100).supply, at(100).oxidises]).toEqual(['granite', 0.6, false]);
+    expect([at(101).mineral, at(101).supply, at(101).oxidises]).toEqual(['basalt', 1.4, true]);
+    expect([at(102).mineral, at(102).oxidises]).toEqual(['ironstone', true]);
+    // the crust beats the height rank: a lowland granite cell is granite
+    expect(at(100, 0.05).mineral).toBe('granite');
+    // fallback: no crust → by height rank
+    expect([at(100, 0.1, false).mineral, at(100, 0.9, false).mineral]).toEqual(['basalt', 'granite']);
+    // silicon reads the silicon supply
+    expect([at(7, 0.5, true, true).mineral, at(7, 0.5, true, true).supply]).toEqual(['silicide', 1.6]);
+    expect(at(8, 0.1, true, true).supply).toBe(0);
+    // and the traits follow: granite caps are smaller and its tops purpler than basalt's; ironstone ground can gley
+    expect(traited('crown', 'carbon', at(100), 1)).toBeLessThan(traited('crown', 'carbon', at(101), 1));
+    expect(traitTint('carbon', at(100))[1]).toBeLessThan(traitTint('carbon', at(101))[1]);
+    const wetIron = at(102, 0.1, true, false, -1), wetGranite = at(100, 0.1, true, false, -1);
+    expect(traitTint('carbon', wetIron)[2]).toBeLessThan(traitTint('carbon', wetGranite)[2] * 1.001);
+  });
+
+  it('per-plant tints compose with the crust flora pigment: never cyan, never above 1 after the 0.9 headroom', () => {
+    let checked = 0;
+    for (const r of [0, 0.5, 1]) {
+      const pal = floraPigment(LOOK_PALETTES.carbon, false, r);
+      for (const heatBand of [0, 0.5, 1]) for (const light of [0.2, 1, 3]) for (const y of [-1, 10]) for (const rank of [0.1, 0.9]) {
+        const t = traitTint('carbon', env({ heatBand, light }, { y, rank, role: 'ground' }));
+        for (const k of ['maroon', 'crimson', 'blush', 'bone'] as const) {
+          const c = new Color().setHex(pal[k]);
+          // painted ÷ 0.9 (clamped to 1), drawn × the plant's tint (≤ 1 after its neutral 0.9)
+          const drawn = [c.r, c.g, c.b].map((v, i) => Math.min(1, v / 0.9) * Math.min(1, 0.9 * t[i]));
+          for (const v of drawn) expect(v).toBeLessThanOrEqual(1);
+          const { h, s } = hueOf(drawn[0], drawn[1], drawn[2]);
+          if (s >= 0.12) { expect(h >= 165 && h <= 200, `pigment ${r} ${k} hue ${h.toFixed(0)}`).toBe(false); checked++; }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
   });
 });

@@ -212,7 +212,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     const hr = shapes ? shapes.height[ai] : 1; // drawn height per unit h
     if (topAt === topAt) h = Math.max(0.5, (topAt - y) / Math.max(0.1, hr - 0.03)); // guard a near-flat archetype
     // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
-    plantEnv(tenv, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y, sea, probe.rank(c), role);
+    // its own cell's mineral from the crust map (the same argmax the gates read); the height-rank proxy without crust
+    plantEnv(tenv, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y, sea, probe.rank(c), role, crust ? crust.minerals[mineralIx(c)] : null);
     const v = varyPlant(ai, c, slot, dark, tenv, look);
     if (topAt !== topAt) h = Math.min(h * v.size, ROLE_BAND[role][1]); // T10 (etiolation), never past the role's band
     let tx = 0, tz = 0, sink = 0;

@@ -6,6 +6,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_META, ROLE_BAND, buildFloraLibrary } from './index';
 import { makePlantList, placePlants, type PlantList } from './place';
 import { makeEnv, plantEnv } from './traits';
+import { worldFor } from '../../worlds';
 import { TRAITS, VARY_JND, varyDistance, varyPlant, type PlantVary, type TraitContext } from './vary';
 
 /** A trait context: the cell's biomass and sea, the world's light and heat band. */
@@ -137,6 +138,17 @@ describe('per-plant variation (vary.ts)', () => {
     const m = plantMatrix(l, 0, a, new Matrix4()), sc = new Vector3();
     m.decompose(new Vector3(), new Quaternion(), sc);
     expect(sc.x).toBeCloseTo(s * 1.1, 5); expect(sc.y).toBeCloseTo(s, 5); expect(sc.z).toBeCloseTo(s * 1.1, 5);
+  });
+});
+
+describe('mineral uptake in placement (VisualInputs.terrain.crust)', () => {
+  it('plants read their cell\'s crust mineral: an all-granite patch grows smaller caps and purpler tops than all-basalt', () => {
+    const minerals = worldFor('carbon').terrain.crust.minerals, gi = minerals.findIndex((m) => m.id === 'granite'), bi = minerals.findIndex((m) => m.id === 'basalt');
+    const onRock = (k: number) => inputs(() => [0.6, 1], { terrain: { rise: 1, progress: {}, height: () => 10, patchSize: PATCH, crust: { minerals, weights: () => minerals.map((_, i) => (i === k ? 1 : 0)) } } });
+    const mean = (l: PlantList, f: (i: number) => number) => { let s = 0, n = 0; for (let i = 0; i < l.n; i++) if (ARCHETYPE_META[l.arch[i]].role === 'ground') { s += f(i); n++; } return s / n; };
+    const g = placePlants(onRock(gi), PATCH, { x: 0, z: 0 }, makePlantList()), b = placePlants(onRock(bi), PATCH, { x: 0, z: 0 }, makePlantList());
+    expect(mean(g, (i) => g.wc[i])).toBeLessThan(mean(b, (i) => b.wc[i]));
+    expect(mean(g, (i) => g.tg[i])).toBeLessThan(mean(b, (i) => b.tg[i]));
   });
 });
 

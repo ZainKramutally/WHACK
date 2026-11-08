@@ -17,12 +17,16 @@
 //     T6  teeth      toothed leaf margins in the cold, smooth in the warm (leaf-margin analysis, Wolfe 1979) [sci], carbon
 // Not here: T14 root nodules (needs the optional luma-weighted tint), T9/T15 variants and T12/T13 archetypes (WP-B).
 //
-// Mineral: session/crust's crust weights once that branch is on main; until then the doc's height-rank proxy (§3.1):
-// carbon basalt below rank 0.55, granite above; silicon silicide < 0.4, nitride < 0.8, water ice above.
-import type { VisualInputs } from '../../worlds/types';
+// Mineral: the world's crust map (VisualInputs.terrain.crust; place.ts takes the argmax of the crust weights at the cell
+// centre, as gen/crust.ts crustMap() gives the sim, so a plant's mineral is the ground's), with each mineral's own supply
+// and `oxidises`. Without crust config, the doc's height-rank proxy (§3.1): carbon basalt below rank 0.55, granite above; silicon silicide < 0.4,
+// nitride < 0.8, water ice above.
+import type { MineralDef, VisualInputs } from '../../worlds/types';
 import type { FloraRole } from './index';
 
-export type Mineral = 'basalt' | 'granite' | 'silicide' | 'nitride' | 'ice';
+/** A crust mineral id (worlds' terrain.crust.minerals: basalt, granite, ironstone; silicide, nitride, waterIce). */
+export type Mineral = string;
+
 
 /** Everything a trait reads: the world's live stats, and the plant's own cell and spot. */
 export interface CellEnv {
@@ -42,8 +46,10 @@ export interface CellEnv {
   /** The plant's ground height rank in the patch, 0 (lowest) .. 1 (highest). */
   rank: number;
   mineral: Mineral;
-  /** Mineral supply multiplier of its ground (basalt 1.4, granite 0.6, silicide 1.6, nitride 1, ice 0; crust.md). */
+  /** Mineral supply multiplier of its ground for this world's chemistry (c on carbon, si on silicon; crust config). */
   supply: number;
+  /** Its ground is iron-bearing / oxidising rock (gley on waterlogged ground). */
+  oxidises: boolean;
   /** Root depth blend: how much of its ground the plant shows (ground cover 0.4, mid 0.25, giants 0.15) (§3.3, [art]). */
   depth: number;
 }
@@ -52,7 +58,11 @@ const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 export const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const sat = (x: number) => 1 - Math.exp(-Math.max(0, x));
 
-const SUPPLY: Record<Mineral, number> = { basalt: 1.4, granite: 0.6, silicide: 1.6, nitride: 1, ice: 0 };
+/** Proxy minerals' supply and oxidising (the crust configs' values), for worlds without crust config. */
+const PROXY: Record<string, { supply: number; oxidises: boolean }> = {
+  basalt: { supply: 1.4, oxidises: true }, granite: { supply: 0.6, oxidises: false },
+  silicide: { supply: 1.6, oxidises: true }, nitride: { supply: 1.2, oxidises: false }, waterIce: { supply: 0, oxidises: false },
+};
 const ROOT_DEPTH: Record<FloraRole, number> = { ground: 0.4, mid: 0.25, giant: 0.15 };
 /** Earth's O₂/CO₂ ratio today (21 / 0.04), the photorespiration index's unit. */
 const EARTH_O2_CO2 = 525;
@@ -62,7 +72,7 @@ export function makeEnv(): CellEnv {
   return {
     carbon: true, heatBand: 0.5, light: 1, temperature: 15, nitrogen: 1, oxygen: 21, co2: 0.04, gravity: 1, airDensity: 0.06,
     photoresp: 1, frozen: false, buildProgress: 1, stats: {}, mat: 0, canopy: 0, submerged: false, elevation: 0, wet: 0,
-    rank: 0.5, mineral: 'basalt', supply: 1.4, depth: 0.4,
+    rank: 0.5, mineral: 'basalt', supply: 1.4, oxidises: true, depth: 0.4,
   };
 }
 
@@ -80,14 +90,18 @@ export function worldEnv(inputs: VisualInputs, env: CellEnv): CellEnv {
 
 /** Mineral by height rank (§3.1 proxy until session/crust's crust weights land). */
 export function mineralAt(carbon: boolean, rank: number): Mineral {
-  return carbon ? (rank < 0.55 ? 'basalt' : 'granite') : rank < 0.4 ? 'silicide' : rank < 0.8 ? 'nitride' : 'ice';
+  return carbon ? (rank < 0.55 ? 'basalt' : 'granite') : rank < 0.4 ? 'silicide' : rank < 0.8 ? 'nitride' : 'waterIce';
 }
 
-/** Fill the per-plant fields: its cell's biomass, its ground height `y` against `sea`, its height rank and role. */
-export function plantEnv(env: CellEnv, mat: number, canopy: number, y: number, sea: number, rank: number, role: FloraRole): CellEnv {
+/** Fill the per-plant fields: its cell's biomass, its ground height `y` against `sea`, its height rank and role, and its
+ * cell's crust mineral when the world has a crust map, else the height-rank proxy. */
+export function plantEnv(env: CellEnv, mat: number, canopy: number, y: number, sea: number, rank: number, role: FloraRole, mineral?: Pick<MineralDef, 'id' | 'supply' | 'oxidises'> | null): CellEnv {
   env.mat = mat; env.canopy = canopy; env.submerged = y < sea; env.elevation = y - sea;
   env.wet = env.frozen ? 0 : env.submerged ? 1 : 1 - smooth(0.5, 4, env.elevation);
-  env.rank = rank; env.mineral = mineralAt(env.carbon, rank); env.supply = SUPPLY[env.mineral]; env.depth = ROOT_DEPTH[role];
+  env.rank = rank; env.depth = ROOT_DEPTH[role];
+  const m = mineral;
+  if (m) { env.mineral = m.id; env.supply = env.carbon ? m.supply.c : m.supply.si; env.oxidises = m.oxidises; }
+  else { env.mineral = mineralAt(env.carbon, rank); const p = PROXY[env.mineral]; env.supply = p.supply; env.oxidises = p.oxidises; }
   return env;
 }
 
@@ -124,9 +138,10 @@ export interface Trait {
   map: (x: number) => number;
 }
 const total = (e: CellEnv) => e.mat + e.canopy, wetBool = (e: CellEnv) => (e.submerged ? 1 : 0);
-const granite = (e: CellEnv) => (e.mineral === 'granite' ? 1 : 0);
+/** Poor ground 0..1 (supply below 1: granite 0.6 and ironstone 0.5 are fully poor; basalt none). */
+const poor = (e: CellEnv) => clamp01((1 - e.supply) / 0.4);
 /** Leaf mass per area 0..1 (T7): light, poor ground (by root depth) and high CO₂ thicken leaves. Default carbon ≈ 0.44. */
-export const lma = (e: CellEnv) => 0.4 * sat(e.light) + 0.3 * granite(e) * (e.depth / 0.4) + 0.3 * smooth(0.04, 0.4, e.co2);
+export const lma = (e: CellEnv) => 0.4 * sat(e.light) + 0.3 * poor(e) * (e.depth / 0.4) + 0.3 * smooth(0.04, 0.4, e.co2);
 const LMA_DEFAULT = 0.44;
 
 export const TRAITS: readonly Trait[] = [
@@ -136,7 +151,7 @@ export const TRAITS: readonly Trait[] = [
   { id: 'T5cold', why: 'Cold nights keep leaves and caps small.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => 1 - smooth(0.1, 0.25, e.heatBand), map: (x) => 1 - 0.3 * x },
   { id: 'T5warmWet', why: 'Warm, wet ground grows the biggest leaves and caps.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.4, 0.55, e.heatBand) * (1 - smooth(0.8, 0.95, e.heatBand)) * smooth(0.3, 0.6, e.wet), map: (x) => 1 + 0.3 * x },
   { id: 'T5hotDryBright', why: 'Hot, dry, bright ground keeps leaves small so they don\'t overheat.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => smooth(0.8, 0.95, e.heatBand) * (1 - e.wet) * smooth(1, 1.5, e.light), map: (x) => 1 - 0.25 * x },
-  { id: 'T4supply', why: 'Fertile basalt grows bigger caps than poor granite.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => (e.supply - 1) * e.depth, map: (x) => 1 + (x >= 0 ? 0.25 : 0.375) * x },
+  { id: 'T4supply', why: 'Fertile ground (basalt) grows bigger caps than poor ground (granite, ironstone).', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => (e.supply - 1) * e.depth, map: (x) => 1 + (x >= 0 ? 0.25 : 0.375) * x },
   { id: 'T7stiffDroop', why: 'Thick, stiff leaves (bright light, poor ground, high CO₂) hold their caps up; thin ones droop.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.2, 1 + 1.2 * (LMA_DEFAULT - x)) },
   { id: 'T7stiffBend', why: 'Thick, stiff leaves bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.3, 1 + 0.8 * (LMA_DEFAULT - x)) },
   // T6 leaf-margin analysis: the share of smooth-margined species = (T − 1.14) / 0.306 % (Wing & Greenwood 1993;
@@ -189,10 +204,10 @@ const same = (c: Readonly<Rgb>) => () => c;
 export const TINTS: readonly TintTrait[] = [
   { id: 'T1anthocyanin', why: 'Cold, strong light, too little nitrogen, poor ground or drought flush pale tops toward crimson.', chem: 'carbon', scope: 'cell',
     weight: (e) => 0.35 * clamp01(Math.max(1 - smooth(0.15, 0.3, e.heatBand), smooth(1.5, 2.5, e.light), 1 - smooth(0.3, 0.5, e.nitrogen),
-      smooth(0.6, 0.8, e.rank) * smooth(0.6, 0.8, e.heatBand)) + 0.3 * granite(e) * (e.depth / 0.4)), mul: same(CRIMSON) },
+      smooth(0.6, 0.8, e.rank) * smooth(0.6, 0.8, e.heatBand)) + 0.3 * poor(e) * (e.depth / 0.4)), mul: same(CRIMSON) },
   { id: 'T2carotenoid', why: 'Very bright light raises protective carotenoids: tops warm toward apricot.', chem: 'carbon', scope: 'world', weight: (e) => 0.25 * smooth(1, 3, e.light), mul: same(APRICOT) },
   { id: 'T3shade', why: 'Under a dim star, tissue packs more pigment and reads darker.', scope: 'world', weight: (e) => clamp01(1 - e.light / 0.4), mul: same(SHADE) },
-  { id: 'T4gley', why: 'Waterlogged iron-bearing ground releases iron that bronzes the tips.', chem: 'carbon', scope: 'cell', weight: (e) => 0.5 * e.wet * (e.mineral === 'basalt' ? 1 : 0) * (e.depth / 0.4), mul: same(BRONZE) },
+  { id: 'T4gley', why: 'Waterlogged iron-bearing ground releases iron that bronzes the tips.', chem: 'carbon', scope: 'cell', weight: (e) => 0.5 * e.wet * (e.oxidises ? 1 : 0) * (e.depth / 0.4), mul: same(BRONZE) },
   { id: 'T8paleCoat', why: 'Hairs or wax pale the tops in hot, dry, bright spots and on cold, bright heights.', chem: 'carbon', scope: 'cell',
     weight: (e) => Math.max(smooth(0.6, 0.8, e.heatBand) * (1 - smooth(0.1, 0.3, e.wet)) * smooth(1, 1.5, e.light),
       (1 - smooth(0.2, 0.3, e.heatBand)) * smooth(0.6, 0.8, e.rank) * smooth(1, 1.5, e.light)), mul: same(COAT) },

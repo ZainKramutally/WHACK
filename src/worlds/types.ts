@@ -224,7 +224,7 @@ export interface VisualInputs {
     rise: number; progress: Record<string, number>; height: (x: number, z: number) => number; /** metres; lets the art layer map flora cells to world positions */ patchSize?: number;
     /** The crust map (gen/crust.ts): mineral weights at (x, z) in `minerals` (config) order, sum 1. Absent on a world without
      *  terrain.crust or on flat ground; the art layer then falls back to its height-rank proxy. Read-only. */
-    crust?: { minerals: readonly Pick<MineralDef, 'id' | 'supply'>[]; weights: (x: number, z: number) => number[] };
+    crust?: { minerals: readonly Pick<MineralDef, 'id' | 'supply' | 'oxidises'>[]; weights: (x: number, z: number) => number[] };
     /** The same weights as crust.weights, as a bare sampler (used by crustLook's local haze). Optional: absent on stubs and flat terrains. */
     crustWeights?: (x: number, z: number) => number[];
   };
