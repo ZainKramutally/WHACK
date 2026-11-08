@@ -1,6 +1,6 @@
 # Demo Script: Life Is ▢ Based
 
-The 3-minute talk track for the 20 s build (issue #29). It uses only what works on `main` at `85d55b6` (plus the fixes on `fix/open-issues`), checked against the code and, for the life on the demo seeds, against headless runs of the simulation. Nothing here was run in a browser, because of the 2026-11-08 no-browser-tests ruling, so do the **rehearsal checks** below in your own browser before the first run-through.
+The 3-minute talk track for the 20 s build (issue #29). It uses only what works on `main` at `9917a84` (plus the fixes on `fix/open-issues`), checked against the code and, for the life on the demo seeds, against headless runs of the simulation. Nothing here was run in a browser, because of the 2026-11-08 no-browser-tests ruling, so do the **rehearsal checks** below in your own browser before the first run-through.
 
 The story turns on one idea: carbon is the familiar world, and silicon is the door nobody has walked through. The judge watches a world build itself and then breaks its own physics on purpose.
 
@@ -25,7 +25,7 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 
 ### Explore (0:40–1:10): click a creature
 
-**Do:** walk up to a creature and click it (a click without dragging). On carbon almost all the animals swim in the shallows, and skitters walk the shore. Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design.
+**Do:** walk up to a creature and click it (a click without dragging). On carbon about half the animals swim in the shallows and half walk the shore. Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design.
 
 **Judges see:** the inspect card. It describes the body plan in words, its role, size and generation. It has a slowly turning live 3D view, and a comparison table with the columns **This world**, **A silicon world (at start)** and **Earth**. If the animal belongs to a named species, a caption *New entry: (name)* files it in the Bestiary. If not, the card says *Form: (not yet a recognised species)*, so click another.
 
@@ -85,7 +85,8 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 ## Known fragile points
 
 - **Red walls (#39, #47): don't drag Temperature into one.** After carbon's 122 °C wall, life takes about 60 s to climb back to a few hundred animals. On silicon the world looks dead for over a minute. If a judge does it, say "That's the edge: no known organism grows above 122 °C. Life dies there and comes back from spores", then move to the next beat or switch tabs.
-- **No hunters (#48).** Don't say "predators" or "predator–prey cycles". A headless run of the demo seeds on `85d55b6` found 0 hunters on carbon (all 1,024 animals grazers) and at most 1 on silicon. The honesty box in `CLAUDE.md` still claims hunters cycle. If asked: hunting doesn't pay yet in our ecology, so no stable hunter tier evolves within a demo. It's a known issue.
+- **Few hunters (#48).** Since `9e97732` hunters establish, but only a handful. A headless run of the demo seeds on `9917a84` found 3 hunters on carbon at the end of the build (8 by +20 s) and 1–2 on silicon. Don't promise predator–prey cycles, and don't point at a hunter you haven't found in rehearsal. If asked: "a few hunters evolve within minutes; more on some seeds".
+- **Silicon population (`9917a84`).** The silicon demo seed holds about 800 animals at the end of the build (753 by +20 s), under the 1,000 the demo guardrail asks for. It still looks busy, but don't quote "a thousand" on silicon.
 - **Generate transition (#40, #58).** The three.js "mitosis tide" is live. A flat red ring could show beyond the patch edge during the reveal. The fix is `2e2bf03` on `fix/open-issues`, so check by eye that it's gone.
 - **Silicon creatures (#50).** They may be low contrast, so the silicon path doesn't click any creatures. (The Roller card text is fixed.)
 - **fps after the art layer (#50).** Its last status reported about 9 fps lost on carbon. Re-check fps once it lands on `main`.
@@ -110,6 +111,6 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 
 | Issue | Change |
 |---|---|
-| #48 hunters | If hunters evolve, add one line on predators. If not, fix the `CLAUDE.md` honesty box |
-| #54, #76 species | If 4–5 species are visible at spawn, or the names change, update the 9–20 s row and the explore beat. Today the demo seed gives 3 species by the end of the build on carbon (an eel and two skitters) and 2 on silicon (a tripod and a roller) |
+| #48 hunters | If hunters become common at spawn, add one line pointing at a predator |
+| #54, #76 species | If 4–5 species are visible at spawn, or the names change, update the 9–20 s row and the explore beat. On `9917a84` the demo seed gives 2 species by the end of the build on carbon (an eel and a skitter, a walker by 40 s) and 4 on silicon (two rollers and two tripods) |
 | #39, #47 recovery | If wall-and-back recovers within about 20 s, the red wall can become a deliberate beat |

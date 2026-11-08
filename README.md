@@ -117,7 +117,7 @@ Some traits have modelled trade-offs: plates and horns add defense and mass, sil
 - **Tuning choices, declared:** raised mutation; a compressed pace of chemistry (and silicon's lowered activation energy) so evolution is visible in a demo; a longer base lifespan; silicon plants that saturate at 1% sunlight; the 20-second fast-forward of about 340 ecology-seconds; hunger as plant scarcity; grazing that takes only a share; consumer interference; and a spore bank that lets life regrow after a crash.
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow without oxygen, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
 - **Illustration only:** the particle box, the live view in inspect cards, sky and fog, plant shapes (the simulation has only per-cell biomass), IK feet, the player's suit, and creature display size (a ~64× real size range is drawn as ~25×).
-- **Not there yet:** hunting doesn't pay enough in our ecology for a stable hunter tier to evolve within a demo, so the worlds are grazers and a few omnivores.
+- **Hunters are still rare:** a hunt is worth the prey it yields, so hunters do evolve, but only a handful within a demo (on the demo seeds, about 3–8 on carbon and 1–2 on silicon in the first minute). The worlds are mostly grazers with some omnivores, and big predator–prey cycles take longer than a demo.
 
 ## Sources
 

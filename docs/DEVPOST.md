@@ -16,7 +16,7 @@ Earth's crust is about 28% silicon and 0.02% carbon, yet every living thing is a
 
 You complete the sentence "Life is ▢ based" by picking an element from group 14 of the periodic table, and set a young planet's temperature, nitrogen and oxygen. A small particle box shows the chemistry live: carbon chains linking in water, or silicon rusting into grey rock the moment there's free oxygen. The carbon and silicon cells tell you whether life could survive your settings, and why not.
 
-Click **Generate** and the box's particles multiply into the ground of a new world. In about 20 seconds terrain rises, seas fill, the air settles, and life grows from a couple of dozen tiny worms into a thousand evolving animals that grow legs and find new ways of moving, all while you walk around it in third person. Then the world keeps living: the ecology keeps evolving, and life keeps changing the air and seas.
+Click **Generate** and the box's particles multiply into the ground of a new world. In about 20 seconds terrain rises, seas fill, the air settles, and life grows from a couple of dozen tiny worms into up to a thousand evolving animals that grow legs and find new ways of moving, all while you walk around it in third person. Then the world keeps living: the ecology keeps evolving, and life keeps changing the air and seas.
 
 - **Carbon** is life as we know it, in water.
 - **Silicon** is our best-reasoned speculation: a world at about −183 °C with liquid-nitrogen seas and thick nitrogen air (about 3.6 bar, set by the seas' vapour pressure, like Titan). Its bodies are built differently: radial, faceted crystal hubs instead of head-to-tail bodies.
@@ -54,7 +54,7 @@ Disciplined speculation is harder and more interesting than free invention: each
 ## What's next
 
 - Germanium, the next element down ("bonds even weaker than silicon's").
-- Predators: hunting doesn't yet pay enough in our ecology for a stable hunter tier to evolve within a demo.
+- More predators: hunters now evolve, but only a handful within a demo; we want stable predator–prey cycles and a rare, solitary apex hunter.
 - Sound that changes with each world's air and solvent.
 - Re-reading the last few unverified figures (listed in `research/sources-verified.md`).
 
