@@ -83,7 +83,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   interface Grain { u: number; v: number; h: number; cur: number[][] | null }
   const grains: Grain[] = Array.from({ length: BED_COLS * BED_ROWS }, () => ({ u: rnd(), v: Math.floor(rnd() * GRAIN_SPRITES.length), h: rnd(), cur: null }));
   const hexRgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  const rgbHex = (c: number[]) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+  const rgbHex = (c: number[]) => (0xff000000 | (Math.round(c[2]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[0])) >>> 0;
   /** Which bed entry owns draw value u, by cumulative share in the order given. */
   function pickBed(st: BoxState, u: number) {
     let acc = 0;
@@ -261,7 +261,24 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   }
 
   const px = (v: number) => Math.round(v * K);
-  const dot = (x: number, y: number, col: string, w = 1, h = 1) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+  // One frame buffer, written through a Uint32Array and put on the canvas once per frame. Colours pack to ABGR ints
+  // (little-endian RGBA) once per distinct string; the bed passes ints directly.
+  const img = ctx.createImageData(LO, LO), buf = new Uint32Array(img.data.buffer);
+  const packed = new Map<string, number>();
+  const pack = (col: string) => {
+    let v = packed.get(col);
+    if (v === undefined) {
+      const m = col.startsWith('#') ? [1, 3, 5].map((i) => parseInt(col.slice(i, i + 2), 16)) : col.match(/\d+/g)!.map(Number);
+      v = (0xff000000 | (m[2] << 16) | (m[1] << 8) | m[0]) >>> 0;
+      packed.set(col, v);
+    }
+    return v;
+  };
+  const dot = (x: number, y: number, col: string | number, w = 1, h = 1) => {
+    const c = typeof col === 'number' ? col : pack(col);
+    const x1 = Math.min(LO, x + w), y1 = Math.min(LO, y + h);
+    for (let yy = Math.max(0, y); yy < y1; yy++) for (let xx = Math.max(0, x); xx < x1; xx++) buf[yy * LO + xx] = c;
+  };
   function sprite(cx: number, cy: number, rows: string[], cols: Record<string, string>) {
     const h = rows.length, w = rows[0].length, ox = cx - (w >> 1), oy = cy - (h >> 1);
     for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) { const k = rows[r][c]; if (k !== '.') dot(ox + c, oy + r, cols[k]); }
@@ -353,6 +370,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       lastDt = dt;
       const yPool = step(st, dt, world.solvent.solidSinks);
       draw(st, yPool, now, world);
+      ctx.putImageData(img, 0, 0);
       return st;
     },
     seeds: () => [...atoms, ...solvent].map((p) => ({ x: p.x / S, y: p.y / S })),
