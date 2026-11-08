@@ -45,6 +45,11 @@ import { RING_STRIDE, circleSection, gridIndex, ngonSection, setRing, writeRings
 import { PartBatch, partBatches } from './faunaLib/parts';
 import { SpeciesBook, rememberLook, type SpeciesLook } from './faunaLib/species';
 import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
+import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
+import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
+import { advance } from './faunaLib/aquatic/motion';
+import type { Path, V3 } from './faunaLib/aquatic/v3';
+import type { LookKey } from './palette';
 
 const len2 = (x: number, y: number) => Math.sqrt(x * x + y * y);
 const len3 = (x: number, y: number, z: number) => Math.sqrt(x * x + y * y + z * z);
@@ -66,6 +71,9 @@ const RIM_SI = 0.45;              // silicon's pale fresnel rim on violet bodies
 const RIM_BELL = 0.5;             // gas bells read translucent at grazing angles
 const GENE0 = geneField('size');  // the 12 body genes, then comp c and si: the field guide's clustering space
 const PENDING_SNAPS = 20;         // a birth plan waits this many snapshots for its organism to show up
+const SWIM_MAX = 12;              // lofted swimmers posed as aquatic bodies per frame (a pose costs ~0.1 ms); the rest keep the bead loft
+// Stroke frequency range by motion kind (aquatic-life.md §6.5): idle floor so a resting swimmer still breathes its fins.
+const SWIM_F: Record<'wave' | 'row' | 'jet', [number, number]> = { wave: [0.3, 4], row: [0.3, 2.2], jet: [0.3, 1.4] };
 const D15 = Math.PI / 12;
 // Loft caps: positions along the end tangent (× cap length) and radius factors. Tail tip first; head base first.
 const TAIL_F = [1.0, 0.82, 0.45], TAIL_K = [0.06, 0.6, 0.9];
@@ -87,6 +95,9 @@ interface Entry {
   alt?: number; // physical altitude (m), eased toward the snapshot value so a climb never pops
   /** Drawn length as a fraction of adult (faunaLib/growth: grown^(1/3), floored), eased so growth never pops. */
   g: number;
+  /** Aquatic body (faunaLib/aquatic, built once at adult drawn length when it first swims near), the stroke phase
+   *  integrated from its sim speed (cycles), and its sociality gene (school size, swimmerParamsFromPlan). */
+  sw: Swimmer | null; swTried: boolean; swPhase: number; soc: number;
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -259,7 +270,7 @@ class LoftBatch {
   mesh: THREE.Mesh; pos: Float32Array; nor: Float32Array; col: Float32Array; glow: Float32Array;
   n = 0; readonly per: number; readonly perIdx: number;
   private attrs: THREE.BufferAttribute[];
-  constructor(readonly rings: number, readonly sides: number, readonly slots: number, mat: THREE.Material) {
+  constructor(readonly rings: number, readonly sides: number, readonly slots: number, mat: THREE.Material, readonly reserve = 1) {
     this.per = rings * sides; this.perIdx = (rings - 1) * sides * 6;
     const nv = this.per * slots;
     this.pos = new Float32Array(nv * 3); this.nor = new Float32Array(nv * 3); this.col = new Float32Array(nv * 3); this.glow = new Float32Array(nv);
@@ -305,12 +316,16 @@ export function createFauna(app: App): FaunaPart {
   const GLOWS = MESHES.map((m) => withGlow(m, (m.instanceMatrix.array as Float32Array).length / 16));
   const BONES = MESHES.length - 1, HEX = BONES - 1; // indexes of the bone and hex-prism meshes in MESHES
 
-  // Near: lofts (carbon bodies, carbon gas bells, silicon hubs) and the shared part batches.
-  // One spare slot each beyond LOFT_MAX, written only by bake() (never drawn: flush() draws the first n slots).
-  const axLoft = new LoftBatch(AX_RINGS, AX_SIDES, LOFT_MAX + 1, loftC);
-  const bellLoft = new LoftBatch(BELL_RINGS, BELL_SIDES, LOFT_MAX + 1, loftBell);
-  const hubLoft = new LoftBatch(RAD_RINGS, RAD_SIDES, LOFT_MAX + 1, loftSi);
-  let loftCap = LOFT_MAX; // LOFT_MAX + 1 while baking
+  // Near: lofts (carbon bodies and swimmers' fin strips, carbon gas bells, silicon hubs and glass bells) and the shared
+  // part batches. Swimmers use several slots (body, whip, dorsal and ventral fins; up to 6 bells), so the axial and hub
+  // batches have room for SWIM_MAX of them. The last `reserve` slots of each are written only by bake() (never drawn:
+  // flush() draws the first n slots).
+  const axLoft = new LoftBatch(AX_RINGS, AX_SIDES, LOFT_MAX + 3 * SWIM_MAX + 4, loftC, 4);
+  const bellLoft = new LoftBatch(BELL_RINGS, BELL_SIDES, LOFT_MAX + 1, loftBell, 1);
+  const hubLoft = new LoftBatch(RAD_RINGS, RAD_SIDES, LOFT_MAX + 5 * SWIM_MAX + 6, loftSi, 6);
+  let baking = false;
+  /** A free slot for a near-LOD loft (bake() may also use the reserve). */
+  const room = (b: LoftBatch) => b.n < b.slots - (baking ? 0 : b.reserve);
   const LOFTS = [axLoft, bellLoft, hubLoft];
   const parts: PartBatch[] = partBatches((t) => (t.endsWith('Si') ? partSi : matC), PART_CAPS, PART_CAP);
   app.scene.add(...MESHES, ...LOFTS.map((l) => l.mesh), ...parts.map((p) => p.mesh));
@@ -354,6 +369,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -600,7 +616,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   function drawAxialNear(e: Entry, d: AxialDesc, t: number, mode: number): boolean {
-    if (axLoft.n >= loftCap) return false;
+    if (!room(axLoft)) return false;
     const beads = scratch, sh = e.shape;
     // ---- loft rings through the posed spine, tail cap → head dome ----------------------------------------------
     const sp = d.spine, ns = sp.length;
@@ -677,7 +693,7 @@ export function createFauna(app: App): FaunaPart {
     }
 
     // ---- floaters: a breathing gas bell over the body, tendrils trailing with lag, fronds at the tips ----------
-    if (mode === LOCOMOTION.hover && bellLoft.n < loftCap) {
+    if (mode === LOCOMOTION.hover && room(bellLoft)) {
       e.bell = true;
       const ob = d.bell.over * 5;
       toW(beads[ob], beads[ob + 1] + beads[ob + 3] * 0.55, beads[ob + 2]);
@@ -747,7 +763,7 @@ export function createFauna(app: App): FaunaPart {
   const slotOfRod = (e: Entry, i: number) => (e.rodTone[i] === 5 ? SLOT.accent : SLOT.body);
 
   function drawRadialNear(e: Entry, d: RadialDesc, t: number, mode: number): boolean {
-    if (hubLoft.n >= loftCap) return false;
+    if (!room(hubLoft)) return false;
     const R = e.layout.radial!, rods = rodScratch, eyes = scratch;
     // ---- hub loft: stepped tiers up the (possibly rolled) hub axis, a rounded n-gon cross-section ---------------
     const o0 = 0, oT = (R.nTiers - 1) * ROD_STRIDE;
@@ -817,6 +833,125 @@ export function createFauna(app: App): FaunaPart {
     return true;
   }
 
+  // ---- swimmers (mode = swim): aquatic bodies (faunaLib/aquatic, aquatic-life.md) in the same loft and part batches --
+  // The swimmer is posed in body space (metres at its adult drawn length, +x forward, head forward of the centre) on a
+  // straight path, then carried to the world like the rest of the near LOD: heading, position, and SW_S (growth × fade).
+  // Its stroke phase is integrated from the sim's speed (swPhase), so the body never treadmills; the wave runs nose → tail.
+  let SW_S = 1;
+  const D = new Float32Array(3);
+  /** Body-space point → world, into W (the swimmer's scale). */
+  const swW = (x: number, y: number, z: number) => {
+    W[0] = EX + (x * CH - z * SH) * SW_S; W[1] = EY + y * SW_S; W[2] = EZ + (x * SH + z * CH) * SW_S;
+  };
+  /** Body-space direction → world (rotation only), into D. */
+  const swD = (x: number, y: number, z: number) => { D[0] = x * CH - z * SH; D[1] = y; D[2] = x * SH + z * CH; };
+
+  /** The creature's aquatic body, built once at its adult drawn length the first time it swims near (null if it can't be). */
+  function swimmerOf(e: Entry): Swimmer | null {
+    if (e.sw || e.swTried || !e.plan) return e.sw;
+    e.swTried = true;
+    try {
+      const params = swimmerParamsFromPlan(e.plan, { sociality: e.soc });
+      params.length = drawnLength(e.scale, 1); // the display-size rule, as for walkers (aquatic-life.md §6.3)
+      e.sw = buildSwimmer(params, e.id);
+    } catch { e.sw = null; }
+    return e.sw;
+  }
+
+  /** Swimmer palette role → this creature's fauna slot: its species body and accent, ink/bone eyes, the glow. */
+  function slotOfRole(sw: Swimmer, k: LookKey): number {
+    if (k === 'glow' || k === 'glowDeep') return SLOT.glow;
+    if (k === sw.params.colour.accent) return SLOT.accent;
+    if (k === 'ink') return SLOT.eye;
+    if (k === 'bone') return SLOT.bone;
+    return SLOT.body;
+  }
+
+  /** Write one swimmer tube or fin strip (rings in body space, resampled to the batch's ring count) as a loft slot. */
+  function swimLoft(L: LoftBatch, sec: Section, n: number, ring: (j: number, k: number) => void): void {
+    const nr = Math.min(n, L.rings);
+    for (let k = 0; k < nr; k++) ring(nr === n ? k : Math.round((k * (n - 1)) / (nr - 1)), k);
+    writeRings(ringBuf, nr, L.rings, sec, L.pos, L.nor, L.col, L.glow, L.n * L.per, ENT.slotRgb, ENT.slotGlow);
+    L.n++;
+  }
+
+  const SINK: SwimSink = {
+    tube(i, c, U, R, rw, rh, top = 1) {
+      void R;
+      const sw = ENT.sw!, spec = sw.tubes[i];
+      const L = spec.flat ? hubLoft : axLoft; // silicon tubes are faceted hubs and bells; carbon tubes are round bodies
+      if (!room(L)) return;
+      const slot = slotOfRole(sw, spec.colour), n = c.length;
+      swimLoft(L, spec.flat ? hubSection(spec.sides) : AX_SEC, n, (j, k) => {
+        // a flat back over a deep belly (top < 1): the ring spans −rh … +rh·top, so its centre rises by rh·(top − 1)/2
+        const off = (rh[j] * (top - 1)) / 2;
+        swW(c[j][0] + U[j][0] * off, c[j][1] + U[j][1] * off, c[j][2] + U[j][2] * off);
+        const cx = W[0], cy = W[1], cz = W[2];
+        const jp = Math.max(0, j - 1), jn = Math.min(n - 1, j + 1);
+        swD(c[jn][0] - c[jp][0], c[jn][1] - c[jp][1], c[jn][2] - c[jp][2]);
+        const tx = D[0], ty = D[1], tz = D[2];
+        swD(U[j][0], U[j][1], U[j][2]);
+        setRing(ringBuf, k, cx, cy, cz, tx, ty, tz, D[0], D[1], D[2], rw[j] * SW_S, (rh[j] * (1 + top) * SW_S) / 2, slot);
+      });
+    },
+    sheet(i, a, b) {
+      // a fin membrane as a thin lofted strip: one flat ellipse per column, from its base line to its tip line
+      if (!room(axLoft)) return;
+      const sw = ENT.sw!, slot = slotOfRole(sw, sw.sheets[i].colour), n = a.length;
+      swimLoft(axLoft, AX_SEC, n, (j, k) => {
+        const hx = b[j][0] - a[j][0], hy = b[j][1] - a[j][1], hz = b[j][2] - a[j][2], h = len3(hx, hy, hz);
+        swW((a[j][0] + b[j][0]) / 2, (a[j][1] + b[j][1]) / 2, (a[j][2] + b[j][2]) / 2);
+        const cx = W[0], cy = W[1], cz = W[2];
+        const jp = Math.max(0, j - 1), jn = Math.min(n - 1, j + 1);
+        swD(a[jn][0] - a[jp][0], a[jn][1] - a[jp][1], a[jn][2] - a[jp][2]);
+        const tx = D[0], ty = D[1], tz = D[2];
+        swD(hx, hy, hz);
+        setRing(ringBuf, k, cx, cy, cz, tx, ty, tz, D[0], D[1], D[2], Math.max(0.004, 0.035 * h) * SW_S, (h / 2) * SW_S, slot);
+      });
+    },
+    part(type: SwimPart, o: V3, x: V3, y: V3, z: V3, ca: LookKey, _cb: LookKey, glow: number) {
+      const sw = ENT.sw!, slot = slotOfRole(sw, ca), c = slot * 3, rgb = ENT.slotRgb;
+      let P: number = PART.knob, ox = o[0], oy = o[1], oz = o[2], X = x, Y = y, Z = z;
+      switch (type) {
+        case 'eye': case 'dot': P = ENT.silicon ? PART.knobSi : PART.knob; break;
+        case 'rod': P = PART.rodC; break;
+        case 'rodSi': P = PART.rodSi; break;
+        case 'plate': P = PART.plateC; break;
+        case 'ring': P = PART.ring; break;
+        case 'crystal': P = PART.hornSi; ox -= y[0] / 2; oy -= y[1] / 2; oz -= y[2] / 2; break; // a spike centred on o
+        case 'blade': case 'bladeSi': {
+          // a leaf from o along y (length) with chord x and thickness z → the plate disc centred mid-blade, its lathe axis
+          // across the blade (columns stay right-handed: x × z = −y)
+          P = type === 'blade' ? PART.plateC : PART.plateSi;
+          ox += y[0] / 2; oy += y[1] / 2; oz += y[2] / 2;
+          X = [x[0] / 2, x[1] / 2, x[2] / 2]; Y = z; Z = [-y[0] / 2, -y[1] / 2, -y[2] / 2];
+          break;
+        }
+      }
+      swW(ox, oy, oz);
+      const px = W[0], py = W[1], pz = W[2];
+      swD(X[0], X[1], X[2]); const x0 = D[0] * SW_S, x1 = D[1] * SW_S, x2 = D[2] * SW_S;
+      swD(Y[0], Y[1], Y[2]); const y0 = D[0] * SW_S, y1 = D[1] * SW_S, y2 = D[2] * SW_S;
+      swD(Z[0], Z[1], Z[2]);
+      parts[P].push(px, py, pz, x0, x1, x2, y0, y1, y2, D[0] * SW_S, D[1] * SW_S, D[2] * SW_S, rgb[c], rgb[c + 1], rgb[c + 2], glow);
+    },
+  };
+
+  /** Pose the creature's swimmer at its integrated stroke phase into the near batches. True when its body was drawn. */
+  function drawSwimmerNear(e: Entry, sw: Swimmer): boolean {
+    const kin = sw.kin;
+    const bells = sw.params.plan === 'bell' ? sw.params.radial.chain : 1;
+    const tau = e.swPhase / kin.freq; // the pose's time: its stroke phase is the integrated phase
+    // the head starts the path at 0 (s0 cancels the pose's own advance); the body centres on the animal's position
+    const inst = { s0: -advance(kin, tau, 0, bells), phase: 0, off: [0, 0] as [number, number], k: 0 };
+    const headX = sw.params.chemistry === 'carbon' ? 0.5 * sw.L
+      : sw.params.plan === 'bell' ? 0.5 * ((bells > 1 ? 0.55 : 0) + 1.08 * bells) * sw.L : 0;
+    const path: Path = { length: Infinity, at: (sv) => ({ p: [sv + headX, 0, 0], t: [1, 0, 0] }) };
+    const nAx = axLoft.n, nHub = hubLoft.n;
+    sw.pose(tau, path, inst, SINK);
+    return axLoft.n > nAx || hubLoft.n > nHub;
+  }
+
   /**
    * The inspect live view's copy of a creature: run the same near-LOD emitters once, at rest pose (speed 0, t 0, flat
    * ground, heading 0, scale 1), into the batches' spare slots and the parts' free tail, copy that out, then put the
@@ -830,21 +965,24 @@ export function createFauna(app: App): FaunaPart {
     const L0 = LOFTS.map((l) => l.n), P0 = parts.map((b) => b.n);
     const speed = e.speed, flat0 = () => 0;
     e.speed = 0;
-    loftCap = LOFT_MAX + 1;
-    for (const l of LOFTS) l.n = Math.min(l.n, LOFT_MAX); // the spare slot
+    baking = true;
+    for (const l of LOFTS) l.n = Math.min(l.n, l.slots - l.reserve); // write into the reserve
     const L1 = LOFTS.map((l) => l.n);
     let ok = false;
     try {
       S = 1; EX = 0; EY = 0; EZ = 0; CH = 1; SH = 0; ENT = e;
-      if (e.desc.kind === 'radial') { animateRadial(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawRadialNear(e, e.desc, 0, e.mode); }
+      const sw = e.mode === LOCOMOTION.swim ? swimmerOf(e) : null;
+      if (sw) { SW_S = 1; ok = drawSwimmerNear(e, sw); }
+      else if (e.desc.kind === 'radial') { animateRadial(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawRadialNear(e, e.desc, 0, e.mode); }
       else { animate(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawAxialNear(e, e.desc, 0, e.mode); }
     } catch { ok = false; }
     const out: BakedCreature = { lofts: [], parts: [] };
     if (ok) {
       LOFTS.forEach((l, i) => {
-        if (l.n <= L1[i]) return;
-        const v0 = L1[i] * l.per, v1 = v0 + l.per;
-        out.lofts.push({ pos: l.pos.slice(v0 * 3, v1 * 3), nor: l.nor.slice(v0 * 3, v1 * 3), col: l.col.slice(v0 * 3, v1 * 3), rings: l.rings, sides: l.sides });
+        for (let slot = L1[i]; slot < l.n; slot++) {
+          const v0 = slot * l.per, v1 = v0 + l.per;
+          out.lofts.push({ pos: l.pos.slice(v0 * 3, v1 * 3), nor: l.nor.slice(v0 * 3, v1 * 3), col: l.col.slice(v0 * 3, v1 * 3), rings: l.rings, sides: l.sides });
+        }
       });
       parts.forEach((b, i) => {
         const n = b.n - P0[i];
@@ -853,12 +991,12 @@ export function createFauna(app: App): FaunaPart {
     }
     LOFTS.forEach((l, i) => { l.n = L0[i]; });
     parts.forEach((b, i) => { b.n = P0[i]; });
-    loftCap = LOFT_MAX; e.speed = speed;
+    baking = false; e.speed = speed;
     return ok ? out : null;
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
-  let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0;
+  let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0;
   const P0 = { x: 0, z: 0, h: 0 }, P1 = { x: 0, z: 0, h: 0 }; // interpPose inputs, reused
   let fHeight: (x: number, z: number) => number = () => 0;
 
@@ -894,6 +1032,14 @@ export function createFauna(app: App): FaunaPart {
           e.desc = describe(e.plan, lay);
           e.bellS = e.desc.kind === 'axial' ? bellSphere(e.desc, lay) : null;
         } catch { e.plan = null; } // never retried: it stays a posed proxy
+      }
+      if (mode === LOCOMOTION.swim && fSwim < SWIM_MAX) {
+        const sw = swimmerOf(e);
+        if (sw) {
+          S = s; EX = e.x; EY = y0 + lay.centreY * s; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
+          SW_S = (drawnLength(e.scale, e.g) / drawnLength(e.scale, 1)) * alpha * fBoost;
+          if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; return; }
+        }
       }
       if (e.desc) {
         S = s; EX = e.x; EY = y0; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
@@ -1002,7 +1148,7 @@ export function createFauna(app: App): FaunaPart {
       pn = 0;
       const boost = part.scaleBoost;
       ft = t; fBoost = boost; fSea = inputs.seaLevel; fSeaThere = (inputs.stats.seaCover ?? 1) > 0.005;
-      fHeight = inputs.terrain.height; fPosed = 0;
+      fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0;
       counts.fill(0);
       for (const l of LOFTS) l.n = 0;
       for (const b of parts) b.n = 0;
@@ -1018,13 +1164,20 @@ export function createFauna(app: App): FaunaPart {
         let e = entries.get(id);
         if (!e) { e = entryFor(id, buf, o); entries.set(id, e); }
         e.lastSeen = frame; e.stamp = snapId; e.dieT = -1;
-        if (!e.seen) { e.seen = true; e.born = t; }
+        if (!e.seen) { e.seen = true; e.born = t; e.soc = buf[o + geneField('sociality')] || 0.2; }
         const mode = buf[o + OrganismField.mode];
         e.mode = mode;
         const altNow = buf[o + OrganismField.altitude];
         e.alt = e.alt === undefined ? altNow : e.alt + (altNow - e.alt) * 0.1;
         const gNow = growthLength(buf[o + OrganismField.grown]);
         e.g = e.born === t ? gNow : e.g + (gNow - e.g) * 0.1;
+        if (mode === LOCOMOTION.swim && e.sw) {
+          // stroke rate from the sim's speed: a cycle carries the body slip·λ·L (wave) or one stroke (row, jet)
+          const k = e.sw.kin, r = drawnLength(e.scale, e.g) / drawnLength(e.scale, 1);
+          const perCycle = (k.kind === 'wave' ? k.slip * k.lambda * e.sw.L : k.stroke) * r * boost;
+          const [lo, hi] = SWIM_F[k.kind];
+          e.swPhase += Math.min(hi, Math.max(lo, e.speed / Math.max(1e-3, perCycle))) * dt;
+        }
         if (snapshot) {
           const tx = patchToWorld(buf[o + OrganismField.x], patch), tz = patchToWorld(buf[o + OrganismField.y], patch);
           const th = buf[o + OrganismField.heading];
