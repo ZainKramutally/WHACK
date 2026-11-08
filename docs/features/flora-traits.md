@@ -239,6 +239,62 @@ picked; reeds 432 with ironstone picked. Draws: half-hot, N-rich and O₂-rich m
 
 All six are Earth patterns applied to our plants by analogy, render-only: the sim still has only per-cell biomass.
 
+## 2d. Size levels and emergent giants (owner ask: "more variation in plant size, more macro life mixed in")
+
+Three roles (ground, mid, giant) gave three flat size bands. Now each role holds a continuous run of sizes, many small
+and few large, and an occasional giant stands among groves and ground cover, more often on good ground. Render-only and
+pure (`src/render/floraLib/size.ts`, called from `place.ts`); the sim still has only per-cell biomass.
+
+**Rules and sources.** DOIs are from memory and marked [unverified] until checked; none of these numbers go on a card.
+
+| Rule | Source | Tag |
+|---|---|---|
+| In a plant community the number of stems per diameter class falls as N ∝ D⁻², and height scales as H ∝ D^(2/3), so many small plants stand under few big ones across continuous size classes | Enquist & Niklas 2001, *Nature* 10.1038/35070500 [unverified]; West, Brown & Enquist 1999, *Nature* 10.1038/23251 [unverified] | [sci] |
+| Combining the two: N ∝ H⁻²·⁵ per unit height, a Pareto with α = 1.5 (`SIZE_ALPHA`) | derived from the row above | [sci] form; the truncation (largest class 2.5 × the smallest) is [art] |
+| Plant height rises with temperature and precipitation across the globe | Moles et al. 2009, *J. Ecol.* 10.1111/j.1365-2745.2009.01526.x | [sci] |
+| Height is capped by water: hydraulics limit how high a tree can lift water | Koch et al. 2004, *Nature* 10.1038/nature02417 [unverified] | [sci] |
+| Fertile ground grows taller vegetation; nutrient-poor ground (heath on granite) is stunted. Basalt weathers to richer soil than granite | ecology textbook pattern, no single source checked | [analogue] |
+| Nitrogen loading raises growth and height (nitrogen is the commonest limiting nutrient on land) | Vitousek & Howarth 1991, *Biogeochemistry* (already in `sources.ts` for the sim) | [sci] mechanism; size mapping [art] |
+| Rainforests have emergent trees: rare giants standing well above the canopy | textbook (rainforest layers) | [analogue] |
+
+**How it maps** (every term monotone, modest ranges):
+
+- **Score g** (−1..1) per plant, from its own cell and the world: `0.45·fertility + 0.25·nitrogen + 0.15·wet + 0.1·warm
+  + 0.1·oxygen`.
+  - fertility = (supply − 1) ÷ 0.4, clamped: basalt (1.4) +1, granite (0.6) and ironstone (0.5) −1. Silicon reads its own
+    supply (silicide 1.6, nitride 1.2, ice 0).
+  - nitrogen = log₄(N ÷ default): ×4 → +1, ÷4 → −1 (default 1 × on carbon, 30 × on silicon).
+  - wet = the cell's waterlogging (0..1, §3.1): the water term of Moles and Koch, local because we have no rainfall.
+  - warm = (T − 15 °C) ÷ 25 on carbon (Moles), and (heatBand − 0.5) ÷ 0.35 on silicon. It has a small weight and acts
+    only on the power law's tail and on emergents, so the existing [art] cold-tall rule (T10) still sets the bulk and the
+    default demo is not flipped.
+  - oxygen = (O₂ − 21%) ÷ 10 on carbon; 0 on silicon. (O1 lycopod giants already ramp with O₂.)
+- **Size class:** each plant's seeded hash (cell, slot, role) draws from a truncated Pareto on [1, R], R = 2.5 × (1 + 0.3 g),
+  divided by the g = 0 mean and multiplied by (1 + 0.06 g). A neutral world keeps today's mean; good ground lengthens the
+  tail and lifts the mean a little. A plant keeps its size across rebuilds.
+- **Bands** widen to ground 0.2–3 m, mid 3–20 m, giant 14–45 m (`SIZE_BAND`; giants may now dip under the mid top, so
+  the levels run on continuously). Heights ease towards the top above 80% of it rather than clipping, so the tallest
+  stay distinct; seedlings stop at 30% of the bottom.
+- **Emergent giants:** each 5 × 5 superblock seeds one other cell that may raise a giant over its groves or ground cover,
+  with chance 0.2 × (1 + g), clamped to 0.04–0.36. It needs canopy biomass (≥ `MID_CANOPY`; pure mat stays ground cover),
+  land, and stands outside the spawn clearing plus the giant overhang. It takes the superblock giant's own species draw
+  and is placed only into a draw bucket (archetype × LOD) the superblock giants already use, so it adds instances and
+  never a draw call.
+
+**Measured** (mixed demo fixture, tests in `size.test.ts`):
+
+| | Ground mean | Mid mean | Giant mean | Giants |
+|---|---|---|---|---|
+| Carbon defaults, before | 1.19 m | 9.74 m | 30.6 m | 33 |
+| Carbon defaults, now | 1.17 m | 9.47 m | 28.6 m | 38 |
+| Silicon defaults, before | 1.36 m | 7.86 m | 35.0 m | 49 |
+| Silicon defaults, now | 1.40 m | 7.96 m | 33.3 m | 68 |
+| Carbon, basalt picked | 1.23 m | 9.76 m | 30.1 m | 43 |
+| Carbon, granite picked | 1.13 m | 9.41 m | 27.5 m | 37 |
+
+Draws are unchanged where emergents appear (mixed carbon defaults 34, half-hot 42 of the 45 ceiling); the worst case
+(canopy everywhere) now places 194 giants (169 before) of the 256 bucket cap, 3.16M triangles.
+
 ## 3. Substrate colour field (ground and what plants take from it)
 
 ### 3.1 Derivation (pure, per 64² cell, CPU)
