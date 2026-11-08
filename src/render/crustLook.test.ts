@@ -3,7 +3,7 @@ import { rust } from '../gen/crust';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import { LOOK_PALETTES } from './palette';
-import { MINERAL_COLOURS, RustRatchet, floraPigment, mineralColour } from './crustLook';
+import { MINERAL_COLOURS, RED_WORLD_GROUND_IDS, redWorldRamp, RustRatchet, floraPigment, mineralColour } from './crustLook';
 
 const cw = { id: 'carbon', rustOxygen: carbon.terrain.crust!.rustOxygen };
 const sw = { id: 'silicon', rustOxygen: silicon.terrain.crust!.rustOxygen };
@@ -164,5 +164,20 @@ describe('iron-rich and volcanic worlds', () => {
   it('iron stains the shallows; basalt does not', () => {
     expect(crustSeaStain(inputsFor(ironW, 0) as never)).toBeGreaterThan(crustSeaStain(inputsFor(basaltW, 0) as never));
     expect(redHue(MINERAL_LOOK.ironstone[1]!.sea)).toBe(true);
+  });
+});
+
+describe('ironstone Red World ground', () => {
+  it('rusted ironstone is the mockup red; the ramp at rust 1 is the carbon palette', () => {
+    expect(mineralColour('ironstone', 1)).toBe(0xe8331f);
+    expect(RED_WORLD_GROUND_IDS).toContain('ironstone');
+    const r = redWorldRamp(1);
+    expect([r.redLight, r.red, r.crimson, r.maroon]).toEqual([0xff5a36, 0xe8331f, 0xa8122a, 0x5c0a1e]);
+  });
+  it('fresh jasper is darker and less saturated than rusted', () => {
+    const f = redWorldRamp(0).red, r = redWorldRamp(1).red;
+    const lum = (h: number) => 0.3 * (h >> 16) + 0.5 * ((h >> 8) & 255) + 0.2 * (h & 255);
+    expect(lum(f)).toBeLessThan(lum(r));
+    expect(f >> 16).toBeLessThan(r >> 16);
   });
 });

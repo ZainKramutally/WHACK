@@ -7,14 +7,28 @@ import { LOOK_PALETTES, hexToLab, labToHex, labMix, mixHex, type RockLook } from
 /** [fresh, rusted] ground colour per mineral id; minerals that don't oxidise have the same colour twice. */
 export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
   basalt: [0x2a3330, 0x6a2c22],     // charcoal, green-black → oxidised brown-red
-  ironstone: [0x8c2a1c, 0xb8402a],  // red jasper (the black hematite bands are BAND_DARK below)
+  ironstone: [0xa8122a, 0xe8331f],  // red jasper → the Red World red (the ground shader draws the full Red World ramp, see RED_WORLD_GROUND_IDS)
   granite: [0xc8b4b0, 0xc8b4b0],    // pale pink-grey
   silicide: [0x3a3e4c, 0x9a9488],   // dark metallic → pale silica
   nitride: [0xf0e6cc, 0xf0e6cc],    // pale cream
   waterIce: [0xdcecf8, 0xdcecf8],   // white-blue
 };
-/** Ironstone's black hematite band colour (mixed in by height). */
-export const BAND_DARK = 0x2a1418;
+/** Ironstone's hematite band colour (mixed in by height, subtly): maroon, in the red family. */
+export const BAND_DARK = 0x5c0a1e;
+/** Minerals whose ground is drawn with the fixed Red World ramp (LOOK_PALETTES.carbon), not a flat colour. */
+export const RED_WORLD_GROUND_IDS: readonly string[] = ['ironstone'];
+export type RampRole = 'redLight' | 'red' | 'crimson' | 'maroon';
+/** The Red World ramp's colours at a rust level: rust 1 is the mockup palette; fresh is darker and less saturated (jasper). */
+export function redWorldRamp(rustLevel: number): Record<RampRole, number> {
+  const t = Math.min(1, Math.max(0, rustLevel)), P = LOOK_PALETTES.carbon;
+  const fresh = (hex: number): number => {
+    const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255, y = 0.3 * r + 0.5 * g + 0.2 * b;
+    const f = (v: number) => Math.round((v + (y - v) * 0.3) * 0.68);
+    return (f(r) << 16) | (f(g) << 8) | f(b);
+  };
+  const at = (hex: number) => mixHex(fresh(hex), hex, t);
+  return { redLight: at(P.redLight), red: at(P.red), crimson: at(P.crimson), maroon: at(P.maroon) };
+}
 const FALLBACK = 0x6a6a6a;
 
 /** Ground colour of a mineral at a rust level 0..1 (non-oxidising minerals ignore it). */

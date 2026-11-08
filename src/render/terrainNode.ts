@@ -10,7 +10,7 @@ import {
   floor, fract, step, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp, sin, positionWorld, cameraPosition,
 } from 'three/tsl';
 import { worldMaterial, PAL } from './material';
-import { BAND_DARK, crustRatchet, mineralColour } from './crustLook';
+import { BAND_DARK, RED_WORLD_GROUND_IDS, crustRatchet, mineralColour, redWorldRamp, type RampRole } from './crustLook';
 import type { VisualInputs } from '../worlds/types';
 import type { Terrain, TerrainState, MachineId, TerrainParams } from '../gen/terrain';
 import { MACHINE_IDS, CRUST_NOISE_WEIGHT, SQRT3, HEX_H } from '../gen/terrain';
@@ -319,36 +319,52 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N
     const vary = mx_noise_float(vec3(x.mul(0.035), 0, z.mul(0.035))).mul(0.5).add(0.5);
     const fine = mx_noise_float(vec3(x.mul(0.21), 1.7, z.mul(0.21)));
 
-    // base ramp on stepped elevation bands: shadowed hollows → base red → lit crests
+    // base ramp on stepped elevation bands: shadowed hollows → base red → lit crests. `ramp` takes the four role colours so
+    // the same structure can be evaluated with PAL (the world's blended palette) and with the fixed Red World palette
+    // (ironstone ground).
     const eS = floor(e.mul(5).add(vary.mul(0.6))).div(5);
-    const c = mix(vec3(PAL.crimson), vec3(PAL.red), smoothstep(-0.6, 0.0, eS)).toVar();
-    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.2, 0.8, eS).mul(flat.mul(0.6).add(0.4))));
-    // the reference's patchy ground: low-frequency crimson hollows and sunlit flats
     const hollow = clamp(float(0.5).sub(mx_noise_float(vec3(x.div(60), 4.1, z.div(60))).mul(1.4)), 0, 1);
-    c.assign(mix(c, vec3(PAL.crimson), hollow.mul(0.6)));
-    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.62, 0.9, vary).mul(flat).mul(0.35)));
-    // mid-scale two-tone mottling and near wind ripples: value structure that holds on low relief (the spawn frame at
-    // rise ≈ 0.3 is mostly gentle shore ramp)
     const mott = mx_noise_float(vec3(x.div(16), 2.3, z.div(16))).add(fine.mul(0.25));
-    c.assign(mix(c, vec3(PAL.crimson), smoothstep(-0.12, -0.3, mott).mul(0.45)));
-    c.assign(mix(c, vec3(PAL.redLight), smoothstep(0.25, 0.42, mott).mul(flat).mul(0.3)));
     const near = smoothstep(70, 25, positionWorld.sub(cameraPosition).length());
     const rip = sin(x.mul(0.62).add(z.mul(0.38)).add(fine.mul(3.5)).add(vary.mul(6)));
-    c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), 0.3), smoothstep(0.82, 0.96, rip).mul(flat).mul(near).mul(0.35)));
+    const ramp = (R: Record<'redLight' | 'red' | 'crimson' | 'maroon', N>): N => {
+      const c = mix(R.crimson, R.red, smoothstep(-0.6, 0.0, eS)).toVar();
+      c.assign(mix(c, R.redLight, smoothstep(0.2, 0.8, eS).mul(flat.mul(0.6).add(0.4))));
+      // the reference's patchy ground: low-frequency crimson hollows and sunlit flats
+      c.assign(mix(c, R.crimson, hollow.mul(0.6)));
+      c.assign(mix(c, R.redLight, smoothstep(0.62, 0.9, vary).mul(flat).mul(0.35)));
+      // mid-scale two-tone mottling and near wind ripples: value structure that holds on low relief (the spawn frame at
+      // rise ≈ 0.3 is mostly gentle shore ramp)
+      c.assign(mix(c, R.crimson, smoothstep(-0.12, -0.3, mott).mul(0.45)));
+      c.assign(mix(c, R.redLight, smoothstep(0.25, 0.42, mott).mul(flat).mul(0.3)));
+      c.assign(mix(c, mix(R.crimson, R.maroon, 0.3), smoothstep(0.82, 0.96, rip).mul(flat).mul(near).mul(0.35)));
+      return c;
+    };
+    const c = ramp({ redLight: vec3(PAL.redLight), red: vec3(PAL.red), crimson: vec3(PAL.crimson), maroon: vec3(PAL.maroon) }).toVar();
 
     // crust: mineral colours blended by the shared weights, rusted by the ratchet, keeping the ramp's light/shade structure
     if (minerals.length) {
       const col = (hex: number): N => { const k = new THREE.Color(hex); return vec3(k.r, k.g, k.b); };
       const comp = [cw.x, cw.y, cw.z, cw.w];
-      const hem = step(0.5, fract(h.div(bandH * 0.5).add(fine.mul(0.25))));   // ironstone's hematite bands: two per terrace
+      const hem = step(0.8, fract(h.div(bandH * 0.5).add(fine.mul(0.25))));   // ironstone's thin hematite bands: two per terrace
       let mc: N = vec3(0, 0, 0);
+      let wi: N = float(0);   // weight of the minerals drawn with the Red World ramp
       minerals.slice(0, 4).forEach((m, i) => {
-        let mi: N = mix(col(mineralColour(m.id, 0)), col(mineralColour(m.id, 1)), GROUND.rust);
-        if (m.id === 'ironstone') mi = mix(mi, col(BAND_DARK), hem);   // red jasper with black hematite bands by height
-        mc = mc.add(mi.mul(comp[i]));
+        if (RED_WORLD_GROUND_IDS.includes(m.id)) { wi = wi.add(comp[i]); return; }
+        mc = mc.add(mix(col(mineralColour(m.id, 0)), col(mineralColour(m.id, 1)), GROUND.rust).mul(comp[i]));
       });
       const lum = c.x.mul(0.3).add(c.y.mul(0.5)).add(c.z.mul(0.2));
-      c.assign(mix(c, mc.mul(lum.mul(0.9).add(0.55)), 0.9));
+      const wo = clamp(float(1).sub(wi), 0.001, 1);
+      const other = mix(c, mc.div(wo).mul(lum.mul(0.9).add(0.55)), 0.9);
+      c.assign(mix(c, other, wo));   // weight 1 of other minerals = the old blend; ironstone weight leaves the ramp alone
+      if (minerals.some((m) => RED_WORLD_GROUND_IDS.includes(m.id))) {
+        // ironstone: the Red World ramp in its fixed palette, jasper (dark, muted) when fresh and the mockup red when rusted
+        const r0 = redWorldRamp(0), r1 = redWorldRamp(1);
+        const rw = (k: RampRole): N => mix(col(r0[k]), col(r1[k]), GROUND.rust);
+        const iron = ramp({ redLight: rw('redLight'), red: rw('red'), crimson: rw('crimson'), maroon: rw('maroon') });
+        const banded = mix(iron, mix(iron, col(BAND_DARK), 0.6), hem.mul(0.3));   // subtle maroon hematite bands by height
+        c.assign(mix(c, banded, wi));
+      }
     }
 
     // basalt cooling joints: thin dark hex lines on the same tiling as the M7 columns, weighted by the local basalt weight
