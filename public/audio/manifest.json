@@ -1,713 +1,731 @@
 [
- {
-  "id": "amb.build.rise",
-  "file": "amb.build.rise.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Epic cinematic sub-bass tectonic swell: a vast deep earthquake rumble slowly building over 18 seconds, massive low booms of continents rising, dark and dramatic, low frequencies only, no hiss, no high sparkle, ending in a huge low resolving boom."
- },
- {
-  "id": "amb.carbon.barren",
-  "file": "amb.carbon.barren.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Steady wind over bare rock plateau, faint sand grit hissing, empty and lonely, no animals, no music."
- },
- {
-  "id": "amb.carbon.land",
-  "file": "amb.carbon.land.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Warm breeze through broadleaf foliage, layered distant alien bird-like trills and chirps, soft insects, calm lush meadow, wide stereo. No voice, no music."
- },
- {
-  "id": "amb.carbon.shore",
-  "file": "amb.carbon.shore.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Calm ocean waves rolling onto a wide sandy beach heard from twenty metres away: slow deep swells breaking softly with long pauses between waves, gentle receding wash over sand, open air, warm and peaceful. No gurgling, no draining, no splashing near the microphone, no music."
- },
- {
-  "id": "amb.carbon.under",
-  "file": "amb.carbon.under.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Underwater ambience, muffled deep water, slow occasional bubbles, a distant whale-like song far away, calm and spacious, no music."
- },
- {
-  "id": "amb.frozen",
-  "file": "amb.frozen.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Large ice sheet creaking and groaning, far-off low booming cracks, wind whisper, cold, no music."
- },
- {
-  "id": "amb.select",
-  "file": "amb.select.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Quiet laboratory room tone, faint HVAC hum, very soft granular fizz of tiny particles, a sparse airy synth pad, hopeful. No voice, no melody."
- },
- {
-  "id": "amb.silicon.land",
-  "file": "amb.silicon.land.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Very deep slow heavy wind in dense thick air, faint glassy crystalline tinkling, distant cryogenic creaks and groans, cold alien desolation, sub-bass presence, no music."
- },
- {
-  "id": "amb.silicon.shore",
-  "file": "amb.silicon.shore.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Thin cold liquid lapping slowly on rock with soft boiling fizz and hissing vapour, like liquid nitrogen spilled on a floor, sparse, no music."
- },
- {
-  "id": "amb.silicon.under",
-  "file": "amb.silicon.under.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Crystal-clear cold underwater depth, sparse glassy pings, low resonant hum, vast and still, no music."
- },
- {
-  "id": "build.complete",
-  "file": "build.complete.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Warm resolving swell, a soft major-key pad rising and settling, peaceful accomplished feeling."
- },
- {
-  "id": "build.land",
-  "file": "build.land.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Soft deep impact and bloom as particles settle into ground, gentle low thud with a warm resonance and grit."
- },
- {
-  "id": "build.life",
-  "file": "build.life.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Bioluminescent sparkle bloom, glassy tiny chimes cascading upward"
- },
- {
-  "id": "build.multiply",
-  "file": "build.multiply.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Low rising cinematic swell of countless tiny particles multiplying, a deep growing hum and soft warm granular rumble, dramatic build-up, mellow, no high-pitched sparkle, no hiss."
- },
- {
-  "id": "build.push",
-  "file": "build.push.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Deep heavy cinematic whoosh rushing forward, low sub-bass air movement, dramatic, no high hiss."
- },
- {
-  "id": "build.seas",
-  "file": "build.seas.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "A new ocean forming: slow, deep, heavy ocean swells rolling in from far away, low booming surf on a vast shore, cinematic and dramatic. No gurgling, no draining, no pouring, no splashing near the microphone."
- },
- {
-  "id": "build.seas.silicon",
-  "file": "build.seas.silicon.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Deep cold sea of liquid rising: slow massive low surge with a dark muffled rumbling vapour roar, ominous and cinematic, low pitched, no hiss, no splashing."
- },
- {
-  "id": "c.call.apex.1",
-  "file": "c.call.apex.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Deep guttural predator growl-roar, large animal, slow, slight echo"
- },
- {
-  "id": "c.call.apex.2",
-  "file": "c.call.apex.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Deep guttural predator growl-roar, large animal, slow, slight echo"
- },
- {
-  "id": "c.call.herd.1",
-  "file": "c.call.herd.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
- },
- {
-  "id": "c.call.herd.2",
-  "file": "c.call.herd.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
- },
- {
-  "id": "c.call.herd.3",
-  "file": "c.call.herd.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
- },
- {
-  "id": "c.call.small.1",
-  "file": "c.call.small.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
- },
- {
-  "id": "c.call.small.2",
-  "file": "c.call.small.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
- },
- {
-  "id": "c.call.small.3",
-  "file": "c.call.small.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
- },
- {
-  "id": "c.call.swim.1",
-  "file": "c.call.swim.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
- },
- {
-  "id": "c.call.swim.2",
-  "file": "c.call.swim.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
- },
- {
-  "id": "c.call.swim.3",
-  "file": "c.call.swim.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
- },
- {
-  "id": "c.wing.1",
-  "file": "c.wing.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Large wings flapping, a few slow powerful flaps, membranous whoosh."
- },
- {
-  "id": "c.wing.2",
-  "file": "c.wing.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Large wings flapping, a few slow powerful flaps, membranous whoosh."
- },
- {
-  "id": "player.jump",
-  "file": "player.jump.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Short athletic jump take-off: quick cloth whoosh and a soft boot scuff on dirt, close microphone"
- },
- {
-  "id": "player.land",
-  "file": "player.land.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Soft muffled landing of a person on soft earth after a small jump, low padded thump with light grit, quiet, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "player.rebreather",
-  "file": "player.rebreather.mp3",
-  "loop": true,
-  "gain": 0.6,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Close-microphone diving rebreather breathing, slow inhale and exhale with soft valve clicks and bubbles, steady rhythm, no voice."
- },
- {
-  "id": "player.splash.in",
-  "file": "player.splash.in.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Body entering water, medium splash plunge with bubbles."
- },
- {
-  "id": "player.splash.out",
-  "file": "player.splash.out.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Body emerging from water, dripping splash and gurgle."
- },
- {
-  "id": "player.swim.1",
-  "file": "player.swim.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
- },
- {
-  "id": "player.swim.2",
-  "file": "player.swim.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
- },
- {
-  "id": "player.swim.3",
-  "file": "player.swim.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
- },
- {
-  "id": "si.call.bell.1",
-  "file": "si.call.bell.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Slow deep glass bell tone with long shimmering decay"
- },
- {
-  "id": "si.call.bell.2",
-  "file": "si.call.bell.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Slow deep glass bell tone with long shimmering decay"
- },
- {
-  "id": "si.call.small.1",
-  "file": "si.call.small.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
- },
- {
-  "id": "si.call.small.2",
-  "file": "si.call.small.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
- },
- {
-  "id": "si.call.small.3",
-  "file": "si.call.small.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
- },
- {
-  "id": "si.call.walker.1",
-  "file": "si.call.walker.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Low armoured scrape and grinding groan of stone plates"
- },
- {
-  "id": "si.call.walker.2",
-  "file": "si.call.walker.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Low armoured scrape and grinding groan of stone plates"
- },
- {
-  "id": "si.clack.1",
-  "file": "si.clack.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
- },
- {
-  "id": "si.clack.2",
-  "file": "si.clack.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
- },
- {
-  "id": "si.clack.3",
-  "file": "si.clack.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
- },
- {
-  "id": "step.crystal.1",
-  "file": "step.crystal.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.crystal.2",
-  "file": "step.crystal.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.crystal.3",
-  "file": "step.crystal.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.crystal.4",
-  "file": "step.crystal.4.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.ice.1",
-  "file": "step.ice.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.ice.2",
-  "file": "step.ice.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.ice.3",
-  "file": "step.ice.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.ice.4",
-  "file": "step.ice.4.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
- },
- {
-  "id": "step.rock.1",
-  "file": "step.rock.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.rock.2",
-  "file": "step.rock.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.rock.3",
-  "file": "step.rock.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.rock.4",
-  "file": "step.rock.4.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.soil.1",
-  "file": "step.soil.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.soil.2",
-  "file": "step.soil.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.soil.3",
-  "file": "step.soil.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.soil.4",
-  "file": "step.soil.4.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.wet.1",
-  "file": "step.wet.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.wet.2",
-  "file": "step.wet.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.wet.3",
-  "file": "step.wet.3.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "step.wet.4",
-  "file": "step.wet.4.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
- },
- {
-  "id": "ui.card.open",
-  "file": "ui.card.open.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Short crisp paper card flick followed by a bright digital scanner blip, close microphone"
- },
- {
-  "id": "ui.element",
-  "file": "ui.element.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Satisfying element selection chime, small glassy blip with soft atomic shimmer, short scientific interface sound."
- },
- {
-  "id": "ui.extinct",
-  "file": "ui.extinct.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Soft low sombre tone fading away, a gentle sad descending note, short, ambient."
- },
- {
-  "id": "ui.generate",
-  "file": "ui.generate.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Big satisfying ignition: low bass swell, spark crackle, rising whoosh and bright bloom"
- },
- {
-  "id": "ui.panel.close",
-  "file": "ui.panel.close.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Smooth soft sci-fi panel sliding closed, gentle airy whoosh with a light low blip."
- },
- {
-  "id": "ui.panel.open",
-  "file": "ui.panel.open.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Smooth soft sci-fi panel sliding open, gentle airy whoosh with a light blip."
- },
- {
-  "id": "ui.scan.filed",
-  "file": "ui.scan.filed.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Gentle two-note databank-entry chime, warm digital bell, positive confirmation"
- },
- {
-  "id": "ui.scan.flash.1",
-  "file": "ui.scan.flash.1.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Camera taking a photo: crisp mechanical shutter click with a soft punchy flash pop, close microphone, dry, no electronic whine, no beep."
- },
- {
-  "id": "ui.scan.flash.2",
-  "file": "ui.scan.flash.2.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Camera taking a photo: crisp mechanical shutter click with a soft punchy flash pop, close microphone, dry, no electronic whine, no beep."
- },
- {
-  "id": "ui.scan.lock",
-  "file": "ui.scan.lock.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single clean sonar ping with short echo, submarine scanner"
- },
- {
-  "id": "ui.slider.blocked",
-  "file": "ui.slider.blocked.mp3",
-  "loop": false,
-  "gain": 0.8,
-  "source": "elevenlabs",
-  "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Soft low thud with a short muted buzz, denied or blocked interface feedback, gentle not harsh."
- }
+  {
+    "id": "amb.build.rise",
+    "file": "amb.build.rise.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Epic cinematic sub-bass tectonic swell: a vast deep earthquake rumble slowly building over 18 seconds, massive low booms of continents rising, dark and dramatic, low frequencies only, no hiss, no high sparkle, ending in a huge low resolving boom."
+  },
+  {
+    "id": "amb.carbon.barren",
+    "file": "amb.carbon.barren.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Steady wind over bare rock plateau, faint sand grit hissing, empty and lonely, no animals, no music."
+  },
+  {
+    "id": "amb.carbon.land",
+    "file": "amb.carbon.land.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Warm breeze through broadleaf foliage, layered distant alien bird-like trills and chirps, soft insects, calm lush meadow, wide stereo. No voice, no music."
+  },
+  {
+    "id": "amb.carbon.shore",
+    "file": "amb.carbon.shore.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Calm ocean waves rolling onto a wide sandy beach heard from twenty metres away: slow deep swells breaking softly with long pauses between waves, gentle receding wash over sand, open air, warm and peaceful. No gurgling, no draining, no splashing near the microphone, no music."
+  },
+  {
+    "id": "amb.carbon.under",
+    "file": "amb.carbon.under.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Underwater ambience, muffled deep water, slow occasional bubbles, a distant whale-like song far away, calm and spacious, no music."
+  },
+  {
+    "id": "amb.frozen",
+    "file": "amb.frozen.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Large ice sheet creaking and groaning, far-off low booming cracks, wind whisper, cold, no music."
+  },
+  {
+    "id": "amb.select",
+    "file": "amb.select.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Quiet laboratory room tone, faint HVAC hum, very soft granular fizz of tiny particles, a sparse airy synth pad, hopeful. No voice, no melody."
+  },
+  {
+    "id": "amb.silicon.land",
+    "file": "amb.silicon.land.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Very deep slow heavy wind in dense thick air, faint glassy crystalline tinkling, distant cryogenic creaks and groans, cold alien desolation, sub-bass presence, no music."
+  },
+  {
+    "id": "amb.silicon.shore",
+    "file": "amb.silicon.shore.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Thin cold liquid lapping slowly on rock with soft boiling fizz and hissing vapour, like liquid nitrogen spilled on a floor, sparse, no music."
+  },
+  {
+    "id": "amb.silicon.under",
+    "file": "amb.silicon.under.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Crystal-clear cold underwater depth, sparse glassy pings, low resonant hum, vast and still, no music."
+  },
+  {
+    "id": "build.complete",
+    "file": "build.complete.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Warm resolving swell, a soft major-key pad rising and settling, peaceful accomplished feeling."
+  },
+  {
+    "id": "build.land",
+    "file": "build.land.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Soft deep impact and bloom as particles settle into ground, gentle low thud with a warm resonance and grit."
+  },
+  {
+    "id": "build.life",
+    "file": "build.life.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Bioluminescent sparkle bloom, glassy tiny chimes cascading upward"
+  },
+  {
+    "id": "build.multiply",
+    "file": "build.multiply.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Low rising cinematic swell of countless tiny particles multiplying, a deep growing hum and soft warm granular rumble, dramatic build-up, mellow, no high-pitched sparkle, no hiss."
+  },
+  {
+    "id": "build.push",
+    "file": "build.push.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Deep heavy cinematic whoosh rushing forward, low sub-bass air movement, dramatic, no high hiss."
+  },
+  {
+    "id": "build.seas",
+    "file": "build.seas.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "A new ocean forming: slow, deep, heavy ocean swells rolling in from far away, low booming surf on a vast shore, cinematic and dramatic. No gurgling, no draining, no pouring, no splashing near the microphone."
+  },
+  {
+    "id": "build.seas.silicon",
+    "file": "build.seas.silicon.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Deep cold sea of liquid rising: slow massive low surge with a dark muffled rumbling vapour roar, ominous and cinematic, low pitched, no hiss, no splashing."
+  },
+  {
+    "id": "c.call.apex.1",
+    "file": "c.call.apex.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Deep guttural predator growl-roar, large animal, slow, slight echo"
+  },
+  {
+    "id": "c.call.apex.2",
+    "file": "c.call.apex.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Deep guttural predator growl-roar, large animal, slow, slight echo"
+  },
+  {
+    "id": "c.call.herd.1",
+    "file": "c.call.herd.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
+  },
+  {
+    "id": "c.call.herd.2",
+    "file": "c.call.herd.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
+  },
+  {
+    "id": "c.call.herd.3",
+    "file": "c.call.herd.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call."
+  },
+  {
+    "id": "c.call.small.1",
+    "file": "c.call.small.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
+  },
+  {
+    "id": "c.call.small.2",
+    "file": "c.call.small.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
+  },
+  {
+    "id": "c.call.small.3",
+    "file": "c.call.small.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call."
+  },
+  {
+    "id": "c.call.swim.1",
+    "file": "c.call.swim.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
+  },
+  {
+    "id": "c.call.swim.2",
+    "file": "c.call.swim.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
+  },
+  {
+    "id": "c.call.swim.3",
+    "file": "c.call.swim.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call."
+  },
+  {
+    "id": "c.wing.1",
+    "file": "c.wing.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Large wings flapping, a few slow powerful flaps, membranous whoosh."
+  },
+  {
+    "id": "c.wing.2",
+    "file": "c.wing.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Large wings flapping, a few slow powerful flaps, membranous whoosh."
+  },
+  {
+    "id": "player.jump",
+    "file": "player.jump.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Short athletic jump take-off: quick cloth whoosh and a soft boot scuff on dirt, close microphone"
+  },
+  {
+    "id": "player.land",
+    "file": "player.land.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Soft muffled landing of a person on soft earth after a small jump, low padded thump with light grit, quiet, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "player.rebreather",
+    "file": "player.rebreather.mp3",
+    "loop": true,
+    "gain": 0.6,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Close-microphone diving rebreather breathing, slow inhale and exhale with soft valve clicks and bubbles, steady rhythm, no voice."
+  },
+  {
+    "id": "player.splash.in",
+    "file": "player.splash.in.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Body entering water, medium splash plunge with bubbles."
+  },
+  {
+    "id": "player.splash.out",
+    "file": "player.splash.out.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Body emerging from water, dripping splash and gurgle."
+  },
+  {
+    "id": "player.swim.1",
+    "file": "player.swim.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
+  },
+  {
+    "id": "player.swim.2",
+    "file": "player.swim.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
+  },
+  {
+    "id": "player.swim.3",
+    "file": "player.swim.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single swimming stroke underwater, soft muffled water push and swirl."
+  },
+  {
+    "id": "si.call.bell.1",
+    "file": "si.call.bell.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Slow deep glass bell tone with long shimmering decay"
+  },
+  {
+    "id": "si.call.bell.2",
+    "file": "si.call.bell.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Slow deep glass bell tone with long shimmering decay"
+  },
+  {
+    "id": "si.call.small.1",
+    "file": "si.call.small.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
+  },
+  {
+    "id": "si.call.small.2",
+    "file": "si.call.small.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
+  },
+  {
+    "id": "si.call.small.3",
+    "file": "si.call.small.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call."
+  },
+  {
+    "id": "si.call.walker.1",
+    "file": "si.call.walker.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Low armoured scrape and grinding groan of stone plates"
+  },
+  {
+    "id": "si.call.walker.2",
+    "file": "si.call.walker.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Low armoured scrape and grinding groan of stone plates"
+  },
+  {
+    "id": "si.clack.1",
+    "file": "si.clack.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
+  },
+  {
+    "id": "si.clack.2",
+    "file": "si.clack.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
+  },
+  {
+    "id": "si.clack.3",
+    "file": "si.clack.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short."
+  },
+  {
+    "id": "step.crystal.1",
+    "file": "step.crystal.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.crystal.2",
+    "file": "step.crystal.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.crystal.3",
+    "file": "step.crystal.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.crystal.4",
+    "file": "step.crystal.4.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.ice.1",
+    "file": "step.ice.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.ice.2",
+    "file": "step.ice.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.ice.3",
+    "file": "step.ice.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.ice.4",
+    "file": "step.ice.4.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
+  },
+  {
+    "id": "step.rock.1",
+    "file": "step.rock.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.rock.2",
+    "file": "step.rock.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.rock.3",
+    "file": "step.rock.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.rock.4",
+    "file": "step.rock.4.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.soil.1",
+    "file": "step.soil.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.soil.2",
+    "file": "step.soil.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.soil.3",
+    "file": "step.soil.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.soil.4",
+    "file": "step.soil.4.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.wet.1",
+    "file": "step.wet.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.wet.2",
+    "file": "step.wet.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.wet.3",
+    "file": "step.wet.3.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "step.wet.4",
+    "file": "step.wet.4.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
+  },
+  {
+    "id": "ui.card.open",
+    "file": "ui.card.open.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Short crisp paper card flick followed by a bright digital scanner blip, close microphone"
+  },
+  {
+    "id": "ui.element",
+    "file": "ui.element.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Satisfying element selection chime, small glassy blip with soft atomic shimmer, short scientific interface sound."
+  },
+  {
+    "id": "ui.extinct",
+    "file": "ui.extinct.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Soft low sombre tone fading away, a gentle sad descending note, short, ambient."
+  },
+  {
+    "id": "ui.generate",
+    "file": "ui.generate.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Big satisfying ignition: low bass swell, spark crackle, rising whoosh and bright bloom"
+  },
+  {
+    "id": "ui.panel.close",
+    "file": "ui.panel.close.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Smooth soft sci-fi panel sliding closed, gentle airy whoosh with a light low blip."
+  },
+  {
+    "id": "ui.panel.open",
+    "file": "ui.panel.open.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Smooth soft sci-fi panel sliding open, gentle airy whoosh with a light blip."
+  },
+  {
+    "id": "ui.scan.filed",
+    "file": "ui.scan.filed.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Gentle two-note databank-entry chime, warm digital bell, positive confirmation"
+  },
+  {
+    "id": "ui.scan.flash.1",
+    "file": "ui.scan.flash.1.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Camera taking a photo: crisp mechanical shutter click with a soft punchy flash pop, close microphone, dry, no electronic whine, no beep."
+  },
+  {
+    "id": "ui.scan.flash.2",
+    "file": "ui.scan.flash.2.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Camera taking a photo: crisp mechanical shutter click with a soft punchy flash pop, close microphone, dry, no electronic whine, no beep."
+  },
+  {
+    "id": "ui.scan.lock",
+    "file": "ui.scan.lock.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Single clean sonar ping with short echo, submarine scanner"
+  },
+  {
+    "id": "ui.slider.blocked",
+    "file": "ui.slider.blocked.mp3",
+    "loop": false,
+    "gain": 0.8,
+    "source": "elevenlabs",
+    "licence": "ElevenLabs generated (commercial use per plan terms)",
+    "prompt": "Soft low thud with a short muted buzz, denied or blocked interface feedback, gentle not harsh."
+  },
+  {
+    "id": "music.carbon",
+    "file": "music.carbon.mp3",
+    "loop": true,
+    "gain": 0.5,
+    "source": "elevenlabs-music",
+    "licence": "ElevenLabs Music (music_v1) generated for this project",
+    "prompt": "Sparse gentle exploration ambient: felt piano, airy pads, soft strings, kalimba, lydian"
+  },
+  {
+    "id": "music.silicon",
+    "file": "music.silicon.mp3",
+    "loop": true,
+    "gain": 0.5,
+    "source": "elevenlabs-music",
+    "licence": "ElevenLabs Music (music_v1) generated for this project",
+    "prompt": "Sparse cold alien ambient: celesta, glass harmonica, frozen drones, whole-tone"
+  }
 ]
