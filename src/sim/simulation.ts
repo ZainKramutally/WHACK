@@ -2,6 +2,7 @@
 // Pure and deterministic: no clocks, no Math.random. Time enters only through advance(dtSec), which moves a build
 // clock; the number of ecology ticks that has to have run is a pure function of that clock (ticksDueAt), so frame
 // rate can change WHEN a state arrives but never WHAT the state is.
+import { nearestTimeFactor } from '../worlds/time';
 import type {
   BuildConfig, Conditions, ControlId, LivingBand, SimSnapshot, WorldConfig,
 } from '../worlds/types';
@@ -61,6 +62,21 @@ export function ticksDueAfter(elapsedSec: number, cfg: Pick<BuildConfig, 'durati
   return build + Math.floor((elapsedSec - cfg.durationSec) * TICK_HZ + EPS);
 }
 
+/**
+ * Extra live ticks earned over `dtSec` at time factor `factor`: 0 during the build and at ×1, else (factor − 1) × 20 per second,
+ * so total live ticks per wall second are 20 × factor. A pure function of the inputs; the tick sequence itself never depends on it.
+ */
+export function bonusTicks(dtSec: number, factor: number, live: boolean): number {
+  return live && factor > 1 ? dtSec * TICK_HZ * (factor - 1) : 0;
+}
+
+/** Catch-up cap: bonus ticks beyond `maxLag` ticks behind are dropped, so a slow machine falls behind gracefully instead of spiralling. */
+export function capBonus(bonus: number, lagTicks: number, maxLag: number): number {
+  return lagTicks > maxLag ? Math.max(0, bonus - (lagTicks - maxLag)) : bonus;
+}
+
+const MAX_BONUS_LAG = 100; // implementation constant (DECISIONS §G.2 exempt): ticks (5 s of normal pace) the time-speed catch-up may trail by
+
 /** Build seconds the world has reached after `tick` ticks (inverse of ticksDueAt): the tick-time clock the ecology sees. */
 export function buildSecOfTick(tick: number, cfg: Pick<BuildConfig, 'durationSec' | 'lifeSec' | 'ecologySec'>): number {
   const total = ticksDueAt(cfg.durationSec, cfg);
@@ -107,6 +123,8 @@ export class WorldSimulation {
   readonly seed: number;
 
   private elapsed = 0;
+  private timeFactor = 1;
+  private bonus = 0; // extra live ticks earned by the time factor (fractional)
   private ticks = 0;
   private lifeStarted = false;
   private complete = false;
@@ -209,11 +227,17 @@ export class WorldSimulation {
   advance(dtSec: number, maxTicks = Infinity): number {
     if (!(dtSec >= 0)) return this.runDue(maxTicks);
     this.elapsed += dtSec;
+    this.bonus += bonusTicks(dtSec, this.timeFactor, this.complete);
     return this.runDue(maxTicks);
   }
 
   /** True while ticks are due that have not run yet. */
-  get behind(): boolean { return this.ticks < ticksDueAfter(this.elapsed, this.world.build); }
+  get behind(): boolean { return this.ticks < this.dueTicks(); }
+
+  private dueTicks(): number { return ticksDueAfter(this.elapsed, this.world.build) + Math.floor(this.bonus + EPS); }
+
+  /** The `time:set` handler: live time speed (1, 2, 4, 8 or 16). Only has an effect once the build is complete. */
+  setTimeFactor(f: number): void { this.timeFactor = nearestTimeFactor(f); }
 
   /** The `control:set` handler: clamp to the living band and report a block. Values are in display units. */
   setControl(controlId: ControlId, value: number): void {
@@ -303,6 +327,7 @@ export class WorldSimulation {
       kills: this.life.drainKills(),
       controls: conds,
       bands,
+      timeFactor: this.timeFactor,
     };
   }
 
@@ -316,7 +341,8 @@ export class WorldSimulation {
       this.events.push({ type: 'build:life' });
     }
     if (this.ticks === 0) this.stepEase(this.simClock());   // gliding while the world is still empty
-    const target = ticksDueAfter(this.elapsed, b);
+    this.bonus = capBonus(this.bonus, ticksDueAfter(this.elapsed, b) + Math.floor(this.bonus + EPS) - this.ticks, MAX_BONUS_LAG);
+    const target = this.dueTicks();
     let n = 0;
     while (this.ticks < target && n < maxTicks) {
       this.tick();

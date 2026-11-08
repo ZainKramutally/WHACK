@@ -52,6 +52,9 @@ export class SimHost {
           this.sim.setControl(msg.controlId, msg.value);
           this.flush();
           break;
+        case 'timeSet':
+          this.sim?.setTimeFactor(msg.factor);
+          break;
         case 'dispose':
           this.sim = undefined;
           break;

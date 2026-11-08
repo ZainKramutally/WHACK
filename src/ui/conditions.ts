@@ -1,5 +1,6 @@
 // Conditions panel: sliders (full range, living band, red zones, Earth marker), stats beside Earth's,
 // years counter, silicon reasoning + caveat, and a button for the summary card.
+import { mountTimeControl } from './timeControl';
 import { el } from './dom';
 import { formatStat, formatValue, formatYears, TRACE_O2_PCT } from './format';
 import { clampToBand, fracToValue, pinTraceOxygen, redSegments, valueToFrac } from './sliderMath';
@@ -166,6 +167,8 @@ export function mountConditions(
     track.addEventListener('pointercancel', end);
   }
   drawer.append(sliderBox);
+  const time = mountTimeControl(bus);
+  drawer.append(time.el);
 
   // --- years counter ---
   const years = el('div', 'wu-years');
@@ -302,10 +305,11 @@ export function mountConditions(
     handleKey,
     focusSelected,
     el: drawer,
+    timeChip: time.chip,
     update,
     selectSlider,
     setSelected,
     nudgeSelected,
-    dispose() { offs.forEach((f) => f()); drawer.remove(); },
+    dispose() { offs.forEach((f) => f()); time.dispose(); drawer.remove(); },
   };
 }

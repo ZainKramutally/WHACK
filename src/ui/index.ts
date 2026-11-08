@@ -88,7 +88,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     seedLine.append(copy);
     conditions.el.append(seedLine);
   }
-  host.append(tabs, conditions.el, bestiary.el);
+  host.append(tabs, conditions.el, bestiary.el, conditions.timeChip);
 
   let open: Panel | null = null;
   let latest: SimSnapshot | null = null;

@@ -6,6 +6,7 @@ export type ToWorker =
   | { type: 'init' }
   | { type: 'selectWorld'; worldId: WorldId; requested: Conditions; seed?: number; crust?: CrustPickId }
   | { type: 'controlSet'; controlId: ControlId; value: number }
+  | { type: 'timeSet'; factor: number }
   | { type: 'dispose' };
 
 /** Bus events the worker raises (they carry the same payloads the bus does). */
@@ -41,6 +42,9 @@ export function parseToWorker(data: unknown): { ok: true; msg: ToWorker } | { ok
       return { ok: true, msg: { type: 'init' } };
     case 'dispose':
       return { ok: true, msg: { type: 'dispose' } };
+    case 'timeSet':
+      if (!isNum(data.factor)) return { ok: false, error: 'timeSet: factor must be a finite number' };
+      return { ok: true, msg: { type: 'timeSet', factor: data.factor } };
     case 'selectWorld': {
       if (typeof data.worldId !== 'string' || !WORLD_IDS.includes(data.worldId)) return { ok: false, error: `unknown world '${String(data.worldId)}'` };
       const requested = parseConditions(data.requested);

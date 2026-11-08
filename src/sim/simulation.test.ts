@@ -677,3 +677,18 @@ describe('mutation schedule (owner ruling: high σ while the world builds, norma
     for (const t of [0, 1000, 3000, 6800, 9000]) expect(mutationSigmaAt(t, total)).toBe(mutationSigmaAt(t, total));
   });
 });
+
+describe('time factor pacing', () => {
+  it('gives N times the live ticks per wall second at factor N, none extra at x1 or during the build', async () => {
+    const { bonusTicks } = await import('./simulation');
+    expect(20 + bonusTicks(1, 8, true)).toBe(20 * 8);
+    expect(bonusTicks(1, 1, true)).toBe(0);
+    expect(bonusTicks(1, 16, false)).toBe(0);
+  });
+  it('caps the catch-up lag so a slow machine falls behind instead of spiralling', async () => {
+    const { capBonus } = await import('./simulation');
+    expect(capBonus(500, 80, 100)).toBe(500);
+    expect(capBonus(500, 300, 100)).toBe(300);
+    expect(capBonus(50, 900, 100)).toBe(0);
+  });
+});

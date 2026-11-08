@@ -49,11 +49,14 @@ export function startSimClient(bus: Bus, opts: SimClientOptions = {}): () => voi
     send({ type: 'controlSet', controlId: p.controlId, value: p.value });
   bus.on('world:selected', onSelected);
   bus.on('control:set', onControl);
+  const onTime = (p: { factor: number }) => send({ type: 'timeSet', factor: p.factor });
+  bus.on('time:set', onTime);
   send({ type: 'init' });
 
   return () => {
     bus.off('world:selected', onSelected);
     bus.off('control:set', onControl);
+    bus.off('time:set', onTime);
     send({ type: 'dispose' });
     worker.terminate();
   };

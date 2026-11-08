@@ -176,6 +176,8 @@ export interface SimSnapshot {          // 20 Hz
   worldId: WorldId;
   timeSec: number;                      // seconds since Generate
   buildProgress: number;                // 0..1
+  /** Live time-speed factor (1 if absent). */
+  timeFactor?: number;
   yearsShown: number;                   // illustrative counter
   stats: Record<string, number>;        // every StatDef id (incl. seaCover) plus 'seaLevel' in metres
   population: { producers: number; consumers: number };
@@ -202,6 +204,8 @@ export interface BusEvents {
   'build:complete': { worldId: WorldId };
   'sim:snapshot': SimSnapshot;
   'control:set': { controlId: ControlId; value: number };
+  /** UI → sim: live time speed after the build (1, 2, 4, 8 or 16; ignored during the build). */
+  'time:set': { factor: number };
   'control:blocked': { controlId: ControlId; limitId: string; start?: true };   // start: moved by startingConditions at world start
   'guide:newForm': NewFormEvent;
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };

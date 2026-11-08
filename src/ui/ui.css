@@ -243,3 +243,16 @@
   .wu-scan .wu-scan-c, .wu-scan[data-state="new"].wu-scan-snap .wu-scan-c, .wu-scan-snap .wu-scan-label { animation: none !important; }
   .wu-scan::after { display: none; }
 }
+
+/* Time speed (after the build): a playback row in Conditions and a HUD chip while above x1 */
+.wu-time { margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--wu-rule); }
+.wu-time-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.wu-time-label { font-weight: 600; }
+.wu-time-note { font-family: var(--wu-mono); font-size: 15px; color: var(--wu-dim); }
+.wu-time-btns { display: flex; gap: 4px; }
+.wu-root .wu-time-btn { flex: 1; padding: 4px 0; background: transparent; border: 2px solid var(--wu-line); color: var(--wu-fg); font-family: var(--wu-mono); font-size: 18px; clip-path: var(--notch4); }
+.wu-root .wu-time-btn:hover:not(:disabled) { background: var(--bone3); color: var(--ink); }
+.wu-root .wu-time-btn.wu-on { background: var(--wu-accent); color: var(--wu-on-accent); border-color: var(--wu-accent); }
+.wu-root .wu-time-btn:disabled { opacity: .4; cursor: not-allowed; }
+.wu-time-chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 1px 8px; font-family: var(--wu-mono); font-size: 18px;
+  color: var(--bone4); background: var(--ink); border: 2px solid var(--wu-accent); pointer-events: none !important; }
