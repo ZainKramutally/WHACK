@@ -133,6 +133,12 @@ The scout verified the bibliographic data and DOIs. It did not verify the suppor
 - `holland2006` (10.1098/rstb.2006.1838): red beds appear after the Great Oxidation Event.
 - `rye1998` (10.2475/ajs.298.8.621): the order of magnitude for `rustOxygen`.
 - `keil1968` (10.1029/jb073i022p06945): enstatite chondrites contain silicon-bearing metal and nitrides. `lee1995` covers nierite. The scout found no source for the names perryite or suessite, so we don't use them.
+- `goehring2009` (10.1073/pnas.0805132106; abstract read): cooling lava cracks into columns. It gives no column width, and "mostly hexagonal" is unsourced.
+- `bekker2010` (10.2113/gsecongeo.105.3.467; abstract not read): iron formations.
+- `linton1955` (10.2307/1791756; abstract not read): tors.
+- `kiang2007` (10.1089/ast.2006.0108; abstract read): pigment colour follows the star's light. It says nothing direct about G stars.
+- `dassarma2018` (10.1017/S1473550418000423; abstract read): retinal pigments may have come before chlorophyll ("Purple Earth").
+- The silicon-nitride crystal family and the Karijini and Hamersley gorges are unsourced, so they stay out of UI text.
 - Magnetism (rejected below): there is no source in config. It's textbook rock magnetism (Dunlop and Özdemir 1997).
 
 ## Rejected
