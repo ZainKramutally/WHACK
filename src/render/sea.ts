@@ -83,7 +83,8 @@ export function createSea(app: App): SeaPart {
       } else {
         deep.copy(PAL.shadow.value).lerp(PAL.maroon.value, 0.3);
         sky.copy(PAL.haze.value).lerp(PAL.skyHorizon.value, 0.4);
-        uAlpha.value = Math.max(s.opacity, 0.78); uAlphaGraze.value = 0.97; uGlint.value = 1;
+        // seaStyle's opacity (0.62) looking down, a gentle fresnel rise to 0.85 at grazing: founders in the shallows stay visible
+        uAlpha.value = s.opacity; uAlphaGraze.value = Math.max(s.opacity, 0.85); uGlint.value = 1;
       }
       const k = `${inputs.frozen}`;
       if (k !== key) {

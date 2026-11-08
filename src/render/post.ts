@@ -79,7 +79,7 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       edge = max(edge, zn.greaterThan(zc.mul(1.05).add(0.4)).select(float(1), float(0)));
     }
     const worldY: N = camWorldU.mul(vec4(getViewPosition(screenUV, depth.sample(screenUV).r, projInvU), 1)).y;
-    const underSea: N = worldY.lessThan(seaU.sub(0.05)).and(camYU.greaterThan(seaU));
+    const underSea: N = worldY.lessThan(seaU.sub(1.0)).and(camYU.greaterThan(seaU)); // the top 1 m keeps ink: shallow creatures, shore edges
     const fade: N = float(1).sub(smoothstep(LOOK.patch.mul(FADE_FROM_PATCH), farU.mul(FADE_TO_FAR), zc)).mul(underSea.select(float(0), float(1))).mul(inkScaleU);
     c.assign(mix(c, vec3(PAL.ink), edge.mul(fade)));
     // Stepped pixel bloom: sample at the internal pixel centre, quantise magnitude to quarter steps.
