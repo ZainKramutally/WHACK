@@ -122,7 +122,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
-    wheelZoom += clamp(e.deltaY * unit, -200, 200) * 0.0015;
+    wheelZoom += clamp(e.deltaY * unit, -400, 400) * 0.005;
   };
   const onPointerCancel = () => {
     drag = null;
@@ -199,7 +199,7 @@ export function createInput(el: HTMLElement, cb: InputCallbacks = {}, opts: Inpu
       if (padRise !== 0) rise = padRise;
       jump = jump || down(GP.RB) || down(GP.X);
 
-      zoom += ((pad.buttons[GP.LT]?.value ?? 0) - (pad.buttons[GP.RT]?.value ?? 0)) * 1.2 * dt;
+      zoom += ((pad.buttons[GP.LT]?.value ?? 0) - (pad.buttons[GP.RT]?.value ?? 0)) * 3.5 * dt;
       if (edge(GP.A)) cb.onInspect?.('reticle');
       if (edge(GP.B)) cb.onClose?.();
       if (edge(GP.Y)) cb.onToggleConditions?.();

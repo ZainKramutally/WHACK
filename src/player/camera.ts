@@ -118,7 +118,7 @@ export function createFollowCamera(env: CameraEnv, tuning: Partial<CameraTuning>
       lastSwim = swimming;
       const [lo, hi] = swimming ? t.swimPitch : t.walkPitch;
       cam.pitch = clamp(cam.pitch, lo, hi);
-      [dist, distVel] = smoothDamp(dist, swimming ? swimTarget : walkTarget, distVel, 0.25, dt);
+      [dist, distVel] = smoothDamp(dist, swimming ? swimTarget : walkTarget, distVel, 0.15, dt);
       const d = desired(target, dist);
       const st = swimming ? t.swimSmoothTime : t.smoothTime;
       const p = cam.position;
