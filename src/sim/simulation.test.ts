@@ -365,7 +365,7 @@ describe('WorldSimulation', () => {
       const sim = new WorldSimulation(carbon, EARTH);
       const ids = new Set<number>();
       let forms = 0;
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 70; i++) {
         sim.advance(0.25);
         const s = sim.snapshot();
         expect(s.organisms.length / ORGANISM_STRIDE).toBe(s.population.consumers);
