@@ -95,6 +95,7 @@ export class EcologyLife implements LifeModel {
         tissueDensity: fixed.tissueDensity,
         gravity: env.gravity,
         flight: flightParamsFor(fixed),
+        economics: fixed.economics && { gravityWalk: fixed.economics.gravityWalk, gravityScaleRef: fixed.economics.gravityScaleRef },
       },
       composition: w.life.composition,
       founderClimate: { prefTemp: w.life.founders.prefTemp, tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },

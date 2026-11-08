@@ -34,6 +34,14 @@ export interface DevelopInputs {
   tissueDensity: { C: number; Si: number }; // g/cm³
   gravity: number; // g
   flight?: FlightParams; // powered-flight coefficients (world config); without it only buoyant floaters hover
+  /** Body economics (world config `life.inputs.economics`): omitted = off, so a plan is gravity-blind. */
+  economics?: BodyEconomics;
+}
+
+/** Coefficients of the square-cube support term (McMahon 1973; Biewener 1990). Values live in world config. */
+export interface BodyEconomics {
+  gravityWalk: number; // walk-cost share added per unit of limb load
+  gravityScaleRef: number; // body length (m) at which one g loads a unit limb by 1
 }
 
 /** One arm of a radial body: its direction around the hub (a multiple of 15°) and its length. */
@@ -132,8 +140,31 @@ const G = {
   swimElongation: 0.6, // elongation cuts swim cost at high Re
   hardness: 0.5, // silicon hardness adds this × si to defence
   buoyDefence: 0.3,
+  surfaceSphere: 4.84, // area of a sphere = 4.84·V^(2/3): the compact-body baseline of the heat balance
+  elongArea: 0.8, // extra skin of a long, many-segmented body at the same volume (share of the sphere's area at segments = 1)
+  limbThick: 0.1, // limb diameter as a share of body length (geometric similarity)
+  dragLimb: 0.2, // a legless body still drags its weight: this adds to limb length in the support load
   reRef: { rho: 1.0, mu: 0.89 }, // water at 20 °C: the unit the Reynolds weight is anchored to (a scale, not a world fact)
 };
+
+/**
+ * Heat balance: skin area (m²) of a developed body, from the plan alone. A sphere of the body's volume, stretched by
+ * length (spine segments, or hub tiers), plus the limbs as thin radiators. Pure; ecology.ts divides by mass^0.75 (heat made).
+ */
+export function skinArea(p: Pick<BodyPlan, 'scale' | 'architecture' | 'segmentCount' | 'tiers' | 'symmetry' | 'legPairs' | 'limbLength'>): number {
+  const radial = p.architecture === 'radial';
+  const volume = G.fill * p.scale ** 3;
+  const stretch = radial ? 0.2 * (p.tiers - 1) : (p.segmentCount - 3) / 13;   // segmentCount = 3 + 13·segments (axial)
+  const body = G.surfaceSphere * volume ** (2 / 3) * (1 + G.elongArea * stretch);
+  const nLimbs = radial ? p.symmetry : 2 * p.legPairs;
+  return body + nLimbs * Math.PI * G.limbThick * p.scale * p.limbLength;
+}
+
+/** Square-cube support load of a developed body (McMahon 1973): g × body length × (drag + limb length²), relative to the world's reference length. */
+export function supportLoad(p: Pick<BodyPlan, 'scale' | 'limbLength'>, gravity: number, scaleRef: number): number {
+  const limb = p.limbLength / Math.max(1e-9, p.scale);
+  return gravity * (p.scale / scaleRef) * (G.dragLimb + limb * limb);
+}
 
 const SYMMETRIES = [3, 4, 5, 6, 8] as const;
 /**
@@ -223,8 +254,12 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const elongation = radial ? 0.25 + 0.2 * Math.round(baseTiers) : Math.min(16, Math.round(baseSegments)) / 12;
   const reRel = ((sea.rho / sea.mu) / (G.reRef.rho / G.reRef.mu)) * baseScale; // Re vs water, size-weighted
   const reWeight = clamp(1 + 0.25 * Math.log(reRel), 0, 2);
+  // Square-cube support (McMahon 1973): bending load on the limbs ∝ g × length × limb length ÷ √legs; it costs walking effort.
+  const legShare = Math.sqrt(Math.max(1, nLegs));
+  const eco = inputs.economics;
+  const limbLoad = eco ? inputs.gravity * (baseScale / eco.gravityScaleRef) * (G.dragLimb + legLenEff ** 2) : 0;
   const walk =
-    (1 + G.crawlBase * Math.exp(-4 * legLenEff)) / (Math.sqrt(Math.max(1, nLegs)) * (1 + legLenEff));
+    ((1 + G.crawlBase * Math.exp(-4 * legLenEff)) / (legShare * (1 + legLenEff))) * (1 + (eco ? eco.gravityWalk * limbLoad : 0));
   const swim =
     (G.swimBase + G.swimSlope * Math.abs(bodyDensity - sea.rho)) /
     (1 + G.swimElongation * elongation * reWeight);

@@ -34,6 +34,7 @@ export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: Ecolo
       tissueDensity: world.life.inputs.tissueDensity,
       gravity: 1,
       flight: flightParamsFor(world.life.inputs),
+      economics: world.life.inputs.economics,
     },
     composition: world.life.composition,
     founderClimate: { prefTemp: world.life.founders.prefTemp, tolerance: world.life.founders.tolerance, chem: world.life.founders.chem },

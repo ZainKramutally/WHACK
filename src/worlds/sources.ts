@@ -193,6 +193,48 @@ const list: Source[] = [
     citation: 'Holló G (2015). A new paradigm for animal symmetry. Interface Focus 5:20150032.',
     note: 'TO VERIFY (recalled, no DOI checked). Bilateral symmetry goes with directed locomotion, since a body that moves front-first meets the world front-first and concentrates its senses there (cephalisation). Basis for silicon bodies that walk becoming bilateral (assumption: true).',
   },
+  {
+    id: 'sperling2013',
+    citation: 'Sperling EA, Frieder CA, Raman AV, Girguis PR, Levin LA, Knoll AH (2013). Oxygen, ecology, and the Cambrian radiation of animals. PNAS 110:13446.',
+    doi: '10.1073/pnas.1312778110',
+    note: 'Crossref. Low oxygen limits carnivory and large active animals: hunters need aerobic scope.',
+  },
+  {
+    id: 'harrison2010',
+    citation: 'Harrison JF, Kaiser A, VandenBrooks JM (2010). Atmospheric oxygen level and the evolution of insect body size. Proc R Soc B 277:1937.',
+    doi: '10.1098/rspb.2010.0001',
+    note: 'Crossref. Oxygen supply limits insect body size.',
+  },
+  {
+    id: 'graham1995',
+    citation: 'Graham JB, Dudley R, Aguilar NM, Gans C (1995). Implications of the late Palaeozoic oxygen pulse for physiology and evolution. Nature 375:117.',
+    doi: '10.1038/375117a0',
+    note: 'Crossref. Giant Palaeozoic insects at about 30 to 35% oxygen.',
+  },
+  {
+    id: 'biewener1990',
+    citation: 'Biewener AA (1990). Biomechanics of mammalian terrestrial locomotion. Science 250:1097.',
+    doi: '10.1126/science.2251499',
+    note: 'Crossref. Limb loading and posture scale with body size; large animals straighten their limbs.',
+  },
+  {
+    id: 'mcmahon1973',
+    citation: 'McMahon T (1973). Size and shape in biology. Science 179:1201.',
+    doi: '10.1126/science.179.4079.1201',
+    note: 'Crossref. Elastic similarity: limb thickness must outgrow body length as weight rises faster than strength.',
+  },
+  {
+    id: 'atkinson1994',
+    citation: 'Atkinson D (1994). Temperature and organism size: a biological law for ectotherms? Adv Ecol Res 25:1.',
+    doi: '10.1016/S0065-2504(08)60212-3',
+    note: 'Crossref. Temperature-size rule; bodies grow larger in the cold.',
+  },
+  {
+    id: 'vitousek1991',
+    citation: 'Vitousek PM, Howarth RW (1991). Nitrogen limitation on land and in the sea: how can it occur? Biogeochemistry 13:87.',
+    doi: '10.1007/BF00002772',
+    note: 'Crossref. Fixed nitrogen limits primary production in most ecosystems.',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));

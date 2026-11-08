@@ -316,6 +316,14 @@ export const silicon: WorldConfig = {
       supplyC: 5, // starting carbon nutrient per cell, in matter units
       supplySi: 40, // starting silicon nutrient per cell, in matter units
       supplyO: 0, // no free oxygen: it would turn silicon into rock
+      // Conditions shape bodies (owner ruling 2026-11-08). No aerobic terms (aerobicRef 0): silicon life is not aerobic, so O₂ = 0 is neutral. No nitrogen-limited producers: the seas hold most of the nitrogen.
+      thermalRefC: -183, // °C at which skin neither loses nor sheds heat: the world's default temperature; assumption: true
+      thermalSpanC: 25, // °C from the reference to full heat or cold load, scaled to the narrow living band; assumption: true
+      thermalK: 3, // assumption: true (same form as carbon)
+      thermalSurfRef: 0.035, // m² per kg^0.75 of a typical founder-lineage body in this world (measured from develop())
+      supportRef: 0.09, // limb load of a typical body in this world, already paid for in upkeepScale; assumption: true
+      supportCost: 3, // assumption: true (square-cube, McMahon 1973)
+      strandDrain: 200, // upkeep multiplier extra for a swimmer whose cell has dried: it loses energy fast unless it reaches liquid (GitHub #55); assumption: true
     },
     inputs: {
       solvent: {
@@ -357,6 +365,12 @@ export const silicon: WorldConfig = {
         why: 'Flight needs power ∝ weight^1.5 over the square root of air density times wing area; the muscles supply power ∝ muscle mass times aerobic scope, so light, big-winged bodies in thick air and low gravity fly highest.',
         sources: ['pennycuick2008', 'ellington1984', 'marden1994'],
         assumption: true,   // every coefficient here is a typical-bird order of magnitude, not fitted
+      },
+      economics: {
+        gravityWalk: 3, // assumption: true (same form as carbon)
+        gravityScaleRef: 0.5, // assumption: true
+        why: 'Weight rises with the cube of body length and limb strength with the square, so long limbs on big bodies cost more to walk on at high gravity.',
+        sources: ['mcmahon1973', 'biewener1990'],
       },
       scalings: {
         lightFull: 1,

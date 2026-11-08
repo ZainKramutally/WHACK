@@ -80,12 +80,18 @@ export interface LifeRules {
         aerobicBonus: number; // extra assimilation at full oxygen need and full oxygen
         baseMaxSize: number; // largest consumer body that can breathe with no oxygen
         maxSizePerPercent: number; // how much each % of oxygen raises that limit
+        huntPenalty?: number; // the limit shrinks by 1 + huntPenalty × diet: active predators need more oxygen than grazers (Sperling et al. 2013); default 0
       }
     | {
         kind: 'coldStability'; // silicon: stiffer bonds resist warmth, at a cost
         warmRelief: number; // share of warm-side stress removed at full cold stability
         cost: number; // extra upkeep at full cold stability
       };
+}
+
+/** Largest body that can breathe at `o2` % oxygen (Fick diffusion; Graham 1995). `diet` 0 = grazer .. 1 = hunter. Shared by this model and ecology.ts. */
+export function maxBodySize(ct: { baseMaxSize: number; maxSizePerPercent: number; huntPenalty?: number }, o2: number, diet = 0): number {
+  return (ct.baseMaxSize + ct.maxSizePerPercent * Math.max(0, o2)) / (1 + (ct.huntPenalty ?? 0) * diet);
 }
 
 export interface PopulationStats {
@@ -260,7 +266,7 @@ export class Population {
         if (ct.kind === 'oxygenNeed') {
           const avail = o2 / (o2 + ct.halfSaturation);
           efficiency = 1 - chem + chem * (1 + ct.aerobicBonus) * avail;
-          const maxSize = ct.baseMaxSize + ct.maxSizePerPercent * o2;
+          const maxSize = maxBodySize(ct, o2);
           if (size > maxSize) stress += size / maxSize - 1;
         }
         if (nProd > 0 && this.rnd() < Math.min(1, r.consumer.biteRate * foodChance * dt)) {

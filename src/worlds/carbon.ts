@@ -233,7 +233,7 @@ export const carbon: WorldConfig = {
       edgeStressWeight: 1,
       mutation: { size: 0.075, prefTemp: 0.6, tolerance: 0.3, chem: 0.075, roleFlip: 0, sizeBoost: 2, jumpRate: 0.012, jumpScale: 0.4 },   // assumption: true. Rare large jumps, as in punctuated equilibrium (Gould and Eldredge 1972): species stay stable, and occasional jumps found new ones
       bounds: { size: [0.2, 5], tolerance: [1, 30] },
-      chemTrait: { kind: 'oxygenNeed', halfSaturation: 2, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1 },
+      chemTrait: { kind: 'oxygenNeed', halfSaturation: 2, aerobicBonus: 1, baseMaxSize: 0.5, maxSizePerPercent: 0.1, huntPenalty: 1 },
     },
     composition: { c: 0.85, si: 0.0, o: 0.15 },
     founders: {
@@ -284,6 +284,20 @@ export const carbon: WorldConfig = {
       supplyC: 40, // starting carbon nutrient per cell, in matter units
       supplySi: 0, // carbon bodies and flora hold no silicon, so none is supplied
       supplyO: 10, // starting oxygen nutrient per cell, in matter units
+      // Conditions shape bodies (owner ruling 2026-11-08). Forms in code, coefficients here; all assumption: true unless a source is named.
+      aerobicRef: 21, // % O₂ at which aerobic scope = 1 (Earth today). Sustained power ∝ O₂ supply (Fick diffusion); Sperling 2013, Harrison 2010, Graham 1995
+      aerobicFloor: 0.4, // anaerobic glycolysis still supplies this share of the scope at zero O₂; assumption: true
+      aerobicMax: 1.5, // a rich atmosphere helps up to here (about 31% O₂); assumption: true
+      aerobicSpeed: 0.5, // share of top speed lost at zero scope; assumption: true
+      aerobicMove: 1, // extra movement cost per metre of body at zero scope: big bodies pay more to move in thin air; assumption: true
+      aerobicHunt: 1, // catch rate ∝ scope: hunting is the most oxygen-hungry way to live (Sperling 2013); exponent assumption: true
+      thermalRefC: 15, // °C at which skin neither loses nor sheds heat (Earth's mean); Bergmann 1847, Allen 1877, Atkinson 1994
+      thermalSpanC: 30, // °C from the reference to full heat or cold load; assumption: true
+      thermalK: 8, // upkeep share per unit of relative skin load; assumption: true
+      thermalSurfRef: 0.05, // m² per kg^0.75 of a typical founder-lineage body in this world (measured from develop())
+      supportRef: 0.125, // limb load of a typical body in this world, already paid for in upkeepScale; assumption: true
+      supportCost: 3, // standing upkeep share per unit of limb load (square-cube: McMahon 1973, Biewener 1990); assumption: true
+      nitrogenHalf: 0.3, // × Earth N₂ at which fixed nitrogen halves producer growth; proteins and DNA need it (Vitousek & Howarth 1991); the scaling from the N₂ inventory is assumption: true
     },
     inputs: {
       solvent: {
@@ -325,6 +339,12 @@ export const carbon: WorldConfig = {
         why: 'Flight needs power ∝ weight^1.5 over the square root of air density times wing area; the muscles supply power ∝ muscle mass times aerobic scope, so light, big-winged bodies in thick air and low gravity fly highest.',
         sources: ['pennycuick2008', 'ellington1984', 'marden1994'],
         assumption: true,   // every coefficient here is a typical-bird order of magnitude, not fitted
+      },
+      economics: {   // square-cube support term in develop() (gravity is the seed's sampled stat)
+        gravityWalk: 3, // walk-cost share added per unit of limb load; assumption: true
+        gravityScaleRef: 0.5, // body length (m) at which 1 g loads a unit limb by 1; assumption: true
+        why: 'Weight rises with the cube of body length and limb strength with the square, so long limbs on big bodies cost more to walk on at high gravity.',
+        sources: ['mcmahon1973', 'biewener1990'],
       },
       scalings: {   // issue #7: our stats → F's heat, light and hunger ranges
         lightFull: 1,         // starlight (× Earth) at which F's light input saturates

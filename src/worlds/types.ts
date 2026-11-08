@@ -110,6 +110,7 @@ export interface LifeInputs {
   tissueDensity: Sourced & { C: number; Si: number };
   flight: Sourced & Omit<FlightParams, 'airScale' | 'molarMass'>;   // powered-flight coefficients (sim/flight.ts); airScale is copied from airDensity.scale
   scalings: Record<string, number>;              // our stats → F's heat, light and hunger ranges
+  economics?: Sourced & { gravityWalk: number; gravityScaleRef: number };   // square-cube support term in develop() (McMahon 1973); omitted = creatures ignore gravity
 }
 
 export interface WorldConfig {

@@ -8,11 +8,11 @@
 // R10 bestMode() + moveCost · R11 returnMatter() · R12 nothing here reads rendering.
 import { CONSTANTS } from './constants';
 import { flightCeiling, climbRate } from './flight';
-import { develop, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
+import { develop, skinArea, supportLoad, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
 import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition, type FounderLatent } from './genome';
 import { CELLS, FLORA_STRIDE, GRID, cellOf, type Grid } from './grid';
 import { ORGANISM_STRIDE, packOrganism } from './organismLayout';
-import { pace, type Environment, type LifeRules } from './population';
+import { maxBodySize, pace, type Environment, type LifeRules } from './population';
 import { eatsIntensity, kinStrength } from './relationships';
 import { makeRng, gaussian, type Rng } from './rng';
 
@@ -20,7 +20,7 @@ export const TICK_HZ = 20;
 export const CAP = 1024;
 
 /** The sim's inputs for one step: population.ts's Environment plus the living-band heat for develop(). */
-export interface EcologyEnv extends Environment { heatBand: number; /** real surface air density, kg/m³ (default: the founders' inputs) */ airDensity?: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
+export interface EcologyEnv extends Environment { heatBand: number; /** atmospheric N₂ inventory, × Earth (carbon: a producer nutrient; absent = not limiting) */ nitrogen?: number; /** real surface air density, kg/m³ (default: the founders' inputs) */ airDensity?: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
 
 /**
  * World-config `life.ledger`: scalings that turn the rules into numbers (units: matter = animal mass = energy).
@@ -58,6 +58,20 @@ export interface EcologyLedger {
   grazeReach: number; // metres of body length per extra cell of grazing radius (0 = grazers feed only in their own cell): big bodies feed over a footprint, so their intake does not saturate at one cell
   growRate: number; // share of its body mass a juvenile converts from energy to body per ecology second (0 = born adult). Lets a large mutant be born small and grow
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
+  aerobicRef: number; // % oxygen at which aerobic scope is 1 (Fick: sustained power ∝ O₂); 0 = off (silicon: not aerobic, so O₂ = 0 is neutral)
+  aerobicFloor: number; // share of scope anaerobic metabolism still supplies at zero O₂ (burst power from glycolysis)
+  aerobicMax: number; // largest aerobic scope (a rich atmosphere helps only so far)
+  aerobicSpeed: number; // share of top speed lost at zero scope
+  aerobicMove: number; // extra movement cost per metre of body at zero scope (large bodies pay more to move air-poor)
+  aerobicHunt: number; // exponent of scope on a hunter's catch rate (hunting is the most oxygen-hungry way to live)
+  thermalRefC: number; // °C at which the body is in heat balance (0 span = off)
+  thermalSpanC: number; // °C from the reference to full heat or cold load
+  thermalK: number; // upkeep share per unit of relative skin load (cold: skin per M^0.75 loses heat; heat: skin radiates it)
+  thermalSurfRef: number; // surface area per M^0.75 of a typical body (m² per kg^0.75): relative skin = this body ÷ it
+  supportCost: number; // standing upkeep share per unit of limb load above supportRef (square-cube: weight carried on limbs)
+  supportRef: number; // limb load of a typical body, already paid for in upkeepScale: only load above it costs, below it saves
+  nitrogenHalf: number; // × Earth N₂ at which fixed nitrogen limits producers to half (0 = not limiting; Vitousek & Howarth 1991)
+  strandDrain: number; // upkeep multiplier extra for an animal whose cell no longer suits its body (stranded)
   intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
 
@@ -66,6 +80,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
   hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, cohesion: 1, intakeExp: 0.75,
+  aerobicRef: 0, aerobicFloor: 0, aerobicMax: 1.5, aerobicSpeed: 0, aerobicMove: 0, aerobicHunt: 0, thermalRefC: 15, thermalSpanC: 0, thermalK: 0, thermalSurfRef: 1, supportCost: 0, supportRef: 0, nitrogenHalf: 0, strandDrain: 0,
 };
 
 export interface EcologyOptions {
@@ -252,6 +267,9 @@ export class Ecology {
     const vigour = 1 - edge;
     const sun = Math.min(1, this.env.light * L.floraLightGain);
     const cm = L.cellMass;
+    // Fixed nitrogen limits primary production (Vitousek & Howarth 1991): saturating in the N₂ inventory, 1 at Earth's.
+    const nIn = this.env.nitrogen;
+    const nFix = L.nitrogenHalf > 0 && nIn !== undefined ? (Math.max(0, nIn) / (Math.max(0, nIn) + L.nitrogenHalf)) * (1 + L.nitrogenHalf) : 1;
     for (let i = 0; i < CELLS; i++) {
       // decay returns nutrients
       let b = g.mat[i];
@@ -276,12 +294,12 @@ export class Ecology {
       if (x < GRID - 1) { nb += g.mat[i + 1]; nn++; }
       if (y > 0) { nb += g.mat[i - GRID]; nn++; }
       if (y < GRID - 1) { nb += g.mat[i + GRID]; nn++; }
-      let grow = vigour * P0 * dt * hab * light * (b + L.spread * (nb / nn)) * (1 - b);
+      let grow = vigour * P0 * dt * hab * nFix * light * (b + L.spread * (nb / nn)) * (1 - b);
       grow = this.limit(i, grow, 1 - b);
       b += grow;
       let growC = 0;
       if (!wet) {
-        growC = vigour * P0 * dt * hab * sun * L.canopyRate * b * (1 - can);
+        growC = vigour * P0 * dt * hab * nFix * sun * L.canopyRate * b * (1 - can);
         growC = this.limit(i, growC, 1 - can);
         can += growC;
       }
@@ -665,10 +683,14 @@ export class Ecology {
     if (ct.kind === 'oxygenNeed') {
       const o2 = Math.max(0, env.oxygen);
       efficiency = 1 - cl.chem + cl.chem * (1 + ct.aerobicBonus) * (o2 / (o2 + ct.halfSaturation));
-      const maxSize = ct.baseMaxSize + ct.maxSizePerPercent * o2;
+      const maxSize = maxBodySize(ct, o2, p.diet);
       const size = p.scale / L.sizeRef;
       if (size > maxSize) stress += size / maxSize - 1;
     }
+
+    // aerobic scope (Fick): sustained power ∝ O₂, relative to the reference air; 1 where the world is not aerobic
+    const scope = L.aerobicRef > 0 ? Math.min(L.aerobicMax, L.aerobicFloor + (1 - L.aerobicFloor) * (Math.max(0, env.oxygen) / L.aerobicRef)) : 1;
+    const lack = Math.max(0, 1 - scope);
 
     // movement (R10): toward the action's target, paying the medium's cost
     if (act === ACT.hunt || act === ACT.flee || act === ACT.forage || act === ACT.home) {
@@ -678,7 +700,7 @@ export class Ecology {
       const dx = tx - this.x[i], dy = ty - this.y[i];
       const dist = Math.hypot(dx, dy);
       if (dist > 0.05) {
-        const vmax = this.wandering[i] && act === ACT.forage ? CONSTANTS.WANDER.value * GRID : L.speed;
+        const vmax = (this.wandering[i] && act === ACT.forage ? CONSTANTS.WANDER.value * GRID : L.speed) * (1 - L.aerobicSpeed * lack);
         const step = Math.min(dist, vmax * dt * (act === ACT.flee ? 1.5 : 1));
         const nx = Math.min(GRID - 1e-6, Math.max(0, this.x[i] + (dx / dist) * step));
         const ny = Math.min(GRID - 1e-6, Math.max(0, this.y[i] + (dy / dist) * step));
@@ -687,7 +709,7 @@ export class Ecology {
         if (mode !== LOCOMOTION.sessile) {
           this.heading[i] = Math.atan2(ny - this.y[i], nx - this.x[i]);
           this.x[i] = nx; this.y[i] = ny; this.mode[i] = mode;
-          const cost = Math.min(this.energy[i], L.moveCost * this.modeCost(p, mode) * mm * step);
+          const cost = Math.min(this.energy[i], L.moveCost * this.modeCost(p, mode) * (1 + L.aerobicMove * lack * (p.scale / L.sizeRef)) * mm * step);
           this.energy[i] -= cost;
           this.returnMatter(cell, cost, 0);
         }
@@ -728,7 +750,7 @@ export class Ecology {
       const j = this.tgt[i];
       if (this.alive[j] && this.id[j] === this.tgtId[i] && Math.hypot(this.x[j] - this.x[i], this.y[j] - this.y[i]) <= CONSTANTS.REACH.value) {
         const pCatch = 1 - CONSTANTS.REFUGE.value * this.shelter(cellOf(this.x[j], this.y[j]));
-        if (this.rnd() < Math.min(1, L.catchRate * dt) * pCatch) {
+        if (this.rnd() < Math.min(1, L.catchRate * dt * (L.aerobicHunt > 0 ? scope ** L.aerobicHunt : 1)) * pCatch) {
           const matter = this.struct[j] + this.energy[j];
           const jc = cellOf(this.x[j], this.y[j]);
           this.kill(j);
@@ -750,6 +772,15 @@ export class Ecology {
     const gc = this.genome[i].comp;
     let up = CONSTANTS.B0.value * L.upkeepScale * mm * dt * (1 + p.eyeUpkeep + L.glowCost * p.glow) * (1 + rules.toleranceCost * cl.tolerance);
     if (ct.kind === 'coldStability') up *= 1 + ct.cost * cl.chem;
+    // heat balance: skin per M^0.75 against the climate. Cold loses heat through skin (compact, large bodies save); heat must be radiated through it (slender, long-limbed bodies save).
+    if (L.thermalSpanC > 0 && L.thermalK > 0) {
+      const x = Math.max(-1, Math.min(1, (env.temperature - L.thermalRefC) / L.thermalSpanC));
+      const skin = skinArea(p) / Math.max(1e-9, p.mass ** 0.75) / L.thermalSurfRef;
+      const load = x < 0 ? -x * (skin - 1) : x * (1 / skin - 1);
+      up *= Math.min(3, Math.max(0.5, 1 + L.thermalK * load));
+    }
+    if (L.supportCost > 0) up *= Math.max(0.5, 1 + L.supportCost * (supportLoad(p, this.inputs.gravity, this.inputs.economics?.gravityScaleRef ?? 1) - L.supportRef));
+    if (L.strandDrain > 0 && p.mode === LOCOMOTION.swim && g.liquid[here] <= 0) up *= 1 + L.strandDrain;
     if (g.liquid[here] > 0) {
       const attack = (CONSTANTS.DISSOLVE.value * this.inputs.solvent.epsilonR) / 80;
       up += attack * gc.si * (1 - clamp01(p.plateCover)) * mm * dt;
