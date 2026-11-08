@@ -80,7 +80,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   const rHead = { x: rig.head.position.x, y: rig.head.position.y, z: rig.head.position.z, rx: rig.head.rotation.x, ry: rig.head.rotation.y };
   const rHands = rig.hands.map((h) => ({ x: h.position.x, y: h.position.y, z: h.position.z }));
   const rEyes = rig.eyes.map((e) => ({ x: e.position.x, y: e.position.y, sy: e.scale.y }));
-  const rExtras = rig.extras.map((e) => ({ ry: e.rotation.y, rz: e.rotation.z }));
+  const rExtras = rig.extras.map((e) => ({ ry: e.rotation.y, rz: e.rotation.z, y: e.position.y, motion: (e.userData?.motion as string | undefined) ?? 'sway' }));
 
   // Springs: [omega, zeta].
   const sx = new Float64Array(NS), sv = new Float64Array(NS), st = new Float64Array(NS);
@@ -406,8 +406,12 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
       e.position.y = rEyes[i].y + gazeY;
     }
     for (let i = 0; i < rig.extras.length; i++) {
-      rig.extras[i].rotation.y = rExtras[i].ry + 0.6 * t * (i + 1);
-      rig.extras[i].rotation.z = rExtras[i].rz + 0.05 * Math.sin(TAU * 0.5 * t + i);
+      const ex = rig.extras[i], r = rExtras[i];
+      if (r.motion === 'orbit') ex.rotation.y = r.ry + 1.4 * t;
+      else if (r.motion === 'sway') {
+        ex.rotation.z = r.rz + 0.05 * Math.sin(TAU * 0.5 * t + i);
+        ex.position.y = r.y + 0.01 * Math.sin(TAU * 0.4 * t + 1 + i);
+      }
     }
     gaitOut = gait;
   }

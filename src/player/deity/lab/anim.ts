@@ -42,8 +42,9 @@ app.scene.add(ground, water);
 const player = createPlayer(env);
 const s = player.state;
 const follow = createFollowCamera({ floorAt: (x, z) => walkFloor(heightAt(x, z), SEA, false) });
-const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const;
-let vi = 0;
+const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const; // ?variant=a|b|c|d|standin
+const qv = new URLSearchParams(location.search).get('variant');
+let vi = Math.max(0, VARIANTS.findIndex((v) => v.toLowerCase() === (qv ?? '').toLowerCase()));
 const make = () => createCharacter({ variant: VARIANTS[vi], ...(auto ? { lookBackDelay: [1.5, 1.5] as [number, number] } : {}) });
 let character = make();
 app.scene.add(character.root);
@@ -64,7 +65,7 @@ let slow = false;
 const hud = document.createElement('div');
 hud.style.cssText = 'position:fixed;left:8px;bottom:8px;font:12px monospace;color:#fff;background:#0009;padding:4px 8px;pointer-events:none';
 const base = auto ? 'auto loop | T slow-mo, R reset, V variant' : 'WASD move | Shift sprint | Space jump / rise | drag orbit | T slow-mo | R reset | V variant | pool ahead (-z)';
-hud.textContent = base + ' | variant C';
+hud.textContent = base + ' | variant ' + VARIANTS[vi];
 app.ui.appendChild(hud);
 function reset() {
   player.teleport(SPAWN.x, SPAWN.z);
