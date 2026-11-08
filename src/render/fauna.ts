@@ -68,12 +68,14 @@ const ANIM_MAX = 160;             // ... at most this many per frame (the rest h
 const LOFT_MAX = 64;              // ... and the nearest of them get the full loft and parts (the rest are posed proxies)
 const LOFT_STICK = 0.7;           // a lofted creature ranks at this share of its squared distance (LOD hysteresis)
 const PART_CAP = 4096;            // posed parts per type (64 lofted creatures × at most ~45 of the busiest type)
-const PART_CAPS: Partial<Record<PartType, number>> = { rodSi: 6144 }; // silicon arms (8 × up to 6 rods) + lattice tendrils
+// Swimmers emit more of some types: the posed SWIM_MAX at their worst (a 6-bell chain's comb dots 265 knobSi; a ribbon's
+// dots 106 knob and rods 97 rodC) plus the other lofted creatures at ~45 each.
+const PART_CAPS: Partial<Record<PartType, number>> = { rodSi: 6144, knob: 4608, rodC: 4608, knobSi: 8192 }; // rodSi: silicon arms (8 × up to 6 rods) + lattice tendrils
 const RIM_SI = 0.45;              // silicon's pale fresnel rim on violet bodies (#50)
 const RIM_BELL = 0.5;             // gas bells read translucent at grazing angles
 const GENE0 = geneField('size');  // the 12 body genes, then comp c and si: the field guide's clustering space
 const PENDING_SNAPS = 20;         // a birth plan waits this many snapshots for its organism to show up
-const SWIM_MAX = 12;              // lofted swimmers posed as aquatic bodies per frame (a pose costs ~0.1 ms); the rest keep the bead loft
+const SWIM_MAX = 24;              // lofted swimmers posed as aquatic bodies per frame (a pose costs 5–20 µs and allocates no arrays); the rest keep the bead loft
 // Stroke frequency range by motion kind (aquatic-life.md §6.5): idle floor so a resting swimmer still breathes its fins.
 const SWIM_F: Record<'wave' | 'row' | 'jet', [number, number]> = { wave: [0.3, 4], row: [0.3, 2.2], jet: [0.3, 1.4] };
 const D15 = Math.PI / 12;
@@ -929,6 +931,7 @@ export function createFauna(app: App): FaunaPart {
     L.n++;
   }
 
+  const OAR_X: V3 = [0, 0, 0], OAR_Z: V3 = [0, 0, 0]; // the bladeSi oar basis (the part push copies it)
   const SINK: SwimSink = {
     tube(i, c, U, R, rw, rh, top = 1) {
       void R;
@@ -979,7 +982,9 @@ export function createFauna(app: App): FaunaPart {
           P = PART.rodSi;
           const r = 0.18 * Math.hypot(x[0], x[1], x[2]);
           const xl = Math.hypot(x[0], x[1], x[2]) || 1, zl = Math.hypot(z[0], z[1], z[2]) || 1;
-          X = [(x[0] / xl) * r, (x[1] / xl) * r, (x[2] / xl) * r]; Y = y; Z = [(z[0] / zl) * r, (z[1] / zl) * r, (z[2] / zl) * r];
+          X = OAR_X; Y = y; Z = OAR_Z;
+          X[0] = (x[0] / xl) * r; X[1] = (x[1] / xl) * r; X[2] = (x[2] / xl) * r;
+          Z[0] = (z[0] / zl) * r; Z[1] = (z[1] / zl) * r; Z[2] = (z[2] / zl) * r;
           break;
         }
       }
@@ -992,6 +997,9 @@ export function createFauna(app: App): FaunaPart {
     },
   };
 
+  // One instance for every swimmer pose (the path is TRAIL_PATH, pooled): nothing is allocated per pose.
+  let swimHeadX = 0;
+  const swimInst = { s0: 0, phase: 0, off: [0, 0] as [number, number], k: 0 };
   /** Pose the creature's swimmer at its integrated stroke phase into the near batches. True when its body was drawn. */
   // ---- swimmer trails: the head's recent world positions, so a body curves through its own turns and banks ----------
   // One ring of TRAIL_N head points per swimmer slot (SWIM_MAX + slack for the one-frame release lag), all preallocated.
@@ -1042,12 +1050,12 @@ export function createFauna(app: App): FaunaPart {
     const bells = sw.params.plan === 'bell' ? sw.params.radial.chain : 1;
     const tau = e.swPhase / kin.freq; // the pose's time: its stroke phase is the integrated phase
     // the head starts the path at 0 (s0 cancels the pose's own advance); the body centres on the animal's position
-    const inst = { s0: -advance(kin, tau, 0, bells), phase: 0, off: [0, 0] as [number, number], k: 0 };
-    const headX = sw.params.chemistry === 'carbon' ? 0.5 * sw.L
+    swimInst.s0 = -advance(kin, tau, 0, bells);
+    swimHeadX = sw.params.chemistry === 'carbon' ? 0.5 * sw.L
       : sw.params.plan === 'bell' ? 0.5 * ((bells > 1 ? 0.55 : 0) + 1.08 * bells) * sw.L : 0;
-    if (live) trailFor(e, sw, headX); else TRAIL_PATH.straightOn(headX); // the card bake poses straight
+    if (live) trailFor(e, sw, swimHeadX); else TRAIL_PATH.straightOn(swimHeadX); // the card bake poses straight
     const nAx = axLoft.n, nHub = hubLoft.n;
-    sw.pose(tau, TRAIL_PATH, inst, SINK);
+    sw.pose(tau, TRAIL_PATH, swimInst, SINK);
     return axLoft.n > nAx || hubLoft.n > nHub;
   }
 
