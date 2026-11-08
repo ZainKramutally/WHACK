@@ -128,6 +128,17 @@ Under the particle box sits one optional row of chips: `Rock: [Volcanic] [Contin
 - **Bus.** `selection:changed` and `world:selected` carry `crust?: string`.
 - **Not a condition slider.** The crust is the planet's starting rock and doesn't change during a run, so the three-slider rule stands.
 
+## Palette per mineral (owner rulings 2026-11-08)
+
+The whole look follows the rock, not only the ground. The families live in `src/render/crustLook.ts` and are blended by crust shares in OKLab.
+- **Rock and air.** Rock ramp, shadow, haze and fog, horizon, bounce light and the foreground tint all follow the blend.
+- **Local haze.** Haze leans 60% towards the rock within about 40 m of the camera, easing over roughly 2 s.
+- **Plants.** Flora uses squared weights, so the dominant soil sets the plant colour. Caden's per-plant trait tints (from each plant's own cell mineral) multiply on top.
+- **Water is blue by its own physics** (Braun and Smirnov 1993). Minerals tint only the shallows, where the seabed shows through and the tint fades with depth. They nudge the open sea by at most 12%.
+- **Iron makes everything red.** Rusted ironstone is the Red World: its reds, oxblood shadow `0x5a1040`, rose iron-dust haze, crimson plants and a red-orange shore stain. The plants are red because iron oxides bind phosphate and phosphate-starved plants make anthocyanins. This is recalled, not verified, and is tracked in #82.
+- **Basalt stays green.** Rusted basalt is only a mild brown-grey, so the Volcanic chip stays a lush, green, Earth-like world after oxygen arrives.
+- **Basalt hexagons.** These are cooling cracks, not crystals. Basalt ground shows dark hexagonal joint lines everywhere. M7 adds low pavement steps inland, the tall columns stay on the coast, and the box draws basalt grains as hexagons.
+
 ## Honesty box additions
 
 - **Seeded:** the crust map.
