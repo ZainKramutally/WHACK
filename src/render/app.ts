@@ -75,8 +75,10 @@ export async function createApp(): Promise<App> {
   let renderStep = defaultRender;
   const overlays: OverlayDraw[] = [];
   const compile = async (s: THREE.Object3D = scene, c: THREE.Camera = camera) => {
-    await post.compile(s, c);
-    await renderer.compileAsync(s, c);
+    // A sub-object needs the real scene as targetScene, or its pipelines are built against a dummy scene (no lights/fog) and miss the cache.
+    const target = s === scene ? undefined : scene;
+    await post.compile(s, c, target);
+    await renderer.compileAsync(s, c, target);
   };
 
   const hooks: FrameHook[] = [];

@@ -87,7 +87,7 @@ export interface Post {
   /** Once per frame, before render: tracks the scene camera (planes, matrices) and the sea level for the sea mask. */
   update(inputs?: VisualInputs): void;
   /** Compile the scene's materials for the pass's own render target (its formats differ from the canvas). */
-  compile(scene: THREE.Object3D, camera: THREE.Camera): Promise<void>;
+  compile(scene: THREE.Object3D, camera: THREE.Camera, targetScene?: THREE.Scene): Promise<void>;
   /**
    * Pixel-size multiplier on top of the ~360 px base (default 1; 4 = four times chunkier). Cheap to tween every frame:
    * the effective canvas-px-per-pixel is rounded to an integer, so the pass targets only resize when that integer
@@ -336,12 +336,12 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       const clear = LOOK.waterClear.value as number;
       shaftU.value = SHAFT_GAIN * Math.exp(-Math.max(0, depthC) / (6 + 12 * clear)) * up * up * (3 - 2 * up);
     },
-    async compile(s, c) {
+    async compile(s, c, targetScene) {
       const prev = renderer.getRenderTarget();
       rt.samples = renderer.samples; // what the pass will use (PassNode sets it at first render)
       renderer.setRenderTarget(rt);
       try {
-        await renderer.compileAsync(s, c);
+        await renderer.compileAsync(s, c, targetScene);
       } finally {
         renderer.setRenderTarget(prev);
       }
