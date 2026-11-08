@@ -43,7 +43,7 @@ const camEnv = { floorAt: (x: number, z: number) => walkFloor(heightAt(x, z), SE
 let player = createPlayer(env);
 let s = player.state;
 let follow = createFollowCamera(camEnv);
-const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const; // ?variant=a|b|c|d|standin
+const VARIANTS = ['C', 'A', 'B', 'D', 'standin', 'astronaut'] as const; // ?variant=a|b|c|d|standin
 const qv = new URLSearchParams(location.search).get('variant');
 let vi = Math.max(0, VARIANTS.findIndex((v) => v.toLowerCase() === (qv ?? '').toLowerCase()));
 const make = () => createCharacter({ variant: VARIANTS[vi], ...(auto ? { lookBackDelay: [1.5, 1.5] as [number, number] } : {}) });
