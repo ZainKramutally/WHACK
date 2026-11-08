@@ -23,6 +23,7 @@ import { createLandmarksPart } from './landmarks';
 import { createRockFormsPart } from './rockForms';
 import type { RockFormSet } from '../gen/rockForms';
 import { createBasaltPillars } from './basaltPillars';
+import type { PillarSet } from '../gen/pillars';
 import type { LandmarkSet } from '../gen/landmarks';
 import { LOOK, PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
@@ -53,6 +54,8 @@ export interface WorldView {
   setLandmarks(set: LandmarkSet | null): void;
   /** Draw these per-mineral rock structures (gen/rockForms.ts); null clears. */
   setRockForms(set: RockFormSet | null): void;
+  /** Draw the basalt pillars for this terrain (a precomputed candidate set skips the scan); null clears. */
+  setPillars(t: Terrain | null, set?: PillarSet): void;
   setPatchSize(metres: number): void;
   readonly patchSize: number;
   /**
@@ -241,6 +244,9 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     },
     setRockForms(s) {
       rockForms.setSet(s);
+    },
+    setPillars(t, set) {
+      pillars.setTerrain(t, set);
     },
     setPatchSize(m) {
       patchOverride = m;

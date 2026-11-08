@@ -35,7 +35,7 @@ export function hexPrismGeometry(size: number): THREE.BufferGeometry {
 
 export interface PillarsPart {
   /** Lay out the pillars for this terrain (once per world, seed and crust). */
-  setTerrain(t: Terrain | null): void;
+  setTerrain(t: Terrain | null, precomputed?: PillarSet): void;
   update(dt: number, inputs: VisualInputs): void;
   readonly count: number;
   dispose(): void;
@@ -100,10 +100,10 @@ export function createBasaltPillars(app: App): PillarsPart {
   }
 
   return {
-    setTerrain(t) {
+    setTerrain(t, precomputed) {
       clear();
       if (!t) return;
-      const s = pillarCandidates(t);
+      const s = precomputed ?? pillarCandidates(t);
       if (s.count === 0) return;
       terrain = t; set = s;
       geo = hexPrismGeometry(s.size);

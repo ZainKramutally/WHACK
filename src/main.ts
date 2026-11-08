@@ -5,7 +5,10 @@ import { bus } from './bus';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
 import { withCrustChoice } from './gen/crust';
 import { createLandmarks } from './gen/landmarks';
-import { createRockForms } from './gen/rockForms';
+import { createRockForms, type RockFormSet } from './gen/rockForms';
+import type { LandmarkSet } from './gen/landmarks';
+import { pillarCandidates, type PillarSet } from './gen/pillars';
+import { createLru } from './lruCache';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
@@ -90,6 +93,73 @@ function ensureTerrainMesh(
   return { mesh: entry.mesh, needsCompile: isNew };
 }
 
+
+// ---- Generate-time features (landmarks, rock forms, pillars): precomputed while the selection screen is up ----
+
+type Features = { landmarks: LandmarkSet | null; rockForms: RockFormSet | null; pillars: PillarSet | null };
+/** Deterministic in (world, crust pick, run seed), and the seed is fixed per world per page load, so the key is enough. */
+const featureCache = createLru<Features>(4);
+let appliedKey: string | null = null;   // which key the world view currently holds
+let primeDone = false;                  // set once start() runs: later primes must not touch the view
+
+function seaCoverFrac(worldId: WorldId, crust?: CrustPickId) {
+  const w = runWorld(worldId, crust);
+  return (w.targets.seaCover[0] + w.targets.seaCover[1]) / 200;
+}
+function landmarksFor(worldId: WorldId, crust?: CrustPickId): LandmarkSet | null {
+  const t = terrainFor(worldId, crust);
+  return 'relics' in t
+    ? createLandmarks(t, { chemistry: runWorld(worldId, crust).life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: seaCoverFrac(worldId, crust) })
+    : null;
+}
+function rockFormsFor(worldId: WorldId, crust: CrustPickId | undefined, landmarks: LandmarkSet | null): RockFormSet | null {
+  const t = terrainFor(worldId, crust);
+  return landmarks && 'relics' in t ? createRockForms(t, landmarks, { seaCover: seaCoverFrac(worldId, crust) }) : null;
+}
+function pillarsFor(worldId: WorldId, crust?: CrustPickId): PillarSet | null {
+  const t = terrainFor(worldId, crust);
+  return 'relics' in t ? pillarCandidates(t) : null;
+}
+/** Cached on a hit; computed synchronously on a miss (Generate clicked before the idle slices finished). */
+function featuresSync(worldId: WorldId, crust?: CrustPickId): Features {
+  const k = keyOf(worldId, crust);
+  let f = featureCache.get(k);
+  if (!f) {
+    const landmarks = landmarksFor(worldId, crust);
+    f = { landmarks, rockForms: rockFormsFor(worldId, crust, landmarks), pillars: pillarsFor(worldId, crust) };
+    featureCache.set(k, f);
+  }
+  return f;
+}
+function applyFeatures(view: ReturnType<typeof createWorldView>, worldId: WorldId, crust: CrustPickId | undefined, f: Features) {
+  const t = terrainFor(worldId, crust);
+  view.setLandmarks(f.landmarks);
+  view.setRockForms(f.rockForms);
+  view.setPillars('relics' in t ? t : null, f.pillars ?? undefined);
+  appliedKey = keyOf(worldId, crust);
+}
+/** One builder per idle callback, so no single slice holds the main thread for more than one builder (~20-70 ms). */
+const idle = <T>(fn: () => T) => new Promise<T>((resolve, reject) => {
+  const run = () => { try { resolve(fn()); } catch (e) { reject(e); } };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 400 });
+  else setTimeout(run, 0);
+});
+/** Fill the cache in idle slices; returns null if the pick changed or Generate started meanwhile. */
+async function featuresIdle(worldId: WorldId, crust: CrustPickId | undefined, stale: () => boolean): Promise<Features | null> {
+  const k = keyOf(worldId, crust);
+  const hit = featureCache.get(k);
+  if (hit) return hit;
+  const landmarks = await idle(() => landmarksFor(worldId, crust));
+  if (stale()) return null;
+  const rockForms = await idle(() => rockFormsFor(worldId, crust, landmarks));
+  if (stale()) return null;
+  const pillars = await idle(() => pillarsFor(worldId, crust));
+  if (stale()) return null;
+  const f = { landmarks, rockForms, pillars };
+  featureCache.set(k, f);
+  return f;
+}
+
 // ---- boot ----
 
 /** World-agnostic setup, done while the selection screen is up: renderer, scene and every world's materials compile here. */
@@ -100,6 +170,18 @@ async function prepare() {
   // The view precompiles its terrain, sea, sky, fauna, flora and counterpart materials (serialised with the app's own compile).
   await view.ready;
   return { app, view, gen };
+}
+
+
+/** Pipelines for hidden meshes only build on the first visible frame: show them, compile against the real scene, then restore. */
+async function warmFeatures(app: Awaited<ReturnType<typeof prepare>>['app']) {
+  for (const name of ['rockForms', 'basaltPillars', 'landmarks']) {
+    const root = app.scene.getObjectByName(name);
+    if (!root || !root.children.length) continue;
+    const meshes: { o: import('three/webgpu').Object3D; v: boolean }[] = [];
+    root.traverse((o) => { meshes.push({ o, v: o.visible }); o.visible = true; });
+    try { await app.compile(root); } finally { for (const m of meshes) m.o.visible = m.v; }
+  }
 }
 
 async function start(
@@ -115,12 +197,7 @@ async function start(
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
   const seed = seedFor(worldId);
   const terrain = terrainFor(worldId, crust);
-  const landmarks = 'relics' in terrain
-    ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
-    : null;
-  const rockForms = landmarks && 'relics' in terrain
-    ? createRockForms(terrain, landmarks, { seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
-    : null;
+  const { landmarks, rockForms, pillars } = featuresSync(worldId, crust);
   const myKey = keyOf(worldId, crust);
   ensureTerrainMesh(view, worldId, crust);
   // One world per page load: free the other worlds' cached terrain meshes (setTerrain already took them out of the scene).
@@ -129,8 +206,8 @@ async function start(
     e.mesh.traverse((o) => { const m = o as import('three/webgpu').Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as import('three/webgpu').Material).dispose(); } });
     meshes.delete(id);
   }
-  view.setLandmarks(landmarks);
-  view.setRockForms(rockForms);
+  if (appliedKey !== myKey) applyFeatures(view, worldId, crust, { landmarks, rockForms, pillars });   // primed on the selection screen: normally already in place
+  primeDone = true;
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
@@ -281,6 +358,7 @@ async function boot() {
   // The opaque selection screen covers the canvas: skip the world's GPU work until start() resumes it.
   prepared.then((p) => p.app.setSuspended(true)).catch(() => {});
   // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
+  let primeToken = 0;
   const prime = (worldId: WorldId, conditions: Conditions, crust?: CrustPickId) => {
     prepared.then(async ({ app, view, gen }) => {
       ensureSim();
@@ -292,6 +370,13 @@ async function boot() {
         await app.compile(preparedTerrain.mesh);
       }
       gen.prime(worldId, t, seedFor(worldId), conditions, screen.handle, crust);
+      // Rock forms, landmarks and pillars for this pick: built in idle slices, then compiled while the screen still covers the canvas.
+      const myPrime = ++primeToken;
+      const stale = () => myPrime !== primeToken || primeDone;
+      const f = await featuresIdle(worldId, crust, stale);
+      if (!f || stale()) return;
+      if (appliedKey !== keyOf(worldId, crust)) applyFeatures(view, worldId, crust, f);
+      await warmFeatures(app);
     }).catch(() => {});
   };
   bus.on('selection:changed', ({ worldId, conditions, crust }) => prime(worldId, conditions, crust));
