@@ -7,9 +7,10 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, uint, uniform, positionLocal, normalize, transformNormalToView, vertexStage,
-  floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp, sin, positionWorld, cameraPosition,
+  floor, fract, step, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp, sin, positionWorld, cameraPosition,
 } from 'three/tsl';
 import { worldMaterial, PAL } from './material';
+import { BAND_DARK, crustRatchet, mineralColour } from './crustLook';
 import type { VisualInputs } from '../worlds/types';
 import type { Terrain, TerrainState, MachineId, TerrainParams } from '../gen/terrain';
 import { MACHINE_IDS, CRUST_NOISE_WEIGHT, SQRT3, HEX_H } from '../gen/terrain';
@@ -242,6 +243,7 @@ export const GROUND = {
   life: uniform(0),       // lifeOnLand, eased over ~3 s
   build: uniform(1),      // buildProgress
   frozen: uniform(0),     // 1 when the sea is frozen: no wet band or tide line on an ice shore
+  rust: uniform(0),       // 0..1: how far oxidising rock has rusted (crustRatchet)
 };
 
 let lifeEase = 0;
@@ -253,6 +255,7 @@ export function updateGround(inputs: VisualInputs, dt: number): void {
   GROUND.life.value = lifeEase;
   GROUND.build.value = inputs.buildProgress;
   GROUND.frozen.value = inputs.frozen ? 1 : 0;
+  GROUND.rust.value = crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress);
 }
 
 /**
@@ -262,8 +265,9 @@ export function updateGround(inputs: VisualInputs, dt: number): void {
  * only below the solvent's freezing point (heatSolvent < 0.5), heat bleaches, land life darkens the low flats, and the
  * contrast grows with rise so freshly settled ground starts even.
  */
-function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N): N {
+function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N {
   const P = terrain.params;
+  const minerals = terrain.config.crust?.minerals ?? [];   // cw: vertex-stage crust weights, in config order
   const halfA = 0.5 * P.A;
   const bandH = P.machines.M5?.bandH ?? Math.max(1, P.A * 0.08);
   return Fn(() => {
@@ -293,6 +297,21 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N): N {
     const near = smoothstep(70, 25, positionWorld.sub(cameraPosition).length());
     const rip = sin(x.mul(0.62).add(z.mul(0.38)).add(fine.mul(3.5)).add(vary.mul(6)));
     c.assign(mix(c, mix(vec3(PAL.crimson), vec3(PAL.maroon), 0.3), smoothstep(0.82, 0.96, rip).mul(flat).mul(near).mul(0.35)));
+
+    // crust: mineral colours blended by the shared weights, rusted by the ratchet, keeping the ramp's light/shade structure
+    if (minerals.length) {
+      const col = (hex: number): N => { const k = new THREE.Color(hex); return vec3(k.r, k.g, k.b); };
+      const comp = [cw.x, cw.y, cw.z, cw.w];
+      const hem = step(0.5, fract(h.div(bandH * 0.5).add(fine.mul(0.25))));   // ironstone's hematite bands: two per terrace
+      let mc: N = vec3(0, 0, 0);
+      minerals.slice(0, 4).forEach((m, i) => {
+        let mi: N = mix(col(mineralColour(m.id, 0)), col(mineralColour(m.id, 1)), GROUND.rust);
+        if (m.id === 'ironstone') mi = mix(mi, col(BAND_DARK), hem);   // red jasper with black hematite bands by height
+        mc = mc.add(mi.mul(comp[i]));
+      });
+      const lum = c.x.mul(0.3).add(c.y.mul(0.5)).add(c.z.mul(0.2));
+      c.assign(mix(c, mc.mul(lum.mul(0.9).add(0.55)), 0.9));
+    }
 
     // strata: stepped bands on walls, keyed to the terrace height (index mod 3 → light / dark / mid)
     const band = floor(h.div(bandH).add(fine.mul(0.35)));
@@ -345,7 +364,7 @@ export function createTerrainMesh(terrain: Terrain, uniforms: TerrainUniforms, o
   const hD = height(x, z.sub(eps)), hU = height(x, z.add(eps));
   const nLocal = normalize(vec3(hL.sub(hR), 2 * eps, hD.sub(hU)));
 
-  const mat = worldMaterial({ kind: 'ground', colorNode: groundField(terrain, uniforms, vertexStage(h), vertexStage(nLocal)) });
+  const mat = worldMaterial({ kind: 'ground', colorNode: groundField(terrain, uniforms, vertexStage(h), vertexStage(nLocal), vertexStage(crustWeightsNode(terrain)(x, z))) });
   mat.positionNode = vec3(x, h, z);
   mat.normalNode = transformNormalToView(vertexStage(nLocal));
 
