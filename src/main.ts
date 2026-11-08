@@ -112,8 +112,15 @@ async function start(
       // Births from every snapshot since the last frame are delivered exactly once, even if frames were skipped.
       const births = drainBirths(pendingBirths);
       if (latest !== visualFor || births.length || (visual && visual.births.length)) {
+        let built: VisualInputs;
+        try {
+          built = buildVisualInputs(latest, world, terrain, births);
+        } catch (e) {
+          pendingBirths.unshift(...births); // keep the drained births for the next frame; app.ts warns once
+          throw e;
+        }
         visualFor = latest;
-        visual = buildVisualInputs(latest, world, terrain, births);
+        visual = built;
       }
     }
     return visual ?? app.inputs;
