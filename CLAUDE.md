@@ -611,6 +611,12 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions }`, on eve
   - The Oxygen control's `default` is now 21.
   - `VisualInputs`: `buildProgress` replaces `age` and `phaseId`.
   - `TerrainConfig`: machine `rate` is no longer per billion years (see "Terrain and landforms"), and the spawn shore is measured once the seas have filled.
+- 2026-11-08 owner-requested additions:
+  - Bus events: `inspect:hover` (the scanner lock) and `bestiary:window { rect; plan } | null` (the 3D specimen page; it replaces `bestiary:specimen`). `inspect:window` lost its `mode` (no plant counterparts).
+  - Organism buffer layout v3, stride 30: `altitude` (metres above the ground) and `grown` (current ÷ adult mass).
+  - Body plan v4: `shellCover` (the silicon walkers' ceramic shell).
+  - `life.inputs.flight`, `life.inputs.economics` and `life.founders.latent` in world config.
+  - `VisualInputs.terrain.crust?: { minerals, weights(x, z) }`, optional and read-only. Plant gates read the per-cell mineral, the argmax at the cell centre, matching the sim's crustMap.
 
 ## Third-person player
 
@@ -689,7 +695,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 - **World facts:** `worldId`, `status`, `starType`, `solvent` (name, freezeC, solidSinks), `life.composition`, and `rustOxygen` (from `terrain.crust`).
 - **Live stats:** temperature, pressure, oxygen, nitrogen, seaCover, `seaLevel`, and frozen (temperature < `solvent.freezeC`).
 - **Normalised drivers:** `heatBand` (living band 0..1), `heatSolvent` (0.5 = freezing), light at the surface, air density, and `buildProgress` (0..1 across the build).
-- **Terrain:** the TSL height node and the CPU sampler, the crust weights (`crustWeightsNode(terrain)` in TSL, with `terrain.crustWeights(x, z)` as its CPU twin), the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
+- **Terrain:** the TSL height node and the CPU sampler, the crust weights (`crustWeightsNode(terrain)` in TSL, with `terrain.crustWeights(x, z)` as its CPU twin), the optional `terrain.crust` (minerals and `weights(x, z)`, so plant gates read the same per-cell mineral as the sim), the `rise` value, the per-machine progress values, and `patchSize` (metres, used to map a grid cell to world x/z).
 - **Life:** the `organisms` buffer (layout v3, stride 30: `altitude` is physical metres above the ground for fliers, and `grown` is current ÷ adult mass, so juveniles can draw smaller), the `births` plans (`develop()` output), the per-cell `flora` grid, and a `lifeOnLand` flag (true once any land cell has flora biomass). Build stage comes from `buildProgress` above.
 
 **Rules for the art layer:**
