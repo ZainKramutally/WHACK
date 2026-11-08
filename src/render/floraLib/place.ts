@@ -24,6 +24,8 @@ import { emergentChance, inBand, sizeClass, sizeScore } from './size';
 export const MAX_PLANTS = 16000;
 /** Hash salt per role for the size class (size.ts). */
 const ROLE_SALT: Record<FloraRole, number> = { ground: 0, mid: 1, giant: 2 };
+/** Ground cover's height cap (m) near the camera and in the spawn clearing, where it could stand between camera and player. */
+const GROUND_NEAR_MAX = 2;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
 const GROUND_PER_CELL = 5, FOREGROUND_EXTRA = 8; // base (≤ 6) + extra ≤ 14 per cell
 const FOREGROUND_R = 30;
@@ -285,6 +287,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     // T10 (etiolation) × the plant's seeded size class (size.ts, §2d: a truncated power law whose cap follows its
     // ground's fertility, nitrogen, water, warmth and oxygen), inside the role's widened band
     if (topAt !== topAt) h = inBand(role, h * v.size * sizeClass(hash01(c, slot + (dark ? 64 : 0), 190 + ROLE_SALT[role]), sizeScore(tenv)));
+    // ground cover has no focus cut-out, so the tail above GROUND_NEAR_MAX folds down to ~2.1 m in the spawn clearing
+    // and within 8 m of the rebuild camera, easing back by 20 m (monotone, so the levels stay apart; no per-frame work)
+    if (role === 'ground' && h > GROUND_NEAR_MAX) h = GROUND_NEAR_MAX + (h - GROUND_NEAR_MAX) * Math.max(0.1, cleared(x, z, 0) ? 0 : smooth(8, 20, d));
     let tx = 0, tz = 0, sink = 0;
     const r = shapes ? shapes.foot[ai] * h * v.girth : 0;
     let ringed = false;

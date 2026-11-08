@@ -121,6 +121,19 @@ describe('plant size levels (§2d)', () => {
     }
   });
 
+  it('ground cover stays ≤ ~2.1 m inside the spawn clearing and within 8 m of the camera (no cut-out on ground buckets)', () => {
+    for (const make of [() => demoWorld(carbon, 1, 0.06, 0.38, { nitrogen: 4, oxygen: 31 }, 'basalt', true), () => demoWorld(silicon, 0.016, 0.65, 0.6, {}, undefined, true)]) {
+      const { list, sp, clear } = make();
+      let near = 0;
+      for (let i = 0; i < list.n; i++) {
+        if (ARCHETYPE_META[list.arch[i]].role !== 'ground') continue;
+        const d = Math.hypot(list.x[i] - sp.x, list.z[i] - sp.z);
+        if (d < Math.max(8, clear!.r)) { near++; expect(list.h[i]).toBeLessThanOrEqual(2.1 + 1e-4); }
+      }
+      expect(near).toBeGreaterThan(20);
+    }
+  });
+
   it('click picking reads the scaled heights: a ray down onto the tallest giant hits it near its own top', () => {
     const l = CARBON_DEF().list, sh = shapesOf();
     let t = -1;

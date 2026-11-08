@@ -113,7 +113,7 @@ export function createFlora(app: App): FloraPart {
   const lib = floraLibrary(); // shared with the producer card: read-only here (every look has its own geometry)
   // The world material for every plant (cel terminator, translucency, fog, sway and HDR glow from the look's packed aVtx).
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
-  // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
+  // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m within 8 m of the camera and in the spawn clearing, place.ts; ≤ 3 m elsewhere) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
   const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, rimAttr: VTX_RIM, capAttr: VTX_CAP, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });

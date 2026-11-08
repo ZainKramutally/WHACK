@@ -95,7 +95,7 @@ const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame p
 /**
  * Declared illustration: flight altitude. The sim's ceilings are kilometres (flight.ts); the patch is a few hundred metres with fog.
  * Displayed height = ALT_MAX_M · tanh(h / ALT_H0_M): near-linear low down (1 km shows as about 90 m), topping out at 150 m,
- * above the 20–40 m giant plants and inside the fog.
+ * above the giant plants (up to 45 m, floraLib/size.ts) and inside the fog.
  */
 const ALT_MAX_M = 150;
 const ALT_H0_M = 1500;

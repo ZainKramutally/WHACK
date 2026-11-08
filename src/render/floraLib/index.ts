@@ -6,6 +6,7 @@
 // FloraForm → archetype mapping (CLAUDE.md "Logic → art interface"; FloraForm from floraForm.ts, bin from floraBin):
 //
 //   chemistry  form.species (bin)          ground (0.3–2 m, dense)        mid (5–15 m, groves)                 giant (20–40 m, sparse)
+//   (base bands; each plant's size class widens them to 0.2–3, 3–20 and 14–45 m: size.ts, flora-traits §2d)
 //   ─────────  ─────────────────────────   ────────────────────────────   ──────────────────────────────────   ─────────────────────────────────────
 //   carbon     tuft    (mat-dominant)      groundCover 0–3                —                                    —
 //   carbon     dome    (mat, dark water)   jellyDome 0–1, groundCover 1   —                                    —
