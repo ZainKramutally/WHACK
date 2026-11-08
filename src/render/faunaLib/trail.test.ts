@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TrailPath } from './trail';
+import { SlotPool, TrailPath } from './trail';
 
 describe('TrailPath (a swimmer follows its own recent path)', () => {
   it('straight: the old straight path, head at headX', () => {
@@ -38,5 +38,17 @@ describe('TrailPath (a swimmer follows its own recent path)', () => {
     const flat = new TrailPath(8).begin(0, 0);
     flat.push(-1, 0);
     expect(Math.atan2(flat.at(1).t[2], flat.at(1).t[0])).toBeCloseTo(0, 9);
+  });
+});
+
+describe('SlotPool (swimmer trail slots)', () => {
+  it('acquires until empty, takes releases back, and reset frees every slot (a new run)', () => {
+    const p = new SlotPool(3);
+    expect([p.acquire(), p.acquire(), p.acquire(), p.acquire()]).toEqual([0, 1, 2, -1]);
+    p.release(1);
+    expect(p.acquire()).toBe(1);
+    p.reset(); // entries cleared without releasing: every slot is free again
+    expect(p.available).toBe(3);
+    expect([p.acquire(), p.acquire(), p.acquire()]).toEqual([0, 1, 2]);
   });
 });

@@ -65,3 +65,16 @@ export class TrailPath implements Path {
     return o;
   }
 }
+
+/** A fixed pool of slot indices 0..size−1 (the swimmers' trail rings). Preallocated; reset() frees every slot. */
+export class SlotPool {
+  private readonly free: Int32Array;
+  private n = 0;
+  constructor(readonly size: number) { this.free = new Int32Array(size); this.reset(); }
+  /** Every slot free again (a new run: the entries that held slots are gone). */
+  reset(): void { for (let i = 0; i < this.size; i++) this.free[i] = this.size - 1 - i; this.n = this.size; }
+  /** A free slot, or −1 when all are taken. */
+  acquire(): number { return this.n > 0 ? this.free[--this.n] : -1; }
+  release(slot: number): void { if (slot >= 0 && this.n < this.size) this.free[this.n++] = slot; }
+  get available(): number { return this.n; }
+}

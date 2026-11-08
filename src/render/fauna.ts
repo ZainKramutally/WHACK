@@ -49,7 +49,7 @@ import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
 import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
 import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
 import { advance } from './faunaLib/aquatic/motion';
-import { TrailPath } from './faunaLib/trail';
+import { SlotPool, TrailPath } from './faunaLib/trail';
 import type { V3 } from './faunaLib/aquatic/v3';
 import type { LookKey } from './palette';
 
@@ -1008,23 +1008,21 @@ export function createFauna(app: App): FaunaPart {
   // One instance for every swimmer pose (the path is TRAIL_PATH, pooled): nothing is allocated per pose.
   let swimHeadX = 0;
   const swimInst = { s0: 0, phase: 0, off: [0, 0] as [number, number], k: 0 };
-  /** Pose the creature's swimmer at its integrated stroke phase into the near batches. True when its body was drawn. */
   // ---- swimmer trails: the head's recent world positions, so a body curves through its own turns and banks ----------
   // One ring of TRAIL_N head points per swimmer slot (SWIM_MAX + slack for the one-frame release lag), all preallocated.
   // Each pose converts its swimmer's trail to body space once (TB, TS: points head first and their arc lengths), and
   // TRAIL_PATH walks it; ahead of the head it continues on an arc of the swimmer's turn curvature (the builder's bank).
   const TRAIL_N = 64, TRAILS = SWIM_MAX + 4;
   const trailXZ = new Float32Array(TRAILS * TRAIL_N * 2), trailAt = new Int32Array(TRAILS), trailCount = new Int32Array(TRAILS);
-  const trailFree = Int32Array.from({ length: TRAILS }, (_, i) => TRAILS - 1 - i);
-  let nFree = TRAILS;
+  const trailPool = new SlotPool(TRAILS);
   function releaseTrail(e: Entry): void {
-    if (e.trail >= 0) { trailFree[nFree++] = e.trail; e.trail = -1; }
+    if (e.trail >= 0) { trailPool.release(e.trail); e.trail = -1; }
   }
   const TRAIL_PATH = new TrailPath(TRAIL_N);
   /** Record the swimmer's head (world) into its trail, and lay the trail out in body space for this pose. */
   function trailFor(e: Entry, sw: Swimmer, headX: number): void {
     TRAIL_PATH.straightOn(headX);
-    if (e.trail < 0) { if (nFree === 0) return; e.trail = trailFree[--nFree]; trailCount[e.trail] = 0; trailAt[e.trail] = 0; }
+    if (e.trail < 0) { const k = trailPool.acquire(); if (k < 0) return; e.trail = k; trailCount[k] = 0; trailAt[k] = 0; }
     const k = e.trail, base = k * TRAIL_N * 2, Lw = sw.L * SW_S, step = Math.max(0.05, Lw / 20);
     swW(headX, 0, 0);
     const hx = W[0], hz = W[2];
@@ -1053,6 +1051,7 @@ export function createFauna(app: App): FaunaPart {
     }
   }
 
+  /** Pose the creature's swimmer at its integrated stroke phase into the near batches. True when its body was drawn. */
   function drawSwimmerNear(e: Entry, sw: Swimmer, live = true): boolean {
     const kin = sw.kin;
     const bells = sw.params.plan === 'bell' ? sw.params.radial.chain : 1;
@@ -1300,7 +1299,7 @@ export function createFauna(app: App): FaunaPart {
       frame++;
       // A new run (another world, or the build restarting) starts a new book: ids and species don't carry over.
       if (inputs.world.id !== lastWorld || inputs.buildProgress + 0.25 < lastBuild) {
-        if (lastWorld !== '') { entries.clear(); dying.length = 0; pending.clear(); book.reset(); }
+        if (lastWorld !== '') { entries.clear(); dying.length = 0; pending.clear(); book.reset(); trailPool.reset(); } // the cleared entries held trail slots
         lastWorld = inputs.world.id;
       }
       lastBuild = inputs.buildProgress;
