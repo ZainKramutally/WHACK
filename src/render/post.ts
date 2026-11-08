@@ -273,18 +273,22 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const tm = renderer.toneMapping;
     const cs = renderer.outputColorSpace;
     const prev = renderer.getRenderTarget();
-    renderer.toneMapping = THREE.NoToneMapping;
-    renderer.outputColorSpace = THREE.ColorManagement.workingColorSpace;
-    renderer.setRenderTarget(outRT);
     try {
+      renderer.toneMapping = THREE.NoToneMapping;
+      renderer.outputColorSpace = THREE.ColorManagement.workingColorSpace;
+      renderer.setRenderTarget(outRT);
       quadA.render(renderer);
+      renderer.setRenderTarget(prev);
+      renderer.toneMapping = tm;
+      renderer.outputColorSpace = cs;
+      pipeline.render();
     } finally {
       renderer.setRenderTarget(prev);
       renderer.toneMapping = tm;
       renderer.outputColorSpace = cs;
     }
-    pipeline.render();
   };
+  let warmed = false;
 
   let baseK = 3; // from the canvas height
   let pixelScale = 1;
@@ -341,9 +345,13 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       } finally {
         renderer.setRenderTarget(prev);
       }
-      // Warm the RT pass + blit pipelines so the first real frame doesn't hitch (one throwaway frame).
-      if (INTERNAL) {
-        try { renderInternal(); } catch { /* first real frame compiles them */ }
+      // Warm the RT pass + blit pipelines once (they don't depend on the compiled scene): one throwaway frame, drawn to
+      // the canvas (target forced to null in case an overlapping compile left the scene pass rt bound).
+      if (INTERNAL && !warmed) {
+        warmed = true;
+        const held = renderer.getRenderTarget();
+        renderer.setRenderTarget(null);
+        try { renderInternal(); } catch (err) { console.warn('post warm-up failed', err); } finally { renderer.setRenderTarget(held); }
       }
     },
   };
