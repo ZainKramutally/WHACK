@@ -55,3 +55,10 @@ These perf findings sit in files other agents were actively editing, so session/
    - Fix: key CELL_MIN on the `crust` (or `crust.weights`) identity.
    - Optionally, visualInputs.ts hands out one crust object per sampler (WeakMap), so the identity is stable during the build too.
 16. **Nit, selection box (box.ts, d34b1f5):** `columnMinerals(world)` builds a new Set (filter + flatMap) on every draw frame, at 60 Hz. Memoise it per world in a WeakMap. Tiny, but it puts a per-frame allocation back into a loop that was allocation-free.
+
+## Regressions from the basalt-pillar / rock-form / underwater merge (perf-regress2, 09:05, origin/main cfc8500): owners crust session + art
+17. **terrain.height 2× slower** (~1.1 → 2.1 µs per call). The cause is the per-point `pillarCell` and `gateOf('M4')` in heightCore (1d6799c, 4283a51). Fix: early-out the pillar block when it can't contribute, and skip the M4 gate when p4 = 0. Demo path.
+18. **Generate-click hitch of 110–200 ms.** start() runs createLandmarks + createRockForms + pillarCandidates synchronously. Fix: compute them in prime() on the selection screen, keyed on world+chip+seed. Demo path.
+19. **First-visible-frame compiles.** The pillar InstancedMesh, rockForms meshes (created after view.ready, visible=false) and underwaterFx snow/shafts (hidden until the first dive) build their pipelines on first use. Fix: visible=true, `await app.compile(root)`, then hide again. Demo path (Generate start, first dive).
+20. **Basalt pick only:** basaltPillars.update uploads the full 533 KB instanceMatrix and builds a join() sig string every build frame. Fix: a numeric dirty check plus addUpdateRange.
+21. **rockForms `tint` isn't throttled** (O(vertices) plus a colour upload, ~1 ms per step on Oxygen drags and lichen onset). Fix: throttle it to ≥0.25 s like pillars, and hoist mineralColour out of the pillar loop.
