@@ -49,7 +49,8 @@ import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
 import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
 import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
 import { advance } from './faunaLib/aquatic/motion';
-import type { Path, V3 } from './faunaLib/aquatic/v3';
+import { TrailPath } from './faunaLib/trail';
+import type { V3 } from './faunaLib/aquatic/v3';
 import type { LookKey } from './palette';
 
 const len2 = (x: number, y: number) => Math.sqrt(x * x + y * y);
@@ -150,6 +151,8 @@ interface Entry {
   walkW: number; hW: number; turn: number; curl: number;
   /** Walkers: body pitch (rad, eased) and the cached ground under head and tail (resampled like gH). */
   pitch: number; gHead: number; gTail: number; pX: number; pZ: number; pH: number; pStamp: number;
+  /** Swimmers drawn as swimmers: their trail slot in the shared ring buffers (−1 none). */
+  trail: number;
   /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
   planned: boolean;
   /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
@@ -394,7 +397,7 @@ export function createFauna(app: App): FaunaPart {
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
-      pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
+      pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, trail: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
     };
   }
 
@@ -420,6 +423,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   function forget(e: Entry): void {
+    releaseTrail(e);
     book.release(e.bin, e.binStamp);
     entries.delete(e.id);
   }
@@ -989,7 +993,51 @@ export function createFauna(app: App): FaunaPart {
   };
 
   /** Pose the creature's swimmer at its integrated stroke phase into the near batches. True when its body was drawn. */
-  function drawSwimmerNear(e: Entry, sw: Swimmer): boolean {
+  // ---- swimmer trails: the head's recent world positions, so a body curves through its own turns and banks ----------
+  // One ring of TRAIL_N head points per swimmer slot (SWIM_MAX + slack for the one-frame release lag), all preallocated.
+  // Each pose converts its swimmer's trail to body space once (TB, TS: points head first and their arc lengths), and
+  // TRAIL_PATH walks it; ahead of the head it continues on an arc of the swimmer's turn curvature (the builder's bank).
+  const TRAIL_N = 64, TRAILS = SWIM_MAX + 4;
+  const trailXZ = new Float32Array(TRAILS * TRAIL_N * 2), trailAt = new Int32Array(TRAILS), trailCount = new Int32Array(TRAILS);
+  const trailFree = Int32Array.from({ length: TRAILS }, (_, i) => TRAILS - 1 - i);
+  let nFree = TRAILS;
+  function releaseTrail(e: Entry): void {
+    if (e.trail >= 0) { trailFree[nFree++] = e.trail; e.trail = -1; }
+  }
+  const TRAIL_PATH = new TrailPath(TRAIL_N);
+  /** Record the swimmer's head (world) into its trail, and lay the trail out in body space for this pose. */
+  function trailFor(e: Entry, sw: Swimmer, headX: number): void {
+    TRAIL_PATH.straightOn(headX);
+    if (e.trail < 0) { if (nFree === 0) return; e.trail = trailFree[--nFree]; trailCount[e.trail] = 0; trailAt[e.trail] = 0; }
+    const k = e.trail, base = k * TRAIL_N * 2, Lw = sw.L * SW_S, step = Math.max(0.05, Lw / 20);
+    swW(headX, 0, 0);
+    const hx = W[0], hz = W[2];
+    let record = trailCount[k] === 0;
+    if (!record) {
+      const j = base + ((trailAt[k] + TRAIL_N - 1) % TRAIL_N) * 2, dx = hx - trailXZ[j], dz = hz - trailXZ[j + 1], d2 = dx * dx + dz * dz;
+      if (d2 > 16 * Lw * Lw) { trailCount[k] = 0; record = true; } // a jump (respawn): start again
+      else record = d2 >= step * step;
+    }
+    if (record) {
+      const j = base + trailAt[k] * 2;
+      trailXZ[j] = hx; trailXZ[j + 1] = hz;
+      trailAt[k] = (trailAt[k] + 1) % TRAIL_N;
+      trailCount[k] = Math.min(TRAIL_N, trailCount[k] + 1);
+    }
+    // curvature ahead from the turn rate (world 1/m → body units), capped at two radians a body length
+    const kw = e.turn / Math.max(e.speed, 0.2);
+    TRAIL_PATH.begin(headX, Math.max(-2 / sw.L, Math.min(2 / sw.L, kw * SW_S)));
+    // body space, head first: the live head, then the stored points newest to oldest (the newest only once it is a
+    // quarter step from the head, so the head's tangent is never taken from a sliver)
+    const inv = 1 / Math.max(SW_S, 1e-6);
+    for (let c = 0, j = trailAt[k]; c < trailCount[k]; c++) {
+      j = (j + TRAIL_N - 1) % TRAIL_N;
+      const dx = (trailXZ[base + j * 2] - EX) * inv, dz = (trailXZ[base + j * 2 + 1] - EZ) * inv;
+      TRAIL_PATH.push(dx * CH + dz * SH, -dx * SH + dz * CH, c === 0 ? 0.25 * step * inv : 1e-4);
+    }
+  }
+
+  function drawSwimmerNear(e: Entry, sw: Swimmer, live = true): boolean {
     const kin = sw.kin;
     const bells = sw.params.plan === 'bell' ? sw.params.radial.chain : 1;
     const tau = e.swPhase / kin.freq; // the pose's time: its stroke phase is the integrated phase
@@ -997,9 +1045,9 @@ export function createFauna(app: App): FaunaPart {
     const inst = { s0: -advance(kin, tau, 0, bells), phase: 0, off: [0, 0] as [number, number], k: 0 };
     const headX = sw.params.chemistry === 'carbon' ? 0.5 * sw.L
       : sw.params.plan === 'bell' ? 0.5 * ((bells > 1 ? 0.55 : 0) + 1.08 * bells) * sw.L : 0;
-    const path: Path = { length: Infinity, at: (sv) => ({ p: [sv + headX, 0, 0], t: [1, 0, 0] }) };
+    if (live) trailFor(e, sw, headX); else TRAIL_PATH.straightOn(headX); // the card bake poses straight
     const nAx = axLoft.n, nHub = hubLoft.n;
-    sw.pose(tau, path, inst, SINK);
+    sw.pose(tau, TRAIL_PATH, inst, SINK);
     return axLoft.n > nAx || hubLoft.n > nHub;
   }
 
@@ -1023,7 +1071,7 @@ export function createFauna(app: App): FaunaPart {
     try {
       S = 1; EX = 0; EY = 0; EZ = 0; CH = 1; SH = 0; ENT = e;
       const sw = e.mode === LOCOMOTION.swim ? swimmerOf(e) : null;
-      if (sw) { SW_S = 1; ok = drawSwimmerNear(e, sw); }
+      if (sw) { SW_S = 1; ok = drawSwimmerNear(e, sw, false); }
       else if (e.desc.kind === 'radial') { animateRadial(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawRadialNear(e, e.desc, 0, e.mode); }
       else { animate(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawAxialNear(e, e.desc, 0, e.mode); }
     } catch { ok = false; }
@@ -1085,6 +1133,7 @@ export function createFauna(app: App): FaunaPart {
     e.tier = 0; e.bell = false;
     const wasSwim = e.swOn;
     e.swOn = false;
+    if (!wasSwim && e.trail >= 0) releaseTrail(e); // not drawn as a swimmer last frame: its trail slot goes back
     const ground = groundOf(e);
     const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
