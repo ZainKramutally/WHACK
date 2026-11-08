@@ -325,7 +325,7 @@ Everything else waits until the player asks for it, including the summary card.
 
 Clicking the sea, the ground or the sky opens nothing. It counts as clicking elsewhere and closes any open card. Their stats live in the Conditions panel.
 
-**Scanner lock before the click** (owner request, 2026-11-08). When the cursor or the gamepad reticle rests on a creature or a plant, pixel corner brackets snap onto it with a short label (its kind's name, or the plant's name) and follow it as it moves. The cursor becomes a pointer. The sea, the ground and the sky never get a lock. Plants are picked by their drawn shape (a capsule per placed plant), so the canopy of a giant opens that plant's card. The nearest of creature, plant and terrain wins.
+**Scanner lock before the click** (owner request, 2026-11-08). When the cursor or the gamepad reticle rests on a creature or a plant, pixel corner brackets snap onto it with a short label and follow it as it moves. The lock is sticky: it holds while the pointer stays on the creature's rect and clears only after a short grace, so it doesn't flicker on small or moving bodies. For a creature, the label is its kind's name only if the player has already found that kind in the bestiary. Otherwise it reads **NEW SPECIES** (owner ruling, 2026-11-08), so names are never given away before discovery. A plant shows the plant's name. The cursor becomes a pointer. The sea, the ground and the sky never get a lock. Plants are picked by their drawn shape (a capsule per placed plant), so the canopy of a giant opens that plant's card. The nearest of creature, plant and terrain wins.
 
 Clicking a creature or a producer opens an inspect card beside it, never full screen. The card has:
 1. What it is, in one line.
