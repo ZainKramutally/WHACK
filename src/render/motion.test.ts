@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EXTRAPOLATE_CAP, IDLE_BL, WALK_EASE, gaitStep, halfStride, slewAngle, turnRateMax, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
-  STANCE, swayOffset, swimWave, swimY, SWIM_MARGIN, SWIM_EMBED,
+  STANCE, swayOffset, swimWave, swimY, SWIM_MARGIN, SWIM_EMBED, swimNeed, nudgeToWater,
 } from './motion';
 
 describe('interpolation', () => {
@@ -160,5 +160,32 @@ describe('swimY: swimmers stay in the water', () => {
     const r = swimY(-3, 0, -2, 2); // 4 m tall in 3 m of water
     expect(r.y0 + 2).toBeLessThanOrEqual(-SWIM_MARGIN + 1e-9);
     expect(-3 - (r.y0 - 2)).toBeLessThanOrEqual(SWIM_EMBED * 4 + 1e-9);
+  });
+});
+
+describe('nudgeToWater: shoreline swimmers are drawn over deep enough water', () => {
+  const ramp = (x: number) => -0.5 * x; // seabed falls 0.5 m per metre towards +x; the shore (h = 0) is at x = 0
+  const H = (x: number) => ramp(x);
+  const out = { dx: 0, dz: 0 };
+  it('need matches swimY: the shallowest depth it does not beach', () => {
+    const need = swimNeed(0, 1);
+    expect(swimY(-need, 0, 0, 1).beached).toBe(false);
+    expect(swimY(-need + 0.01, 0, 0, 1).beached).toBe(true);
+  });
+  it('deep enough already: no nudge', () => {
+    expect(nudgeToWater(10, 0, 0, 1, H, 6.25, out)).toBe(true);
+    expect(out).toEqual({ dx: 0, dz: 0 });
+  });
+  it('on dry sand by the shore: walks downhill into deep enough water, within the distance', () => {
+    expect(nudgeToWater(-1, 3, 0, 1, H, 6.25, out)).toBe(true);
+    expect(out.dx).toBeGreaterThan(0);
+    expect(Math.abs(out.dz)).toBeLessThan(1e-6);
+    expect(Math.hypot(out.dx, out.dz)).toBeLessThanOrEqual(6.25 + 1e-9);
+    expect(0 - H(-1 + out.dx)).toBeGreaterThanOrEqual(1);
+  });
+  it('no deep water within reach: false, no offset (it beaches)', () => {
+    expect(nudgeToWater(-20, 0, 0, 1, H, 6.25, out)).toBe(false);
+    expect(out).toEqual({ dx: 0, dz: 0 });
+    expect(nudgeToWater(0, 0, 0, 1, () => 0.2, 6.25, out)).toBe(false); // flat dry ground
   });
 });

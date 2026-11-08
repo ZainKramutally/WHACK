@@ -32,7 +32,7 @@ import {
   armRods, beadLayout, capsuleLayout, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
-  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY,
+  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY, swimNeed, nudgeToWater,
   turnRateMax,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
@@ -47,6 +47,7 @@ import { PartBatch, partBatches } from './faunaLib/parts';
 import { SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './faunaLib/species';
 import { crustGround, crustHard } from './crustLook';
 import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
+import { GRID } from '../sim/grid';
 import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
 import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
 import { advance } from './faunaLib/aquatic/motion';
@@ -88,6 +89,7 @@ const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0]
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
 const PITCH_MAX = 0.6, PITCH_EASE = 0.3; // walkers' slope pitch cap (rad) and easing time (s)
 const G_MOVE = 0.25; // m a creature moves before its cached ground height is resampled
+const NUDGE_EASE = 0.4; // s: a shoreline swimmer's drawn nudge eases in and out over about this
 const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
@@ -111,6 +113,9 @@ interface Entry {
   swRank: number; swOn: boolean;
   /** A swimmer with no water to swim in (a dry cell, or too shallow): drawn lying still, its stroke frozen at beachT. */
   beached: boolean; beachT: number;
+  /** Shoreline nudge: the drawn offset (m) from the sim position (x, z hold the drawn, nudged position), its target, and
+   *  the solve's cache key (sim position, terrain stamp, sea level, depth needed) and whether it found water. */
+  nx: number; nz: number; nTx: number; nTz: number; nSX: number; nSZ: number; nStamp: number; nSea: number; nNeed: number; nOk: boolean;
   /** Ground under it when last drawn (the view test's sphere height). */
   yDrawn: number;
   /** Cached ground: the last sample (height, slope, where, terrain stamp); resampled after 0.25 m or a terrain change. */
@@ -409,7 +414,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
-      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, beached: false, beachT: 0, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, beached: false, beachT: 0, nx: 0, nz: 0, nTx: 0, nTz: 0, nSX: NaN, nSZ: 0, nStamp: -1, nSea: NaN, nNeed: 0, nOk: true, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
       lastSeen: frame, glow, silicon, scale, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
@@ -1135,6 +1140,8 @@ export function createFauna(app: App): FaunaPart {
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
   let fGravity = 1, fDt = 1 / 60, warnedNear = false;
+  const NUDGE = { dx: 0, dz: 0 };
+  let fCell = 6.25;
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
   // Ground cache: about 1k height samples a frame (one per creature, plus posed feet) became a resample only after a
@@ -1173,9 +1180,12 @@ export function createFauna(app: App): FaunaPart {
     const wasSwim = e.swOn;
     e.swOn = false;
     if (!wasSwim && e.trail >= 0) releaseTrail(e); // not drawn as a swimmer last frame: its trail slot goes back
-    const ground = groundOf(e);
     const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
+    const c = e.layout.centreY * s, hS = mode === LOCOMOTION.swim && e.sw ? swimHalfH(e.sw) * swimScale(e, alpha) : 0;
+    const bLo = Math.min(0, c - hS), bHi = Math.max(2 * c, c + hS); // the drawn swimmer's bottom and top above y0
+    if (mode === LOCOMOTION.swim || e.nx !== 0 || e.nz !== 0) nudge(e, mode === LOCOMOTION.swim && fSeaThere ? swimNeed(bLo, bHi) : -1);
+    const ground = groundOf(e);
     let y0 = ground;
     e.yDrawn = ground; // for next frame's view test
     // Walkers on slopes: pitch the body from the ground under head and tail and stand it on whichever is higher, the
@@ -1196,11 +1206,11 @@ export function createFauna(app: App): FaunaPart {
       // Keep the whole drawn body under the surface (and at most 40% into the seabed); with no water, beach it. The body
       // spans the bead layout (y0 … y0 + 2·centreY·s) or, once it has one, the aquatic body around y0 + centreY·s: the
       // union of both, so every tier (and a fallback between them) sits at the same height.
-      const c = e.layout.centreY * s, hS = e.sw ? swimHalfH(e.sw) * swimScale(e, alpha) : 0;
-      const sy = swimY(ground, fSeaThere ? fSea : -Infinity, Math.min(0, c - hS), Math.max(2 * c, c + hS));
+      const sy = swimY(ground, fSeaThere ? fSea : -Infinity, bLo, bHi);
       y0 = sy.y0;
-      if (sy.beached && !e.beached) e.beachT = ft;
-      e.beached = sy.beached;
+      const beached = sy.beached && !(fSeaThere && e.nOk); // easing towards found water: keep swimming on the way
+      if (beached && !e.beached) e.beachT = ft;
+      e.beached = beached;
     }
     if (mode !== LOCOMOTION.swim) e.beached = false;
     const tA = e.beached ? e.beachT : ft; // a beached swimmer's pose time: its stroke stops
@@ -1279,6 +1289,31 @@ export function createFauna(app: App): FaunaPart {
       }
     }
     drawFar(e, s, y0, cosH, sinH, scratch, rodScratch);
+  }
+
+  /**
+   * Shoreline nudge. The sim tests liquid at its 6.25 m cell centre, so a swimmer near the shore can sit where the exact
+   * ground is dry or too shallow for its body: draw it up to one cell downhill, over water at least `need` deep (need < 0:
+   * no target, ease back). The solve is cached until the sim position moves G_MOVE, the terrain or sea changes, or the
+   * body's need does; the offset eases so it never pops. e.x/e.z hold the drawn position, so pick, bounds, the scanner
+   * lock and the trail all follow it.
+   */
+  function nudge(e: Entry, need: number) {
+    const sx = e.x - e.nx, sz = e.z - e.nz;
+    if (need < 0) { e.nTx = 0; e.nTz = 0; e.nOk = true; e.nSX = NaN; }
+    else {
+      const dx = sx - e.nSX, dz = sz - e.nSZ;
+      if (!(dx * dx + dz * dz <= G_MOVE * G_MOVE) || e.nStamp !== terrainStamp || Math.abs(fSea - e.nSea) > 0.05
+        || Math.abs(need - e.nNeed) > 0.1 * e.nNeed + 0.02) {
+        e.nOk = nudgeToWater(sx, sz, fSea, need, fHeight, fCell, NUDGE);
+        e.nTx = NUDGE.dx; e.nTz = NUDGE.dz;
+        e.nSX = sx; e.nSZ = sz; e.nStamp = terrainStamp; e.nSea = fSea; e.nNeed = need;
+      }
+    }
+    const k = Math.min(1, fDt / NUDGE_EASE);
+    e.nx += (e.nTx - e.nx) * k; e.nz += (e.nTz - e.nz) * k;
+    if (e.nTx === 0 && e.nTz === 0 && Math.abs(e.nx) + Math.abs(e.nz) < 1e-3) { e.nx = 0; e.nz = 0; }
+    e.x = sx + e.nx; e.z = sz + e.nz;
   }
 
   /** The aquatic body's drawn scale (it is built at adult drawn length; growth, fade and the boost scale it). */
@@ -1388,6 +1423,7 @@ export function createFauna(app: App): FaunaPart {
       if (sel.length < n) sel = new Float32Array(n * 2);
       pn = 0;
       const boost = part.scaleBoost;
+      fCell = patch / GRID;
       ft = t; fBoost = boost; fSea = inputs.seaLevel; fSeaThere = (inputs.stats.seaCover ?? 1) > 0.005;
       fHeight = inputs.terrain.height; fPosed = 0; fSwim = 0; fGravity = inputs.stats.gravity ?? 1; fDt = dt;
       // the terrain changed enough to move the ground (formation rise, landform growth): resample every cached ground
@@ -1440,7 +1476,7 @@ export function createFauna(app: App): FaunaPart {
             // Continue from where the creature is drawn now, so a new snapshot never pops.
             const sp = len2(tx - e.cx, tz - e.cz) / dtSnap;
             e.speed += (sp - e.speed) * 0.5;
-            e.px = e.x; e.pz = e.z; e.ph = e.h;
+            e.px = e.x - e.nx; e.pz = e.z - e.nz; e.ph = e.h; // the sim position: the drawn one minus its nudge
             e.cx = tx; e.cz = tz; e.ch = th;
           }
           e.snapT = t; e.dtSnap = dtSnap;
@@ -1448,7 +1484,7 @@ export function createFauna(app: App): FaunaPart {
         P0.x = e.px; P0.z = e.pz; P0.h = e.ph; P1.x = e.cx; P1.z = e.cz; P1.h = e.ch;
         const pose = interpPose(P0, P1, (t - e.snapT) / e.dtSnap);
         const ox = e.x, oz = e.z, oh = e.h, Lw = boost * drawnLength(e.scale, e.g);
-        e.x = pose.x; e.z = pose.z;
+        e.x = pose.x + e.nx; e.z = pose.z + e.nz; // drawn = sim + the shoreline nudge (draw() updates it)
         // The sim can turn ±1.2 rad in one 50 ms tick: the drawn body turns at most turnRateMax(L), so it never spins
         // and its planted feet never skate.
         e.h = slewAngle(oh, pose.h, turnRateMax(Lw) * dt);

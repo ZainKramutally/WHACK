@@ -212,3 +212,38 @@ export function swimY(ground: number, sea: number, lo: number, hi: number, margi
   if (cap < floor) return { y0: floor, beached: true };
   return { y0: Math.max(floor, Math.min(cap, ground + (sea - ground) * 0.35)), beached: false };
 }
+
+/** Least water depth (m) over the seabed at which swimY can draw a body spanning lo … hi without beaching it. */
+export function swimNeed(lo: number, hi: number, margin = SWIM_MARGIN): number {
+  return margin + (1 - SWIM_EMBED) * Math.max(0, hi - lo);
+}
+
+const NUDGE_STEPS = 4;
+const NUDGE_EPS = 0.5; // m: the finite-difference step for the downhill gradient
+
+/**
+ * A swimmer whose exact ground is too shallow for its body (the sim's liquid test is per 6.25 m cell, so near the shore
+ * the ground under the fish itself can be dry) walks downhill in NUDGE_STEPS equal steps up to maxDist, stopping at the
+ * first point with at least `need` metres of water. Writes the offset to out and returns true, or writes 0 and returns
+ * false when nothing within maxDist is deep enough (the caller beaches it). At most 1 + 3·NUDGE_STEPS height samples;
+ * allocates nothing.
+ */
+export function nudgeToWater(
+  x: number, z: number, sea: number, need: number, heightAt: (x: number, z: number) => number, maxDist: number,
+  out: { dx: number; dz: number },
+): boolean {
+  out.dx = 0; out.dz = 0;
+  let h = heightAt(x, z);
+  if (sea - h >= need) return true;
+  const step = maxDist / NUDGE_STEPS;
+  let cx = x, cz = z;
+  for (let k = 0; k < NUDGE_STEPS; k++) {
+    const gx = (heightAt(cx + NUDGE_EPS, cz) - h) / NUDGE_EPS, gz = (heightAt(cx, cz + NUDGE_EPS) - h) / NUDGE_EPS;
+    const g = Math.hypot(gx, gz);
+    if (!(g > 1e-6)) break; // flat (or NaN): no downhill to follow
+    cx -= (gx / g) * step; cz -= (gz / g) * step;
+    h = heightAt(cx, cz);
+    if (sea - h >= need) { out.dx = cx - x; out.dz = cz - z; return true; }
+  }
+  return false;
+}
