@@ -38,7 +38,9 @@ export interface DeityRig {
   eyes: [THREE.Object3D, THREE.Object3D];  // [left, right], children of head; scale.y 1 -> 0 is the blink;
                                            // position offsets of up to eyeLook are the gaze
   hands: [THREE.Group, THREE.Group];       // [left, right], children of pose: detached floating mitts
-  extras: THREE.Object3D[];                // optional head decoration (antlers, halo, orbiting mote); animation may spin or sway them
+  extras: THREE.Object3D[];                // optional head decoration (antlers, halo, orbiting mote). Each one's userData.motion
+                                           // tells the animation what to do with it: 'orbit' spins it about its own y (an orbit pivot),
+                                           // 'sway' gives it a small tilt and bob (the default when unset), 'still' leaves it alone
   dims: DeityDims;
   dispose(): void;
 }
