@@ -27,6 +27,8 @@ export const TICK_HZ = 20;
 export const TICK_DT = 1 / TICK_HZ;
 
 const ANNOUNCE_MEMBERS = 20; // implementation constant (DECISIONS §G.2 exempt): animals a cluster needs before it is announced as a species
+const BUILD_SHARE = 0.08; // implementation constant (DECISIONS §G.2 exempt): during the build a species needs this share of all animals to be announced
+const ANNOUNCE_GAP_SEC = 25; // implementation constant (DECISIONS §G.2 exempt): after the build, ecology seconds between two announcements
 const ANNOUNCE_SEC = 20; // implementation constant (DECISIONS §G.2 exempt): ecology seconds it must hold that size
 const BAND_EVERY = 10; // implementation constant (DECISIONS §G.2 exempt): ticks between band refreshes used for edge stress (0.5 ecology s)
 const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): ticks before the same control may report "blocked" again while pinned at an edge
@@ -120,6 +122,7 @@ export class WorldSimulation {
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
   private readonly tracker: FormTracker;
+  private trackerLive = false;
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
@@ -255,6 +258,11 @@ export class WorldSimulation {
 
     // A species is announced when a cluster of at least ANNOUNCE_MEMBERS animals has held for ANNOUNCE_SEC ecology seconds and
     // matches no announced species' centroid (owner ruling 2026-11-08); every species gets its own name.
+    // The build shows the few big species a player meets at spawn (a share of all animals, not a fixed head count); after it, new
+    // species are announced one at a time, ANNOUNCE_GAP_SEC apart, so a player discovers them one after another.
+    const animalsNow = this.life.summary().consumers;
+    if (!this.complete) this.tracker.configure({ minMembers: Math.max(ANNOUNCE_MEMBERS, Math.round(BUILD_SHARE * animalsNow)), gapSec: 0 });
+    else if (!this.trackerLive) { this.trackerLive = true; this.tracker.configure({ minMembers: ANNOUNCE_MEMBERS, gapSec: ANNOUNCE_GAP_SEC, forgetPending: true }); }
     for (const f of this.tracker.update(this.life.guideAnimals(), this.ticks / TICK_HZ)) {
       this.events.push({ type: 'guide:newForm', ...f });
     }

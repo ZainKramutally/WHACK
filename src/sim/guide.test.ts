@@ -97,6 +97,17 @@ describe('genus words', () => {
   });
 });
 
+describe('FormTracker pacing', () => {
+  it('announces at most one species per gap, queueing the rest', () => {
+    const t = new FormTracker({ minMembers: 4, persistSec: 0, distinctNames: true });
+    t.configure({ gapSec: 25 });
+    const all = [...group(1, 6, carbonWorm), ...group(100, 6, genome({ size: 0.9, sociality: 0.05 }))];
+    expect(t.update(all, 0)).toHaveLength(1);
+    expect(t.update(all, 10)).toEqual([]);
+    expect(t.update(all, 25)).toHaveLength(1);
+  });
+});
+
 describe('FormTracker discovery (owner ruling 2026-11-08)', () => {
   const opts = { minMembers: 20, persistSec: 20, distinctNames: true };
   it('announces a cluster only after it has held 20 members for 20 s', () => {

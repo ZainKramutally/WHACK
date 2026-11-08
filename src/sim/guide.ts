@@ -277,7 +277,9 @@ export class FormTracker {
   private nextId = 1;
   private pending: { centroid: Float64Array; since: number }[] = [];
   private readonly used = new Set<string>();
-  private readonly minMembers: number;
+  private minMembers: number;
+  private gapSec = 0;
+  private lastAnnounced = -Infinity;
   private readonly persistSec: number;
   private readonly distinct: boolean;
   private readonly nameSeed: number | undefined;
@@ -287,6 +289,13 @@ export class FormTracker {
     this.persistSec = opts.persistSec ?? 0;
     this.distinct = opts.distinctNames ?? false;
     this.nameSeed = opts.nameSeed;
+  }
+
+  /** Change the announcement rules between calls: the member threshold, and the least time between two announcements (0 = none). */
+  configure(c: { minMembers?: number; gapSec?: number; forgetPending?: boolean }): void {
+    if (c.minMembers !== undefined) this.minMembers = c.minMembers;
+    if (c.gapSec !== undefined) this.gapSec = c.gapSec;
+    if (c.forgetPending) this.pending = [];
   }
 
   /** `nowSec` is the ecology clock; only needed when persistSec > 0. */
@@ -305,13 +314,12 @@ export class FormTracker {
       }
       if (best) { best.centroid = v; continue; } // known form: follow its drift
       let since = nowSec;
-      if (this.persistSec > 0) {
-        const prev = this.pending.find((q) => dist(v, q.centroid) <= FORM_RADIUS);
-        if (prev) since = prev.since;
-        if (nowSec - since < this.persistSec) { stillPending.push({ centroid: v, since }); continue; }
-      }
+      const prev = this.pending.find((q) => dist(v, q.centroid) <= FORM_RADIUS);
+      if (prev) since = prev.since;
+      if ((this.persistSec > 0 && nowSec - since < this.persistSec) || nowSec - this.lastAnnounced < this.gapSec) { stillPending.push({ centroid: v, since }); continue; }
       const bin: Bin = { id: this.nextId++, centroid: v };
       this.bins.push(bin);
+      this.lastAnnounced = nowSec;
       const base = nameForm(cl.centroid, cl.hint);
       let name: string;
       if (this.nameSeed !== undefined) {
