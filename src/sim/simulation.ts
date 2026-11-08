@@ -119,7 +119,7 @@ export class WorldSimulation {
   private readonly seaLimited: boolean;
   private tickBands: Record<ControlId, LivingBand>;
   private readonly life: LifeModel;
-  private readonly tracker = new FormTracker({ minMembers: ANNOUNCE_MEMBERS, persistSec: ANNOUNCE_SEC, distinctNames: true });
+  private readonly tracker: FormTracker;
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
@@ -130,6 +130,7 @@ export class WorldSimulation {
   constructor(world: WorldConfig, requested: Conditions, opts: SimOptions = {}) {
     this.world = world;
     this.seed = opts.seed ?? world.demoSeed;
+    this.tracker = new FormTracker({ minMembers: ANNOUNCE_MEMBERS, persistSec: ANNOUNCE_SEC, distinctNames: true, nameSeed: this.seed });
     this.seaLevelFn = opts.seaLevelFn;
     try {
       this.terrain = createTerrain(world.terrain, this.seed);

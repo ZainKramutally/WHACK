@@ -134,7 +134,7 @@ export interface WorldConfig {
     rules: LifeRules;
     composition: { c: number; si: number; o: number };
     /** The founders' climate genes when life appears (the 3 climate genes of the 15-gene genome). */
-    founders: Sourced & { prefTemp: number; tolerance: number; chem: number };
+    founders: Sourced & { prefTemp: number; tolerance: number; chem: number; /** bounds for the run-seeded mean of the founders' latent genes (assumption: true); see makeFounders */ latent?: Partial<Record<string, [number, number]>> };
     ledger: Record<string, number>;
     inputs: LifeInputs;
   };

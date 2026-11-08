@@ -234,6 +234,26 @@ function modeFromGenes(b: BodyGenes): LocomotionMode {
   return l === 'swimmer' ? LOCOMOTION.swim : l === 'floater' ? LOCOMOTION.hover : LOCOMOTION.walk;
 }
 
+// ---- Genus words ----
+
+// A pronounceable made-up genus per species, keyed on the run seed and the species, so two runs essentially never share names.
+// Carbon words are soft and open; silicon words are hard and crystalline.
+const SYLLABLES: Record<Chem, { on: string[]; v: string[]; end: string[] }> = {
+  c: { on: ['v', 'l', 'm', 'n', 'r', 's', 'b', 'd', 'f', 'h', 'j', 'k', 't', 'w', 'y', 'br', 'fl', 'gl', 'pr', 'sh'], v: ['a', 'e', 'i', 'o', 'u', 'ae', 'ia', 'ou'], end: ['', '', 'n', 'r', 'l', 'm', 's', 'th'] },
+  si: { on: ['k', 'x', 'z', 'q', 'th', 'sk', 'gr', 'dr', 'kr', 'tz', 'vr', 'zh', 'ch', 'st', 'tr'], v: ['a', 'e', 'i', 'o', 'u', 'y'], end: ['', 'x', 'k', 'th', 'z', 'rn', 'sk', 'q'] },
+};
+
+/** Deterministic genus word from (run seed, species key, salt). Salt lets the caller redraw on a collision. */
+export function genusWord(seed: number, key: number, chem: Chem, salt = 0): string {
+  let h = (Math.imul(seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(key + 1, 0xc2b2ae35) ^ Math.imul(salt + 1, 0x27d4eb2f)) >>> 0;
+  const next = (n: number) => { h = (Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) + 0x297a2d39) >>> 0; h ^= h >>> 13; return (h >>> 0) % n; };
+  const set = SYLLABLES[chem];
+  const syl = next(3) === 0 ? 3 : 2;
+  let w = '';
+  for (let i = 0; i < syl; i++) w += set.on[next(set.on.length)] + set.v[next(set.v.length)] + (i === syl - 1 ? set.end[next(set.end.length)] : '');
+  return w[0].toUpperCase() + w.slice(1);
+}
+
 // ---- Tracker ----
 
 interface Bin { id: number; centroid: Float64Array }
@@ -248,6 +268,7 @@ export interface TrackerOptions {
   minMembers?: number;   // live animals a cluster needs before it can be announced (default MIN_MEMBERS)
   persistSec?: number;   // and how long it must have held that size, in ecology seconds (default 0: announce at once)
   distinctNames?: boolean; // give every announced form its own name (a qualifier word on collision)
+  nameSeed?: number;     // when set, a form is named "<seeded genus word> <movement word>" instead of "<feature word> <movement word>"
 }
 
 export class FormTracker {
@@ -258,11 +279,13 @@ export class FormTracker {
   private readonly minMembers: number;
   private readonly persistSec: number;
   private readonly distinct: boolean;
+  private readonly nameSeed: number | undefined;
 
   constructor(opts: TrackerOptions = {}) {
     this.minMembers = opts.minMembers ?? MIN_MEMBERS;
     this.persistSec = opts.persistSec ?? 0;
     this.distinct = opts.distinctNames ?? false;
+    this.nameSeed = opts.nameSeed;
   }
 
   /** `nowSec` is the ecology clock; only needed when persistSec > 0. */
@@ -289,7 +312,13 @@ export class FormTracker {
       const bin: Bin = { id: this.nextId++, centroid: v };
       this.bins.push(bin);
       const base = nameForm(cl.centroid, cl.hint);
-      const name = this.distinct ? this.unique(base, cl.centroid) : base;
+      let name: string;
+      if (this.nameSeed !== undefined) {
+        const chem: Chem = cl.centroid.si > 0.5 ? 'si' : 'c';
+        const move = base.split(' ').pop()!;
+        let salt = 0;
+        do name = `${genusWord(this.nameSeed, bin.id, chem, salt++)} ${move}`; while (this.used.has(name) && salt < 50);
+      } else name = this.distinct ? this.unique(base, cl.centroid) : base;
       this.used.add(name);
       out.push({ binId: bin.id, name, organismId: representative(cl, v, byId) });
     }

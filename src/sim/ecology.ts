@@ -9,7 +9,7 @@
 import { CONSTANTS } from './constants';
 import { flightCeiling, climbRate } from './flight';
 import { develop, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
-import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition } from './genome';
+import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition, type FounderLatent } from './genome';
 import { CELLS, FLORA_STRIDE, GRID, cellOf, type Grid } from './grid';
 import { ORGANISM_STRIDE, packOrganism } from './organismLayout';
 import { pace, type Environment, type LifeRules } from './population';
@@ -75,6 +75,7 @@ export interface EcologyOptions {
   inputs: DevelopInputs; // airDensity already scaled
   composition: Composition; // the world's flora and body recipe
   founderClimate: ClimateGenes;
+  founderLatent?: FounderLatent;
   ledger?: Partial<EcologyLedger>;
 }
 
@@ -141,6 +142,7 @@ export class Ecology {
   private readonly rnd: Rng;
   private readonly inputs: DevelopInputs;
   private readonly founderClimate: ClimateGenes;
+  private readonly founderLatent: FounderLatent | undefined;
   private readonly seed: number;
   private env: EcologyEnv = { temperature: 15, oxygen: 21, light: 1, habitat: 1, edgeStress: 0, heatBand: 0.5 };
   private dt = 0;
@@ -158,6 +160,7 @@ export class Ecology {
     this.comp = o.composition;
     this.inputs = o.inputs;
     this.founderClimate = o.founderClimate;
+    this.founderLatent = o.founderLatent;
     this.seed = o.seed;
     this.L = { ...DEFAULT_LEDGER, ...o.ledger };
     this.rnd = makeRng(o.seed)('ecology');
@@ -204,7 +207,7 @@ export class Ecology {
     this.seaPool = seaPool;
     this.landPool = landPool.length ? landPool : pool;
     this.founderPool = seaPool.length ? [...this.landPool, ...seaPool] : this.landPool;
-    const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate);
+    const founders = makeFounders(this.seed, Math.max(24, L.founders), this.comp, this.founderClimate, this.founderLatent);
     founders.forEach((gen, k) => {
       const from = k % 2 === 1 && seaPool.length > 0 ? seaPool : pool;   // spawn() re-places a founder whose body does not suit the cell
       const cell = from[Math.floor(this.rnd() * from.length)];

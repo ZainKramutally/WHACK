@@ -98,6 +98,7 @@ export class EcologyLife implements LifeModel {
       },
       composition: w.life.composition,
       founderClimate: { prefTemp: w.life.founders.prefTemp, tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },
+      founderLatent: w.life.founders.latent,
       ledger: led as Partial<EcologyLedger>,
     });
     this.eco.seedLife(env, near);

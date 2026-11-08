@@ -37,6 +37,7 @@ export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: Ecolo
     },
     composition: world.life.composition,
     founderClimate: { prefTemp: world.life.founders.prefTemp, tolerance: world.life.founders.tolerance, chem: world.life.founders.chem },
+    founderLatent: world.life.founders.latent,
     ledger: L,
   });
   return { eco, env };

@@ -87,4 +87,15 @@ describe('mutate', () => {
     const calm = mutate(mid, rng, DEFAULT_CLIMATE_RULES, 0);
     expect(BODY_GENES.every((k) => calm.body[k] === 0.5)).toBe(true);
   });
+  it('draws the founders latent mean from the seed inside the bounds, and leaves other genes fixed', () => {
+    const latent = { diet: [0.02, 0.3], buoy: [0, 0.7], budShare: [0.05, 0.95] } as const;
+    const means = [1, 2, 3, 4, 5, 6].map((seed) => {
+      const f = makeFounders(seed, 200, comp, undefined, { diet: [...latent.diet], buoy: [...latent.buoy], budShare: [...latent.budShare] });
+      return f.reduce((a, g) => a + g.body.buoy, 0) / f.length;
+    });
+    expect(new Set(means.map((m) => m.toFixed(2))).size).toBeGreaterThan(3);   // runs differ
+    const a = makeFounders(7, 50, comp, undefined, { buoy: [0, 0.7] });
+    expect(makeFounders(7, 50, comp, undefined, { buoy: [0, 0.7] })).toEqual(a);   // deterministic
+    expect(a.every((g) => g.body.sociality === makeFounders(7, 50, comp)[0].body.sociality)).toBe(true);   // unlisted genes stay fixed
+  });
 });

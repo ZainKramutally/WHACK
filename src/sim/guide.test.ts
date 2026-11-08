@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimalGenome, BodyGenes } from './genome';
 import { LOCOMOTION, type LocomotionMode } from './develop';
-import { FormTracker, clusterForms, functionalType, nameForm, type GuideAnimal } from './guide';
+import { genusWord, FormTracker, clusterForms, functionalType, nameForm, type GuideAnimal } from './guide';
 
 const flat: BodyGenes = {
   size: 0.5, segments: 0.3, limbPairs: 0, limbLen: 0.3, plates: 0, horns: 0,
@@ -74,6 +74,26 @@ describe('names say how a species moves (owner, #75)', () => {
   });
   it('varies the first word with the eyes gene within a feature', () => {
     expect(new Set([0, 0.4, 0.9].map((eyes) => nameForm(centroid({ eyes }), { mode: LOCOMOTION.walk }).split(' ')[0])).size).toBe(3);
+  });
+});
+
+describe('genus words', () => {
+  it('are deterministic, pronounceable-looking, and differ across runs, species and chemistries', () => {
+    expect(genusWord(5, 1, 'c')).toBe(genusWord(5, 1, 'c'));
+    const names = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) for (let key = 1; key <= 6; key++) names.add(genusWord(seed * 977, key, 'c'));
+    expect(names.size).toBeGreaterThan(220);   // 240 draws, almost no repeats
+    expect(genusWord(5, 1, 'c')).not.toBe(genusWord(5, 1, 'si'));
+    expect(genusWord(5, 1, 'c')).toMatch(/^[A-Z][a-z]+$/);
+  });
+  it('names tracked forms "<genus> <movement>" when given a seed, never repeating within a run', () => {
+    const t = new FormTracker({ minMembers: 4, nameSeed: 99, distinctNames: true });
+    const out = t.update([...group(1, 5, carbonWorm), ...group(100, 5, genome({ size: 0.9, sociality: 0.05 }))]);
+    expect(out).toHaveLength(2);
+    expect(out[0].name).toMatch(/^[A-Z][a-z]+ \w+$/);
+    expect(out[0].name).not.toBe(out[1].name);
+    const other = new FormTracker({ minMembers: 4, nameSeed: 100, distinctNames: true }).update(group(1, 5, carbonWorm));
+    expect(other[0].name.split(' ')[0]).not.toBe(out[0].name.split(' ')[0]);
   });
 });
 

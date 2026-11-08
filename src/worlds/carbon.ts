@@ -242,6 +242,10 @@ export const carbon: WorldConfig = {
       chem: 0.5, // oxygen need, 0..1: half-aerobic founders, so the oxygen cap on size bites but does not starve them
       why: 'Founders start adapted to the starting climate with a moderate tolerance and oxygen need; mutation does the rest.',
       sources: [],
+      latent: {   // the run seed draws the founders' mean for each of these inside its bounds, so every run starts from a differently-leaning lineage (Gould 1989; Blount, Borland and Lenski 2008)
+        diet: [0.02, 0.3], buoy: [0, 0.7], eyes: [0.05, 0.6], glow: [0, 0.35], sociality: [0.05, 0.85], gape: [0.1, 0.45],
+        plates: [0, 0.35], horns: [0, 0.35], segments: [0.05, 0.7], limbLen: [0.1, 0.7], budShare: [0.05, 0.95],
+      },
       assumption: true,
     },
     // Ecology scalings (issue #19, all assumption: true). Tuned on the demo seed so legs, plates and hunters appear together by ~340 ecology-s.
