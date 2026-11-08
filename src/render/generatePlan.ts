@@ -7,8 +7,10 @@
 import { seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
 import { createFollowCamera } from '../player/camera';
 import { walkFloor } from '../player/logic';
+import { equilibriumSeaCover } from '../sim/limits';
 import { makeRng } from '../sim/rng';
-import type { WorldConfig } from '../worlds/types';
+import { controlList } from '../worlds';
+import type { Conditions, WorldConfig } from '../worlds/types';
 
 /** Box dots at the start: the first generation. */
 export const GEN0 = 196;
@@ -57,8 +59,8 @@ export interface PlanInput {
   world: WorldConfig;
   terrain: Terrain;
   seed: number;
-  /** Starting surface temperature (°C): sets the terrain's heat input. */
-  temperature: number;
+  /** The conditions the sim starts from (after any slider move): temperature sets the terrain's heat input, nitrogen the silicon seas. */
+  start: Conditions;
   /** Internal (lattice) resolution of the pixel pass. */
   lowW: number;
   lowH: number;
@@ -106,6 +108,13 @@ export function sampledStats(world: WorldConfig, seed: number): Record<string, n
   return out;
 }
 
+/** The sea cover (%) the sim starts the build with: sampled from the world's range, or (nitrogen seas) from the sea-volume model. */
+export function startSeaCover(world: WorldConfig, seed: number, start: Conditions): number {
+  const sampled = sampledStats(world, seed);
+  if (world.derived.some((d) => d.model === 'seaVolume')) return 100 * equilibriumSeaCover(world, start, { gravity: sampled.gravity ?? 1, controls: controlList });
+  return sampled.seaCover ?? 0;
+}
+
 export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   const { world, terrain } = inp;
   const doublings = inp.doublings ?? DOUBLINGS;
@@ -114,23 +123,23 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   const dur = world.build.durationSec;
   const spawnSec = world.build.spawnSec;
   const [s0, s1] = world.build.seasSec;
-  const heat = heatSolvent(Math.round(inp.temperature), world.solvent.freezeC, world.terrain.heatSolventSpan);
+  const temperature = inp.start.temperature;
+  const heat = heatSolvent(temperature, world.solvent.freezeC, world.terrain.heatSolventSpan);
   const progressAll = (r: number) => { const p: Partial<Record<'M2' | 'M3' | 'M4' | 'M5' | 'M6', number>> = {}; for (const m of world.terrain.machines) p[m.id] = r; return p; };
   const stateAt = (t: number): TerrainState => { const r = clamp01(t / dur); return { rise: r, progress: progressAll(r), heatSolvent: heat }; };
 
-  // Spawn: exactly as the sim's spawnPointM (finished terrain, the world's sampled sea cover).
-  const cover = sampledStats(world, inp.seed).seaCover ?? 0;
-  const cq = Math.round(cover / 100 * 200) / 200;
+  // Spawn: exactly as main.ts spawnFor (finished terrain, the sea cover the sim starts with, unquantised).
+  const cover = startSeaCover(world, inp.seed, inp.start);
   const full = stateAt(dur);
-  const sp = spawnPoint(terrain, full, seaLevelForCover(terrain, full, cq));
+  const sp = spawnPoint(terrain, full, seaLevelForCover(terrain, full, cover / 100));
   const spawn = { x: sp.x, z: sp.z };
   yield;
 
   // Spawn camera (the player's), on the terrain as it stands at spawnSec.
   const st6 = stateAt(spawnSec);
   const fill6 = sstep(s0, s1, spawnSec);
-  const level6 = seaLevelForCover(terrain, st6, Math.round(cover / 100 * fill6 * 200) / 200);
-  const frozen = inp.temperature < world.solvent.freezeC;
+  const level6 = seaLevelForCover(terrain, st6, cover / 100 * fill6);
+  const frozen = temperature < world.solvent.freezeC;
   const pose = spawnCameraPose(spawn, (x, z) => terrain.height(x, z, st6), (x, z) => walkFloor(terrain.height(x, z, st6), level6, frozen));
   yield;
 

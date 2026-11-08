@@ -6,7 +6,7 @@ import { GEN0, PULSE0, PULSE_DT, runPlan, type PlanInput } from './generatePlan'
 
 const gen0 = Array.from({ length: GEN0 }, (_, i) => ({ x: ((i * 37) % 100) / 100, y: ((i * 53) % 100) / 100, atom: i < 26 }));
 const inputFor = (world: typeof carbon, seed: number): PlanInput => ({
-  world, terrain: createTerrain(world.terrain, seed), seed, temperature: world.startDefaults.temperature,
+  world, terrain: createTerrain(world.terrain, seed), seed, start: world.startDefaults,
   lowW: 213, lowH: 120, fov: 60, aspect: 16 / 9, gen0, boxCy: 1.6, boxSize: 4, doublings: 3,
 });
 
@@ -37,5 +37,9 @@ describe.skipIf(!SLOW)('generate plan', { timeout: 120_000 }, () => {
     const p = runPlan(inputFor(carbon, carbon.demoSeed));
     expect(p.pose.pos.y).toBeGreaterThan(p.pose.look.y);
     expect(p.pose.pos.z).toBeGreaterThan(p.spawn.z);
+  });
+  it('silicon plans its seas from the sea-volume model, not a sampled range', () => {
+    const p = runPlan(inputFor(silicon, silicon.demoSeed));
+    expect(p.seaCover).toBeGreaterThan(5);
   });
 });

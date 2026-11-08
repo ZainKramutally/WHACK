@@ -114,7 +114,7 @@ export function createGenerate(app: App): Generate {
     const nAtoms = 26;
     return {
       world, terrain: a.terrain, seed: a.seed,
-      temperature: startingConditions(world, a.requested).start.temperature,
+      start: startingConditions(world, a.requested).start,
       lowW, lowH, fov: camera.fov, aspect: W / H,
       gen0: seeds.map((s, i) => ({ x: s.x, y: s.y, atom: i < nAtoms })),
       boxCy: YC, boxSize: rect.width / pxPerM0,
@@ -347,17 +347,16 @@ export function createGenerate(app: App): Generate {
     const baseFov = camera.fov;
     let anchor: { sim: number; wall: number } | null = null, lastSim = -1, lastT = 0;
     const wall0 = performance.now();
-    let trueSpawn: { x: number; z: number } | null = null, truePoseAt = 0, trueFrom: CamPose | null = null, trueChecks = 0;
     const floorOf = (x: number, z: number) => { const g = o.groundAt(x, z); return o.frozenNow() ? Math.max(g, o.seaLevelNow()) : g; };
-    let released = false, domGone = false;
+    let released = false, domGone = false, spawnChecked = false;
 
     const fin = (): CamPose => {
-      if (!trueSpawn) return plan.pose;
-      // The terrain keeps rising until the build ends, so the true spawn pose is re-read on the live ground every frame.
-      const w = sstep(truePoseAt, truePoseAt + 0.6, lastT);
-      const a = trueFrom ?? plan.pose, b = spawnCameraPose(trueSpawn, o.groundAt, floorOf);
+      // The terrain keeps rising until the build ends, so the spawn pose is re-read on the live ground every frame once the sim runs.
+      if (!o.snapshot()) return plan.pose;
+      const live = spawnCameraPose(plan.spawn, o.groundAt, floorOf);
+      const w = sstep(2.0, 3.0, lastT);
       const mixV = (u: Vec3, v: Vec3): Vec3 => ({ x: u.x + (v.x - u.x) * w, y: u.y + (v.y - u.y) * w, z: u.z + (v.z - u.z) * w });
-      return { pos: mixV(a.pos, b.pos), look: mixV(a.look, b.look) };
+      return { pos: mixV(plan.pose.pos, live.pos), look: mixV(plan.pose.look, live.look) };
     };
 
     // ?debug: frame times during the transition, for the headless fps check (window.__genFrames = [[T, ms], …]).
@@ -383,15 +382,6 @@ export function createGenerate(app: App): Generate {
       U.T.value = T;
       U.vis.value = sstep(spawnSec - 1.3, spawnSec - 0.3, T);
       U.seaMix.value = sstep(2.8, 5.0, T);
-
-      // True spawn, once the seas have started to fill: the camera's last key follows it.
-      if (snap && !released && ((trueChecks === 0 && T >= 4.0) || (trueChecks === 1 && T >= 5.4))) {
-        trueChecks++;
-        try {
-          const sp = o.spawnFor(snap);
-          trueFrom = fin(); trueSpawn = sp; truePoseAt = T;
-        } catch { /* keep the planned pose */ }
-      }
 
       // Camera: Hermite through push-in → pull-back → the player's spawn pose. Released at spawnSec (the player takes over).
       if (!released) {
@@ -471,6 +461,12 @@ export function createGenerate(app: App): Generate {
       if (dbg && T > spawnSec - 1.0) {
         const w = window as unknown as { __genCam?: number[][] };
         (w.__genCam ??= []).push([+T.toFixed(3), camera.position.x, camera.position.y, camera.position.z, camera.rotation.x, camera.fov]);
+      }
+      // ?debug: does the planned spawn equal the one the player will get? (one extra height scan, debug only)
+      if (dbg && !spawnChecked && snap && T >= spawnSec - 0.05) {
+        spawnChecked = true;
+        const sp = o.spawnFor(snap);
+        (window as unknown as Record<string, unknown>).__genSpawn = { plan: plan.spawn, sim: sp, d: Math.hypot(sp.x - plan.spawn.x, sp.z - plan.spawn.z) };
       }
       if (T >= spawnSec + 0.4) stop();
     };
