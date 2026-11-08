@@ -1,6 +1,6 @@
 // Aquarium renderer: every swimmer's tubes and sheets go into TWO dynamic batches (opaque, translucent; one draw each),
 // and every part goes into one InstancedMesh per (part type × opacity) with shared unit geometry. Four materials in
-// total, none per creature, so the app can draw hundreds of swimmers in ~20 draw calls.
+// total, none per creature, so the app can draw hundreds of swimmers in at most 15 draw calls.
 import * as THREE from 'three/webgpu';
 import type { PaletteKey } from '../../contracts';
 import { cross, norm, sub, type V3 } from '../../flora/mesh';
@@ -123,7 +123,10 @@ class PartBatch {
 }
 
 // ---- dynamic tube/sheet batch ----------------------------------------------------------------------------------------
-interface Slot { kind: 'tube' | 'sheet'; off: number; rings: number; sides: number; flat: boolean; theta: number[] }
+interface Slot { kind: 'tube' | 'sheet'; off: number; rings: number; sides: number; flat: boolean; cos: number[]; sin: number[] }
+/** Shared scratch for ring points (grows to the largest tube). */
+let SCRATCH = new Float64Array(0);
+const scratch = (n: number) => (SCRATCH.length >= n ? SCRATCH : (SCRATCH = new Float64Array(n)));
 class DynBatch {
   slots: Slot[] = []; nv = 0; idx: number[] = [];
   pos!: Float32Array; nor!: Float32Array; col!: Float32Array; glw!: Float32Array; mesh: any; aP: any; aN: any;
@@ -144,7 +147,7 @@ class DynBatch {
     if (kind === 'tube' && flat) for (let k = 0; k < count; k++) this.idx.push(off + k);
     this.nv += count;
     this.colours.push({ off, count, c, g: glow });
-    this.slots.push({ kind, off, rings, sides, flat, theta });
+    this.slots.push({ kind, off, rings, sides, flat, cos: theta.map(Math.cos), sin: theta.map(Math.sin) });
     return this.slots.length - 1;
   }
   finish(mat: any) {
@@ -163,38 +166,56 @@ class DynBatch {
     this.mesh.visible = this.nv > 0;
   }
   tube(si: number, c: V3[], U: V3[], R: V3[], rw: number[], rh: number[], top = 1) {
+    // hot path (every tube vertex, every frame): ring points go into a shared scratch buffer, normals are computed in place
     const s = this.slots[si], S = s.sides, nr = s.rings, pos = this.pos, nor = this.nor;
-    const G: V3[] = new Array(nr * S);
-    for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) {
-      const th = s.theta[j], cs = Math.cos(th), sn = Math.sin(th), ci = c[i];
-      const w = rw[i] * cs, h = rh[i] * sn * (sn > 0 ? top : 1);
-      G[i * S + j] = [ci[0] + R[i][0] * w + U[i][0] * h, ci[1] + R[i][1] * w + U[i][1] * h, ci[2] + R[i][2] * w + U[i][2] * h];
+    const G = scratch(nr * S * 3);
+    for (let i = 0; i < nr; i++) {
+      const ci = c[i], Ri = R[i], Ui = U[i];
+      for (let j = 0; j < S; j++) {
+        const w = rw[i] * s.cos[j], h = rh[i] * s.sin[j] * (s.sin[j] > 0 ? top : 1), k = (i * S + j) * 3;
+        G[k] = ci[0] + Ri[0] * w + Ui[0] * h; G[k + 1] = ci[1] + Ri[1] * w + Ui[1] * h; G[k + 2] = ci[2] + Ri[2] * w + Ui[2] * h;
+      }
     }
     if (!s.flat) {
-      for (let i = 0; i < nr; i++) for (let j = 0; j < S; j++) {
-        const p = G[i * S + j];
-        const dth = sub(G[i * S + ((j + 1) % S)], G[i * S + ((j - 1 + S) % S)]);
-        let dx = sub(G[Math.min(nr - 1, i + 1) * S + j], G[Math.max(0, i - 1) * S + j]);
-        if (dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2] < 1e-14) dx = sub(c[Math.min(nr - 1, i + 1)], c[Math.max(0, i - 1)]);
-        let nn = norm(cross(dth, dx));
-        if (rw[i] < 1e-6) nn = norm(sub(c[Math.max(0, i - 1)], c[Math.min(nr - 1, i + 1)])).map((v) => (i === 0 ? v : -v)) as V3;
-        if (nn[0] === 0 && nn[1] === 0 && nn[2] === 0) nn = [0, 1, 0];
-        const k = (s.off + i * S + j) * 3;
-        pos[k] = p[0]; pos[k + 1] = p[1]; pos[k + 2] = p[2];
-        nor[k] = nn[0]; nor[k + 1] = nn[1]; nor[k + 2] = nn[2];
+      for (let i = 0; i < nr; i++) {
+        const i0 = Math.max(0, i - 1), i1 = Math.min(nr - 1, i + 1);
+        for (let j = 0; j < S; j++) {
+          const k = (i * S + j) * 3, ka = (i * S + ((j + 1) % S)) * 3, kb = (i * S + ((j - 1 + S) % S)) * 3;
+          const k1 = (i1 * S + j) * 3, k0 = (i0 * S + j) * 3;
+          const ax = G[ka] - G[kb], ay = G[ka + 1] - G[kb + 1], az = G[ka + 2] - G[kb + 2]; // around the ring
+          let bx = G[k1] - G[k0], by = G[k1 + 1] - G[k0 + 1], bz = G[k1 + 2] - G[k0 + 2];    // along the body
+          if (bx * bx + by * by + bz * bz < 1e-14) { bx = c[i1][0] - c[i0][0]; by = c[i1][1] - c[i0][1]; bz = c[i1][2] - c[i0][2]; }
+          let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+          if (rw[i] < 1e-6) { // a closed tip: the normal points out along the axis
+            const sg = i === 0 ? 1 : -1;
+            nx = sg * (c[i0][0] - c[i1][0]); ny = sg * (c[i0][1] - c[i1][1]); nz = sg * (c[i0][2] - c[i1][2]);
+          }
+          const l = Math.hypot(nx, ny, nz);
+          if (l > 0) { nx /= l; ny /= l; nz /= l; } else { nx = 0; ny = 1; nz = 0; }
+          const o = (s.off + i * S + j) * 3;
+          pos[o] = G[k]; pos[o + 1] = G[k + 1]; pos[o + 2] = G[k + 2];
+          nor[o] = nx; nor[o + 1] = ny; nor[o + 2] = nz;
+        }
       }
       return;
     }
+    // faceted: two triangles per quad, one flat normal per quad
     let v = s.off * 3;
     for (let i = 0; i < nr - 1; i++) for (let j = 0; j < S; j++) {
-      const a = G[i * S + j], b = G[i * S + ((j + 1) % S)], cc = G[(i + 1) * S + j], d = G[(i + 1) * S + ((j + 1) % S)];
-      let nn = cross(sub(b, a), sub(cc, a));
-      if (nn[0] * nn[0] + nn[1] * nn[1] + nn[2] * nn[2] < 1e-16) nn = cross(sub(d, b), sub(cc, b));
-      nn = norm(nn);
-      if (nn[0] === 0 && nn[1] === 0 && nn[2] === 0) nn = [0, 1, 0];
+      const a = (i * S + j) * 3, b = (i * S + ((j + 1) % S)) * 3, cc = ((i + 1) * S + j) * 3, d = ((i + 1) * S + ((j + 1) % S)) * 3;
+      let ux = G[b] - G[a], uy = G[b + 1] - G[a + 1], uz = G[b + 2] - G[a + 2];
+      let wx = G[cc] - G[a], wy = G[cc + 1] - G[a + 1], wz = G[cc + 2] - G[a + 2];
+      let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+      if (nx * nx + ny * ny + nz * nz < 1e-16) { // degenerate at a tip: use the other triangle of the quad
+        ux = G[d] - G[b]; uy = G[d + 1] - G[b + 1]; uz = G[d + 2] - G[b + 2];
+        wx = G[cc] - G[b]; wy = G[cc + 1] - G[b + 1]; wz = G[cc + 2] - G[b + 2];
+        nx = uy * wz - uz * wy; ny = uz * wx - ux * wz; nz = ux * wy - uy * wx;
+      }
+      const l = Math.hypot(nx, ny, nz);
+      if (l > 0) { nx /= l; ny /= l; nz /= l; } else { nx = 0; ny = 1; nz = 0; }
       for (const q of [a, b, cc, b, d, cc]) {
-        pos[v] = q[0]; pos[v + 1] = q[1]; pos[v + 2] = q[2];
-        nor[v] = nn[0]; nor[v + 1] = nn[1]; nor[v + 2] = nn[2];
+        pos[v] = G[q]; pos[v + 1] = G[q + 1]; pos[v + 2] = G[q + 2];
+        nor[v] = nx; nor[v + 1] = ny; nor[v + 2] = nz;
         v += 3;
       }
     }
@@ -229,7 +250,7 @@ export function aquaMaterials() {
 }
 let GEOS: Record<SwimPart, any> | null = null;
 
-export function buildAquarium(entries: SwimEntry[], partCap = 6000) {
+export function buildAquarium(entries: SwimEntry[], partCap = Math.max(4000, 200 * entries.length)) {
   GEOS ??= swimPartGeometries();
   const mats = aquaMaterials();
   const group = new THREE.Group();

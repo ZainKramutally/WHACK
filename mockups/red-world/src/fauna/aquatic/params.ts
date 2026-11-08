@@ -63,7 +63,7 @@ export interface SwimmerParams {
   lateralLine: number;
   /** Ventral photophores (counter-illumination row), 0..24. */
   photophores: number;
-  /** 0..1: dorsal armour plates (tergites) along the back. */
+  /** 0..1: dorsal armour plates (tergites) along the back. Axial only. */
   plates: number;
   /** 0..1: how see-through the body tissue is (fins and bells first). */
   translucency: number;

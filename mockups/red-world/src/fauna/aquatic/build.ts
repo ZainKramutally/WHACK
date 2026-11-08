@@ -23,7 +23,9 @@ export interface SwimSink {
   /** top (optional) scales the upper half-height: < 1 gives a flat back over a deep belly. */
   tube(i: number, c: V3[], U: V3[], R: V3[], rw: number[], rh: number[], top?: number): void;
   sheet(i: number, a: V3[], b: V3[]): void;
-  /** Origin and three scaled basis axes (columns of the instance matrix); band 0 → colour a, band 1 → colour b. */
+  /** Origin and three scaled basis axes (columns of the instance matrix); band 0 → colour a, band 1 → colour b.
+   *  The basis must be right-handed (x × y along +z): the material flips back-facing normals, so a mirrored basis
+   *  would shade inside-out. */
   part(type: SwimPart, o: V3, x: V3, y: V3, z: V3, a: PaletteKey, b: PaletteKey, glow: number, translucent: boolean): void;
 }
 
@@ -111,10 +113,17 @@ function spineAt(sp: SpineS, u: number): { p: V3; T: V3; U: V3; R: V3 } {
   const n = sp.u.length - 1, u0 = sp.u[0], du = sp.u[1] - sp.u[0];
   const x = cl((u - u0) / du, 0, n), i = Math.min(n - 1, Math.floor(x)), f = x - i;
   const p0 = sp.P[Math.max(0, i - 1)], p1 = sp.P[i], p2 = sp.P[i + 1], p3 = sp.P[Math.min(n, i + 2)];
+  // Catmull-Rom weights (hot path: no per-component closures)
   const f2 = f * f, f3 = f2 * f;
-  const p = [0, 1, 2].map((k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * f + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * f2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * f3)) as V3;
+  const w0 = 0.5 * (-f + 2 * f2 - f3), w1 = 0.5 * (2 - 5 * f2 + 3 * f3), w2 = 0.5 * (f + 4 * f2 - 3 * f3), w3 = 0.5 * (f3 - f2);
+  const p: V3 = [
+    w0 * p0[0] + w1 * p1[0] + w2 * p2[0] + w3 * p3[0],
+    w0 * p0[1] + w1 * p1[1] + w2 * p2[1] + w3 * p3[1],
+    w0 * p0[2] + w1 * p1[2] + w2 * p2[2] + w3 * p3[2],
+  ];
   const T = norm(lerp3(sp.T[i], sp.T[i + 1], f));
-  const U = norm(sub(lerp3(sp.U[i], sp.U[i + 1], f), scl(T, dot(lerp3(sp.U[i], sp.U[i + 1], f), T))));
+  const Ul = lerp3(sp.U[i], sp.U[i + 1], f);
+  const U = norm(sub(Ul, scl(T, dot(Ul, T))));
   return { p, T, U, R: cross(T, U) };
 }
 
@@ -304,7 +313,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
       }
       const z = norm(add(outDir, scl(hf.T, 0.35)));
       const { U: eu, R: eR } = frameOf(z, hf.U);
-      sink.part('eye', at, scl(eR, er), scl(eu, er), scl(z, er), 'ink', 'bone', 0, false);
+      sink.part('eye', at, scl(eR, -er), scl(eu, er), scl(z, er), 'ink', 'bone', 0, false); // −eR: right-handed (eR × eu = −z)
     }
     for (let i = 0; i < p.head.crest; i++) {
       const u = 0.03 + 0.012 * i;
@@ -341,7 +350,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
       const f = spineAt(sp, 0.09);
       const o = sub(f.p, scl(f.U, rh(0.09) * 0.75));
       const r = rw(0.09) * 0.45;
-      sink.part('ring', o, scl(f.R, r), scl(f.U, r * 0.6), scl(f.T, r), p.colour.accent, 'ink', 0, false);
+      sink.part('ring', o, scl(f.R, r), scl(f.U, r * 0.6), scl(f.T, -r), p.colour.accent, 'ink', 0, false); // R × U = −T
     } else if (p.head.mouth === 'proboscis') {
       const f0 = spineAt(sp, 0.0);
       let at = f0.p, dir = norm(add(f0.T, scl(f0.U, -0.2)));
@@ -421,7 +430,6 @@ function buildRower(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
     const ox = inst.off[0] + wander * 0.3 * L * Math.sin(0.27 * t + 5.3 * inst.k);
     const oy = inst.off[1] + wander * 0.25 * L * Math.sin(0.21 * t + 2.1 * inst.k) + bob;
     const phi = ((kin.freq * t + ph) % 1 + 1) % 1;
-    // the hub pitches 15° steps with each beat (lattice body, no smooth wobble)
     const centre = add(add(here.p, scl(f0.R, ox)), scl(f0.U, oy));
     const nose = add(centre, scl(Tf, L / 2));
     const c: V3[] = [], Us: V3[] = [], Rs: V3[] = [], W: number[] = [];
@@ -454,7 +462,7 @@ function buildRower(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
       const rr = Math.max(0.005, 0.026 * L);
       bone(sink, 'rodSi', root, kneeP, rr, tangent, p.colour.accent, p.colour.body);
       bone(sink, 'rodSi', kneeP, tipP, rr * 0.8, tangent, p.colour.accent, p.colour.body);
-      sink.part('crystal', kneeP, scl(tangent, rr * 1.25), scl(d1, rr * 1.5), scl(cross(d1, tangent), rr * 1.25), p.colour.accent, p.colour.body, glowK * 0.12, false);
+      sink.part('crystal', kneeP, scl(tangent, rr * 1.25), scl(d1, rr * 1.5), scl(cross(tangent, d1), rr * 1.25), p.colour.accent, p.colour.body, glowK * 0.12, false);
       // paddle: face-on to the stroke in power, feathered (turned 90°) in recovery
       const feather = snap(fold * 90 * D2R, STEP_DEG);
       const chord = rotate(tangent, d2, feather);

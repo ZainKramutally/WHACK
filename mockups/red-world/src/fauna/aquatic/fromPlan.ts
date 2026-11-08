@@ -42,8 +42,8 @@ export interface AppBodyPlan {
   mode: number; // LOCOMOTION: 0 walk, 1 swim, 2 hover, 3 sessile
 }
 
-/** The body genes the bridge reads (OrganismField genes 12..23); all optional. */
-export interface AppGenes { sociality?: number; size?: number; buoy?: number }
+/** The body genes the bridge reads from the organism record (OrganismField genes 12..23, here only sociality); optional. */
+export interface AppGenes { sociality?: number }
 
 const cl = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
@@ -70,13 +70,13 @@ function carbonColours(p: AppBodyPlan): { body: PaletteKey; accent: PaletteKey }
 }
 
 function siliconColours(p: AppBodyPlan, kind: BodyPlanKind): { body: PaletteKey; accent: PaletteKey } {
-  // SI_PALETTE roles: bone = ice white, red = pale lilac, crimson = violet, maroon = indigo, blush = ice blue
-  // bells are ice-white glass with a violet accent; hubs are violet crystal (reads on pale nitrogen and dark water alike)
-  // two values so it reads on dark water and pale nitrogen: a pale body (ice / pale lilac) and a dark accent
-  // (indigo / violet) on arms, rims and stems; hunters swap to a violet body with an ice accent
-  const body: PaletteKey = kind === 'bell' ? 'bone' : p.diet > 0.6 ? 'crimson' : 'red';
-  const accent: PaletteKey = p.diet > 0.6 ? 'bone' : p.accent < 0.5 ? 'maroon' : 'crimson';
-  return { body, accent };
+  // SI_PALETTE roles: bone = ice white, blush = ice blue, red = pale lilac, crimson = violet, maroon = indigo.
+  // Value contrast carries the read in both waters (the material's rim flips: blush on dark water, indigo on pale
+  // nitrogen). Hubs are violet crystal with ice-pale rod arms (the land look: violet bodies, pale accent, cyan arm-tip
+  // eyes); bells are pale-lilac glass with violet rims and stems. Hunters go a step darker (indigo hub or rims).
+  const hunter = p.diet > 0.6;
+  if (kind === 'bell') return { body: 'red', accent: hunter ? 'maroon' : 'crimson' };
+  return { body: hunter ? 'maroon' : 'crimson', accent: p.accent < 0.5 ? 'bone' : 'blush' };
 }
 
 /**
@@ -110,7 +110,7 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
     p.head = { ...p.head, eyes: plan.eyeKind === 'none' ? 0 : Math.max(1, Math.round(plan.eyeCount / Math.max(1, plan.symmetry))), eyeSize: 0.025 + 0.025 * eyeBig, stalks: 0, feelers: plan.armKind === 'branch' ? 2 : 0, crest: 0, mouth: 'none' };
     p.fins = { lateral: 0, lateralSize: 0, dorsal: 0, ventral: 0, fringe: 0 };
     p.tail = 'none';
-    p.plates = cl(plan.plateCover, 0, 1);
+    p.plates = 0; // axial tergites only: silicon armour shows as facet spikes (tileLength, which develop() grows from plates)
     p.translucency = kind === 'bell' ? 0.75 : cl(0.35 + 0.3 * plan.glow, 0, 1);
     p.lateralLine = 0;
     p.photophores = 0;
@@ -123,8 +123,13 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
   p.chemistry = 'carbon';
   p.plan = kind;
   p.length = plan.scale;
-  p.aspect = cl((plan.girth / n) * 1.2, 0.025, 0.6);
-  p.depth = kind === 'ribbon' ? cl(2.6 * plan.flatten, 1.5, 4) : kind === 'segmented' ? cl(0.45 * plan.flatten, 0.25, 0.7) : kind === 'disc' ? 0.5 : cl(1.1 * plan.flatten + 0.6 * plan.crest, 0.6, 2.6);
+  // girth is segment thickness ÷ segment length, so the trunk's cross-section ÷ length is girth / n; compressed (^0.6) so
+  // short fat plans don't become balls and long thin ones don't vanish. depth (height ÷ width) splits that section:
+  // flatten 0.45 → flat, 1.3 → hatchet-deep; a crest deepens it further.
+  const section = cl(0.45 * (plan.girth / n) ** 0.6, 0.03, 0.4);
+  p.depth = kind === 'ribbon' ? cl(2.6 * plan.flatten, 1.5, 4) : kind === 'segmented' ? cl(0.45 * plan.flatten, 0.25, 0.7) : kind === 'disc' ? 0.5
+    : cl(0.7 + 2.2 * cl((plan.flatten - 0.45) / 0.85, 0, 1) ** 1.2 + 0.4 * plan.crest, 0.6, 3.4);
+  p.aspect = kind === 'disc' ? cl((2.2 * section) / Math.sqrt(p.depth), 0.3, 1.2) : cl(section / Math.sqrt(p.depth), 0.02, 0.6);
   p.peak = cl(0.45 - 0.4 * plan.gradient, 0.2, 0.6);
   p.undulation = cl((n - 4) / 10, 0, 1);
   p.fins = {
@@ -140,15 +145,18 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
   const grasp = plan.diet > 0.55 && plan.hornCount > 0;
   p.head = {
     eyes: plan.eyeKind === 'none' ? 0 : cl(plan.eyeCount, 0, 6),
-    eyeSize: 0.02 + 0.03 * eyeBig,
+    eyeSize: (0.22 + 0.3 * eyeBig) * section * 0.5, // eyes scale with the head's section, bigger in the dark
     stalks: cl((plan.eyeArea - 0.8) * 0.25, 0, 0.2) * (kind === 'segmented' ? 1.5 : 1),
     feelers: grasp ? Math.min(4, plan.hornKind === 'pair' || plan.hornKind === 'tusk' ? 2 : plan.hornCount) : 0,
     feelerLen: cl((plan.hornLength / Math.max(1e-6, plan.scale)) * 1.5 + 0.15, 0.1, 0.9),
     mouth: plan.jaw > 0.5 ? 'jaw' : plan.diet > 0.6 ? 'cone' : 'none',
     crest: Math.round(plan.crest * 6),
   };
-  p.lateralLine = plan.glow > 0.1 ? 0.8 * plan.glow : 0;
-  p.photophores = Math.round(plan.glow * 16 * cl(1 - n / 20, 0, 1));
+  // glow from darkness: a lateral line once it is clearly expressed; a ventral photophore row on shorter bodies, and only
+  // when it is a row (≥ 3 pairs), never a stray dot
+  p.lateralLine = plan.glow > 0.2 ? 0.8 * plan.glow : 0;
+  const rowPairs = plan.glow > 0.3 ? Math.round(plan.glow * 16 * cl(1 - n / 20, 0, 1)) : 0;
+  p.photophores = rowPairs >= 3 ? rowPairs : 0;
   p.plates = Math.max(plan.plateCover, plan.carapace) * (kind === 'segmented' ? 1 : 0.6);
   p.translucency = cl(0.15 + 0.4 * plan.glow - 0.5 * plan.plateCover, 0, 0.7);
   p.colour = carbonColours(plan);

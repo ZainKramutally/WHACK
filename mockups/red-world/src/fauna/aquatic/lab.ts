@@ -3,7 +3,8 @@
 //   ?view=aquatic&i=N             orbit close-up of swimmer N (follows it), param panel + seed re-roll (live only)
 //   ?view=aquatic-strip&i=N       6 frames over one stroke cycle from a fixed side camera (judge wave vs travel)
 //   ?view=aquatic-sheet&i=N       configurability sheet: swimmer N across 6 param settings
-// &seed=N re-rolls proportions, &set=key:value,fins.lateral:9 overrides params, &t=SEC freezes time, &style=smooth.
+// &seed=N re-rolls proportions, &set=key:value,fins.lateral:9 overrides params, &t=SEC freezes time, &style=smooth,
+// &crowd=N multiplies the tank's school sizes (crowd=4 ≈ 200 swimmers, still ~20 draw calls).
 // Capture hooks: window.__ready, window.__info, window.__fps. The free camera (labcam.ts) runs in live views.
 import * as THREE from 'three/webgpu';
 import { createPost } from '../../post';
@@ -19,17 +20,21 @@ import { mergeParams, parseSet, type DeepPartial, type SwimmerParams } from './p
 
 const q = new URLSearchParams(location.search);
 const view = q.get('view') ?? 'aquatic';
-const pick = Math.min(AQUATIC_VARIANTS.length - 1, Number(q.get('i') ?? (view === 'aquatic' ? -1 : 0)));
 const single = view === 'aquatic' && q.has('i');
 const lineup = view === 'aquatic' && !single;
-let seed = Number(q.get('seed') ?? 1);
+const iRaw = Math.round(Number(q.get('i') ?? 0));
+/** The variant this view is about (−1 in the lineup); a bad &i= falls back to 0. */
+const pick = lineup ? -1 : Number.isFinite(iRaw) ? Math.max(0, Math.min(AQUATIC_VARIANTS.length - 1, iRaw)) : 0;
+const seedQ = Number(q.get('seed') ?? 1);
+let seed = Number.isFinite(seedQ) ? seedQ : 1;
 const fixedT = q.has('t') ? Number(q.get('t')) : null;
 const FREE = fixedT === null && !location.hash.includes('capture');
 const crowd = Number(q.get('crowd') ?? 1);
 let over: DeepPartial<SwimmerParams> = parseSet(q.get('set'));
 const baseParams = AQUATIC_VARIANTS.map(variantParams);
 const nativeWater = (i: number): WaterKind => (baseParams[i].chemistry === 'silicon' ? 'nitrogen' : 'carbon');
-const water: WaterKind = (q.get('water') as WaterKind) ?? (lineup ? 'carbon' : nativeWater(Math.max(0, pick)));
+const waterQ = q.get('water');
+const water: WaterKind = waterQ === 'carbon' || waterQ === 'nitrogen' ? waterQ : lineup ? 'carbon' : nativeWater(pick);
 
 // ---- paths ------------------------------------------------------------------------------------------------------------
 /** Stadium loop at depth cy with a gentle vertical swell (dip m, `waves` per lap); tangent includes the climb. */
@@ -166,6 +171,7 @@ function closeUp(k: number, distK = 2.6, yaw = 1.05) {
 }
 
 const info = document.getElementById('info')!;
+info.style.color = water === 'carbon' ? '#f4e6dc' : '#22060f'; // readable on the dark tank and the pale one
 const raf = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
 if (view === 'aquatic-strip') {
@@ -179,7 +185,10 @@ if (view === 'aquatic-strip') {
   const ctx = out.getContext('2d')!;
   const sw = built.entries[0].sw, k = sw.kin;
   const tMid = 6, t0 = tMid - k.cycle / 2;
-  built.entries[0].inst.s0 = -(sw.kin.kind === 'wave' ? k.speed * tMid : k.speed * tMid) + sw.L * 0.45;
+  // centre the swimmer on x = 0 at mid-cycle (the path is the +x line, so s0 shifts it 1:1), whatever its motion kind
+  built.entries[0].inst.s0 = 0;
+  aq.update(tMid);
+  built.entries[0].inst.s0 = -aq.centres[0][0];
   W.time.value = tMid; aq.update(tMid);
   const c = aq.centres[0], ext = sw.frameR * 1.15 + k.stroke * 0.5;
   // body waves are lateral, so wave swimmers are watched from above-side (~60° up); rowers and bells from the side
@@ -316,7 +325,14 @@ function mountPanel() {
   btns.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).dataset.a;
     if (a === 'seed') seed += 1;
-    if (a === 'reset') { over = {}; for (const inp of el.querySelectorAll('input')) (inp as HTMLInputElement).value = String(ctls[[...el.querySelectorAll('input')].indexOf(inp)].get(p0)); }
+    if (a === 'reset') {
+      over = {};
+      el.querySelectorAll('label').forEach((row, k) => {
+        const v = ctls[k].get(p0);
+        row.querySelector('input')!.value = String(v);
+        row.querySelectorAll('span')[1].textContent = String(+v.toFixed(2));
+      });
+    }
     rebuild(); sync();
   });
   el.appendChild(btns);
