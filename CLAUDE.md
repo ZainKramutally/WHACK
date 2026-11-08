@@ -281,6 +281,8 @@ Three sliders, and only these three, let the player change the conditions life d
 - a small Earth marker at Earth's value
 - the thumb at the live value
 
+**Time speed** (owner request, 2026-11-08, #93): after `build:complete` the player can run time at ×1, ×2, ×4, ×8 or ×16. It's the Time row in the Conditions panel, or `[` and `]`, and a "⏩ ×8" chip shows while it is above ×1. The worker then runs 20 × factor ticks per wall second, with a catch-up cap of 100 ticks so a slow machine lags gracefully. The tick sequence is unchanged, so runs stay deterministic, and evolution simply goes faster. It's a playback control, not a condition. Contract: `time:set { factor }` and `SimSnapshot.timeFactor`.
+
 **Changes ease in.** In a running world, the sim does not jump to a new slider value. It eases there linearly over 1 s on the demo clock, between in-band values (`CONTROL_EASE_SEC`, an implementation constant in DECISIONS §G.2). The ease is deterministic, so the demo run stays reproducible.
 
 **The thumb cannot enter a red zone.** Dragging into one stops the thumb at the edge, pulses the zone and shows its reason. Approaching an edge, life is visibly stressed: the population falls, because the fitness rules read the same limits. The edge is exactly where the sim's kill condition sits. The slider and the sim read one list of limits from config, so they can never disagree.
