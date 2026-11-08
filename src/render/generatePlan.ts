@@ -12,17 +12,20 @@ import { makeRng } from '../sim/rng';
 import { controlList } from '../worlds';
 import type { Conditions, WorldConfig } from '../worlds/types';
 
-/** Box dots at the start: the first generation. */
-export const GEN0 = 196;
-export const DOUBLINGS = 7;
+/** Total grains at the end, whatever the box holds: the doublings are derived from the number of box dots. */
+export const GRAIN_BUDGET = 27000;
 /** Pulse g (1-based) starts at PULSE0 + PULSE_DT·(g−1); a pulse's front sweeps outward over SWEEP seconds. */
-export const PULSE0 = 0.85;
+export const PULSE0 = 0.6;
 export const PULSE_DT = 0.5;
 export const SWEEP = 0.4;
 /** Grains float this far above the surface (m). */
 export const LIFT = 0.1;
 /** Gen-0 dots start falling from here; they are on the box plane until then. */
-export const FALL0 = 0.62;
+export const FALL0 = 0.4;
+/** The box copy: gen-0 grains appear over it, it stops moving, then dissolves pixel by pixel while the first divisions happen. */
+export const APPEAR0 = 0.35;
+export const BOX_STOP: [number, number] = [0.15, 0.45];
+export const BOX_FADE: [number, number] = [0.4, 0.85];
 /** Start camera distance from the box plane (m); the DOM sheet's scale is D0 ÷ distance. */
 export const D0 = 5.17;
 /** Reveal field resolution over the patch. */
@@ -67,16 +70,19 @@ export interface PlanInput {
   /** Vertical field of view (deg) and aspect of the scene camera. */
   fov: number;
   aspect: number;
-  /** Box dots as 0..1 fractions of the box (y down); the first GEN0 dots; `atom` marks element atoms. */
+  /** Every box dot as 0..1 fractions of the box (y down); `atom` marks element atoms. */
   gen0: { x: number; y: number; atom: boolean }[];
   /** World placement of the box plane: centre height and side length (m). Its z is the spawn z. */
   boxCy: number;
   boxSize: number;
-  doublings?: number;
+  /** Total grains (default GRAIN_BUDGET). */
+  budget?: number;
 }
 
 export interface GenPlan {
   N: number;
+  /** Box dots (generation 0). */
+  n0: number;
   doublings: number;
   spawn: { x: number; z: number };
   /** The player's camera at spawn, from the estimated spawn. */
@@ -117,8 +123,10 @@ export function startSeaCover(world: WorldConfig, seed: number, start: Condition
 
 export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   const { world, terrain } = inp;
-  const doublings = inp.doublings ?? DOUBLINGS;
-  const N = GEN0 * Math.pow(2, doublings);
+  const n0 = inp.gen0.length;
+  const budget = Math.max(n0, inp.budget ?? GRAIN_BUDGET);
+  const doublings = Math.max(0, Math.ceil(Math.log2(budget / n0)));
+  const N = Math.min(budget, n0 * Math.pow(2, doublings));
   const S = terrain.patchSize;
   const dur = world.build.durationSec;
   const spawnSec = world.build.spawnSec;
@@ -235,7 +243,7 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   const parent = new Int32Array(N).fill(-1);
   const gen = new Uint8Array(N);
   const boxZ = spawn.z;
-  const gen0World: Vec3[] = inp.gen0.slice(0, GEN0).map((d) => ({ x: spawn.x + (d.x - 0.5) * inp.boxSize, y: inp.boxCy + (0.5 - d.y) * inp.boxSize, z: boxZ + 0.03 }));
+  const gen0World: Vec3[] = inp.gen0.map((d) => ({ x: spawn.x + (d.x - 0.5) * inp.boxSize, y: inp.boxCy + (0.5 - d.y) * inp.boxSize, z: boxZ + 0.03 }));
   const atomCol = KIND_COLOURS.atom, solvCol = KIND_COLOURS.solvent;
 
   const posAt = (i: number, t: number): [number, number, number] => {
@@ -247,23 +255,27 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   };
 
   // Generation 0: the box's own dots.
-  for (let i = 0; i < GEN0; i++) {
+  for (let i = 0; i < n0; i++) {
     const s = slots[i], w = gen0World[i], atom = inp.gen0[i].atom;
     const f = FALL0 + 0.3 * rs() + 0.35 * inp.gen0[i].y;   // lower dots fall later: they are already in the liquid
     A.set([w.x, w.y, w.z, f], i * 4);
     B.set([s.x, s.z, 0.55 + 0.25 * rs(), 0.4 + rs() * 0.8], i * 4);
     const c = atom ? atomCol : solvCol;
-    C.set([c[0], c[1], c[2], 0.55], i * 4);
+    C.set([c[0], c[1], c[2], APPEAR0], i * 4);
     D.set([atom ? 0.06 : 0.02, s.kind, rs(), s.depth], i * 4);
     gen[i] = 0;
   }
   yield;
-  let have = GEN0;
+  let have = n0;
   for (let g = 1; g <= doublings; g++) {
+    const nKids = Math.min(have, N - have);
+    if (nKids <= 0) break;
     const Pg = PULSE0 + PULSE_DT * (g - 1);
     // Pair parents and daughters by bearing from the spawn, so daughters leave their parent along the tide, outward.
-    const bearingP = Array.from({ length: have }, (_, i) => ({ i, a: Math.atan2(B[i * 4 + 1] - spawn.z, B[i * 4] - spawn.x) })).sort((a, b) => a.a - b.a);
-    const kids = Array.from({ length: have }, (_, k) => have + k).sort((a, b) => Math.atan2(slots[a].z - spawn.z, slots[a].x - spawn.x) - Math.atan2(slots[b].z - spawn.z, slots[b].x - spawn.x));
+    // The last generation may be partial (the budget caps the total): an evenly spread subset of parents divides.
+    const dividing = Array.from({ length: nKids }, (_, j) => Math.floor((j * have) / nKids));
+    const bearingP = dividing.map((i) => ({ i, a: Math.atan2(B[i * 4 + 1] - spawn.z, B[i * 4] - spawn.x) })).sort((a, b) => a.a - b.a);
+    const kids = Array.from({ length: nKids }, (_, k) => have + k).sort((a, b) => Math.atan2(slots[a].z - spawn.z, slots[a].x - spawn.x) - Math.atan2(slots[b].z - spawn.z, slots[b].x - spawn.x));
     const order = [...kids].sort((a, b) => dist(slots[a]) - dist(slots[b]));
     const rank = new Map(order.map((k, r) => [k, r / Math.max(1, order.length - 1)]));
     for (let j = 0; j < kids.length; j++) {
@@ -274,11 +286,11 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
       A.set([at[0], at[1], at[2], b], k * 4);
       B.set([s.x, s.z, Math.min(0.8, Math.max(0.32, 0.28 + 0.004 * d)), Math.min(18, 0.09 * d + 0.2 + rs() * 0.6)], k * 4);
       C.set([C[par * 4], C[par * 4 + 1], C[par * 4 + 2], b], k * 4);
-      D.set([0, s.kind, rs(), s.depth], k * 4);
+      D.set([g <= 3 ? 0.05 / g : 0, s.kind, rs(), s.depth], k * 4);   // the first divisions are drawn large enough to read
       parent[k] = par; gen[k] = g;
       if (j % 2500 === 2499) yield;
     }
-    have *= 2;
+    have += nKids;
     yield;
   }
   let lastLand = 0;
@@ -334,7 +346,7 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
     if (zz % 32 === 31) yield;
   }
 
-  return { N, doublings, spawn, pose, seaCover: cover, A, B, C, D, parent, gen, reveal, lastLand, stateAt, gen0World };
+  return { N, n0, doublings, spawn, pose, seaCover: cover, A, B, C, D, parent, gen, reveal, lastLand, stateAt, gen0World };
 }
 
 /** Pure helper: run a plan to completion (tests, and the rare click-before-ready case). */
@@ -353,10 +365,10 @@ function heatSolvent(tempC: number, freezeC: number, span: number): number {
  */
 export function refineEarly(plan: GenPlan, terrain: Terrain, gen0World: Vec3[], maxGen = 4): number {
   const { A, B, parent, gen } = plan;
-  for (let i = 0; i < GEN0 && i < gen0World.length; i++) { A[i * 4] = gen0World[i].x; A[i * 4 + 1] = gen0World[i].y; A[i * 4 + 2] = gen0World[i].z; }
+  for (let i = 0; i < plan.n0 && i < gen0World.length; i++) { A[i * 4] = gen0World[i].x; A[i * 4 + 1] = gen0World[i].y; A[i * 4 + 2] = gen0World[i].z; }
   plan.gen0World = gen0World;
-  const upto = GEN0 * Math.pow(2, Math.min(maxGen, plan.doublings));
-  for (let k = GEN0; k < upto; k++) {
+  const upto = Math.min(plan.N, plan.n0 * Math.pow(2, Math.min(maxGen, plan.doublings)));
+  for (let k = plan.n0; k < upto; k++) {
     const par = parent[k], b = A[k * 4 + 3];
     const u = clamp01((b - A[par * 4 + 3]) / B[par * 4 + 2]), e = 1 - Math.pow(1 - u, 2.2);
     const hL = terrain.height(B[par * 4], B[par * 4 + 1], plan.stateAt(b)) + LIFT;

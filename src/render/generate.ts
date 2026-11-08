@@ -26,7 +26,7 @@ import { PAL, PIXEL, worldMaterial } from './material';
 import { INTERNAL_H } from './post';
 import { createHeightNode, createTerrainMesh, createTerrainUniforms } from './terrainNode';
 import {
-  alpha, D0, hermite, LIFT, planSteps, PULSE0, PULSE_DT, refineEarly, REVEAL_RES, spawnCameraPose, sstep, GEN0,
+  alpha, BOX_FADE, BOX_STOP, D0, hermite, LIFT, planSteps, PULSE0, PULSE_DT, refineEarly, REVEAL_RES, spawnCameraPose, sstep,
   type CamPose, type GenPlan, type PlanInput, type Vec3,
 } from './generatePlan';
 
@@ -40,6 +40,8 @@ export interface LaunchHandle {
   boxRect(): DOMRect;
   /** The box's dots as 0..1 fractions (y down): element atoms first. */
   seeds(): { x: number; y: number }[];
+  /** How many of the seeds are element atoms. */
+  atomCount: number;
   /** Time dilation for the live box (1 = normal). */
   setBoxSpeed(k: number): void;
   dispose(): void;
@@ -70,6 +72,12 @@ export interface Generate {
 const YC = 1.6;                       // box plane centre height (m): above the flat ground at rise 0
 const PUSH = { t: 1.25, d: 2.7 };     // the camera has pushed in to here
 const SLICE_MS = 5;
+
+/**
+ * The one place the post pass's pixel scale is put back to 1 (end of the transition, abort, page leave). The transition does not change
+ * it today; if the art layer's resolve is tweened here later, this keeps it from ever being left chunky.
+ */
+const resetPixelScale = (app: App) => (app as { post?: { setPixelScale?: (k: number) => void } }).post?.setPixelScale?.(1);
 
 interface Primed {
   key: string;
@@ -110,8 +118,8 @@ export function createGenerate(app: App): Generate {
     const { lowW, lowH, W, H } = dims();
     const rect = a.handle.boxRect();
     const pxPerM0 = H / (2 * D0 * Math.tan((camera.fov * Math.PI) / 360));
-    const seeds = a.handle.seeds().slice(0, GEN0);
-    const nAtoms = 26;
+    const seeds = a.handle.seeds();
+    const nAtoms = a.handle.atomCount;
     return {
       world, terrain: a.terrain, seed: a.seed,
       start: startingConditions(world, a.requested).start,
@@ -205,7 +213,7 @@ export function createGenerate(app: App): Generate {
     const clip = cameraProjectionMatrix.mul(cameraViewMatrix.mul(vec4(wpos, 1)));
     const age = U.T.sub(aC.w);
     const landT = aA.w.add(aB.z);
-    const flash = exp(age.mul(-9)).mul(step(0.7, aC.w)).clamp(0, 1);
+    const flash = exp(age.mul(-9)).mul(step(0.5, aC.w)).clamp(0, 1);
     const sFlight = max(float(1), aD.x.mul(U.lrPerM).div(max(clip.w, 0.1)));
     const grow = smoothstep(landT, landT.add(0.35), U.T);
     const kindPlus = step(0.5, aD.y).mul(step(aD.y, 1.5)), kindOuter = step(1.5, aD.y);
@@ -287,12 +295,16 @@ export function createGenerate(app: App): Generate {
     run(o, p, world, W, H);
   }
 
-  /** Fallback: no 3D transition (flat terrain or a failed plan). The sheet fades out in hard steps. */
+  /** Fallback: no 3D transition (flat terrain or a failed plan). The sheet fades out in hard steps, driven by the frame loop. */
   function plainFade(o: StartOptions) {
     const root = o.handle.root;
-    root.style.transition = 'opacity 0.6s steps(6, end)';
-    root.style.opacity = '0';
-    window.setTimeout(() => o.handle.dispose(), 700);
+    let t = 0;
+    const unhook = app.registerFrameHook((dt) => {
+      t += dt;
+      root.style.opacity = String(Math.max(0, 1 - Math.floor(t / 0.1) / 6));   // six hard steps over 0.6 s
+      if (t >= 0.7) { unhook(); active = null; o.handle.dispose(); }
+    });
+    active = { stop() { unhook(); active = null; o.handle.dispose(); } };
   }
 
   function run(o: StartOptions, p: Primed, world: ReturnType<typeof worldFor>, W: number, H: number) {
@@ -310,7 +322,7 @@ export function createGenerate(app: App): Generate {
       y: YC - ((rect.top + s.y * rect.height) - by) / px0,
       z: plan.spawn.z + 0.03,
     });
-    const gen0 = () => handle.seeds().slice(0, GEN0).map(toWorld);
+    const gen0 = () => handle.seeds().map(toWorld);
     const upto = refineEarly(plan, o.terrain, gen0(), 2);
     const geoA = p.geo.getAttribute('aA') as THREE.InstancedBufferAttribute;
     geoA.clearUpdateRanges(); geoA.addUpdateRange(0, upto * 4); geoA.needsUpdate = true;
@@ -420,12 +432,12 @@ export function createGenerate(app: App): Generate {
           const rHole = Math.floor((Math.hypot(W, H) * sstep(0.2, 1.35, T)) / 8) * 8;
           const mask = rHole <= 0 ? 'none' : `radial-gradient(circle at ${bx}px ${by}px, transparent ${rHole}px, #000 ${rHole + 1}px)`;
           root.style.maskImage = mask; root.style.webkitMaskImage = mask;
-          handle.setBoxSpeed(1 - sstep(0.25, 0.6, T));
+          handle.setBoxSpeed(1 - sstep(BOX_STOP[0], BOX_STOP[1], T));
           // Box copy with a pixel dissolve.
           octx.globalCompositeOperation = 'source-over';
           octx.clearRect(0, 0, 150, 150);
           octx.drawImage(handle.boxCanvas, 0, 0, 150, 150);
-          const fade = sstep(0.62, 1.0, T);
+          const fade = sstep(BOX_FADE[0], BOX_FADE[1], T);
           if (fade > 0) {
             if (Math.abs(fade - maskFade) > 0.004) {
               maskFade = fade;
@@ -438,10 +450,10 @@ export function createGenerate(app: App): Generate {
           }
           overlay.style.display = fade >= 1 ? 'none' : 'block';
           // Generation 0 follows the live dots until the box has frozen.
-          if (T < 0.62) {
+          if (T < BOX_STOP[1] + 0.02) {
             const w0 = gen0();
             for (let i = 0; i < w0.length; i++) { plan.A[i * 4] = w0[i].x; plan.A[i * 4 + 1] = w0[i].y; plan.A[i * 4 + 2] = w0[i].z; }
-            geoA.clearUpdateRanges(); geoA.addUpdateRange(0, GEN0 * 4); geoA.needsUpdate = true;
+            geoA.clearUpdateRanges(); geoA.addUpdateRange(0, plan.n0 * 4); geoA.needsUpdate = true;
           }
           if (T >= 1.45) { domGone = true; overlay.remove(); handle.dispose(); }
         }
@@ -472,8 +484,13 @@ export function createGenerate(app: App): Generate {
     };
 
     const unhook = app.registerFrameHook(hook);
+    const onLeave = () => stop();
+    window.addEventListener('pagehide', onLeave);
+    resetPixelScale(app);
     function stop() {
       unhook();
+      window.removeEventListener('pagehide', onLeave);
+      resetPixelScale(app);
       p.group.visible = false;
       if (seaMat) seaMat.opacity = seaBase;
       overlay.remove(); hideUi.remove();

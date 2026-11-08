@@ -22,7 +22,7 @@ export function mulberry32(a: number) {
 
 const S = 600, LO = 150, K = LO / S;
 /** Element atoms in the soup. About 3x the first version; tuned by eye for the 150 px figure. */
-const N_ATOMS = 80;
+export const N_ATOMS = 80;
 /** Neighbour grid cell: equals the bonding reach, so a 3x3 block of cells covers every candidate. */
 const CELL = 32, GRID = Math.ceil(S / CELL);
 /** Atoms closer than this (and not bonded) bounce off each other. */

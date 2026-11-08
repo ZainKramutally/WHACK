@@ -7,7 +7,7 @@ import { controlList, sourceFor, worldFor, worlds } from '../../worlds';
 import type { Conditions, ControlDef, ControlId, LethalLimit, WorldConfig } from '../../worlds/types';
 import { fracToValue, redSegments, valueToFrac } from '../sliderMath';
 import type { UiBus } from '../uiBus';
-import { createBox } from './box';
+import { createBox, N_ATOMS } from './box';
 import { group14 } from './elements';
 import {
   bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, viability,
@@ -21,6 +21,8 @@ export interface LaunchHandle {
   boxRect(): DOMRect;
   /** The box's dots as 0..1 fractions of the box (y down): the element's atoms first. */
   seeds(): { x: number; y: number }[];
+  /** How many of the seeds are element atoms (the rest are solvent). */
+  atomCount: number;
   /** Time dilation for the live box (1 = normal, 0 = frozen). */
   setBoxSpeed(k: number): void;
   dispose(): void;
@@ -495,6 +497,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     boxCanvas,
     boxRect: () => boxCanvas.getBoundingClientRect(),
     seeds: () => box.seeds(),
+    atomCount: N_ATOMS,
     setBoxSpeed: (k) => { boxSpeed = k; },
     dispose,
   };
