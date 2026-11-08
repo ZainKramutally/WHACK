@@ -268,3 +268,4 @@
 - 08:54: MAIN PUSH (Caden approved): bbef7ff = 5822421 (crust session merged into main incl. warm-wall test fix) + plant size levels/emergents + ground fold. Gate 596/14, build OK. flora-size + freeze-review shutdown requested. All art work landed before freeze.
 - 09:00: demo-path bug (via 16): fish swimming in the air -> fish-air agent (swimY clamp under surface, beached in dry cells, all tiers). Owner ask: hunting attack + obvious kills -> Caden approved freeze exception (full version) -> hunt-anim agent (phase 1 jaw-open/lunge/swoop now; phase 2 intent stalk/flee + kill flash/collapse/burst/fade when 16's hunt-events lands ~09:35; target 10:15).
 - 09:13 16: merged zoom sensitivity ×3–4 and #92 founders follow the start temperature.
+- 09:11 Pushed fish-air swimY fix to main bb69c8b (owner OK). Pending: fish-air shoreline nudge + review fixes, hunt-anim v4 wiring.
