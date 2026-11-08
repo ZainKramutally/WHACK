@@ -58,11 +58,11 @@ const project = (x: number, y: number, z: number): [number, number] => [x + KU *
 function primitives(raw: BodyPlan): Prim[] {
   // As the world draws it: the species colourway, pattern and proportions (faunaLook falls back to the plan's own), in
   // the world's one body colour + one accent.
-  const { plan, hue, accent, diet, hard } = faunaLook(raw);
+  const { plan, hue, accent, diet, hard, skin } = faunaLook(raw);
   const lay = beadLayout(plan);
   const silicon = plan.chemistry === 'silicon';
   const colour = (tone: BeadTone, z: number) => {
-    const c = creatureColour(silicon, diet, WORLD_TONE[tone], hue, accent, hard); // armour wears the world's mineral, as fauna draws it
+    const c = creatureColour(silicon, diet, WORLD_TONE[tone], hue, accent, hard, skin); // armour and skin guard as fauna draws them
     return z > 0.02 * plan.scale ? scaleHex(c, FAR_SHADE) : c;
   };
   const prims: Prim[] = [];

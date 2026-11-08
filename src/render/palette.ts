@@ -250,11 +250,12 @@ function creatureBody(silicon: boolean, diet: number, hue: number): { lab: Lab; 
  * accent (bands, fins, crests), spot. Plates and limbs are the body a little deeper; horns and spots wear the accent.
  * Carbon eyes are ink; silicon's dot eyes are the cyan glow.
  */
-export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5, hard?: number): number {
+export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5, hard?: number, skinDL = 0): number {
   const pal = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
   if (tone === 1) return silicon ? pal.glow : pal.ink;
   if ((tone === 2 || tone === 4) && hard !== undefined && Number.isFinite(hard)) return hard; // mineral armour, as stamped
-  const { lab: [L, A, B], p } = creatureBody(silicon, diet, hue);
+  const { lab: [L0, A, B], p } = creatureBody(silicon, diet, hue);
+  const L = L0 + (Number.isFinite(skinDL) ? skinDL : 0); // the species' readability shift off its ground (carbon, stamped)
   if (tone === 0) return labToHex(L, A, B);
   if (tone === 2) return labToHex(L - 0.08, A * 1.05, B * 1.05);
   if (tone === 3) return labToHex(L - 0.04, A, B);
@@ -286,8 +287,9 @@ export const HARD_GAP = 0.15, GLOW_BAND: readonly [number, number] = [165, 200];
  * crustHard), with a quarter of the species accent so two species' armour stays apart, held HARD_GAP off the body's
  * lightness and out of the glow's cyan band. Stamped once per species when it gets its colourway (species.ts).
  */
-export function creatureHard(silicon: boolean, diet: number, hue: number, accent: number, worldHard: number): number {
-  const body = hexToLab(creatureColour(silicon, diet, 0, hue, accent)), acc = hexToLab(creatureColour(silicon, diet, 5, hue, accent));
+export function creatureHard(silicon: boolean, diet: number, hue: number, accent: number, worldHard: number, skinDL = 0): number {
+  const body = hexToLab(creatureColour(silicon, diet, 0, hue, accent, undefined, skinDL));
+  const acc = hexToLab(creatureColour(silicon, diet, 5, hue, accent, undefined, skinDL));
   const w = hexToLab(worldHard);
   let L = lerp(w[0], acc[0], 0.25), A = lerp(w[1], acc[1], 0.25), B = lerp(w[2], acc[2], 0.25);
   if (Math.abs(L - body[0]) < HARD_GAP) { // on the side the mineral already sits, flipped near the ends of the scale
@@ -301,6 +303,23 @@ export function creatureHard(silicon: boolean, diet: number, hue: number, accent
     A = C * Math.cos(e); B = C * Math.sin(e);
   }
   return labToHex(L, A, B);
+}
+
+/** Carbon skins keep this much lightness off the ground they stand on (fauna-colour §3 readability guard). */
+export const SKIN_GROUND_GAP = 0.1;
+/**
+ * The carbon readability guard (fauna-colour §3): the lightness shift that keeps a species' skin SKIN_GROUND_GAP off the
+ * chip's ground, pushed on the side the skin already sits (flipped if that leaves the scale); 0 when it already reads,
+ * and always 0 on silicon (its rim and pale armour carry the silhouette; a silicon guard merged species).
+ */
+export function skinGroundShift(silicon: boolean, diet: number, hue: number, accent: number, groundHex: number | undefined): number {
+  if (silicon || groundHex === undefined) return 0;
+  const L = hexToLab(creatureColour(false, diet, 0, hue, accent))[0], g = hexToLab(groundHex)[0];
+  if (Math.abs(L - g) >= SKIN_GROUND_GAP) return 0;
+  let t = L >= g ? g + SKIN_GROUND_GAP : g - SKIN_GROUND_GAP;
+  if (t > 0.92) t = g - SKIN_GROUND_GAP;
+  if (t < 0.15) t = g + SKIN_GROUND_GAP;
+  return t - L;
 }
 
 /** Plant value inverts with height (ART_DIRECTION rule 4): dark stems, pale tips that read against the white sky. */

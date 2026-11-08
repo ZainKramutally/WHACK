@@ -190,8 +190,19 @@ export function blendFamilies(crust: CrustMix, weights: number[], rust: number):
 // Ice holds no silicon and builds nothing (weight 0, as its floraWeight).
 export const MINERAL_HARD: Record<string, readonly [number, number]> = {
   basalt: [0x2c3634, 0x5c3c2c], ironstone: [0x1e1c22, 0xb27c2c], granite: [0xe6ddcc, 0xe6ddcc],
-  silicide: [0x5c6678, 0xd6d2ca], nitride: [0xd2d7dc, 0xd2d7dc], reducedLava: [0xc2bdb4, 0xe8e6e0],
+  silicide: [0x5c6678, 0xc9b48e], nitride: [0xd2d7dc, 0xd2d7dc], reducedLava: [0xc2bdb4, 0xc2bdb4],
 };
+/** Silicon life always builds silicon-nitride ceramic armour (CLAUDE.md); the rock's mineral stains it (60%). */
+export const NITRIDE_PORCELAIN = 0xd2d7dc;
+const SI_STAIN = 0.6;
+/** One mineral's armour for a chemistry at rust step `rust`: carbon builds from the mineral, silicon stains nitride with it. */
+export function mineralHard(id: string, oxidises: boolean, rust: number, silicon: boolean): number | undefined {
+  const h = MINERAL_HARD[id];
+  if (!h) return undefined;
+  const carbonHard = labMix(h[0], h[1], oxidises ? rust : 0);
+  if (!silicon) return carbonHard;
+  return id === 'nitride' ? NITRIDE_PORCELAIN : labMix(NITRIDE_PORCELAIN, carbonHard, SI_STAIN);
+}
 /** The ratchet's rust level quantised to {0, 0.5, 1}: the armour's oxidation steps (a species keeps the step it was stamped at). */
 export const hardRustStep = (rust: number): number => Math.round(Math.min(1, Math.max(0, rust)) * 2) / 2;
 /**
@@ -199,20 +210,20 @@ export const hardRustStep = (rust: number): number => Math.round(Math.min(1, Mat
  * floraWeight)², so the dominant rock sets it and ice adds nothing (falling back to share² if every weight is 0).
  * Undefined without a crust (the hard tone then stays the body a little deeper). Pure.
  */
-export function worldHard(crust: CrustMix | undefined, rust: number): number | undefined {
+export function worldHard(crust: CrustMix | undefined, rust: number, silicon = false): number | undefined {
   if (!crust || crust.ids.length === 0) return undefined;
   const items: { hex: number; w: number }[] = [];
   let tot = 0;
   crust.ids.forEach((id, i) => {
-    const h = MINERAL_HARD[id], f = MINERAL_LOOK[id]?.[0];
-    if (!h) return;
+    const hex = mineralHard(id, crust.oxidises[i], rust, silicon), f = MINERAL_LOOK[id]?.[0];
+    if (hex === undefined) return;
     const w = ((crust.shares[i] ?? 0) * (f ? f.floraWeight : 1)) ** 2;
-    items.push({ hex: labMix(h[0], h[1], crust.oxidises[i] ? rust : 0), w }); tot += w;
+    items.push({ hex, w }); tot += w;
   });
   if (items.length === 0) return undefined;
   if (tot <= 0) { // every rock that builds armour has weight 0 here: fall back to the rock shares
     items.length = 0;
-    crust.ids.forEach((id, i) => { const h = MINERAL_HARD[id]; if (h) { const w = (crust.shares[i] ?? 0) ** 2; items.push({ hex: labMix(h[0], h[1], crust.oxidises[i] ? rust : 0), w }); tot += w; } });
+    crust.ids.forEach((id, i) => { const hex = mineralHard(id, crust.oxidises[i], rust, silicon); if (hex !== undefined) { const w = (crust.shares[i] ?? 0) ** 2; items.push({ hex, w }); tot += w; } });
     if (tot <= 0) return undefined;
   }
   for (const it of items) it.w /= tot;
@@ -224,9 +235,14 @@ export function crustHard(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildP
   const c = inputs.world.crust;
   if (!c) return undefined;
   const step = hardRustStep(crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress));
-  const key = c.ids.join() + c.shares.join() + c.oxidises.join() + step;
-  if (hardMemo.key !== key) { hardMemo.key = key; hardMemo.value = worldHard(c, step); }
+  const si = inputs.world.composition.si > 0.5;
+  const key = c.ids.join() + c.shares.join() + c.oxidises.join() + step + (si ? 's' : 'c');
+  if (hardMemo.key !== key) { hardMemo.key = key; hardMemo.value = worldHard(c, step, si); }
   return hardMemo.value;
+}
+/** The chip ground the carbon readability guard measures skins against: the crust blend's ground tone, if there's a crust. */
+export function crustGround(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number | undefined {
+  return crustGlobal(inputs)?.family.red;
 }
 
 const memo = { key: '', rust: -1, value: null as null | ReturnType<typeof blendFamilies> };

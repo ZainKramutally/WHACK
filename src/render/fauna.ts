@@ -45,7 +45,7 @@ import {
 import { RING_STRIDE, circleSection, gridIndex, ngonSection, setRing, writeRings, type Section } from './faunaLib/loft';
 import { PartBatch, partBatches } from './faunaLib/parts';
 import { SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './faunaLib/species';
-import { crustHard } from './crustLook';
+import { crustGround, crustHard } from './crustLook';
 import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
 import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
 import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
@@ -136,8 +136,8 @@ interface Entry {
   /** Radial bodies: rest rods (ROD_STRIDE floats: ax, ay, az, bx, by, bz, r, flat, up) and their tones. */
   rods: Float32Array; rodTone: Uint8Array;
   hue: number; accent: number;
-  /** The species' stamped mineral armour hex (undefined: the hard tone is the body a little deeper). */
-  hard: number | undefined;
+  /** The species' stamped mineral armour hex (undefined: the hard tone is the body a little deeper) and skin shift. */
+  hard: number | undefined; skin: number;
   // body extents for the motion maths
   xmin: number; xspan: number; ymax: number;
   // snapshot interpolation: previous rendered pose → newest target, over dtSnap seconds from snapT
@@ -186,12 +186,12 @@ function bake(layout: BeadLayout, silicon: boolean, look: SpeciesLook, glow: num
   });
   for (const r of rl) ymax = Math.max(ymax, r.ay + r.r, r.by + r.r);
   // Fauna slots: the species' one body colour and one accent (Red World), the eye (ink / cyan), bone catchlights, glow.
-  const { hue, accent, diet, hard } = look;
+  const { hue, accent, diet, hard } = look, skin = look.skin ?? 0; // skin: the species' readability shift off its ground
   const pal = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
   const slotHex = [
-    creatureColour(silicon, diet, 0, hue, accent), creatureColour(silicon, diet, 5, hue, accent),
+    creatureColour(silicon, diet, 0, hue, accent, hard, skin), creatureColour(silicon, diet, 5, hue, accent, hard, skin),
     creatureColour(silicon, diet, 1, hue, accent), pal.bone, pal.glow,
-    creatureColour(silicon, diet, 2, hue, accent, hard), // hard parts: the species' stamped mineral armour, else the body deeper
+    creatureColour(silicon, diet, 2, hue, accent, hard, skin), // hard parts: the species' stamped mineral armour, else the body deeper
   ];
   const slotRgb = new Float32Array(SLOTS * 3);
   slotHex.forEach((hex, i) => { tmpColour.setHex(hex); slotRgb[i * 3] = tmpColour.r; slotRgb[i * 3 + 1] = tmpColour.g; slotRgb[i * 3 + 2] = tmpColour.b; });
@@ -204,7 +204,7 @@ function bake(layout: BeadLayout, silicon: boolean, look: SpeciesLook, glow: num
     const sl = tone === 6 && lit > 0 ? SLOT.glow : TONE_SLOT[tone];
     rgb[tone * 3] = slotRgb[sl * 3]; rgb[tone * 3 + 1] = slotRgb[sl * 3 + 1]; rgb[tone * 3 + 2] = slotRgb[sl * 3 + 2];
   }
-  return { flat, shape, flap, rgb, slotRgb, slotGlow, rods, rodTone, hue, accent, hard, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };
+  return { flat, shape, flap, rgb, slotRgb, slotGlow, rods, rodTone, hue, accent, hard, skin, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };
 }
 
 /** One creature's near-LOD geometry at rest pose in body space (layout units), copied out of the live batches. */
@@ -222,7 +222,7 @@ export interface FaunaPart {
   hit(origin: Vec3, dir: Vec3): { id: number; dist: number } | null;
   /** Cached bead layout, chemistry and diet of an organism by id (from its BodyPlan), if known. */
   layoutOf(id: number): {
-    layout: BeadLayout; silicon: boolean; diet: number; hue: number; accent: number; hard?: number;
+    layout: BeadLayout; silicon: boolean; diet: number; hue: number; accent: number; hard?: number; skin?: number;
     /** The creature as the near LOD draws it (loft and parts), at rest pose in body space, for the inspect live view. */
     bake?: () => BakedCreature | null;
   } | null;
@@ -1330,7 +1330,7 @@ export function createFauna(app: App): FaunaPart {
       }
       lastBuild = inputs.buildProgress;
       // the world's mineral armour now (crust mix at the ratchet's armour step); species stamp it as they are coloured
-      book.setWorldHard(crustHard(inputs));
+      book.setWorldHard(crustHard(inputs), crustGround(inputs));
       // Births: plans arrive once per snapshot; they wait for their organism's first appearance in the buffer.
       if (inputs.births !== lastBirths) {
         lastBirths = inputs.births;
@@ -1539,7 +1539,7 @@ export function createFauna(app: App): FaunaPart {
     layoutOf(id) {
       // diet, hue and accent are the species colourway (what creatureColour needs to draw it as it looks in the world)
       const e = entries.get(id);
-      return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet, hue: e.hue, accent: e.accent, hard: e.hard, bake: () => bakeNear(e) } : null;
+      return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet, hue: e.hue, accent: e.accent, hard: e.hard, skin: e.skin, bake: () => bakeNear(e) } : null;
     },
     bakePlan(raw) {
       if (planBakes.has(raw)) return planBakes.get(raw) ?? null;
@@ -1548,7 +1548,7 @@ export function createFauna(app: App): FaunaPart {
         // a stand-alone entry (never added to `entries`): the species look's colours and proportions, adult, at rest
         const look = faunaLook(raw), drawn = look.plan;
         fromBook = drawn !== raw; // faunaLook hands back the raw plan itself when the world hasn't drawn this one
-        const lk: SpeciesLook = { hue: look.hue, accent: look.accent, diet: look.diet, bands: drawn.bands, spots: drawn.spots, hard: look.hard };
+        const lk: SpeciesLook = { hue: look.hue, accent: look.accent, diet: look.diet, bands: drawn.bands, spots: drawn.spots, hard: look.hard, skin: look.skin };
         const e = makeEntry(beadLayout(drawn), drawn, drawn.chemistry === 'silicon', drawn.glow, drawn.scale, -1, lk, true);
         e.mode = drawn.mode; e.legged = drawn.legPairs > 0;
         out = bakeNear(e);

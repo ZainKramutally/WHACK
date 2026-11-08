@@ -3,8 +3,8 @@ import { rust } from '../gen/crust';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import { LOOK_PALETTES } from './palette';
-import { MINERAL_COLOURS, MINERAL_HARD, RED_WORLD_GROUND_IDS, hardRustStep, redWorldRamp, RustRatchet, floraPigment, mineralColour, worldHard } from './crustLook';
-import { GLOW_BAND, HARD_GAP, creatureColour, creatureHard } from './palette';
+import { MINERAL_COLOURS, MINERAL_HARD, NITRIDE_PORCELAIN, RED_WORLD_GROUND_IDS, hardRustStep, redWorldRamp, RustRatchet, floraPigment, mineralColour, worldHard } from './crustLook';
+import { GLOW_BAND, HARD_GAP, SKIN_GROUND_GAP, creatureColour, creatureHard, skinGroundShift } from './palette';
 
 const cw = { id: 'carbon', rustOxygen: carbon.terrain.crust!.rustOxygen };
 const sw = { id: 'silicon', rustOxygen: silicon.terrain.crust!.rustOxygen };
@@ -238,7 +238,7 @@ describe('hard parts wear the world\'s minerals (fauna-colour §2.2, §6)', () =
     const arc = (a: number, b: number) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
     for (const [w, si] of [[carbon, false], [silicon, true]] as const) {
       const glowLab = hexToLab(si ? 0x6ff4ff : 0x3ff5e0), glowH = (Math.atan2(glowLab[2], glowLab[1]) * 180 / Math.PI + 360) % 360;
-      const tints = [0, 0.5, 1].flatMap((r) => [worldHard(mix(w), r), ...mix(w).ids.map((id) => worldHard(only(w, id), r))]).filter((x): x is number => x !== undefined);
+      const tints = [0, 0.5, 1].flatMap((r) => [worldHard(mix(w), r, si), ...mix(w).ids.map((id) => worldHard(only(w, id), r, si))]).filter((x): x is number => x !== undefined);
       for (const t of tints) for (const h of hues) for (const diet of [0.05, 0.5, 0.95]) for (const a of [0.15, 0.5, 0.85]) {
         const hard = creatureHard(si, diet, h, a, t), body = hexToLab(creatureColour(si, diet, 0, h, a)), lab = hexToLab(hard);
         expect(Math.abs(lab[0] - body[0]), 'lightness gap').toBeGreaterThanOrEqual(HARD_GAP - 0.01);
@@ -247,5 +247,34 @@ describe('hard parts wear the world\'s minerals (fauna-colour §2.2, §6)', () =
       }
     }
     void GLOW_BAND;
+  });
+});
+
+describe('one armour family per mineral on both worlds; the carbon skin guard (revised fauna-colour §2.2, §3)', () => {
+  const mix = (w: typeof carbon) => {
+    const ms = w.terrain.crust!.minerals;
+    return { ids: ms.map((m) => m.id), oxidises: ms.map((m) => m.oxidises), shares: ms.map((m) => (m.share[0] + m.share[1]) / 2), elevation: ms.map((m) => m.elevation) };
+  };
+  const only = (w: typeof carbon, id: string) => { const c = mix(w); return { ...c, shares: c.ids.map((x) => (x === id ? 1 : 0)) }; };
+  it('silicon builds nitride stained by the chip; the two chemistries never wear the same armour on a chip', () => {
+    expect(worldHard(only(silicon, 'nitride'), 0, true)).toBe(NITRIDE_PORCELAIN);
+    for (const id of ['basalt', 'granite', 'ironstone', 'silicide']) {
+      const si = worldHard(only(silicon, id), 0, true), c = worldHard(only(carbon, id), 0, false);
+      expect(si, id).toBeDefined();
+      expect(si, id).not.toBe(c);
+    }
+    expect(hexToLab(worldHard(only(silicon, 'ironstone'), 0, true)!)[0]).toBeLessThan(hexToLab(NITRIDE_PORCELAIN)[0]); // iron darkens the porcelain
+  });
+  it('carbon skins keep 0.10 lightness off every chip ground; silicon skins are never shifted', () => {
+    const hues = Array.from({ length: 9 }, (_, i) => i / 8);
+    for (const id of [...mix(carbon).ids, 'natural']) for (const rust of [0, 1]) {
+      const crust = id === 'natural' ? mix(carbon) : only(carbon, id);
+      const ground = blendFamilies(crust, crust.shares, rust).family.red, g = hexToLab(ground)[0];
+      for (const h of hues) for (const diet of [0.05, 0.5, 0.95]) for (const a of [0.15, 0.5, 0.85]) {
+        const dl = skinGroundShift(false, diet, h, a, ground), L = hexToLab(creatureColour(false, diet, 0, h, a, undefined, dl))[0];
+        expect(Math.abs(L - g), `${id} rust ${rust} hue ${h} diet ${diet}`).toBeGreaterThanOrEqual(SKIN_GROUND_GAP - 0.01);
+      }
+    }
+    expect(skinGroundShift(true, 0.3, 0.4, 0.5, 0x2c3634)).toBe(0);
   });
 });
