@@ -146,3 +146,4 @@
 - 04:00: review 10 addendum: art-fauna slope/trails/near-try clean; teeth (8394cfa) still blocks; MED trail slots leak on reset -> art-fauna. tail-tip pick 0c4ca63 -> stage c018445. Plan: push cf6bad1..stage once teeth fix lands (else reorder without teeth).
 - 04:02: teeth fix 3de89d0 (CPU-baked parity, margin decode, ribfan rim) -> stage eebfdad; gate 333/14, SLOW 71/71, build OK. Review 11 to art-review (crack scan re-run, verdict cf6bad1..eebfdad).
 - 04:10 16: merged #80 mode-symmetric habitat-aware slots (recovery 0.78–0.90 of control).
+- 02:45 (2026-11-08): session/crust started from main 21d12f5 for Caden's crust/minerals feature (docs/features/crust.md). Contract MineralDef/CrustConfig/TerrainConfig.crust committed (52bcf70). Spawned crust-core (configs, gen/crust.ts, grid wiring + §A A/B), box-crust (particle box mineral bed), crust-sources (scout). Art/inspect part deferred to the art-layer owner.
