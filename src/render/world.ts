@@ -6,6 +6,7 @@
 //   player onInspect → const r = view.pick(at); bus.emit('inspect:open', r)
 //
 // By default it registers one frame hook on the app, so you do not need to call update() yourself.
+import { createUnderwaterFx } from './underwaterFx';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import { bus as defaultBus, type Bus } from '../bus';
@@ -127,6 +128,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const sky = createSky(app);
   const sea = createSea(app);
   const backdrop = createBackdrop(app);
+  const underFx = createUnderwaterFx(app);
   const fauna = createFauna(app);
   const beforeFlora = new Set(app.scene.children);
   const flora = createFlora(app);
@@ -174,6 +176,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     sky.update(dt, inputs, patch);
     const t1 = performance.now();
     sea.update(dt, t, inputs, patch);
+    underFx.update(dt, t, inputs, patch);
     backdrop.update(dt, t, inputs, patch);
     const t2 = performance.now();
     fauna.update(dt, t, inputs, patch);
@@ -260,6 +263,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       landmarks.dispose();
       rockForms.dispose();
       sea.dispose();
+      underFx.dispose();
       backdrop.dispose();
       sky.dispose();
       app.scene.remove(placeholder);

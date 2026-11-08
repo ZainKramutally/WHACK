@@ -11,6 +11,7 @@ import type { VisualInputs } from '../worlds/types';
 import { seaStyle, skyStyle } from './palette';
 import { crustWaterNudge } from './crustLook';
 import { LOOK, PAL_LIT, PIXEL, bayer4 } from './material';
+import { waterHaze } from './underwaterFx';
 import { easeSubmersion, stepSubmersion, submersionTarget } from './underwater';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +32,7 @@ const MOONS: { dir: [number, number, number]; radiusDeg: number; seed: number; s
   { dir: [0.255, 0.174, -0.951], radiusDeg: 5, seed: 3.1, strength: 0.78 },   // ~10° up: in frame at walking pitch
   { dir: [0.79, 0.276, -0.553], radiusDeg: 2.4, seed: 7.7, strength: 0.82 },
 ];
-/** The overlay grade reaches full depth at this fraction of the solvent's underwater fog distance (water 14 m, N₂ 36 m). */
+/** The overlay grade reaches full depth at this fraction of the solvent's underwater fog distance (water 120 m, N₂ 90 m). */
 const GRADE_DEPTH_FRAC = 0.4;
 
 /** Composite one moon over `sky`: a lit sphere with a stepped terminator toward the star, maria and a horizon fade. */
@@ -115,9 +116,10 @@ export function createSky(app: App): SkyPart {
       if (inputs.frozen) tmp.copy(PAL_LIT.bone.value).multiplyScalar(0.55);
       else if (nitrogen) tmp.copy(PAL_LIT.blush.value).lerp(PAL_LIT.shadow.value, 0.45);
       else tmp.setHex(sea.underwater);   // liquid water: its own blue, nudged by the seabed crust (palette.waterBody)
+      const depth = inputs.seaLevel - camera.position.y;
+      if (!inputs.frozen && !nitrogen) waterHaze(tmp, tmp, depth, crustWaterNudge(inputs));   // darker with depth, toward the ramp's deep blue
 
       // Overlay state for post.ts. Liquid only: a frozen sea is walkable ice, so the gate drops to 0 at once.
-      const depth = inputs.seaLevel - camera.position.y;
       const liquid = hasSea && !inputs.frozen;
       submersion = liquid ? stepSubmersion(submersion, submersionTarget(depth, liquid), dt) : 0;
       LOOK.underwater.value = easeSubmersion(submersion);

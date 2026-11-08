@@ -123,7 +123,7 @@ export function seaStyle(solventName: string, frozen: boolean, solidSinks: boole
   }
   void solidSinks;
   // underwater: the water's own deep blue (the camera is inside the water, not looking at the seabed), nudged by the crust
-  return { colour: shallows ?? WATER.cyan, opacity: 0.62, roughness: 0.08, underwater: scaleHex(waterBody(nudge), 0.8), underwaterFar: 35, metalness: 0 };
+  return { colour: shallows ?? WATER.cyan, opacity: 0.62, roughness: 0.08, underwater: scaleHex(waterBody(nudge), 0.8), underwaterFar: 120, metalness: 0 };
 }
 
 /** Ground colour (Red World base ground): red on carbon, cool grey stone on silicon. Life is the plants' colour, so
