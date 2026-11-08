@@ -129,6 +129,11 @@
 .wu-k { color: var(--wu-dim); }
 .wu-v { text-align: right; }
 .wu-why-line { margin: 8px 0; font-size: 13px; color: var(--wu-dim); }
+.wu-why-list { list-style: none; margin: 3px 0 8px; padding: 0; }
+.wu-why-list li { padding: 6px 0; border-top: 1px solid var(--wu-rule); }
+.wu-why-list strong { display: block; margin-bottom: 2px; font-size: 12px; }
+.wu-why-list span { display: block; color: var(--wu-dim); font-size: 12px; line-height: 1.4; }
+.wu-why-note { margin: 4px 0 10px; padding-top: 6px; border-top: 1px dashed var(--wu-rule); color: var(--wu-dim); font-size: 11px; line-height: 1.35; }
 .wu-window { height: 140px; margin-top: 8px; border: 2px dashed var(--ink); background: transparent; }
 .wu-window-label { margin: 4px 0 0; font-size: 12px; color: var(--wu-dim); }
 

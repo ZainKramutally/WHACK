@@ -93,10 +93,10 @@ export const silicon: WorldConfig = {
   features: {
     organism: {
       name: 'Silicon animal',
-      description: 'A radial faceted crystal hub with straight rod arms, ceramic tiles and dot eyes at the arm tips (speculative).',
+      description: 'Radial faceted bodies are the model default; an explicit gene gate also allows a front-first walker, with shell coverage set separately by its plates gene (speculative).',
       statIds: ['temperature', 'oxygen'],
       factIds: ['bodyChemistry'],
-      why: "Silicon's stiff, weak bonds only hold together in the cold, so its bodies grow as radial, faceted crystals with straight rod arms (speculative).",
+      why: 'The model uses radial crystal bodies by default, with a gene-gated front-first walker exception; both silicon body grammars are explicit design assumptions.',
       sources: ['petkowski2020'],
       assumption: true,
     },

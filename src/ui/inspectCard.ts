@@ -9,7 +9,7 @@ import type { BodyPlan } from '../sim/develop';
 import { floraBin, formForBin } from '../render/floraForm';
 import { heatBand } from '../render/visualInputs';
 import { crustMap, mineralAt, type CrustMap } from '../gen/crust';
-import { organismRows, producerRows, speciesName } from './lifeText';
+import { organismDescription, organismExplanations, organismRows, producerRows, speciesName } from './lifeText';
 import type { LifeRegistry } from './lifeRegistry';
 import type { InspectTarget, SimSnapshot, WorldConfig } from '../worlds/types';
 
@@ -46,12 +46,15 @@ export function mountInspectCard(
   const status = el('p', 'wu-status');
   const details = el('ul', 'wu-details');
   const whyP = el('p', 'wu-why-line');
+  const whyTitle = el('h3', 'wu-h3', 'Why these traits?');
+  const whyList = el('ul', 'wu-why-list');
+  const whyNote = el('p', 'wu-why-note');
   const cmpTitle = el('h3', 'wu-h3');
   const table = el('table', 'wu-table wu-cmp');
   const win = el('div', 'wu-window');
   const winLabel = el('p', 'wu-window-label');
   // The counterpart window sits near the top so it is visible without scrolling on a short screen.
-  card.append(title, closeBtn, kind, status, win, winLabel, details, whyP, cmpTitle, table);
+  card.append(title, closeBtn, kind, status, win, winLabel, details, whyP, whyTitle, whyList, whyNote, cmpTitle, table);
   root.append(card);
 
   let target: InspectTarget | null = null;
@@ -145,13 +148,24 @@ export function mountInspectCard(
     if (!target || !last) return;
     const feat = world.features[target.kind];
     const { rows, dead, name, why, blurb } = describe(target, last);
+    const isOrg = target.kind === 'organism';
+    const hasModelExplanation = isOrg && !!lastRec && !!lastPlan;
+    const description = hasModelExplanation
+      ? organismDescription(lastPlan!)
+      : isOrg && world.id === 'silicon'
+        ? 'Silicon animals are radial by default, with a gene-gated front-first walker branch. This specimen’s body plan was not captured.'
+        : blurb ?? feat.description;
+    const reason = why ?? feat.why;
+    const explanations = hasModelExplanation && lastRec && lastPlan
+      ? organismExplanations(lastRec, lastPlan, world, last.stats)
+      : [];
     // Snapshots arrive at 20 Hz but the formatted text rarely changes: skip the DOM rebuild and layout when it is identical.
     const cmp = compareRows(target, last);
-    const sig = [name, blurb ?? feat.description, dead ? 'D' : '', why ?? feat.why, target.kind, rows.join('|'), cmp.join('|')].join('\n');
+    const sig = [name, description, dead ? 'D' : '', reason, target.kind, rows.join('|'), cmp.join('|'), explanations.map((x) => `${x.label}:${x.text}`).join('|')].join('\n');
     if (sig === lastSig) return;
     lastSig = sig;
     title.textContent = name;
-    kind.textContent = blurb ?? feat.description;
+    kind.textContent = description;
     status.textContent = dead
       ? target.kind === 'organism' ? 'This one has died.' : 'Nothing is growing here now.'
       : '';
@@ -163,6 +177,21 @@ export function mountInspectCard(
     }));
     const flags = feat.assumption ? ' (assumption)' : '';
     whyP.textContent = why ? `Why: ${why} (assumption)` : `Why: ${feat.why}${flags}`;
+    whyP.hidden = hasModelExplanation;
+    whyTitle.hidden = !hasModelExplanation;
+    whyList.hidden = !hasModelExplanation;
+    whyNote.hidden = !hasModelExplanation;
+    if (hasModelExplanation) {
+      whyList.replaceChildren(...explanations.map(({ label, text }) => {
+        const li = el('li');
+        li.append(el('strong', undefined, label), el('span', undefined, text));
+        return li;
+      }));
+      whyNote.textContent = 'These are model mechanisms and trade-offs, not proof of why a trait spread. Colour and pattern are render-only; glow has an upkeep cost.';
+    } else {
+      whyList.replaceChildren();
+      whyNote.textContent = '';
+    }
 
     cmpTitle.textContent = 'Compared';
     const head = el('tr');
@@ -177,7 +206,6 @@ export function mountInspectCard(
     thead.append(head);
     table.replaceChildren(thead, ...body);
 
-    const isOrg = target.kind === 'organism';
     win.hidden = false;
     winLabel.hidden = false;
     // Every card shows only the thing itself (the other world's version is gone).

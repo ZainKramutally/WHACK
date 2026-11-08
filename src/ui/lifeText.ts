@@ -1,13 +1,16 @@
 // Plain-words descriptions of living things (CLAUDE.md "Click to inspect"): pure functions from a body plan, genes
 // or flora cell to label/value rows. No DOM, so they are unit-tested. The sim's BodyPlan is the source of every number.
 import { roleOf, type FunctionalType, type Role } from '../sim/guide';
-import type { BodyPlan, LocomotionMode } from '../sim/develop';
+import { SILICON_WALKER_SEGMENT_THRESHOLD, type BodyPlan, type LocomotionMode } from '../sim/develop';
 import type { BodyGenes } from '../sim/genome';
 import type { OrganismRecord } from '../sim/organismLayout';
 import type { FloraForm, FloraSpecies } from '../render/floraForm';
+import type { WorldConfig } from '../worlds/types';
 import { formatValue } from './format';
 
 export type Rows = [string, string][];
+
+export interface TraitExplanation { label: string; text: string }
 
 const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -97,6 +100,90 @@ export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ct
   rows.push(['Generation', String(rec.generation)]);
   if (ctx.alive) rows.push(['Energy', rec.energy >= 1 ? 'Ready to copy itself' : `${pct(rec.energy)} of the way to copying`]);
   return rows;
+}
+
+/** A specimen-specific subtitle; unlike the world-level feature copy, this follows the actual developed body plan. */
+export function organismDescription(plan: BodyPlan): string {
+  if (plan.chemistry === 'silicon' && plan.architecture === 'axial') {
+    const shell = plan.shellCover >= 0.05 ? `, ceramic shell over ${pct(plan.shellCover)} of its body` : '';
+    return `Front-first silicon walker: ${plural(plan.segmentCount, 'angular segment')}${shell}.`;
+  }
+  if (plan.chemistry === 'silicon') {
+    return `${plan.symmetry}-fold radial silicon hub with ${plural(plan.tiers, 'facet tier')} and ${plan.armKind} arms.`;
+  }
+  return `Bilateral carbon body with ${plural(plan.segmentCount, 'segment')}; ${plan.legPairs === 0 ? 'no leg pairs' : plural(plan.legPairs, 'leg pair')}.`;
+}
+
+/**
+ * Explain the model rules acting on this animal's genes. These describe implemented effects and trade-offs;
+ * they deliberately do not claim to identify why a lineage spread in a particular run.
+ */
+export function organismExplanations(
+  rec: OrganismRecord, plan: BodyPlan, world: WorldConfig, stats: Record<string, number>,
+): TraitExplanation[] {
+  const explanations: TraitExplanation[] = [];
+  const genes = rec.body;
+  const legsFromGene = Math.round(4 * genes.limbPairs);
+  const gene = (v: number) => v.toFixed(2);
+
+  if (plan.chemistry === 'silicon' && plan.architecture === 'axial') {
+    explanations.push({
+      label: 'Body plan · speculative rule',
+      text: `Segment gene ${gene(genes.segments)} meets the ≥ ${SILICON_WALKER_SEGMENT_THRESHOLD.toFixed(2)} gate, and the limb gene resolves to ${legsFromGene} pairs (gate: 1–2). That triggers our assumed front-first silicon branch; the plates gene separately sets shell coverage.`,
+    });
+  } else if (plan.chemistry === 'silicon') {
+    const missedGates: string[] = [];
+    if (genes.segments < SILICON_WALKER_SEGMENT_THRESHOLD) {
+      missedGates.push(`segment gene ${gene(genes.segments)} is below ${SILICON_WALKER_SEGMENT_THRESHOLD.toFixed(2)}`);
+    }
+    if (legsFromGene < 1 || legsFromGene > 2) {
+      missedGates.push(`${legsFromGene} leg pair${legsFromGene === 1 ? '' : 's'} ${legsFromGene === 1 ? 'falls' : 'fall'} outside the 1–2 gate`);
+    }
+    explanations.push({
+      label: 'Body plan · speculative rule',
+      text: `This genome misses the walker gate: ${missedGates.join('; ')}. Radial ${plan.symmetry}-fold crystals are the model’s fallback; both silicon forms are design assumptions, not established biology.`,
+    });
+  } else {
+    explanations.push({
+      label: 'Body plan · model grammar',
+      text: `The model reads carbon body genes through a bilateral, front-to-back grammar; this genome develops ${plan.segmentCount} segments and ${plan.legPairs} leg pairs. That is our simplifying body-plan rule, not a claim that all carbon life must have this shape.`,
+    });
+  }
+
+  const modeNames: Record<LocomotionMode, string> = { 0: 'walking', 1: 'swimming', 2: 'hovering', 3: 'staying put' };
+  const costs = plan.modeCosts;
+  explanations.push({
+    label: 'Movement · modeled cost',
+    text: `${modeNames[plan.mode]} has the lowest relative cost at birth: walk ${costs.walk.toFixed(2)}, swim ${costs.swim.toFixed(2)}, hover ${costs.hover.toFixed(2)}, stay put ${costs.sessile.toFixed(2)}. The ecology can choose again in another medium; these are model scores, not measured energy use.`,
+  });
+
+  explanations.push({
+    label: 'Feeding · modeled trade-off',
+    text: `Diet gene ${gene(plan.diet)} makes it a ${roleOf(plan.diet)} in the model. Plant-gain and meat-gain weights are ${pct(plan.plantGain)} and ${pct(plan.meatGain)}; hunting still needs reachable prey.`,
+  });
+
+  explanations.push({
+    label: 'Protection · modeled trade-off',
+    text: `${pct(plan.plateCover)} plate coverage and ${plan.hornCount} horn${plan.hornCount === 1 ? '' : 's'} set its predator-defense score to ${plan.defence.toFixed(2)}. Plates and horns add mass; silicon plates also slow modeled dissolution in liquid. This is a possible trade-off, not proof of selection.`,
+  });
+
+  const chemistryTrait = world.life.rules.chemTrait;
+  if (chemistryTrait.kind === 'coldStability') {
+    explanations.push({
+      label: 'Climate · cold stability',
+      text: `Cold-stability gene ${pct(rec.chem)} shrinks the above-preference temperature difference by ${pct(chemistryTrait.warmRelief * rec.chem)} before the stress calculation. It also raises upkeep by ${pct(chemistryTrait.cost * rec.chem)}, so greater stability has a cost.`,
+    });
+  } else {
+    const oxygen = Math.max(0, stats.oxygen ?? 0);
+    const oxygenAvailable = oxygen / (oxygen + chemistryTrait.halfSaturation);
+    const foodFactor = 1 - rec.chem + rec.chem * (1 + chemistryTrait.aerobicBonus) * oxygenAvailable;
+    explanations.push({
+      label: 'Climate · oxygen need',
+      text: `At ${oxygen.toFixed(1)}% oxygen, this gene gives a modeled food-use factor of ${foodFactor.toFixed(1)}×. The same rule raises the size ceiling with oxygen; low oxygen constrains large consumers.`,
+    });
+  }
+
+  return explanations;
 }
 
 // ---- plants ----

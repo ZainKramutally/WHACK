@@ -174,10 +174,10 @@ const SYMMETRIES = [3, 4, 5, 6, 8] as const;
 const FORM_SPAN = 0.55;
 const stretch = (g: number) => Math.min(1, g / FORM_SPAN);
 /** Gene gate between radial and bilateral silicon: elongated bodies (segments at least this) with one or two leg pairs walk front-first. assumption: true. */
-const SILICON_AXIAL_SEGMENTS = 0.55;
+export const SILICON_WALKER_SEGMENT_THRESHOLD = 0.55;
 export const isSiliconWalkerGenes = (b: { segments: number; limbPairs: number }): boolean => {
   const legs = Math.round(4 * b.limbPairs);
-  return b.segments >= SILICON_AXIAL_SEGMENTS && legs >= 1 && legs <= 2;
+  return b.segments >= SILICON_WALKER_SEGMENT_THRESHOLD && legs >= 1 && legs <= 2;
 };
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const snap = (deg: number, step: number) => (step > 0 ? Math.round(deg / step) * step : deg);
