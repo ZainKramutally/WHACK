@@ -92,7 +92,7 @@ describe('astronaut rig', () => {
     let baseY = Infinity; // the body's lowest vertex in pelvis space (the flat torso base; rings sit above it)
     for (let i = 0; i < pos.count; i++) baseY = Math.min(baseY, pos.getY(i));
     for (const leg of rig.legs) {
-      expect(Math.abs(leg.position.y - baseY)).toBeLessThan(0.025); // pivot at the base
+      expect(Math.abs(leg.position.y - baseY)).toBeLessThan(0.01); // pivot at the base
       expect(Math.abs(leg.position.x)).toBeLessThanOrEqual(bodyRadius);
       const cap = leg.userData.cap as { y: number; r: number };
       for (const rx of [0, 0.6, -0.6, -1.2]) {

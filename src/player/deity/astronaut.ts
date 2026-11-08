@@ -103,7 +103,7 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   for (const s of [-1, 1]) {
     const u = new THREE.Vector3(s * Math.sin(0.785) * Math.cos(0.3), -Math.cos(0.785) * Math.cos(0.3), Math.sin(0.3));
     bp.push(ring(new THREE.Vector3(s * shoulderX, shoulderY, 0).addScaledVector(u, 0.3 * armR), u, armR + 0.25 * K.ringT * S, GEAR));
-    bp.push(ring(new THREE.Vector3(s * hipHalfWidth, 0.02, 0), new THREE.Vector3(0, 1, 0), legR + 0.2 * K.ringT * S, GEAR));
+    bp.push(ring(new THREE.Vector3(s * hipHalfWidth, 0.045, 0), new THREE.Vector3(0, 1, 0), legR + 0.2 * K.ringT * S, GEAR));
   }
   // neck seal: where the dome narrows to the helmet's width, on the helmet's surface
   const helmR = (y: number) => { const d = (y + hipHeight - headRestY) / headR; return Math.abs(d) < 1 ? headR * Math.sqrt(1 - d * d) : 0; };
