@@ -96,7 +96,8 @@ interface Primed {
 
 export function createGenerate(app: App): Generate {
   const scene = app.scene, camera = app.camera;
-  let primed: Primed | null = null;
+  /** The latest finished plan per world, so toggling carbon/silicon reuses what is already built and compiled. */
+  const primedBy = new Map<WorldId, Primed>();
   let job: { key: string; it: Generator<void, GenPlan>; timer: number; inp: PlanInput; args: PrimeArgs } | null = null;
   let pending: PrimeArgs | null = null;
   let debounce = 0;
@@ -160,8 +161,8 @@ export function createGenerate(app: App): Generate {
       // A plan that finishes after Generate was clicked (the sliders glided, so an earlier job was still running) is stale:
       // replacing `primed` now would dispose the group the transition is drawing and cut the whole tide in one frame.
       if (active) { p.dispose(); return; }
-      primed?.dispose();
-      primed = p;
+      primedBy.get(a.worldId)?.dispose();
+      primedBy.set(a.worldId, p);
     } catch (e) {
       console.warn('generate: prime failed, the plain fade will be used', e);
     }
@@ -266,12 +267,12 @@ export function createGenerate(app: App): Generate {
     if (!('relics' in terrain) || active) return;   // flat fallback: nothing to land on; or the transition is running
     const a: PrimeArgs = { worldId, terrain, seed, requested, handle };
     const key = keyOf(a);
-    if (primed?.key === key || job?.key === key) return;
+    if (primedBy.get(worldId)?.key === key || job?.key === key) return;
     window.clearTimeout(debounce);
     debounce = window.setTimeout(() => {
       if (job) { pending = a; return; }
       const inp = planInput(a);
-      job = { key: keyOf(a), it: planSteps(inp), timer: 0, inp, args: a };
+      job = { key, it: planSteps(inp), timer: 0, inp, args: a };
       job.timer = schedule(pump) as number;
     }, 250);
   }
@@ -281,17 +282,19 @@ export function createGenerate(app: App): Generate {
     const { W, H } = dims();
     const a: PrimeArgs = { worldId: o.worldId, terrain: o.terrain, seed: o.seed, requested: o.requested, handle: o.handle };
     // A plan that is missing or stale (click before it finished, or the window resized): finish it now, synchronously.
-    let p = primed && primed.key === keyOf(a) ? primed : null;
+    const key = keyOf(a);
+    const cached = primedBy.get(o.worldId);
+    let p = cached && cached.key === key ? cached : null;
     if (!p && 'relics' in o.terrain) {
       try {
         const inp = planInput(a);
         const it = planSteps(inp);
         let r = it.next();
         while (!r.done) r = it.next();
-        p = build(a, keyOf(a), r.value, inp);
+        p = build(a, key, r.value, inp);
         scene.add(p.group);
-        primed?.dispose();
-        primed = p;
+        cached?.dispose();
+        primedBy.set(o.worldId, p);
       } catch (e) {
         console.warn('generate: plan failed, using the plain fade', e);
       }
@@ -518,7 +521,7 @@ export function createGenerate(app: App): Generate {
   return {
     prime,
     start,
-    dispose() { window.clearTimeout(debounce); active?.stop(); primed?.dispose(); primed = null; job = null; },
+    dispose() { window.clearTimeout(debounce); active?.stop(); for (const p of primedBy.values()) p.dispose(); primedBy.clear(); job = null; },
   };
 }
 

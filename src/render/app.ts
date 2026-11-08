@@ -30,6 +30,9 @@ export interface App {
   registerOverlay(fn: OverlayDraw): () => void;
   /** Compile a scene's materials for both the post pass target and the canvas. Use instead of renderer.compileAsync. */
   compile(scene?: THREE.Object3D, camera?: THREE.Camera): Promise<void>;
+  /** While true the frame loop still runs the inputs source and frame hooks but skips post.update, the render step and overlays
+   *  (the GPU work). Used while the opaque selection screen covers the canvas. compile() is unaffected. */
+  setSuspended(on: boolean): void;
 }
 
 export async function createApp(): Promise<App> {
@@ -108,6 +111,7 @@ export async function createApp(): Promise<App> {
   // Compile before the first visible frame.
   await compile();
 
+  let suspended = false;
   let last = performance.now();
   renderer.setAnimationLoop((now: number) => {
     const dt = Math.min((now - last) / 1000, 0.1);
@@ -119,6 +123,7 @@ export async function createApp(): Promise<App> {
     for (const h of hooks) {
       try { h(dt, now / 1000, inputs); } catch (err) { warnOnce('frame hook', h, err); }
     }
+    if (suspended) return;
     try { post.update(inputs); } catch (err) { warnOnce('post update', post.update, err); }
     // compile() may hold the post pass's target as the renderer's current target across awaits; frames draw to the canvas.
     const held = renderer.getRenderTarget();
@@ -167,5 +172,8 @@ export async function createApp(): Promise<App> {
       };
     },
     compile,
+    setSuspended(on) {
+      suspended = on;
+    },
   };
 }

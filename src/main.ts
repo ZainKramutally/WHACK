@@ -9,6 +9,7 @@ import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
 import { createScanHover } from './render/scanHover';
 import { createWorldView } from './render/world';
+import { createTerrainMesh, createTerrainUniforms } from './render/terrainNode';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
 import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
@@ -59,12 +60,24 @@ function terrainFor(worldId: WorldId): TerrainSampler | Terrain {
 /** The sim worker and the world's terrain mesh are set up while the selection screen is up, so Generate does not stall on them. */
 let simStarted = false;
 function ensureSim() { if (!simStarted) { simStarted = true; startSim(bus); } }
+/** Each world's terrain mesh is built once per page load and swapped in on demand; returns true only when it was newly built (so it needs compiling). */
+const meshes = new Map<WorldId, { mesh: ReturnType<typeof createTerrainMesh>; uniforms: ReturnType<typeof createTerrainUniforms> }>();
 let meshFor: WorldId | null = null;
 function ensureTerrainMesh(view: ReturnType<typeof createWorldView>, worldId: WorldId): boolean {
   const t = terrainFor(worldId);
   if (!('relics' in t)) return false;
-  if (meshFor !== worldId) { view.setTerrainSampler(t); meshFor = worldId; return true; }
-  return false;
+  if (meshFor === worldId) return false;
+  let entry = meshes.get(worldId);
+  const isNew = !entry;
+  if (!entry) {
+    const uniforms = createTerrainUniforms();
+    entry = { mesh: createTerrainMesh(t, uniforms), uniforms };
+    meshes.set(worldId, entry);
+  }
+  view.setTerrain(entry.mesh, entry.uniforms);
+  view.setPatchSize(t.patchSize);
+  meshFor = worldId;
+  return isNew;
 }
 
 // ---- boot ----
@@ -85,6 +98,7 @@ async function start(
   requested: Conditions,
   handle?: LaunchHandle,
 ) {
+  app.setSuspended(false);   // the selection screen is gone (or never shown): render from the first transition frame
   const world = worldFor(worldId);
   const otherWorld = worldFor(worldId === 'carbon' ? 'silicon' : 'carbon');
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
@@ -234,6 +248,8 @@ async function boot() {
       prepared.then((p) => start(p, worldId, requested, handle)).catch(fail);
     },
   });
+  // The opaque selection screen covers the canvas: skip the world's GPU work until start() resumes it.
+  prepared.then((p) => p.app.setSuspended(true)).catch(() => {});
   // While the selection screen is up, plan the Generate transition for the selected world (debounced, in idle slices).
   const prime = (worldId: WorldId, conditions: Conditions) => {
     prepared.then(async ({ app, view, gen }) => {
