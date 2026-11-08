@@ -40,6 +40,7 @@ import { groundCover } from './species/ground';
 import { jellyDome } from './species/dome';
 import { airKelpFloat, crystalGround, frostFern, prismTitan, shardTree, whiskerReef } from './species/crystal';
 import { stiltMangrove } from './species/stilt';
+import { airPlankton, glassKelp, laceFan, lanternBulb, nitrideCrown } from './species/silicon';
 import { woollyRosette } from './species/rosette';
 import { bladderKelp } from './species/kelp';
 import { pitcherUrn } from './species/pitcher';
@@ -76,6 +77,12 @@ const SPECIES: SpeciesDef[] = [
   { id: 'woollyRosette', chem: 'carbon', role: 'giant', gen: woollyRosette, variants: [0] },
   { id: 'stiltMangrove', chem: 'carbon', role: 'mid', gen: stiltMangrove, variants: [0] },
   { id: 'airKelpFloat', chem: 'silicon', role: 'giant', gen: airKelpFloat, variants: [0] },
+  // silicon-only gated archetypes (flora-traits §2b, species/silicon.ts), all [speculative]
+  { id: 'nitrideCrown', chem: 'silicon', role: 'ground', gen: nitrideCrown, variants: [0] },
+  { id: 'lanternBulb', chem: 'silicon', role: 'ground', gen: lanternBulb, variants: [0] },
+  { id: 'laceFan', chem: 'silicon', role: 'mid', gen: laceFan, variants: [0] },
+  { id: 'airPlankton', chem: 'silicon', role: 'mid', gen: airPlankton, variants: [0] },
+  { id: 'glassKelp', chem: 'silicon', role: 'mid', gen: glassKelp, variants: [0] },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */
