@@ -603,7 +603,7 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions, crust? }`
 - Typed `life.rules` as `LifeRules` (from `src/sim/population.ts`), and named the `traitAverages` keys.
 - Added click-to-inspect: `FeatureDef`, `InspectTarget`, `WorldConfig.features`, the stable `id` and `generation` fields in the organism buffer, and the `inspect:open`, `inspect:window` and `inspect:close` bus events.
 - Added Caden's creatures (design F): `life.composition`, `life.ledger`, `life.templates` and `life.inputs` on `WorldConfig`, `births` on `SimSnapshot`, and the `guide:newForm` bus event.
-- 2026-11-08 rock chips (Caden): `MineralDef.pick`, `CrustConfig.favour`, and `crust?` (the picked mineral id) on `selection:changed` and `world:selected`. The run uses `withCrustChoice(world, crust)` everywhere.
+- 2026-11-08 rock chips (Caden): one chip per mineral, the same on both worlds (`CRUST_PICKS`: basalt, granite, ironstone, silicide, nitride). `MineralDef.pick { hint }`, `MineralDef.favour?`, `CrustConfig.favour` (0.75), and `crust?: CrustPickId` (the picked mineral id) on `selection:changed` and `world:selected`. Each world carries all five minerals; foreign ones have share [0, 0] (absent unless picked). The terrain supports up to 8 minerals. The run uses `withCrustChoice(world, crust)` everywhere.
 - 2026-11-08 crust (Caden): `TerrainConfig.crust` (`CrustConfig`, `MineralDef`), `machines[].minerals`, `relics[].minerals`, machines M7–M9, the ground `point` on `InspectTarget`, and `VisualInputs.world.rustOxygen`.
 - 2026-11-07 logic pass (agreed with Caden):
   - Removed `life.templates`: the developmental pull leaves the sim.

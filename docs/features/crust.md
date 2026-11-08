@@ -119,7 +119,7 @@ Each mineral brings its own rock features. Every landform is a machine in the on
 
 ## Rock chips on the selection screen (owner ruling 2026-11-08)
 
-Under the particle box sits one optional row of chips: `Rock: [Volcanic] [Continental] [Iron-rich]` on carbon, and `[Metal-rich] [Nitride]` on silicon.
+Under the particle box sits one optional row of rock chips. This first version had per-world chips; it was replaced by the shared mineral chips below.
 - **Default.** No chip is picked, which gives the natural seeded mix, so the rehearsed demo is unchanged.
 - **What a pick does.** The picked mineral takes `crust.favour` of the patch, and the other minerals share the rest in proportion to the midpoints of their share bounds. The bed, the terrain landforms, the ground colours, the palette, fertility and the box all follow, because they all read the same crust.
 - **Picking again** deselects the chip.
@@ -136,23 +136,26 @@ The whole look follows the rock, not only the ground. The families live in `src/
 - **Plants.** Flora uses squared weights, so the dominant soil sets the plant colour. Caden's per-plant trait tints (from each plant's own cell mineral) multiply on top.
 - **Water is blue by its own physics** (Braun and Smirnov 1993). Minerals tint only the shallows, where the seabed shows through and the tint fades with depth. They nudge the open sea by at most 12%.
 - **Iron makes everything red.** Rusted ironstone is the Red World: its reds, oxblood shadow `0x5a1040`, rose iron-dust haze, crimson plants and a red-orange shore stain. The plants are red because iron oxides bind phosphate and phosphate-starved plants make anthocyanins. This is recalled, not verified, and is tracked in #82.
-- **Basalt stays green.** Rusted basalt is only a mild brown-grey, so the Volcanic chip stays a lush, green, Earth-like world after oxygen arrives.
+- **Basalt stays green.** Rusted basalt is only a mild brown-grey, so the Basalt chip stays a lush, green, Earth-like world after oxygen arrives.
 - **Basalt hexagons.** These are cooling cracks, not crystals. Basalt ground shows dark hexagonal joint lines everywhere. M7 adds low pavement steps inland, the tall columns stay on the coast, and the box draws basalt grains as hexagons.
 
-## Same rock chips on every world (owner ruling 2026-11-08)
+## Every mineral is a chip, the same on every world (owner rulings 2026-11-08)
 
-Like the sliders, both worlds show the same chips: `Rock: [Volcanic] [Continental] [Iron-rich]`.
-- **Shared vocabulary.** The chips come from `CRUST_PICKS` in `src/worlds/controls.ts`. Each world maps every chip to one of its minerals through `MineralDef.pick: { id: CrustPickId; hint }`, with world-specific hints.
-- **Bus payload.** `crust` on `selection:changed` and `world:selected` is now the chip id, and `withCrustChoice(world, pickId)` resolves it to that world's mineral.
-- **Switching worlds.** A chip stays picked when you switch element, because the options are the same.
-
-| Chip | Carbon | Silicon (speculative) |
-|---|---|---|
-| Volcanic | basalt | reducedLava (new): reduced lava, like aubrite meteorites. Silicate rock with grains of silicon-bearing metal, so a moderate feedstock. Low elevation. Cools into hex columns (M7, gated on reducedLava). |
-| Continental | granite | nitride |
-| Iron-rich | ironstone | silicide (silicon-bearing iron) |
-
-Water ice still can't be picked. Silicon's crust now has 4 minerals, which is the limit of the vec4 crust weights. Carbon's natural mix is unchanged; silicon's natural mix gains reducedLava.
+Like the sliders, both worlds show the same chips: `Rock: [Basalt] [Granite] [Ironstone] [Silicide] [Nitride]`. These replaced the earlier Volcanic / Continental / Iron-rich categories.
+- **Chip ids.** The chip id is the mineral id: `CrustPickId` and `CRUST_PICKS` in `src/worlds/controls.ts`. Each world's `MineralDef.pick` holds only a world-specific hint. `MineralDef.favour` optionally overrides `CrustConfig.favour` (0.75) for one mineral.
+- **Every world carries all five.** Foreign minerals have share bounds [0, 0]: absent from the natural map, with weight exactly 0 on CPU and GPU, appearing only when picked.
+  - carbon: silicide and nitride
+  - silicon: basalt, granite and ironstone
+- **Natural mixes are unchanged.** Carbon is basalt, ironstone and granite. Silicon is reducedLava, silicide, nitride and water ice.
+- **No chip** for reducedLava (silicon's native lava) or water ice (it would starve the founders).
+- **Terrain capacity.** It supports up to 8 minerals per world: TSL weights are `[vec4, vec4]` in config order, and absent minerals emit no band. Silicon has 7.
+- **Landforms follow the picked rock on both worlds:**
+  - M7 columns on basalt (and reducedLava)
+  - M8 domes on granite
+  - M5 bands on ironstone
+  - M9 crystal spikes on nitride
+- **Silicate on silicon is hard going.** Basalt and granite feed silicon life poorly (si 0.3), because silicate locks silicon away (reasoning step 3). Ironstone on silicon is "iron oxide from an earlier, wetter age" (speculative). The headless safety check still found life alive at build end for all 12 world-and-pick combinations.
+- **Bus.** `crust` on `selection:changed` and `world:selected` is the chip (mineral) id. A pick persists across element switches.
 
 ## Honesty box additions
 
