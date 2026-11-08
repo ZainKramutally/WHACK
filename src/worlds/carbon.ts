@@ -369,14 +369,14 @@ export const carbon: WorldConfig = {
     crust: {
       minerals: [
         { id: 'basalt', label: 'Basalt', description: 'Dark volcanic rock rich in iron; it weathers fast, feeds life, and rusts red once the air holds oxygen.', share: [0.45, 0.65], elevation: 0.25, supply: { c: 1.4, si: 1.4, o: 1.4 }, oxidises: true,
-          why: 'Oceanic crust is basalt, which lies low and weathers several times faster than granite, so it releases more nutrients; its iron rusts in oxygen.', sources: [], assumption: true },
+          why: 'Oceanic crust is basalt, which lies low and weathers faster than granite, so it releases more nutrients; its iron rusts in oxygen.', sources: ['dessert2003', 'rudnick2003', 'holland2006'], assumption: true },
         { id: 'granite', label: 'Granite', description: 'Pale, silica-rich rock that rides high as continents and weathers slowly, so it feeds life poorly.', share: [0.35, 0.55], elevation: 0.75, supply: { c: 0.6, si: 0.6, o: 0.6 }, oxidises: false,
-          why: 'Continental crust is granitic and less dense, so it stands higher; it weathers slowly and releases fewer nutrients.', sources: [], assumption: true },
+          why: 'Continental crust is granitic and less dense, so it stands higher; it weathers slowly and releases fewer nutrients.', sources: ['dessert2003', 'rudnick2003'], assumption: true },
       ],
       patchCells: 12,
-      rustOxygen: 2,
+      rustOxygen: 1,
       why: 'Two rock types sorted by height, with the multipliers and rust threshold as placeholders; the crust redistributes the base nutrient supply and adds none.',
-      sources: [],
+      sources: ['rye1998'],
       assumption: true,
     },
   },

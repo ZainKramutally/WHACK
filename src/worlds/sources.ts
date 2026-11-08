@@ -62,6 +62,36 @@ const list: Source[] = [
     note: 'Crossref. More nitrogen warms the planet a little through the CO2 greenhouse.',
   },
   {
+    id: 'dessert2003',
+    citation: 'Dessert C, Dupré B, Gaillardet J, François LM, Allègre CJ (2003). Basalt weathering laws and the impact of basalt weathering on the global carbon cycle. Chemical Geology 202:257.',
+    doi: '10.1016/j.chemgeo.2002.10.001',
+    note: 'Bibliographic data verified; supporting claim recalled. Basalt weathers faster than granite, so it releases more nutrients.',
+  },
+  {
+    id: 'rudnick2003',
+    citation: 'Rudnick RL, Gao S (2003). Composition of the continental crust. Treatise on Geochemistry 3:1-64.',
+    doi: '10.1016/b978-0-08-095975-7.00301-6',
+    note: 'Bibliographic data verified (2014 reprint); supporting claim recalled. Continental crust is felsic (granitic) and ocean floors are basaltic.',
+  },
+  {
+    id: 'holland2006',
+    citation: 'Holland HD (2006). The oxygenation of the atmosphere and oceans. Philosophical Transactions of the Royal Society B 361:903.',
+    doi: '10.1098/rstb.2006.1838',
+    note: 'Bibliographic data verified; supporting claim recalled. Red beds and oxidised iron appear after the Great Oxidation Event.',
+  },
+  {
+    id: 'rye1998',
+    citation: 'Rye R, Holland HD (1998). Paleosols and the evolution of atmospheric oxygen: a critical review. American Journal of Science 298:621.',
+    doi: '10.2475/ajs.298.8.621',
+    note: 'Bibliographic data verified; supporting claim recalled. Iron is retained in soils above roughly 0.2-0.4% absolute oxygen: the order of magnitude for rustOxygen.',
+  },
+  {
+    id: 'keil1968',
+    citation: 'Keil K (1968). Mineralogical and chemical relationships among enstatite chondrites. Journal of Geophysical Research 73:6945.',
+    doi: '10.1029/jb073i022p06945',
+    note: 'Bibliographic data verified; supporting claim recalled. Silicon-bearing iron metal and nitrides occur in highly reduced meteorites.',
+  },
+  {
     id: 'lee1995',
     citation: 'Lee MR, Russell SS, Arden JW, Pillinger CT (1995). Nierite (Si3N4), a new mineral from ordinary and enstatite chondrites. Meteoritics 30:387.',
     doi: '10.1111/j.1945-5100.1995.tb01142.x',
