@@ -206,7 +206,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     if (!key || out.n >= cap) return;
     const ai = ARCHETYPE_INDEX.get(key)!;
     const hr = shapes ? shapes.height[ai] : 1; // drawn height per unit h
-    if (topAt === topAt) h = Math.max(0.5, (topAt - y) / (hr - 0.03));
+    if (topAt === topAt) h = Math.max(0.5, (topAt - y) / Math.max(0.1, hr - 0.03)); // guard a near-flat archetype
     // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
     plantEnv(tenv, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y, sea, probe.rank(c), role);
     const v = varyPlant(ai, c, slot, dark, tenv, look);
@@ -233,7 +233,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING_C[k] + tz * RING_S[k]) * r - RING_H[k]);
       if (sink > SINK_MAX[role] * shapes!.height[ai] * h) return;
     }
-    if (topAt === topAt) h = Math.max(0.5, (topAt - y + sink) / (hr - 0.03)); // the sunk base still tops out at topAt
+    if (topAt === topAt) h = Math.max(0.5, (topAt - y + sink) / Math.max(0.1, hr - 0.03)); // the sunk base still tops out at topAt
     const i = out.n++;
     out.arch[i] = ai;
     out.x[i] = x; out.y[i] = y; out.z[i] = z; out.h[i] = h; out.yaw[i] = yaw;
