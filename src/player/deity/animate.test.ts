@@ -196,4 +196,67 @@ describe('deity animator', () => {
     expect(maxYaw).toBeGreaterThan(0.5); // it does glance
     expect(maxDip).toBeLessThan(1e-9);
   });
+
+  // A stand-in with arms (shoulder + reach) and knees, to test the armed-rig paths.
+  const armedRig = () => {
+    const rig = buildStandinRig();
+    rig.dims.shoulder = [0.25, 0.75, 0];
+    rig.dims.armReach = 0.45;
+    rig.knees = [new THREE.Group(), new THREE.Group()];
+    rig.knees.forEach((k, i) => { k.position.y = -0.14; rig.legs[i].add(k); });
+    return rig;
+  };
+  const armed = (seq: { st: PlayerState; n: number }[], each: (rig: ReturnType<typeof armedRig>, st: PlayerState) => void) => {
+    const rig = armedRig();
+    const a = createDeityAnimator(rig);
+    for (const { st, n } of seq) for (let i = 0; i < n; i++) { a.update(st, 1 / 60); each(rig, st); }
+  };
+  const reachOk = (rig: ReturnType<typeof armedRig>) => {
+    const sh = rig.dims.shoulder!;
+    rig.hands.forEach((h, i) => {
+      const dist = Math.hypot(h.position.x - (i === 0 ? -1 : 1) * sh[0], h.position.y - sh[1], h.position.z - sh[2]);
+      expect(dist).toBeLessThanOrEqual(rig.dims.armReach! + 1e-6);
+    });
+  };
+
+  it('armed rig: hands stay within reach through walk, run, jump and swim', () => {
+    armed([
+      { st: mk({ speed: 5 }), n: 90 }, { st: mk({ speed: 9, sprinting: true }), n: 90 },
+      { st: mk({ speed: 5, jumped: true, vy: 4.8, grounded: false }), n: 1 }, { st: mk({ speed: 5, vy: 2, grounded: false }), n: 20 },
+      { st: mk({ speed: 5, vy: -3, grounded: false }), n: 20 }, { st: mk({ landed: 1 }), n: 1 },
+      { st: mk({ mode: 'swim', speed: 3, swimPitch: 0.3 }), n: 120 }, { st: mk({ mode: 'swim' }), n: 120 },
+    ], (rig) => reachOk(rig));
+  });
+
+  const steady = (speed: number, sprinting: boolean) => {
+    const rig = armedRig();
+    const a = createDeityAnimator(rig);
+    const sh = rig.dims.shoulder!;
+    let thMin = 9, thMax = -9, kMin = 0, kContact = 0, lMax = -9;
+    for (let i = 0; i < 240; i++) {
+      a.update(mk({ speed, sprinting }), 1 / 60);
+      if (i < 120) continue;
+      const h = rig.hands[1].position;
+      const th = Math.atan2(-(h.z - sh[2]), -(h.y - sh[1]));
+      thMin = Math.min(thMin, th); thMax = Math.max(thMax, th);
+      kMin = Math.min(kMin, rig.knees![0].rotation.x);
+      lMax = Math.max(lMax, rig.legs[0].rotation.x);
+    }
+    // second pass over the same cycle for the contact knee (leg at its most forward)
+    const rig2 = armedRig(); const a2 = createDeityAnimator(rig2);
+    for (let i = 0; i < 240; i++) {
+      a2.update(mk({ speed, sprinting }), 1 / 60);
+      if (i >= 120 && rig2.legs[0].rotation.x > lMax - 0.02) kContact = Math.min(kContact, rig2.knees![0].rotation.x);
+    }
+    return { swing: (thMax - thMin) / 2, fold: -kMin, contact: -kContact };
+  };
+
+  it('armed rig: run swings the arms at least 1.8x the walk and folds the knees more; knees straight at contact', () => {
+    const w = steady(5, false), r = steady(9, true);
+    expect(r.swing).toBeGreaterThanOrEqual(1.8 * w.swing);
+    expect(w.fold).toBeGreaterThan(0.3);
+    expect(r.fold).toBeGreaterThan(w.fold * 1.8);
+    expect(w.contact).toBeLessThan(0.1);
+    expect(r.contact).toBeLessThan(0.15);
+  });
 });

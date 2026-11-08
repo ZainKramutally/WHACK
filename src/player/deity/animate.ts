@@ -47,7 +47,7 @@ function makeRand(seed: number): () => number {
 
 // Pose channels (blended across states by weight).
 const PY = 0, PZ = 1, RX = 2, RZ = 3, BSY = 4, BSX = 5, L0X = 6, L1X = 7, L0Z = 8, L1Z = 9;
-const HX = 10, HY = 11, HZ = 12, HRX = 13, H0X = 14, H0Y = 15, H0Z = 16, H1X = 17, H1Y = 18, H1Z = 19, NP = 20;
+const HX = 10, HY = 11, HZ = 12, HRX = 13, H0X = 14, H0Y = 15, H0Z = 16, H1X = 17, H1Y = 18, H1Z = 19, K0 = 20, K1 = 21, TW = 22, NP = 23;
 // Hand x offsets are "outward" for both hands.
 
 // Spring channels.
@@ -62,12 +62,26 @@ function resetPose(p: Float64Array) {
   p[BSX] = 1;
 }
 
+/** Hand offset (from rest) for an arm at swing angle th about the shoulder (0 = hanging, + = forward, pi = straight up). */
+function setArm(p: Float64Array, right: boolean, th: number, rho: number, xk: number, hrx: number, hry: number) {
+  const i = right ? H1X : H0X;
+  p[i] = hrx * xk - hrx;
+  p[i + 1] = -Math.cos(th) * rho - hry;
+  p[i + 2] = -Math.sin(th) * rho;
+}
+
 export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}): DeityAnimator {
   const d = rig.dims;
   // Variant D carries its eyes on the body: the head turn would show nothing, so skip the look-back there.
   const attached = rig.headAttached === true; // a helmet: rides the body, glances up to +-70 deg instead of looking back
   const lookBackOn = opts.lookBack !== false && (attached || rig.eyes[0].parent === rig.head);
   // Longer legs take longer, flatter steps (C's 0.1 m legs stay at 1).
+  // Arms: rigs with a shoulder pivot and reach swing the hands on arcs about the shoulder (counter-phase to the legs).
+  const sh = d.shoulder, reach = d.armReach ?? 0;
+  const hasArms = !!sh && reach > 0;
+  const hrx = hasArms ? d.handRest[0] - sh![0] : 0; // right hand rest, outward of the shoulder
+  const hry = hasArms ? d.handRest[1] - sh![1] : 0;
+  const knees = rig.knees;
   const legM = clamp(rig.dims.legLength / 0.28, 1, 2.2);
   const seed = opts.seed ?? 0xde17;
   const rLook = makeRand(seed);
@@ -81,6 +95,8 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   const rHead = { x: rig.head.position.x, y: rig.head.position.y, z: rig.head.position.z, rx: rig.head.rotation.x, ry: rig.head.rotation.y };
   const rHands = rig.hands.map((h) => ({ x: h.position.x, y: h.position.y, z: h.position.z }));
   const rEyes = rig.eyes.map((e) => ({ x: e.position.x, y: e.position.y, sy: e.scale.y }));
+  const rKnees = knees ? knees.map((k) => k.rotation.x) : [];
+  const rBodyRy = rig.body.rotation.y;
   const rExtras = rig.extras.map((e) => ({ ry: e.rotation.y, rz: e.rotation.z, y: e.position.y, motion: (e.userData?.motion as string | undefined) ?? 'sway' }));
 
   // Springs: [omega, zeta].
@@ -91,6 +107,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
   setSpring(S_PITCH, 14, 0.6);
   setSpring(S_YAW, 15, 0.8);
   for (const i of [S_H0X, S_H0Y, S_H0Z, S_H1X, S_H1Y, S_H1Z]) setSpring(i, 11, 0.5);
+  if (hasArms) for (const i of [S_H0X, S_H0Y, S_H0Z, S_H1X, S_H1Y, S_H1Z]) setSpring(i, 30, 0.7); // arms follow their swing closely
   setSpring(S_SQ, 22, 0.35);
   setSpring(S_ST, 22, 0.4);
   const stepSprings = (dt: number) => {
@@ -158,6 +175,19 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     p[H0Z] = sw2 + trail;
     p[H0Y] = p[H1Y] = pump;
     p[H0X] = p[H1X] = 0.015; // hands hug the body: motion is along z
+    if (hasArms) {
+      // walk +-25 deg, hand radius 0.9 reach; run +-55 deg with a sprinter's bent elbow (0.75 reach), pumping forward and up
+      const amp = lerp(0.44, 0.96, runK) * sk, bias = 0.3 * runK * sk, rho = lerp(0.9, 0.75, runK) * reach, xk = lerp(0.9, 0.8, runK);
+      setArm(p, true, bias + amp * s, rho, xk, hrx, hry);
+      setArm(p, false, bias - amp * s, rho, xk, hrx, hry);
+      p[TW] = lerp(0.07, 0.12, runK) * sk * s; // torso counter-twist against the hips: 4 deg walk, 7 deg run
+    }
+    if (knees) {
+      // fold during the forward swing (mid-swing, cos > 0 for that leg); straight at contact and through stance
+      const fold = lerp(0.44, 1.22, runK) * sk, c = Math.cos(TAU * gait);
+      p[K0] = -fold * Math.pow(Math.max(0, c), 1.5);
+      p[K1] = -fold * Math.pow(Math.max(0, -c), 1.5);
+    }
   }
 
   function airPose(p: Float64Array, vy: number) {
@@ -177,6 +207,13 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     p[HRX] = 0.1;
     p[H0Y] = p[H1Y] = 0.18 * ku + 0.08 * ap + 0.3 * kd;
     p[H0X] = p[H1X] = 0.05 * ku + 0.18 * ap + 0.22 * kd;
+    if (hasArms) {
+      // arms up on takeoff, out at the apex, easing down while falling
+      const th = 2.5 * ku + 1.7 * ap + 0.9 * kd, xk = 1 + 0.3 * ap + 0.4 * kd;
+      setArm(p, true, th, 0.85 * reach, xk, hrx, hry);
+      setArm(p, false, th, 0.85 * reach, xk, hrx, hry);
+    }
+    if (knees) p[K0] = p[K1] = -(1.1 * ku + 0.15 * ap + 0.25 * kd); // tuck on the ascent
   }
 
   function swimPose(p: Float64Array, swimPitch: number) {
@@ -195,6 +232,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     const hy = 0.25 * Math.cos(u) + 0.1;
     p[H0X] = p[H1X] = hx;
     p[H0Y] = p[H1Y] = hy;
+    if (knees) { p[K0] = -0.6 * Math.max(0, -q); p[K1] = -0.6 * Math.max(0, q); } // frog kick
   }
 
   function treadPose(p: Float64Array) {
@@ -210,6 +248,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     p[H0X] = p[H1X] = 0.1 + 0.05 * Math.sin(u + 0.6);
     p[H0Y] = p[H1Y] = -0.05 + 0.06 * Math.sin(u + 1.3);
     p[BSY] = 1 + 0.015 * Math.sin(u * 0.5);
+    if (knees) { p[K0] = -0.45 * (1 + s); p[K1] = -0.45 * (1 - s); } // slow bicycle
   }
 
   function addPose(w: number) {
@@ -410,11 +449,25 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
       sx[S_HY] = minHeadY - rHead.y;
       if (sv[S_HY] < 0) sv[S_HY] = 0;
     }
+    if (knees) {
+      knees[0].rotation.x = rKnees[0] + acc[K0] - 3 * squash;
+      knees[1].rotation.x = rKnees[1] + acc[K1] - 3 * squash;
+    }
+    rig.body.rotation.y = rBodyRy + acc[TW];
     rig.head.position.set(rHead.x + sx[S_HX], rHead.y + sx[S_HY], rHead.z + sx[S_HZ]);
     rig.head.rotation.x = rHead.rx + sx[S_PITCH];
     rig.head.rotation.y = rHead.ry + sx[S_YAW];
     rig.hands[0].position.set(rHands[0].x + sx[S_H0X], rHands[0].y + sx[S_H0Y], rHands[0].z + sx[S_H0Z]);
     rig.hands[1].position.set(rHands[1].x + sx[S_H1X], rHands[1].y + sx[S_H1Y], rHands[1].z + sx[S_H1Z]);
+    if (hasArms) {
+      // The hands never leave the arm's reach (springs overshoot, swim strokes open wide).
+      for (let i = 0; i < 2; i++) {
+        const hp = rig.hands[i].position, px = (i === 0 ? -1 : 1) * sh![0];
+        const ddx = hp.x - px, ddy = hp.y - sh![1], ddz = hp.z - sh![2];
+        const len = Math.hypot(ddx, ddy, ddz), lim = reach * 0.99;
+        if (len > lim) hp.set(px + (ddx * lim) / len, sh![1] + (ddy * lim) / len, sh![2] + (ddz * lim) / len);
+      }
+    }
     for (let i = 0; i < 2; i++) {
       const e = rig.eyes[i];
       e.scale.y = rEyes[i].sy * (1 - blink);

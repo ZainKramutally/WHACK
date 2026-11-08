@@ -4,7 +4,7 @@ import type * as THREE from 'three/webgpu';
 import type { PlayerState } from './controller';
 import type { DeityDims } from './deity/rig';
 import { createDeityAnimator, type DeityAnimOptions } from './deity/animate';
-import { buildDeity, DEFAULT_VARIANT, type DeityVariantId } from './deity/model';
+import { buildDeity, type DeityVariantId } from './deity/model';
 import { buildAstronaut } from './deity/astronaut';
 import { buildStandinRig } from './deity/standin';
 
@@ -29,7 +29,7 @@ export function tuningFor(dims: DeityDims) {
 }
 
 export function createCharacter(opts: DeityAnimOptions & { variant?: DeityVariantId | 'standin' | 'astronaut' } = {}): Character {
-  const { variant = DEFAULT_VARIANT, ...animOpts } = opts;
+  const { variant = 'astronaut', ...animOpts } = opts;
   const rig = variant === 'standin' ? buildStandinRig() : variant === 'astronaut' ? buildAstronaut() : buildDeity(variant);
   const anim = createDeityAnimator(rig, animOpts);
   return {
