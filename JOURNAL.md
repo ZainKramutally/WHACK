@@ -147,3 +147,4 @@
 - 04:02: teeth fix 3de89d0 (CPU-baked parity, margin decode, ribfan rim) -> stage eebfdad; gate 333/14, SLOW 71/71, build OK. Review 11 to art-review (crack scan re-run, verdict cf6bad1..eebfdad).
 - 04:10 16: merged #80 mode-symmetric habitat-aware slots (recovery 0.78–0.90 of control).
 - 02:45 (2026-11-08): session/crust started from main 21d12f5 for Caden's crust/minerals feature (docs/features/crust.md). Contract MineralDef/CrustConfig/TerrainConfig.crust committed (52bcf70). Spawned crust-core (configs, gen/crust.ts, grid wiring + §A A/B), box-crust (particle box mineral bed), crust-sources (scout). Art/inspect part deferred to the art-layer owner.
+- 02:42: crust-core phase 1 merged (67b2b47: gen/crust.ts, terrain.crust on both worlds, crust required). Tier 1 green, 591 tests. Scout citations forwarded (dessert2003, rudnick2003, holland2006, rye1998, keil1968; facts unverified, so assumption: true stays). box-crust told to rebase.
