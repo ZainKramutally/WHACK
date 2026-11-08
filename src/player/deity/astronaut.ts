@@ -96,7 +96,7 @@ export function buildAstronaut(_opts: Record<string, never> = {}): DeityRig {
   // ---- body: torso, shoulder and hip collars, neck seal, backpack (pelvis space, merged) ----
   const bp: THREE.BufferGeometry[] = [];
   bp.push(paint(torsoGeo(tw, td, H), SUIT)); // semi-oval: flat base over the hips, dome top
-  const packC = new THREE.Vector3(0, th * 1.1, td + 0.75 * K.packD * S);
+  const packC = new THREE.Vector3(0, Math.max(th * 1.1, K.packH * S + 0.005), td + 0.75 * K.packD * S);
   const pack = new RoundedBoxGeometry(K.packW * S * 2, K.packH * S * 2, K.packD * S * 2, 6, 0.9 * Math.min(K.packW, K.packH, K.packD) * S);
   pack.translate(packC.x, packC.y, packC.z);
   bp.push(paint(pack, PACK));
