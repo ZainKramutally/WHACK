@@ -194,3 +194,4 @@
 - 05:58: box golden test (main's perf refactor) failed after rebase because hex basalt grains intentionally change carbon pixels; box-ref updated boxReference.testdata.ts with the same sprite rule (no assertion changes). 411 related tests + build green. Pushing iron-red + basalt-hex to main (owner approved).
 - 04:53 16: merged #84 (live gas-mix air density, airDensity stat, flight ceiling card row, plan v5 liftSpan).
 - 04:45 16: owner: no gravity slider; #84 started (flight); apex hunters + giants retry with structural levers (sim-worker, 90 min).
+- 05:08 16: merged hunters (#48): opportunistic predation, pleiotropic jaws, dietBoost 8, R8 per M^0.75; carbon hunters 39/7/2/0 over seeds 1–4. Giants still not.

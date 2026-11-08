@@ -164,6 +164,8 @@ F and DECISIONS were written for the old controls (Recipe, Sea, Heat, Light, Hun
   - **Gentle mutation, scheduled:** `SIGMA_BUILD` 0.02 for the build's fast-forward, easing to `SIGMA` 0.015 after `build:complete`, so species stay recognisable for minutes (the intended experience). The size gene steps 2× further (`life.rules.mutation.sizeBoost`, world config) so size can diverge.
   - **Rare big jumps (owner ruling, punctuated equilibrium; Gould and Eldredge 1972):** about 1.2% of births (`life.rules.mutation.jumpRate` 0.012, world config, `assumption: true`) take a large step (`jumpScale` 0.4) on 1–3 random body genes, so new forms can appear suddenly while species stay stable in between.
   - **Juveniles grow (R3, R8):** a newborn is never larger than its parent. It turns surplus energy into body at ledger `growRate` (0.05, `assumption: true`) until it reaches its adult mass, and it buds only at 90% of adult mass. Without this, a parent paying for a bigger child's whole body capped size growth at about 0.05 on the gene per generation, so giants could never arise. Matter is conserved.
+  - **Opportunistic predation and pleiotropic jaws** (#48): see "Hunters now establish" below. In config: `dietBoost` 8 (the diet gene steps 8× further), `catchRate` 1.0, `meatAssim` 0.6. In develop(): `G.jawPleiotropy` 0.6 (designed, `assumption: true`).
+  - **R8 displacement per M^0.75**: in a full world, the weakest animal is judged by energy per M^0.75, not per M.
   - **Lifespan follows adult mass** (#49): a growing juvenile ages on its adult clock (lifespan ∝ adult M^0.25), so a jump-born giant can live long enough to mature.
   - **Gentler diet payoff:** plant gain = (1 − diet)^p and meat gain = diet^p with `DIET_EXP` p = 1.15 (owner ruling #48; it was 2), so part-carnivores already gain from meat.
   - **Megafauna payoff:** food intake scales as M^`intakeExp` (ledger, 0.9 in both worlds, `assumption: true`; 0.75 would be Kleiber), so big bodies out-eat their upkeep.
@@ -215,7 +217,15 @@ Its tests show the comfort band following a warming climate, oxygen-rich air evo
 - **Each species looks really distinct and unique.** Members of a species look alike, while different species look nothing like each other.
 - **Founders start small.** Size and complexity are earned, with big bodies (megafauna) and the apex predator arriving as evolution goes on.
 - **Mutation is gentle** enough that species stay recognisable for minutes. New species come from niche splits (habitat: land, sea or air; diet: grazer or hunter; size), not from noise.
-- **Known gap (2026-11-08, after seven tuning passes):** apex hunters and giant populations do not establish inside the demo. Hunters fail because plants pay reliably, and diet specialisation pays only once a lineage already has the gape and body to take prey, so nothing carries a lineage across that valley in minutes. Longer prey detection didn't help. Giants fail because jump-born giants appear only singly: growth is energy-limited and the population sits at the 1,024 cap. Say so if asked: herds, distinct species and live discovery are real; an apex predator is not yet.
+- **Hunters now establish; giants don't yet** (2026-11-08, #48, #49).
+  - **What made hunters work:**
+    - Opportunistic predation: a hunt is worth the kill (prey mass × `meatAssim` × digestion), so any animal that can catch prey weighs it against grazing. Diet no longer has to rise first.
+    - Pleiotropic jaws: effective gape = gape + 0.6 × diet, so meat-eating lineages get the mouth with the same mutation.
+    - R8 displacement by energy per M^0.75 (metabolic scaling), so big animals aren't automatically the weakest.
+  - **Results:** at +3 min, carbon seeds 1–4 had 39, 7, 2 and 0 hunters (diet > 0.65), with 6, 7, 2 and 0 in the top size decile.
+  - **Still off target:** apex hunters can be several, and in big runs they are social packs rather than solitary.
+  - **Giants:** animals ≥ 2 m stay at 0–1 per seed. Jump-born giants appear singly: growth is energy-limited and the population sits at the 1,024 cap.
+  - **Say so if asked.**
 - Targets the sim is tuned and tested against: 4–5 forms with ≥ 40 members each at build end; 8–10 forms by about +3 min; never more than ~10 at once; grazer packs of ~5–20 that move together; ≤ 3 apex hunters, each solitary.
 
 **The ecology clock.** Caden measured that about 340 sim-seconds of ecology produce legs, plates, horns and hunters. So during the build the worker fast-forwards the ecology: it runs many fixed 20 Hz ticks per frame, on a fixed tick schedule that depends only on build time, never on frame rate, so the run stays deterministic. On carbon the schedule reaches about 340 ecology-seconds (`build.ecologySec`) by the end of the build. After the build, the ecology drops to the live `timeScale` in config, the same for both worlds, and keeps evolving. If CPU is tight during the fast-forward, reduce render detail, not the tick schedule. Silicon still gets fewer generations through its pace rule, so in the default run its creatures stay simpler: capsule worms, and perhaps legs and floaters. We accept that as honest: slow chemistry means slow evolution. The only help is silicon's lower activation energy (about 1.6× more generations; see "Metabolism"). There is no silicon-only clock, and no silicon founders seeded further along.
@@ -735,6 +745,7 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
   - Hunger as plant scarcity
   - grazing that takes only a share
   - consumer interference
+  - the diet gene's 8× mutation step (`dietBoost`) and jaws that grow with diet (`jawPleiotropy` 0.6), so hunters can arise within minutes (#48)
   - flight muscle power at 75 W/kg, below the bird range, so flight is rare at defaults (#85)
   - the announcement pacing: only clusters with at least 8% of animals during the build, then one new species per 25 ecology seconds. The kinds are real; only when they are listed is paced.
   - spores: a dormant bank of recent survivors that germinates after a crash (owner override of the no-rescue guardrail, `assumption: true`)
