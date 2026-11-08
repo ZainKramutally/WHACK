@@ -20,6 +20,7 @@ function snap(world: WorldConfig, over: Partial<SimSnapshot> & { stats?: Record<
     organisms: new Float32Array(0),
     flora: new Float32Array(0),
     births: [],
+    kills: [],
     controls: cond,
     bands: livingBands(world, cond, { controls: Object.values(controls) }),
     ...over,

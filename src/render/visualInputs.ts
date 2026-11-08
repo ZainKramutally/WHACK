@@ -185,7 +185,7 @@ export function buildVisualInputs(
   world: WorldConfig,
   terrain: TerrainSampler,
   births: SimSnapshot['births'] = snapshot.births,
-  kills: SimSnapshot['kills'] = snapshot.kills,
+  kills: SimSnapshot['kills'] = snapshot.kills ?? [],
 ): VisualInputs {
   const stats = snapshot.stats;
   const state = terrainState(snapshot, world);

@@ -16,6 +16,7 @@ import { createScanHover } from './render/scanHover';
 import { createWorldView } from './render/world';
 import { createTerrainMesh, createTerrainUniforms } from './render/terrainNode';
 import { buildVisualInputs, drainBirths, flatTerrain, terrainState, type TerrainSampler } from './render/visualInputs';
+const KILLS_KEPT = 64; // pending predation kills held between frames (render-only kill animations)
 import { cellSubmerged } from './render/floraForm';
 import { pickSeed } from './seed';
 import { startSim } from './sim/client';
@@ -216,7 +217,12 @@ async function start(
   bus.on('sim:snapshot', (s) => {
     latest = s;
     if (s.births.length) pendingBirths.push(...s.births);
-    if (s.kills?.length) pendingKills.push(...s.kills);
+    if (s.kills?.length) {
+      pendingKills.push(...s.kills);
+      // Frames stop in a background tab while snapshots keep coming (~10 kills/s): keep only the newest, which is all
+      // the kill animations (at most 10 at once) can use anyway.
+      if (pendingKills.length > KILLS_KEPT) pendingKills.splice(0, pendingKills.length - KILLS_KEPT);
+    }
   });
 
   // VisualInputs: rebuilt once per snapshot (20 Hz), not per frame.
