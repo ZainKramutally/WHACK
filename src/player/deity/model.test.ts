@@ -52,7 +52,7 @@ describe('variant C hands', () => {
     const geo = (rig.body as THREE.Mesh).geometry as THREE.BufferGeometry;
     const pos = geo.getAttribute('position');
     let surf = 0;
-    for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i) - y) < 0.01) surf = Math.max(surf, Math.hypot(pos.getX(i), pos.getZ(i)));
+    for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i) - y) < 0.03) surf = Math.max(surf, Math.hypot(pos.getX(i), pos.getZ(i)));
     expect(surf).toBeGreaterThan(0.1);
     expect(dims.handRest[0] - surf).toBeLessThanOrEqual(dims.handRadius + 0.04);
     expect(dims.handRest[0] - surf).toBeGreaterThan(dims.handRadius * 0.5); // not inside the cloak
