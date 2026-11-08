@@ -6,7 +6,7 @@ import { silicon } from '../worlds/silicon';
 import type { MineralDef, WorldConfig } from '../worlds/types';
 
 // Fixture: carbon's crust extended to 7 minerals (2 absent: share [0, 0]) by cloning real minerals under new ids.
-const base = carbon.terrain.crust.minerals;
+const base = carbon.terrain.crust.minerals.filter((m) => m.share[1] > 0);   // the three natural minerals; carbon now also lists silicide and nitride as absent
 const clone = (m: MineralDef, id: string, elevation: number, share: [number, number]): MineralDef => ({ ...m, id, elevation, share, pick: undefined });
 const present: MineralDef[] = [...base, clone(base[0], 'extraA', 0.3, [0.05, 0.1]), clone(base[1], 'extraB', 0.7, [0.05, 0.1])];
 const minerals: MineralDef[] = [...present, clone(base[0], 'absentA', 0.5, [0, 0]), clone(base[1], 'absentB', 0.9, [0, 0])];
@@ -61,7 +61,7 @@ describe('crust with up to 8 minerals', () => {
   it('real configs keep their present minerals and sum to 1', () => {
     for (const w of [carbon, silicon]) {
       const t = createTerrain(w.terrain, w.demoSeed);
-      expect(t.params.crust.bands).toHaveLength(w.terrain.crust.minerals.length);
+      expect(t.params.crust.bands).toHaveLength(w.terrain.crust.minerals.filter((m) => m.share[1] > 0).length);
     }
   });
 });
