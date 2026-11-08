@@ -13,6 +13,7 @@ const water: DevelopInputs = {
   solvent: { rho: 1.0, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] },
   airDensity: 0.1,
   tissueDensity: { C: 1.05, Si: 2.2 },
+  gravity: 1,
 };
 const cond = { light: 0.3, heatBand: 0.5 };
 
@@ -44,7 +45,8 @@ describe('body plan wire format', () => {
     it(`round-trips a ${name} plan`, () => {
       const plan = develop(genome, cond, water);
       const back = unpackBodyPlan(packBodyPlan(plan));
-      expectClose(back, plan);
+      const { liftSpan: _flightOnly, ...wire } = plan; // liftSpan is sim-only (flight.ts); not on the wire
+      expectClose(back, wire);
       // enums and integers are exact
       expect(back.chemistry).toBe(plan.chemistry);
       expect(back.limbKind).toBe(plan.limbKind);

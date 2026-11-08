@@ -511,6 +511,7 @@ export class WorldSimulation {
       nitrogen: s.nitrogen,
       pressure: s.pressure,
       airDensity: this.airDensity(),
+      gravity: this.gravity,
       mutationSigma: this.mutationSigma(),
     };
   }

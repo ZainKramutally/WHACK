@@ -15,6 +15,7 @@ const water: DevelopInputs = {
   solvent: { rho: 1.0, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] },
   airDensity: 0.1,
   tissueDensity: { C: 1.05, Si: 2.2 },
+  gravity: 1,
 };
 
 describe('develop', () => {

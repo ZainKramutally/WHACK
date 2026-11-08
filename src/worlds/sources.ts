@@ -169,6 +169,24 @@ const list: Source[] = [
     doi: '10.1016/0370-1573(76)90032-6',
     note: 'Crossref (existence only; figures not read). Standard review of solid and liquid N₂ properties, including that the solid is denser than the liquid.',
   },
+  {
+    id: 'pennycuick2008',
+    citation: 'Pennycuick CJ (2008). Modelling the Flying Bird. Academic Press.',
+    url: 'https://www.sciencedirect.com/book/9780123749925/modelling-the-flying-bird',
+    note: 'TO VERIFY (recalled, not opened). Power required for flight, actuator-disc induced power, flight-muscle power limits and the m^(1/6) scaling of the power margin. Anchors to check before slides: Rüppell\'s vulture ~11 km, bar-headed goose ~7 km.',
+  },
+  {
+    id: 'ellington1984',
+    citation: 'Ellington CP (1984). The aerodynamics of hovering insect flight. VI. Lift and power requirements. Phil Trans R Soc B 305:145.',
+    doi: '10.1098/rstb.1984.0054',
+    note: 'TO VERIFY (recalled). Hovering power from actuator-disc theory (Rankine–Froude).',
+  },
+  {
+    id: 'marden1994',
+    doi: '10.1152/ajpregu.1994.266.4.R1077',
+    citation: 'Marden JH (1994). From damselflies to pterosaurs: how burst and sustainable flight performance scale with size. Am J Physiol 266:R1077.',
+    note: 'TO VERIFY (recalled). Muscle power available for flight falls relative to the power required as bodies get bigger; sets the mass limit of fliers.',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));

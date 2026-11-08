@@ -1,6 +1,7 @@
 // Test helper: builds an Ecology the way the worker will, from a real WorldConfig at its demo seed.
 // Terrain heights at full rise → sea level for a mid-target sea cover → per-cell liquid depth; nutrients and the
 // ledger come from the config. Not used by app code.
+import { flightParamsFor } from '../flight';
 import { createTerrain, sampleHeights, seaLevelFromHeights } from '../../gen/terrain';
 import type { WorldConfig } from '../../worlds/types';
 import { Ecology, type EcologyEnv, type EcologyLedger } from '../ecology';
@@ -31,6 +32,8 @@ export function ecologyFromWorld(world: WorldConfig): { eco: Ecology; env: Ecolo
       solvent: world.life.inputs.solvent,
       airDensity: world.life.inputs.airDensity.scale * airKgM3,
       tissueDensity: world.life.inputs.tissueDensity,
+      gravity: 1,
+      flight: flightParamsFor(world.life.inputs),
     },
     composition: world.life.composition,
     founderClimate: { prefTemp: world.life.founders.prefTemp, tolerance: world.life.founders.tolerance, chem: world.life.founders.chem },

@@ -66,7 +66,7 @@ describe('planRows', () => {
     expect([get(r, 'Legs'), get(r, 'Plates'), get(r, 'Horns'), get(r, 'Eyes')]).toEqual(['None', 'None', 'None', 'None']);
   });
   it('matches develop() output for a real founder', () => {
-    const water: DevelopInputs = { solvent: { rho: 1, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] }, airDensity: 0.1, tissueDensity: { C: 1.05, Si: 2.2 } };
+    const water: DevelopInputs = { solvent: { rho: 1, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] }, airDensity: 0.1, tissueDensity: { C: 1.05, Si: 2.2 }, gravity: 1 };
     const g = makeFounders(1, 1, { c: 0.8, si: 0, o: 0.2 })[0]!;
     const rows = planRows(develop(g, { light: 1, heatBand: 0.5 }, water));
     expect(get(rows, 'Body')).toMatch(/^\d+ segments?, /);

@@ -11,6 +11,7 @@
 // tiers; limbPairs = leg pairs vs arm count by symmetry order). Continuous quantities (joint limit, hardness,
 // tissue density) still vary smoothly with c and si, so a mixed body is a mixture, not a switch.
 import { CONSTANTS } from './constants';
+import { flightModeCost, powerRatio, type FlightParams } from './flight';
 import type { AnimalGenome } from './genome';
 
 export const LOCOMOTION = { walk: 0, swim: 1, hover: 2, sessile: 3 } as const;
@@ -19,6 +20,7 @@ export type LocomotionMode = (typeof LOCOMOTION)[keyof typeof LOCOMOTION];
 /** What the body is developing into. Both are 0..1. */
 export interface DevelopConditions {
   light: number; // starlight at the surface relative to the world's reference (clamped to 0..1)
+  oxygen?: number; // % O₂ in the air now: sets carbon's aerobic scope for powered flight (default: Earth's, FlightParams.o2Ref)
   heatBand: number; // temperature within the world's living band, 0 = lower edge, 1 = upper edge
 }
 
@@ -30,6 +32,8 @@ export interface DevelopInputs {
   solvent: { rho: number; mu: number; epsilonR: number; liquidBandC: [number, number] }; // g/cm³, mPa·s, –, °C
   airDensity: number; // 0..1-ish, unbuoyed carbon tissue = 1
   tissueDensity: { C: number; Si: number }; // g/cm³
+  gravity: number; // g
+  flight?: FlightParams; // powered-flight coefficients (world config); without it only buoyant floaters hover
 }
 
 /** One arm of a radial body: its direction around the hub (a multiple of 15°) and its length. */
@@ -81,6 +85,7 @@ export interface BodyPlan {
   tailSegments: number; // axial: beads behind the trunk
   finSpan: number; // axial swimmers: paddle-fin size (0 when not swimming)
   wingSpan: number; // axial hoverers: membrane wing size (0 when not hovering)
+  liftSpan?: number; // m: span of the lift surface the flight power uses (axial wings; radial rotor disc), at the adult scale; 0 unless hovering
   flare: number; // radial: −1 tapered cone … +1 flared bowl
   armKind: 'none' | 'rod' | 'branch' | 'fan' | 'whip'; // radial
   tileLength: number; // radial: 0 flat tiles … 1 long crystal spikes (geode)
@@ -201,6 +206,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const tiers = radial ? clamp(Math.round(baseTiers * (1 - 0.4 * tiny + 0.5 * giant)), 1, 5) : 0;
 
   // --- locomotion (R10): cheapest of walk / swim / hover / sessile ----------------
+  const wingGene = clamp(0.4 + 0.8 * f.limbLen + 0.3 * f.buoy, 0, 1.4); // membrane wing size: the flight cost reads it, and hoverers' plans carry it
   const rhoBodyScaled = bodyDensity / tissueRho.C; // unbuoyed carbon = 1, same scale as AIR_RHO
   // Swim cost's elongation term: axial spine length; radial (rolling) hubs get more elongated as tiers accrete.
   const elongation = radial ? 0.25 + 0.2 * Math.round(baseTiers) : Math.min(16, Math.round(baseSegments)) / 12;
@@ -211,7 +217,26 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const swim =
     (G.swimBase + G.swimSlope * Math.abs(bodyDensity - sea.rho)) /
     (1 + G.swimElongation * elongation * reWeight);
-  const hover = K.FLY_K.value * (G.hoverBase + G.hoverSlope * Math.max(0, rhoBodyScaled - rhoAir));
+  const buoyantHover = K.FLY_K.value * (G.hoverBase + G.hoverSlope * Math.max(0, rhoBodyScaled - rhoAir));
+  // Powered flight: P_req / P_av from wing area, mass, gravity and air density (flight.ts). Mass here uses the adult scale before
+  // the temperature–size rule (that rule depends on the mode chosen below); the displayed mass uses the final scale.
+  const limbFrac = nLegs * legLenEff ** 2 * G.limbMass * (1 - 0.5 * comp.si);
+  const massAt = (s: number) =>
+    1000 * G.fill * s ** 3 * tissueDense *
+    (1 + limbFrac + K.PLATE_MASS.value * body.plates + G.hornMass * body.horns + G.headMass * body.gape);
+  const fp = inputs.flight;
+  const liftSpanAt = (s: number) => radial
+    ? 2 * (0.32 * s + s * (0.25 + 0.6 * limbLenRel * budGrowth))
+    : wingGene * s * (fp?.spanPerLength ?? 0);
+  let hover = buoyantHover;
+  if (fp) {
+    const ratio = powerRatio(
+      { mass: massAt(baseScale), liftSpan: liftSpanAt(baseScale), chemistry: silicon ? 'silicon' : 'carbon' },
+      { gravity: inputs.gravity, oxygenPct: conditions.oxygen ?? fp.o2Ref, airKgM3: rhoAir / fp.airScale },
+      fp,
+    );
+    hover = Math.min(buoyantHover, flightModeCost(ratio, fp));
+  }
   const modeCosts = { walk, swim, hover, sessile: G.sessileCost };
   let mode: LocomotionMode = LOCOMOTION.walk;
   let best = walk;
@@ -224,10 +249,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   const scale = baseScale * (1 + tsr * (1 - 2 * heat));
 
   // --- mass (tissue only) ---------------------------------------------------------------------
-  const limbFrac = nLegs * legLenEff ** 2 * G.limbMass * (1 - 0.5 * comp.si);
-  const mass =
-    1000 * G.fill * scale ** 3 * tissueDense *
-    (1 + limbFrac + K.PLATE_MASS.value * body.plates + G.hornMass * body.horns + G.headMass * body.gape);
+  const mass = massAt(scale);
 
   // --- eyes and glow (reaction norms of light) --------------------------------
   const eyeArea = body.eyes * (1.5 - light);
@@ -307,7 +329,8 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
   }
   // Mode follows form: swimmers get paddle fins, hoverers get membrane wings (sized by limb length).
   const finSpan = axial && mode === LOCOMOTION.swim ? clamp(0.25 + 0.9 * f.limbLen * (0.5 + 0.5 * (1 - f.segments)), 0, 1.2) : 0;
-  const wingSpan = axial && mode === LOCOMOTION.hover ? clamp(0.4 + 0.8 * f.limbLen + 0.3 * f.buoy, 0, 1.4) : 0;
+  const wingSpan = axial && mode === LOCOMOTION.hover ? wingGene : 0;
+  const liftSpan = mode === LOCOMOTION.hover ? liftSpanAt(scale) : 0;
 
   // --- lineage colour and pattern: nonlinear mixes of the genes, so related lineages look related -----------------
   const frac = (v: number) => v - Math.floor(v);
@@ -346,7 +369,7 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     gapeSize: 2 * body.gape * scale,
     dorsal: comp.si >= comp.c ? 'rods' : 'frills',
     hornKind,
-    girth, flatten, headScale, gradient, carapace, crest, jaw, tailKind, tailSegments, finSpan, wingSpan,
+    girth, flatten, headScale, gradient, carapace, crest, jaw, tailKind, tailSegments, finSpan, wingSpan, liftSpan,
     flare, armKind: radial ? armKind : 'none', tileLength,
     hue, accent, bands, spots,
     eyeKind,

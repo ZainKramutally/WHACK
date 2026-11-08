@@ -333,6 +333,27 @@ export const silicon: WorldConfig = {
         sources: [],
         assumption: true,
       },
+      flight: {
+        spanPerLength: 6,   // body lengths of wing span at full wing gene (wingSpan 1.0)
+        powerFactor: 1.2,   // ε: profile and parasite power on top of ideal induced power (Pennycuick's minimum-power speed carries roughly +20% to +50%)
+        muscleFrac: 0.25,   // flight-muscle share of body mass (birds 15–35%)
+        specificPower: 150,   // W per kg of flight muscle at 1 kg, full aerobic scope (mechanical output of bird flight muscle, order 100–250 W/kg)
+        massRef: 1,   // kg
+        powerExp: 0.33,   // specific power ∝ m^−1/3: wingbeat frequency falls with size, so big bodies have less power per kilo
+        o2Ref: 21,   // % O₂ where scope = 1: Earth
+        siliconScope: 0.5,   // silicon metabolism is not O₂-limited; a neutral scope
+        costBase: 0.3,   // develop() cost of flight at zero power ratio: a little dearer than a swimmer's glide
+        costSlope: 4,   // develop() cost per (P_req/P_av)²
+        costInfeasible: 40,   // added cost when P_req ≥ P_av: such bodies cannot fly
+        forageLengths: 3,   // fliers forage about three body lengths above the ground or canopy
+        cruiseFrac: 0.8,   // cruise at 80% of the ceiling when travelling or fleeing
+        altClock: 30,   // ecology seconds compress real flight: metres climbed per ecology second = climb speed (m/s) × this
+        buoyRise: 5,   // a gas-bag body drifts up by its own lightness
+        sinkRate: 20,   // m per ecology second when descending
+        why: 'Flight needs power ∝ weight^1.5 over the square root of air density times wing area; the muscles supply power ∝ muscle mass times aerobic scope, so light, big-winged bodies in thick air and low gravity fly highest.',
+        sources: ['pennycuick2008', 'ellington1984', 'marden1994'],
+        assumption: true,   // every coefficient here is a typical-bird order of magnitude, not fitted
+      },
       scalings: {
         lightFull: 1,
         hungerPerScarcity: 1,

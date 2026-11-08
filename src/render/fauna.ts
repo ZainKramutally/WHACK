@@ -74,7 +74,16 @@ const BELL_Y = [0.06, 0.02, 0, 0.1, 0.24, 0.4, 0.56, 0.7, 0.82, 0.92, 0.98, 1.0]
 const BELL_R = [0.04, 0.42, 0.66, 0.86, 0.98, 1.0, 0.96, 0.86, 0.7, 0.48, 0.24, 0.04];
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
 
+/**
+ * Declared illustration: flight altitude. The sim's ceilings are kilometres (flight.ts); the patch is a few hundred metres with fog.
+ * Displayed height = ALT_MAX_M · tanh(h / ALT_H0_M): near-linear low down (1 km shows as about 90 m), topping out at 150 m,
+ * above the 20–40 m giant plants and inside the fog.
+ */
+const ALT_MAX_M = 150;
+const ALT_H0_M = 1500;
+
 interface Entry {
+  alt?: number; // physical altitude (m), eased toward the snapshot value so a climb never pops
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -860,7 +869,7 @@ export function createFauna(app: App): FaunaPart {
     const s = fBoost * displayFactor(e.scale) * alpha;
     if (s <= 0) return;
     let y0 = ground;
-    if (mode === LOCOMOTION.hover) y0 = ground + displayLength(e.scale) * fBoost * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id)) * alpha;
+    if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + displayLength(e.scale) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
     else if (mode === LOCOMOTION.swim && fSeaThere && ground < fSea) y0 = ground + (fSea - ground) * 0.35;
 
     const lay = e.layout;
@@ -1009,6 +1018,8 @@ export function createFauna(app: App): FaunaPart {
         if (!e.seen) { e.seen = true; e.born = t; }
         const mode = buf[o + OrganismField.mode];
         e.mode = mode;
+        const altNow = buf[o + OrganismField.altitude];
+        e.alt = e.alt === undefined ? altNow : e.alt + (altNow - e.alt) * 0.1;
         if (snapshot) {
           const tx = patchToWorld(buf[o + OrganismField.x], patch), tz = patchToWorld(buf[o + OrganismField.y], patch);
           const th = buf[o + OrganismField.heading];

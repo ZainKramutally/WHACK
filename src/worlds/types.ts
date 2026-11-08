@@ -102,10 +102,13 @@ export interface TerrainConfig extends Sourced {
   relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
 }
 
+import type { FlightParams } from '../sim/flight';
+
 export interface LifeInputs {
   solvent: Sourced & { rho: number; mu: number; epsilonR: number; liquidBandC: [number, number] };
   airDensity: Sourced & { scale: number; molarMass: number };   // scale × live P·M/(R·T) into develop()'s scale (unbuoyed carbon tissue = 1); molarMass of the main gas, kg/mol
   tissueDensity: Sourced & { C: number; Si: number };
+  flight: Sourced & Omit<FlightParams, 'airScale' | 'molarMass'>;   // powered-flight coefficients (sim/flight.ts); airScale is copied from airDensity.scale
   scalings: Record<string, number>;              // our stats → F's heat, light and hunger ranges
 }
 

@@ -52,6 +52,7 @@ function base(id: 'carbon' | 'silicon'): Omit<WorldConfig, 'solvent' | 'limits' 
         solvent: { ...sourced, rho: 1, mu: 1, epsilonR: 1, liquidBandC: [0, 100] },
         airDensity: { ...sourced, scale: 1, molarMass: 0.028 },
         tissueDensity: { ...sourced, C: 1, Si: 1 },
+        flight: { ...sourced, spanPerLength: 6, powerFactor: 1.2, muscleFrac: 0.25, specificPower: 150, massRef: 1, powerExp: 0.33, o2Ref: 21, siliconScope: 0.5, costBase: 0.3, costSlope: 4, costInfeasible: 40, forageLengths: 3, cruiseFrac: 0.8, altClock: 30, sinkRate: 20, buoyRise: 5 },
         scalings: {},
       },
     },

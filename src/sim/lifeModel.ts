@@ -2,6 +2,7 @@
 // WorldSimulation talks only to LifeModel; EcologyLife adapts the spatial ecology (ecology.ts).
 import type { WorldConfig } from '../worlds/types';
 import type { BodyPlan } from './develop';
+import { flightParamsFor } from './flight';
 import { CAP, Ecology, type EcologyLedger } from './ecology';
 import type { AnimalGenome } from './genome';
 import { CELLS, FLORA_STRIDE, createGrid } from './grid';
@@ -16,6 +17,7 @@ export interface LifeEnv extends Environment {
   nitrogen: number;    // × Earth
   pressure: number;    // bar
   airDensity: number;  // kg/m³, real P·M/(R·T)
+  gravity: number;     // g
   mutationSigma: number; // body-gene mutation σ now: SIGMA_BUILD during the build, SIGMA after
 }
 
@@ -91,6 +93,8 @@ export class EcologyLife implements LifeModel {
         solvent: fixed.solvent,
         airDensity: env.airDensity * fixed.airDensity.scale,
         tissueDensity: fixed.tissueDensity,
+        gravity: env.gravity,
+        flight: flightParamsFor(fixed),
       },
       composition: w.life.composition,
       founderClimate: { prefTemp: w.life.founders.prefTemp, tolerance: w.life.founders.tolerance, chem: w.life.founders.chem },

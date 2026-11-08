@@ -7,6 +7,7 @@
 // R6 relationships.ts + inducible plates · R7 shelter()/home/builders · R8 bud() · R9 develop() at birth
 // R10 bestMode() + moveCost · R11 returnMatter() · R12 nothing here reads rendering.
 import { CONSTANTS } from './constants';
+import { flightCeiling, climbRate } from './flight';
 import { develop, LOCOMOTION, type BodyPlan, type DevelopInputs } from './develop';
 import { makeFounders, mutate, type AnimalGenome, type ClimateGenes, type Composition } from './genome';
 import { CELLS, FLORA_STRIDE, GRID, cellOf, type Grid } from './grid';
@@ -19,7 +20,7 @@ export const TICK_HZ = 20;
 export const CAP = 1024;
 
 /** The sim's inputs for one step: population.ts's Environment plus the living-band heat for develop(). */
-export interface EcologyEnv extends Environment { heatBand: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
+export interface EcologyEnv extends Environment { heatBand: number; /** real surface air density, kg/m³ (default: the founders' inputs) */ airDensity?: number; /** body-gene mutation σ for births this tick (default SIGMA) */ mutationSigma?: number }
 
 /**
  * World-config `life.ledger`: scalings that turn the rules into numbers (units: matter = animal mass = energy).
@@ -120,6 +121,8 @@ export class Ecology {
   readonly plan: BodyPlan[] = new Array(CAP);
   readonly mode = new Uint8Array(CAP); // locomotion mode at the last move
   readonly heading = new Float64Array(CAP); // radians, direction of the last move
+  readonly alt = new Float64Array(CAP); // metres above the ground; climbs and sinks with what the animal is doing (flight.ts), 0 unless flying
+  private readonly ceil = new Float64Array(CAP); // flight ceiling in metres, refreshed when the animal re-decides
   private readonly home = new Int32Array(CAP);
   private readonly act = new Uint8Array(CAP);
   private readonly wandering = new Uint8Array(CAP); // 1 while an animal grazes on the move (no better food within reach)
@@ -466,6 +469,46 @@ export class Ecology {
     return mode === LOCOMOTION.walk ? mc.walk : mode === LOCOMOTION.swim ? mc.swim : mode === LOCOMOTION.hover ? mc.hover : mc.sessile;
   }
 
+  /** Flight ceiling (m) of a body under the live conditions (flight.ts). 0 without flight coefficients or a lift surface. */
+  private ceilingOf(p: BodyPlan): number {
+    const fp = this.inputs.flight;
+    if (!fp || !p.liftSpan) return 0;
+    return flightCeiling(p as Required<Pick<BodyPlan, 'mass' | 'liftSpan' | 'bodyDensity' | 'chemistry'>>, this.flightEnv(), fp, this.inputs.tissueDensity.C);
+  }
+  private flightEnv() {
+    const fp = this.inputs.flight!;
+    return {
+      gravity: this.inputs.gravity,
+      temperatureC: this.env.temperature,
+      oxygenPct: this.env.oxygen,
+      airKgM3: this.env.airDensity ?? this.inputs.airDensity / fp.airScale,
+    };
+  }
+
+  /** Altitude state: a flier forages low, climbs toward a cruise height (a share of its ceiling) when travelling or fleeing, and lands to rest. */
+  private stepAltitude(i: number, act: number): void {
+    const fp = this.inputs.flight;
+    const p = this.plan[i];
+    const h = this.alt[i];
+    if (!fp) return;
+    if (this.mode[i] !== LOCOMOTION.hover) {
+      if (h > 0) this.alt[i] = Math.max(0, h - fp.sinkRate * this.dt);
+      return;
+    }
+    const ceil = this.ceil[i];
+    const low = Math.min(ceil, fp.forageLengths * p.scale);
+    let target = low;
+    if (act === ACT.rest || act === ACT.bud) target = 0;
+    else if (act === ACT.flee || act === ACT.home || (act === ACT.forage && this.wandering[i])) target = fp.cruiseFrac * ceil;
+    if (target > h) {
+      const up = p.liftSpan ? climbRate(p as Required<Pick<BodyPlan, 'mass' | 'liftSpan' | 'chemistry'>>, this.flightEnv(), fp, h) : 0;
+      // A body with no powered excess (a gas-bag floater) still rises by its own lightness, at buoyRise.
+      this.alt[i] = Math.min(target, h + Math.max(up, fp.buoyRise) * this.dt);
+    } else {
+      this.alt[i] = Math.max(target, h - fp.sinkRate * this.dt);
+    }
+  }
+
   // ---- R5: one utility loop for every animal -----------------------------------------------------------------------
   private decide(i: number): void {
     const { grid: g, L } = this;
@@ -477,6 +520,7 @@ export class Ecology {
     const cy = (cell / GRID) | 0;
     const px = this.x[i];
     const py = this.y[i];
+    this.ceil[i] = this.mode[i] === LOCOMOTION.hover ? this.ceilingOf(p) : 0;
     if (E > 2 * m && m >= MATURE * this.adult[i]) { this.act[i] = ACT.bud; return; }   // a satiated animal buds; with no free slot it displaces the weakest neighbour (bud())
     const hungerFrac = clamp01(1 - E / (2 * m));
     const drive = 0.1 + hungerFrac * (1 + this.hunger);
@@ -646,6 +690,7 @@ export class Ecology {
         }
       }
     }
+    this.stepAltitude(i, act);
     const here = cellOf(this.x[i], this.y[i]);
 
     // eat (R1/R4): graze the cell; ε = EPS0·(1 + 2·Hunger) of what is eaten becomes energy, the rest goes back
@@ -791,7 +836,7 @@ export class Ecology {
   private spawn(genome: AnimalGenome, px: number, py: number, gen: number, parent: number | null, env: EcologyEnv, energyShare = 0.5): boolean {
     const slot = this.free.pop();
     if (slot === undefined) return false;
-    const plan = develop(genome, { light: env.light, heatBand: env.heatBand }, this.inputs);
+    const plan = develop(genome, { light: env.light, heatBand: env.heatBand, oxygen: env.oxygen }, this.inputs);
     if (!this.habitable(plan, this.grid.liquid[cellOf(px, py)])) {
       // A newborn stays with its parent; a founder or spore is placed in a cell that suits its body.
       if (parent !== null) {
@@ -833,6 +878,8 @@ export class Ecology {
     this.genome[slot] = genome;
     this.plan[slot] = plan;
     this.mode[slot] = plan.mode;
+    this.alt[slot] = 0;
+    this.ceil[slot] = 0;
     this.heading[slot] = this.rnd() * 2 * Math.PI - Math.PI;   // founders and newborns face a random way, so they do not all drift together
     this.wandering[slot] = 0;
     this.home[slot] = cellOf(this.x[slot], this.y[slot]);
@@ -874,7 +921,7 @@ export class Ecology {
         x: this.x[i] / GRID, y: this.y[i] / GRID, role: 1, size: this.plan[i].scale / this.L.sizeRef,
         prefTemp: g.climate.prefTemp, tolerance: g.climate.tolerance, chem: g.climate.chem,
         energy: this.energy[i] / (2 * this.struct[i]), id: this.id[i], generation: this.gen[i],
-        heading: this.heading[i], mode: this.mode[i] as 0 | 1 | 2 | 3, body: g.body, comp: g.comp, lineage: g.lineage,
+        heading: this.heading[i], mode: this.mode[i] as 0 | 1 | 2 | 3, altitude: this.alt[i], grown: Math.min(1, this.struct[i] / this.adult[i]), body: g.body, comp: g.comp, lineage: g.lineage,
       });
     }
     return { data, count: n };

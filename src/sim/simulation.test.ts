@@ -9,6 +9,7 @@ import { PLAN_LENGTH } from './plan';
 import { organismCount, readOrganism } from './organismLayout';
 import { makeRng } from './rng';
 import { CONSTANTS } from './constants';
+import { ORGANISM_STRIDE } from './organismLayout';
 import { WorldSimulation, mutationSigmaAt, ticksDueAfter, ticksDueAt, type SimEvent } from './simulation';
 
 // Multi-second ecology runs (full 20 s builds) only run with SLOW=1 (npm run test:slow).
@@ -175,7 +176,7 @@ describe('WorldSimulation', () => {
       }
       for (const stat of w.stats) expect(Number.isFinite(s.stats[stat.id])).toBe(true);
       expect(Number.isFinite(s.stats.seaLevel)).toBe(true);
-      expect(s.organisms.length % 28).toBe(0);
+      expect(s.organisms.length % ORGANISM_STRIDE).toBe(0);
       expect(s.flora.length).toBe(64 * 64 * 2);
     }
   });
@@ -367,7 +368,7 @@ describe('WorldSimulation', () => {
       for (let i = 0; i < 50; i++) {
         sim.advance(0.25);
         const s = sim.snapshot();
-        expect(s.organisms.length / 28).toBe(s.population.consumers);
+        expect(s.organisms.length / ORGANISM_STRIDE).toBe(s.population.consumers);
         for (const b of s.births) {
           expect(b.plan.length).toBe(PLAN_LENGTH);
           expect(ids.has(b.id)).toBe(false);

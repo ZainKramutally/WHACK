@@ -3,6 +3,7 @@
 // another chemistry's rebuild). Sea/ground/sky/producer: this world's swatch, or the other world's via the toggle.
 // Runs only while the window is set. Drawn as an app overlay: after the post pipeline has written the frame, straight to the
 // canvas at full resolution, so the card's view stays crisp (never pixelated or outlined).
+import { flightParamsFor } from '../sim/flight';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { Bus } from '../bus';
@@ -47,7 +48,7 @@ const mid = (w: WorldConfig, key: string, fallback: number): number => {
 export function developInputsFor(w: WorldConfig): DevelopInputs {
   const i = w.life.inputs;
   const rho = gasDensity(mid(w, 'pressure', 1), mid(w, 'temperature', 15), i.airDensity.molarMass);
-  return { solvent: i.solvent, airDensity: rho * i.airDensity.scale, tissueDensity: i.tissueDensity };
+  return { solvent: i.solvent, airDensity: rho * i.airDensity.scale, tissueDensity: i.tissueDensity, gravity: mid(w, 'gravity', 1), flight: flightParamsFor(i) };
 }
 
 export function createCounterpart(deps: CounterpartDeps): CounterpartPart {

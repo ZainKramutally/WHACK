@@ -35,7 +35,7 @@ function make(o: { seed?: number; comp?: typeof carbonComp; liquid?: Float64Arra
   const eco = new Ecology({
     seed: o.seed ?? 1, grid, rules, composition: o.comp ?? carbonComp,
     founderClimate: { prefTemp: 15, tolerance: 8, chem: 0.5 },
-    inputs: { solvent: { rho: 1, mu: 0.89, epsilonR: o.epsilonR ?? 80, liquidBandC: [0, 100] }, airDensity: 0.1, tissueDensity: { C: 1.05, Si: 2.2 } },
+    inputs: { solvent: { rho: 1, mu: 0.89, epsilonR: o.epsilonR ?? 80, liquidBandC: [0, 100] }, airDensity: 0.1, tissueDensity: { C: 1.05, Si: 2.2 }, gravity: 1 },
     ledger: o.ledger,
   });
   return { eco, grid };

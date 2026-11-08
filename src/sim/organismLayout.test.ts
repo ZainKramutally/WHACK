@@ -6,19 +6,19 @@ const rec = (id: number): OrganismRecord => ({
   x: 0.25, y: 0.75, role: 1, size: 1.5, prefTemp: 12.5, tolerance: 6, chem: 0.5, energy: 0.75, id, generation: 7,
   heading: -2.5, mode: 2,
   body: Object.fromEntries(BODY_GENES.map((g, i) => [g, (i + 1) / 16])) as OrganismRecord['body'],
-  comp: { c: 0.25, si: 0.5, o: 0.25 }, lineage: 3,
+  comp: { c: 0.25, si: 0.5, o: 0.25 }, lineage: 3, altitude: 1234, grown: 0.5,
 });
 
 describe('organism layout v2', () => {
   it('keeps the v1 field indices and appends the rest', () => {
-    expect(LAYOUT_VERSION).toBe(2);
+    expect(LAYOUT_VERSION).toBe(3);
     expect([OrganismField.x, OrganismField.y, OrganismField.role, OrganismField.size, OrganismField.prefTemp,
       OrganismField.tolerance, OrganismField.chem, OrganismField.energy, OrganismField.id, OrganismField.generation])
       .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(OrganismField.heading).toBe(10);
     expect(geneField('size')).toBe(12);
     expect(geneField('sociality')).toBe(23);
-    expect(OrganismField.lineage).toBe(ORGANISM_STRIDE - 1);
+    expect(OrganismField.grown).toBe(ORGANISM_STRIDE - 1);
     const idx = Object.values(OrganismField);
     expect(new Set(idx).size).toBe(idx.length);
   });

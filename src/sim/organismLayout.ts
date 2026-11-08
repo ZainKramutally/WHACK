@@ -4,7 +4,7 @@
 import { BODY_GENES, type BodyGenes, type Composition } from './genome';
 import type { LocomotionMode } from './develop';
 
-export const LAYOUT_VERSION = 2;
+export const LAYOUT_VERSION = 3;
 
 const GENE_BASE = 12; // v2: the 12 body genes sit at 12..23 in BODY_GENES order
 
@@ -28,9 +28,12 @@ export const OrganismField = {
   compSi: 25, // silicon share
   compO: 26, // oxygen share
   lineage: 27, // founder id this animal descends from
+  // v3 (appended)
+  altitude: 28, // metres above the ground, physical (km-scale ceilings); 0 for anything that is not flying. The renderer compresses it for display
+  grown: 29, // current mass ÷ adult mass, 0..1: juveniles are smaller than their plan's adult size
 } as const;
 
-export const ORGANISM_STRIDE = 28;
+export const ORGANISM_STRIDE = 30;
 
 /** Field index of a body gene: size 12, segments 13, limbPairs 14, limbLen 15, plates 16, horns 17, gape 18, diet 19, eyes 20, buoy 21, glow 22, sociality 23. */
 export function geneField(gene: (typeof BODY_GENES)[number]): number {
@@ -44,6 +47,8 @@ export interface OrganismRecord {
   id: number; generation: number;
   heading: number; mode: LocomotionMode;
   body: BodyGenes; comp: Composition; lineage: number;
+  altitude?: number; // v3; default 0
+  grown?: number; // v3; default 1
 }
 
 /** Writes `rec` as record number `index` of `buf`. Fields the record doesn't set stay 0. */
@@ -66,6 +71,8 @@ export function packOrganism(buf: Float32Array, index: number, rec: OrganismReco
   buf[o + OrganismField.compSi] = rec.comp.si;
   buf[o + OrganismField.compO] = rec.comp.o;
   buf[o + OrganismField.lineage] = rec.lineage;
+  buf[o + OrganismField.altitude] = rec.altitude ?? 0;
+  buf[o + OrganismField.grown] = rec.grown ?? 1;
 }
 
 /** Reads record number `index` of `buf` (inverse of packOrganism, up to float32 precision). */
@@ -89,6 +96,8 @@ export function readOrganism(buf: Float32Array, index: number): OrganismRecord {
     body,
     comp: { c: buf[o + OrganismField.compC], si: buf[o + OrganismField.compSi], o: buf[o + OrganismField.compO] },
     lineage: buf[o + OrganismField.lineage],
+    altitude: buf[o + OrganismField.altitude],
+    grown: buf[o + OrganismField.grown],
   };
 }
 
