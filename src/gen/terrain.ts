@@ -10,9 +10,10 @@
 // seed-derived offsets/angles/positions are computed here.
 import type { TerrainConfig } from '../worlds/types';
 import { makeRng } from '../sim/rng';
+import { CELLS, GRID } from '../sim/grid';
 
-export type MachineId = 'M2' | 'M3' | 'M4' | 'M5' | 'M6';
-export const MACHINE_IDS: MachineId[] = ['M2', 'M3', 'M4', 'M5', 'M6'];
+export type MachineId = 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9';
+export const MACHINE_IDS: MachineId[] = ['M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9'];
 
 /** Inputs that move the terrain. progress.Mx is 0..1; the sim sets M4 = age × past-liquid. Missing = 0. */
 export interface TerrainState {
@@ -35,7 +36,12 @@ export const MACHINE_KEYS: Record<MachineId, readonly string[]> = {
   M4: ['depth', 'widthWet', 'widthDry', 'steepWet', 'steepDry', 'dryStart', 'dryEnd', 'meanderAmp', 'meanderFreq', 'offsetFrac'],
   M5: ['bandH', 'sharpness', 'strength'],
   M6: ['moundHeight', 'bandCenter', 'bandWidth', 'moundFreq', 'threshold'],
+  M7: ['stepH', 'nSteps', 'groove', 'edge', 'size', 'bandCenter', 'bandWidth', 'rampKeep'],         // basalt columns
+  M8: ['domeHeight', 'domeFreq', 'threshold', 'uplandMin', 'stackStep', 'stackSharp', 'stackShare'], // granite domes and tors
+  M9: ['spikeHeight', 'size', 'density', 'girth', 'sharp'],                                         // nitride crystal spikes
 };
+// M5 also reads an optional `offMineral` (0..1, default 1): the share of its strength kept where its listed minerals are absent.
+// A machine with `minerals` in config is multiplied by the summed local crust weight of those minerals (absent = everywhere).
 export const RELIC_KEYS = { iceSpire: ['height', 'radius'], iceArch: ['height', 'radius', 'span'] } as const;
 
 /** Everything heightCore needs, flat numbers only (the TSL node bakes these as constants). */
@@ -45,6 +51,10 @@ export interface TerrainParams {
   rampRange: number; rampDetail: number;
   // seed-derived hash seeds (u32) and noise-space offsets
   sBase: number; sWx: number; sWz: number; sM2: number; sM3a: number; sM3b: number; sM4: number; sM6: number;
+  sM7: number; sM8: number; sM9a: number; sM9b: number; sCrust: number;   // from their own rng stream, so older seeds' terrain is unchanged
+  /** Shared crust weights (see crustScore/crustWeights): quantile thresholds baked once from the 64² cell-centre scores. */
+  crust: { k: number; thr: number[]; w: number; nf: number; order: number[] };   // order[j] = config index of the j-th lowest mineral
+  gates: Partial<Record<MachineId, number[]>>;   // machines gated by minerals: 0/1 per mineral in elevation order (absent = ungated)
   oBaseX: number; oBaseZ: number; oWxX: number; oWxZ: number; oWzX: number; oWzZ: number;
   // shore ramp (spawn area)
   ramp: { cx: number; cz: number; ux: number; uz: number; rIn: number; rOut: number };
@@ -61,12 +71,17 @@ export interface Terrain {
   relics: Relic[];
   patchSize: number;
   height(x: number, z: number, state: TerrainState): number;
+  /** CPU twin of crustWeightsNode: smooth mineral weights at (x, z) in `crust.minerals` order (sum 1). */
+  crustWeights(x: number, z: number): number[];
 }
 
 // ---------- primitives (rounding hook `r` lets the f32 test kit emulate GPU precision) ----------
 export type Round = (n: number) => number;
 const C_ROT = Math.cos(0.5);
 const S_ROT = Math.sin(0.5);
+export const SQRT3 = Math.sqrt(3);
+export const HEX_H = SQRT3 / 2;
+export const CRUST_NOISE_WEIGHT = 0.5;   // weight of seeded noise (vs base height) in the crust score; an algorithm constant, patch scale comes from crust.patchCells
 
 export function makeKit(r: Round) {
   const fract = (v: number) => r(v - Math.floor(v));
@@ -108,7 +123,24 @@ export function makeKit(r: Round) {
     }
     return r(sum / norm);
   };
-  return { r, fract, mix, smoothstep, hash, vnoise, fbm };
+  /**
+   * Closed-form hexagonal tiling, branch-free (nearest of two offset rectangular lattices). (u, v) are in cell units,
+   * where neighbouring centres are 1 apart. Returns the hex distance to the centre (0..0.5 at the edge) and integer cell ids.
+   */
+  const hexCell = (u: number, v: number) => {
+    const av = r(v / SQRT3);
+    const cuA = Math.floor(u + 0.5), cvA = Math.floor(av + 0.5);
+    const cuB = Math.floor(u) + 0.5, cvB = Math.floor(av) + 0.5;
+    const dxA = r(u - cuA), dzA = r(v - cvA * SQRT3), dxB = r(u - cuB), dzB = r(v - cvB * SQRT3);
+    const dA = r(dxA * dxA + dzA * dzA), dB = r(dxB * dxB + dzB * dzB);
+    let t = r(0.5 + (dA - dB) * 1e5);
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = mix(dxA, dxB, t), dz = mix(dzA, dzB, t);
+    const cu = mix(cuA, cuB, t), cv = mix(cvA, cvB, t);
+    const a = Math.abs(dx), b = Math.abs(r(0.5 * dx + HEX_H * dz)), c = Math.abs(r(-0.5 * dx + HEX_H * dz));
+    return { hd: Math.max(a, b, c), ix: Math.floor(2 * cu + 0.5), iz: Math.floor(2 * cv + 0.5) };
+  };
+  return { r, fract, mix, smoothstep, hash, vnoise, fbm, hexCell };
 }
 export type Kit = ReturnType<typeof makeKit>;
 export const kit64: Kit = makeKit((n) => n);
@@ -117,34 +149,59 @@ export const kit32: Kit = makeKit(Math.fround);
 
 export const TWO_PI = Math.PI * 2;
 
+/** Domain warp + base relief: shared by heightCore, the crust score and the threshold bake. bn in [-1,1]. */
+export function warpBase(P: TerrainParams, x: number, z: number, k: Kit = kit64) {
+  const wx = k.fbm(x * P.warpFreq + P.oWxX, z * P.warpFreq + P.oWxZ, 2, P.lac, P.gain, P.sWx) * P.warpAmp;
+  const wz = k.fbm(x * P.warpFreq + P.oWzX, z * P.warpFreq + P.oWzZ, 2, P.lac, P.gain, P.sWz) * P.warpAmp;
+  const qx = x + wx, qz = z + wz;
+  const f = k.fbm(qx * P.freq + P.oBaseX, qz * P.freq + P.oBaseZ, P.oct, P.lac, P.gain, P.sBase);
+  const bn = (f < 0 ? -1 : 1) * Math.pow(Math.abs(f), P.expo);
+  return { qx, qz, bn, base: 0.5 * P.A * bn };
+}
+
+/** Crust score: base height (no machines) mixed with seeded noise at `patchCells` scale. Higher = higher-elevation minerals. */
+export function crustScore(P: TerrainParams, bn: number, x: number, z: number, k: Kit = kit64): number {
+  return k.r((1 - CRUST_NOISE_WEIGHT) * (0.5 + 0.5 * bn) + CRUST_NOISE_WEIGHT * k.vnoise(x * P.crust.nf, z * P.crust.nf, P.sCrust));
+}
+
+/** Smooth weights per mineral in ELEVATION order (length 4, unused = 0, sum 1): successive smoothsteps across the baked thresholds. */
+export function crustWeights(P: TerrainParams, score: number, k: Kit = kit64): number[] {
+  const { thr, w } = P.crust;
+  const c: number[] = [1];
+  for (let i = 0; i < 3; i++) c.push(i < thr.length ? k.smoothstep(thr[i] - w, thr[i] + w, score) : 0);
+  c.push(0);
+  return [0, 1, 2, 3].map((i) => c[i] - c[i + 1]);
+}
+
 /**
  * The height formula. Metres. `pr` = progress per machine (missing → 0).
- * Order: warp → base fBm → M5 strata → + M3 fins + M6 mounds + M2 crusts − M4 canyon + relic piers → shore ramp → × rise.
+ * Order: warp → base fBm → M5 strata → + M3 fins + M6 mounds + M2 crusts + M8 domes + M9 crystals − M4 canyon + relic piers
+ * → shore ramp → + M7 columns (post-ramp, so they can stand on the coast) → × rise.
+ * p7..p9 trail the signature so older callers keep working.
  */
 export function heightCore(
   P: TerrainParams, rise: number, hs: number,
   p2: number, p3: number, p4: number, p5: number, p6: number,
   x: number, z: number, k: Kit = kit64,
+  p7 = 0, p8 = 0, p9 = 0,
 ): number {
-  const { fract, mix, smoothstep, fbm, vnoise } = k;
+  const { fract, mix, smoothstep, fbm, vnoise, hash, hexCell } = k;
   const M = P.machines;
 
-  // domain warp
-  const wx = fbm(x * P.warpFreq + P.oWxX, z * P.warpFreq + P.oWxZ, 2, P.lac, P.gain, P.sWx) * P.warpAmp;
-  const wz = fbm(x * P.warpFreq + P.oWzX, z * P.warpFreq + P.oWzZ, 2, P.lac, P.gain, P.sWz) * P.warpAmp;
-  const qx = x + wx, qz = z + wz;
+  // domain warp + base relief: bn in [-1,1]
+  const { qx, qz, bn, base } = warpBase(P, x, z, k);
 
-  // base relief: bn in [-1,1]
-  const f = fbm(qx * P.freq + P.oBaseX, qz * P.freq + P.oBaseZ, P.oct, P.lac, P.gain, P.sBase);
-  const bn = (f < 0 ? -1 : 1) * Math.pow(Math.abs(f), P.expo);
-  const base = 0.5 * P.A * bn;
+  // shared crust weights (elevation order); a machine with `minerals` is multiplied by the summed weight of its minerals
+  const cw = Object.keys(P.gates).length ? crustWeights(P, crustScore(P, bn, x, z, k), k) : [1, 0, 0, 0];
+  const gateOf = (id: MachineId) => { const g = P.gates[id]; return g ? g.reduce((a, c, j) => a + c * cw[j], 0) : 1; };
 
   // M5 strata terraces (smooth staircase blended in by progress)
   const m5 = M.M5!;
   const u5 = base / m5.bandH;
   const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
   const stepped = m5.bandH * (Math.floor(u5) + smoothstep(0.5 - w5, 0.5 + w5, fract(u5)));
-  const hb = base + p5 * m5.strength * (stepped - base);
+  const s5 = m5.strength * (P.gates.M5 ? m5.offMineral + (1 - m5.offMineral) * gateOf('M5') : 1);
+  const hb = base + p5 * s5 * (stepped - base);
 
   // M3 hoodoos / frost fins: only near the freezing point (heatSolvent ≈ 0.5), uplands only
   const m3 = M.M3!;
@@ -155,19 +212,37 @@ export function heightCore(
   const fin = Math.pow(Math.max(0.5 + 0.5 * Math.cos(TWO_PI * (along / m3.finSpacing)), 0), m3.finSharp);
   const bf3 = 1 / (m3.finSpacing * 1.5);
   const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx * bf3, qz * bf3, P.sM3b));
-  const h3 = p3 * g3 * up3 * m3.finHeight * fin * brk3;
+  const h3 = p3 * g3 * up3 * m3.finHeight * fin * brk3 * gateOf('M3');
 
   // M6 shell-stone mounds in the shallows (band of base elevation)
   const m6 = M.M6!;
   const band6 = 1 - smoothstep(0, 1, Math.abs(bn - m6.bandCenter) / m6.bandWidth);
   const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx * m6.moundFreq, qz * m6.moundFreq, P.sM6));
-  const h6 = p6 * m6.moundHeight * band6 * mound6;
+  const h6 = p6 * m6.moundHeight * band6 * mound6 * gateOf('M6');
 
   // M2 silicon crystal-crust rims at the sea margin (band of base elevation)
   const m2 = M.M2!;
   const band2 = 1 - smoothstep(0, 1, Math.abs(bn - m2.bandCenter) / m2.bandWidth);
   const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx * m2.patchFreq, qz * m2.patchFreq, P.sM2));
-  const h2 = p2 * m2.rimHeight * band2 * crust2;
+  const h2 = p2 * m2.rimHeight * band2 * crust2 * gateOf('M2');
+
+  // M8 granite domes and stacked-boulder tors on highlands: smooth domes, partly quantised into rounded stacked steps
+  const m8 = M.M8!;
+  const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx * m8.domeFreq, qz * m8.domeFreq, P.sM8));
+  const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
+  const dH = m8.domeHeight * dome;
+  const u8 = dH / m8.stackStep;
+  const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
+  const stack8 = m8.stackStep * (Math.floor(u8) + smoothstep(0.5 - w8, 0.5 + w8, fract(u8)));
+  const h8 = p8 * up8 * (dH + m8.stackShare * (stack8 - dH)) * gateOf('M8');
+
+  // M9 nitride crystals: sparse tall hexagonal spikes, one per chosen hex cell
+  const m9 = M.M9!;
+  const hx9 = hexCell(x / m9.size, z / m9.size);
+  const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, P.sM9a));
+  const tall9 = 0.5 + 0.5 * hash(hx9.ix, hx9.iz, P.sM9b);
+  const tip9 = Math.pow(Math.max(1 - hx9.hd / (0.5 * m9.girth), 0), m9.sharp);
+  const h9 = p9 * m9.spikeHeight * here9 * tall9 * tip9 * gateOf('M9');
 
   // M4 canyon: depth ∝ progress; walls steepen with dry heat
   const m4 = M.M4!;
@@ -186,7 +261,7 @@ export function heightCore(
     relic += pier.height * s * s;
   }
 
-  const hTerrain = hb + h3 + h6 + h2 - carve + relic;
+  const hTerrain = hb + h3 + h6 + h2 + h8 + h9 - carve + relic;
 
   // shore ramp near spawn: sloped plane from below to above any plausible sea level, blended in by a disc mask
   const R = P.ramp;
@@ -195,9 +270,18 @@ export function heightCore(
   const mask = 1 - smoothstep(R.rIn, R.rOut, dist);
   const t = rdx * R.ux + rdz * R.uz;
   const rampH = mix(-P.rampRange * P.A, P.rampRange * P.A, smoothstep(-R.rIn, R.rIn, t)) + P.rampDetail * base;
-  const h = mix(hTerrain, rampH, mask);
+  const hf = mix(hTerrain, rampH, mask);
 
-  return rise * h;
+  // M7 basalt columns: flat-topped hexagonal columns of hash-quantised height in the coastal band of the final surface, grooved at the joints.
+  // On the spawn ramp they keep only `rampKeep` of their size, so the walk to the sea stays gentle.
+  const m7 = M.M7!;
+  const hx7 = hexCell(x / m7.size, z / m7.size);
+  const band7 = 1 - smoothstep(0, 1, Math.abs(hf / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
+  const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
+  const col7 = m7.stepH * Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps) - m7.groove * rim7;
+  const h7 = p7 * band7 * (1 - mask * (1 - m7.rampKeep)) * col7 * gateOf('M7');
+
+  return rise * (hf + h7);
 }
 
 // ---------- construction ----------
@@ -213,7 +297,26 @@ const OFF: Record<MachineId, Record<string, number>> = {
   M4: { depth: 0, widthWet: 10, widthDry: 10, steepWet: 1, steepDry: 1, dryStart: 0.5, dryEnd: 1, meanderAmp: 0, meanderFreq: 0.01, offsetFrac: 0 },
   M5: { bandH: 10, sharpness: 0.5, strength: 0 },
   M6: { moundHeight: 0, bandCenter: 0, bandWidth: 1, moundFreq: 0.01, threshold: 0.5 },
+  M7: { stepH: 0, nSteps: 1, groove: 0, edge: 0.1, size: 10, bandCenter: 0, bandWidth: 1, rampKeep: 0 },
+  M8: { domeHeight: 0, domeFreq: 0.01, threshold: 0.5, uplandMin: 0, stackStep: 1, stackSharp: 0.5, stackShare: 0 },
+  M9: { spikeHeight: 0, size: 10, density: 0.1, girth: 0.5, sharp: 1 },
 };
+
+const SHARE_MARGIN = 0.001;   // realised shares stay this far inside the bounds, so rounding to whole cells can't leave them
+
+/** Target share per mineral (config order), sampled inside the bounds from the world seed and normalised to sum 1. */
+export function sampleShares(minerals: { share: [number, number] }[], rng: () => number): number[] {
+  const lo = minerals.map((m) => m.share[0] + SHARE_MARGIN), hi = minerals.map((m) => m.share[1] - SHARE_MARGIN);
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const s = minerals.map((_, i) => lo[i] + (hi[i] - lo[i]) * rng());
+    const sum = s.reduce((a, b) => a + b, 0);
+    const norm = s.map((x) => x / sum);
+    if (norm.every((x, i) => x >= lo[i] && x <= hi[i])) return norm;
+  }
+  const mid = minerals.map((m) => (m.share[0] + m.share[1]) / 2);   // fallback: bounds midpoints, normalised
+  const sum = mid.reduce((a, b) => a + b, 0);
+  return mid.map((x) => x / sum);
+}
 
 export function createTerrain(config: TerrainConfig, seed: number): Terrain {
   need('base', config.base, BASE_KEYS);
@@ -227,11 +330,14 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
   for (const id of MACHINE_IDS) machines[id] = OFF[id];
   for (const m of config.machines) {
     need(`machines.${m.id}.params`, m.params, MACHINE_KEYS[m.id]);
-    machines[m.id] = m.params;
+    machines[m.id] = m.id === 'M5' ? { offMineral: 1, ...m.params } : m.params;
   }
 
   const sBase = u32(), sWx = u32(), sWz = u32(), sM2 = u32(), sM3a = u32(), sM3b = u32(), sM4 = u32(), sM6 = u32();
   const oBaseX = off(), oBaseZ = off(), oWxX = off(), oWxZ = off(), oWzX = off(), oWzZ = off();
+  const frng = makeRng(seed)('forms');   // own stream: adding landforms must not shift the older terrain's random values
+  const fu32 = () => Math.floor(frng() * 4294967296) >>> 0;
+  const sM7 = fu32(), sM8 = fu32(), sM9a = fu32(), sM9b = fu32(), sCrust = fu32();
 
   // spawn / shore ramp: centre within 0.25·S of the middle, ramp direction seeded
   const sd = config.spawn.shoreDistance;
@@ -246,11 +352,50 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
   const m3Ang = rng() * Math.PI;
   const m4x = ((rng() * 2 - 1) * machines.M4!.offsetFrac) * S;
 
+  const crustMinerals = config.crust.minerals;
+  if (crustMinerals.length > 4) throw new Error('terrain config: at most 4 crust minerals per world');
+  const order = crustMinerals.map((_, i) => i).sort((a, b) => crustMinerals[a].elevation - crustMinerals[b].elevation || a - b);
+  const gateFor = (ids: string[] | undefined) => ids ? order.map((ci) => (ids.includes(crustMinerals[ci].id) ? 1 : 0)) : undefined;
+  const gates: TerrainParams['gates'] = {};
+  for (const m of config.machines) { const g = gateFor(m.minerals); if (g) gates[m.id] = g; }
+  const relics: Relic[] = [];
+  const piers: TerrainParams['piers'] = [];
+
+  const params: TerrainParams = {
+    patchSize: S,
+    A: b.amplitude, freq: b.frequency, oct: Math.floor(b.octaves), lac: b.lacunarity, gain: b.gain,
+    warpAmp: b.warpAmp, warpFreq: b.warpFreq, expo: b.exponent, rampRange: b.rampRange, rampDetail: b.rampDetail,
+    sBase, sWx, sWz, sM2, sM3a, sM3b, sM4, sM6, sM7, sM8, sM9a, sM9b, sCrust,
+    crust: { k: crustMinerals.length, thr: [], w: 0.03, nf: 1 / (Math.max(1, config.crust.patchCells) * (S / GRID)), order }, gates,
+    oBaseX, oBaseZ, oWxX, oWxZ, oWzX, oWzZ,
+    ramp, machines, m3dir: [Math.cos(m3Ang), Math.sin(m3Ang)], m4x, piers,
+  };
+
+  // bake the crust thresholds: quantiles of the score at the 64² cell centres, so realised shares land on the sampled shares
+  {
+    const sc = new Float64Array(CELLS);
+    for (let j = 0; j < GRID; j++) for (let i = 0; i < GRID; i++) {
+      const cxm = ((i + 0.5) / GRID - 0.5) * S, czm = ((j + 0.5) / GRID - 0.5) * S;
+      sc[j * GRID + i] = crustScore(params, warpBase(params, cxm, czm).bn, cxm, czm);
+    }
+    const sorted = Float64Array.from(sc).sort();
+    const shares = sampleShares(crustMinerals, makeRng(seed)('crust'));
+    let pos = 0;
+    const thr: number[] = [];
+    for (let j = 0; j < order.length - 1; j++) {
+      pos += Math.round(shares[order[j]] * CELLS);
+      thr.push((sorted[pos - 1] + sorted[pos]) / 2);
+    }
+    let gap = Infinity;
+    for (let j = 0; j + 1 < thr.length; j++) gap = Math.min(gap, thr[j + 1] - thr[j]);
+    params.crust.thr = thr;
+    params.crust.w = Math.min(0.03, 0.4 * gap);   // narrow enough that at most one blend is active between two thresholds, so argmax = region
+  }
+
   // relics (silicon only): seeded positions in a ring just outside the ramp disc, biased to the default camera's side
   // (yaw 0 looks down -z). The spawn sits within ~20 m of the ramp centre (the shore is where the ramp crosses sea level),
   // so the ring puts a few relics 60-150 m from spawn and ahead of it. If the cone falls outside the patch, any direction does.
-  const relics: Relic[] = [];
-  const piers: TerrainParams['piers'] = [];
+  // With `minerals` set, a relic takes the first try whose crust weight there is >= 0.5, else the best clear try.
   const rrng = makeRng(seed)('relics');
   const placed: [number, number][] = [];
   for (const rel of config.relics ?? []) {
@@ -258,13 +403,25 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
     for (let n = 0; n < rel.count; n++) {
       let x = 0, z = 0;
       const ring = ramp.rOut + rel.params.radius + 0.5 * (rel.params.span ?? 0);
+      const relGate = gateFor(rel.minerals);
+      const wOf = (px: number, pz: number) => {   // summed crust weight of the minerals this relic may stand on (1 if unrestricted)
+        if (!relGate) return 1;
+        const w = crustWeights(params, crustScore(params, warpBase(params, px, pz).bn, px, pz));
+        return relGate.reduce((a: number, g: number, j) => a + g * w[j], 0);
+      };
+      let best: { x: number; z: number; w: number } | undefined;
       for (let tries = 0; tries < 90; tries++) {
         const a = tries < 45 ? -Math.PI / 2 + (rrng() * 2 - 1) * (55 * Math.PI / 180) : rrng() * TWO_PI;
         const rho = ring + rrng() * 70;
         x = ramp.cx + Math.cos(a) * rho;
         z = ramp.cz + Math.sin(a) * rho;
         const clear = placed.every(([px, pz]) => Math.hypot(x - px, z - pz) > 40);
-        if (Math.abs(x) <= 0.46 * S && Math.abs(z) <= 0.46 * S && (clear || tries >= 75)) break;
+        const inside = Math.abs(x) <= 0.46 * S && Math.abs(z) <= 0.46 * S;
+        if (inside && (clear || tries >= 75)) {
+          const w = wOf(x, z);
+          if (w >= 0.5 || tries >= 75) { if (w < 0.5 && best) ({ x, z } = best); break; }   // good ground, or out of tries: take the best seen
+          if (clear && (!best || w > best.w)) best = { x, z, w };
+        }
       }
       placed.push([x, z]);
       const angle = rrng() * Math.PI;
@@ -278,20 +435,17 @@ export function createTerrain(config: TerrainConfig, seed: number): Terrain {
     }
   }
 
-  const params: TerrainParams = {
-    patchSize: S,
-    A: b.amplitude, freq: b.frequency, oct: Math.floor(b.octaves), lac: b.lacunarity, gain: b.gain,
-    warpAmp: b.warpAmp, warpFreq: b.warpFreq, expo: b.exponent, rampRange: b.rampRange, rampDetail: b.rampDetail,
-    sBase, sWx, sWz, sM2, sM3a, sM3b, sM4, sM6,
-    oBaseX, oBaseZ, oWxX, oWxZ, oWzX, oWzZ,
-    ramp, machines, m3dir: [Math.cos(m3Ang), Math.sin(m3Ang)], m4x, piers,
-  };
-
   const height = (x: number, z: number, st: TerrainState) => {
     const pr = st.progress;
-    return heightCore(params, st.rise, st.heatSolvent, pr.M2 ?? 0, pr.M3 ?? 0, pr.M4 ?? 0, pr.M5 ?? 0, pr.M6 ?? 0, x, z);
+    return heightCore(params, st.rise, st.heatSolvent, pr.M2 ?? 0, pr.M3 ?? 0, pr.M4 ?? 0, pr.M5 ?? 0, pr.M6 ?? 0, x, z, kit64, pr.M7 ?? 0, pr.M8 ?? 0, pr.M9 ?? 0);
   };
-  return { config, seed, params, relics, patchSize: S, height };
+  const crustWeightsAt = (x: number, z: number) => {
+    const w = crustWeights(params, crustScore(params, warpBase(params, x, z).bn, x, z));
+    const out = new Array<number>(crustMinerals.length).fill(0);
+    order.forEach((ci, j) => { out[ci] = w[j]; });
+    return out;
+  };
+  return { config, seed, params, relics, patchSize: S, height, crustWeights: crustWeightsAt };
 }
 
 // ---------- sea level and spawn ----------

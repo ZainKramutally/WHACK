@@ -4,7 +4,7 @@
 // through a lattice of the spawn view (the camera pose the player will have at build.spawnSec) onto the real analytic terrain,
 // so the grains land exactly where the finished frame shows ground. Everything is a pure function of the world, the run seed and
 // the box layout, so the same inputs give the same plan. render/generate.ts turns the plan into GPU attributes.
-import { seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
+import { seaLevelForCover, spawnPoint, type MachineId, type Terrain, type TerrainState } from '../gen/terrain';
 import { createFollowCamera } from '../player/camera';
 import { walkFloor } from '../player/logic';
 import { equilibriumSeaCover } from '../sim/limits';
@@ -133,7 +133,7 @@ export function* planSteps(inp: PlanInput): Generator<void, GenPlan> {
   const [s0, s1] = world.build.seasSec;
   const temperature = inp.start.temperature;
   const heat = heatSolvent(temperature, world.solvent.freezeC, world.terrain.heatSolventSpan);
-  const progressAll = (r: number) => { const p: Partial<Record<'M2' | 'M3' | 'M4' | 'M5' | 'M6', number>> = {}; for (const m of world.terrain.machines) p[m.id] = r; return p; };
+  const progressAll = (r: number) => { const p: Partial<Record<MachineId, number>> = {}; for (const m of world.terrain.machines) p[m.id] = r; return p; };
   const stateAt = (t: number): TerrainState => { const r = clamp01(t / dur); return { rise: r, progress: progressAll(r), heatSolvent: heat }; };
 
   // Spawn: exactly as main.ts spawnFor (finished terrain, the sea cover the sim starts with, unquantised).

@@ -6,13 +6,13 @@
 // patch carries the same height and colour out to the far plane, so no view ends at an empty edge.
 import * as THREE from 'three/webgpu';
 import {
-  Fn, float, vec3, uint, uniform, positionLocal, normalize, transformNormalToView, vertexStage,
+  Fn, float, vec3, vec4, uint, uniform, positionLocal, normalize, transformNormalToView, vertexStage,
   floor, fract, sqrt, abs, cos, max, min, mix, pow, sign, smoothstep, mod, mx_noise_float, clamp, sin, positionWorld, cameraPosition,
 } from 'three/tsl';
 import { worldMaterial, PAL } from './material';
 import type { VisualInputs } from '../worlds/types';
-import type { Terrain, TerrainState, MachineId } from '../gen/terrain';
-import { MACHINE_IDS } from '../gen/terrain';
+import type { Terrain, TerrainState, MachineId, TerrainParams } from '../gen/terrain';
+import { MACHINE_IDS, CRUST_NOISE_WEIGHT, SQRT3, HEX_H } from '../gen/terrain';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -78,34 +78,90 @@ const fbm = (x: N, z: N, oct: number, lac: number, gain: number, seed: number): 
 
 const bandOf = (bn: N, centre: number, width: number): N => F(1).sub(smoothstep(0, 1, abs(bn.sub(centre)).div(width)));
 
+/** Mirrors Kit.hexCell: branch-free hex tiling in cell units; hd = hex distance to the centre (0..0.5), ix/iz = int cell ids. */
+const hexCell = (u: N, v: N): { hd: N; ix: N; iz: N } => {
+  const av = v.div(SQRT3);
+  const cuA = floor(u.add(0.5)), cvA = floor(av.add(0.5));
+  const cuB = floor(u).add(0.5), cvB = floor(av).add(0.5);
+  const dxA = u.sub(cuA), dzA = v.sub(cvA.mul(SQRT3)), dxB = u.sub(cuB), dzB = v.sub(cvB.mul(SQRT3));
+  const dA = dxA.mul(dxA).add(dzA.mul(dzA)), dB = dxB.mul(dxB).add(dzB.mul(dzB));
+  const t = clamp(dA.sub(dB).mul(1e5).add(0.5), 0, 1);
+  const dx = mix(dxA, dxB, t), dz = mix(dzA, dzB, t);
+  const cu = mix(cuA, cuB, t), cv = mix(cvA, cvB, t);
+  const hd = max(max(abs(dx), abs(dx.mul(0.5).add(dz.mul(HEX_H)))), abs(dx.mul(-0.5).add(dz.mul(HEX_H))));
+  return { hd, ix: floor(cu.mul(2).add(0.5)).toInt(), iz: floor(cv.mul(2).add(0.5)).toInt() };
+};
+
+/** Mirrors warpBase: domain warp + base relief. */
+const warpBase = (P: TerrainParams, x: N, z: N): { qx: N; qz: N; bn: N; base: N } => {
+  const wx = fbm(x.mul(P.warpFreq).add(P.oWxX), z.mul(P.warpFreq).add(P.oWxZ), 2, P.lac, P.gain, P.sWx).mul(P.warpAmp);
+  const wz = fbm(x.mul(P.warpFreq).add(P.oWzX), z.mul(P.warpFreq).add(P.oWzZ), 2, P.lac, P.gain, P.sWz).mul(P.warpAmp);
+  const qx = x.add(wx), qz = z.add(wz);
+  const f = fbm(qx.mul(P.freq).add(P.oBaseX), qz.mul(P.freq).add(P.oBaseZ), P.oct, P.lac, P.gain, P.sBase);
+  const bn = sign(f).mul(pow(abs(f), P.expo));
+  return { qx, qz, bn, base: bn.mul(0.5 * P.A) };
+};
+
+/** Mirrors crustScore + crustWeights: weights per mineral in ELEVATION order (length = number of minerals, at most 4; sum 1). */
+const crustW = (P: TerrainParams, bn: N, x: N, z: N): N[] => {
+  const { thr, w, nf, k } = P.crust;
+  const nw = CRUST_NOISE_WEIGHT;
+  const score = bn.mul(0.5 * (1 - nw)).add(0.5 * (1 - nw)).add(vnoise(x.mul(nf), z.mul(nf), U(P.sCrust)).mul(nw));
+  const c: N[] = [F(1)];
+  for (let i = 0; i < k - 1; i++) c.push(smoothstep(thr[i] - w, thr[i] + w, score));
+  c.push(F(0));
+  return c.slice(0, k).map((ci, j) => ci.sub(c[j + 1]));
+};
+
+/**
+ * Crust weights node for the ground look: (x, z) → vec4 of mineral weights in `crust.minerals` (config) order, unused = 0, sum 1.
+ * CPU twin: terrain.crustWeights(x, z). Evaluates the base relief itself (3 fBm); in a fragment shader prefer evaluating at the vertex and passing it on.
+ */
+export function crustWeightsNode(terrain: Terrain): (x: N, z: N) => N {
+  const P = terrain.params;
+  return Fn(([x, z]: N[]) => {
+    const w = crustW(P, warpBase(P, x, z).bn, x, z);
+    const out: N[] = [F(0), F(0), F(0), F(0)];
+    P.crust.order.forEach((ci, j) => { out[ci] = w[j]; });
+    return vec4(out[0], out[1], out[2], out[3]);
+  }) as (x: N, z: N) => N;
+}
+
 /** Height node (metres) at world (x, z). Mirrors heightCore. */
 export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z: N) => N {
   const P = terrain.params;
   const M = P.machines;
-  const m2 = M.M2!, m3 = M.M3!, m4 = M.M4!, m5 = M.M5!, m6 = M.M6!;
+  const m2 = M.M2!, m3 = M.M3!, m4 = M.M4!, m5 = M.M5!, m6 = M.M6!, m7 = M.M7!, m8 = M.M8!, m9 = M.M9!;
   const R = P.ramp;
   const w5 = Math.max(0.02, 0.5 * (1 - m5.sharpness));
+  const w8 = Math.max(0.02, 0.5 * (1 - m8.stackSharp));
   const wf3 = 1 / (m3.finSpacing * 2.5);
   const bf3 = 1 / (m3.finSpacing * 1.5);
+  const gated = Object.keys(P.gates).length > 0;
 
   return Fn(([x, z]: N[]) => {
     const hs = u.heatSolvent;
     const p2 = u.progress.M2, p3 = u.progress.M3, p4 = u.progress.M4, p5 = u.progress.M5, p6 = u.progress.M6;
+    const p7 = u.progress.M7, p8 = u.progress.M8, p9 = u.progress.M9;
 
-    // domain warp
-    const wx = fbm(x.mul(P.warpFreq).add(P.oWxX), z.mul(P.warpFreq).add(P.oWxZ), 2, P.lac, P.gain, P.sWx).mul(P.warpAmp);
-    const wz = fbm(x.mul(P.warpFreq).add(P.oWzX), z.mul(P.warpFreq).add(P.oWzZ), 2, P.lac, P.gain, P.sWz).mul(P.warpAmp);
-    const qx = x.add(wx), qz = z.add(wz);
+    // domain warp + base relief
+    const { qx, qz, bn, base } = warpBase(P, x, z);
 
-    // base relief
-    const f = fbm(qx.mul(P.freq).add(P.oBaseX), qz.mul(P.freq).add(P.oBaseZ), P.oct, P.lac, P.gain, P.sBase);
-    const bn = sign(f).mul(pow(abs(f), P.expo));
-    const base = bn.mul(0.5 * P.A);
+    // shared crust weights; a machine with `minerals` is multiplied by the summed weight of its minerals
+    const cw = gated ? crustW(P, bn, x, z) : [];
+    const gateOf = (id: MachineId): N => {
+      const g = P.gates[id];
+      if (!g) return F(1);
+      let sum: N = F(0);
+      g.forEach((c, j) => { if (c) sum = sum.add(cw[j]); });
+      return sum;
+    };
 
     // M5 strata terraces
     const u5 = base.div(m5.bandH);
     const stepped = floor(u5).add(smoothstep(0.5 - w5, 0.5 + w5, fract(u5))).mul(m5.bandH);
-    const hb = base.add(p5.mul(m5.strength).mul(stepped.sub(base)));
+    const s5: N = P.gates.M5 ? gateOf('M5').mul(1 - m5.offMineral).add(m5.offMineral).mul(m5.strength) : F(m5.strength);
+    const hb = base.add(p5.mul(s5).mul(stepped.sub(base)));
 
     // M3 hoodoos / frost fins
     const g3 = F(1).sub(smoothstep(0, m3.halfWidth, abs(hs.sub(0.5))));
@@ -113,17 +169,32 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
     const along = qx.mul(P.m3dir[0]).add(qz.mul(P.m3dir[1])).add(fbm(qx.mul(wf3), qz.mul(wf3), 2, P.lac, P.gain, P.sM3a).mul(m3.finWarp));
     const fin = pow(max(cos(along.div(m3.finSpacing).mul(TWO_PI)).mul(0.5).add(0.5), 0), m3.finSharp);
     const brk3 = smoothstep(m3.breakup, m3.breakup + 0.25, vnoise(qx.mul(bf3), qz.mul(bf3), U(P.sM3b)));
-    const h3 = p3.mul(g3).mul(up3).mul(m3.finHeight).mul(fin).mul(brk3);
+    const h3 = p3.mul(g3).mul(up3).mul(m3.finHeight).mul(fin).mul(brk3).mul(gateOf('M3'));
 
     // M6 shell-stone mounds
     const band6 = bandOf(bn, m6.bandCenter, m6.bandWidth);
     const mound6 = smoothstep(m6.threshold, m6.threshold + 0.2, vnoise(qx.mul(m6.moundFreq), qz.mul(m6.moundFreq), U(P.sM6)));
-    const h6 = p6.mul(m6.moundHeight).mul(band6).mul(mound6);
+    const h6 = p6.mul(m6.moundHeight).mul(band6).mul(mound6).mul(gateOf('M6'));
 
     // M2 silicon crystal-crust rims
     const band2 = bandOf(bn, m2.bandCenter, m2.bandWidth);
     const crust2 = smoothstep(m2.threshold, m2.threshold + 0.25, vnoise(qx.mul(m2.patchFreq), qz.mul(m2.patchFreq), U(P.sM2)));
-    const h2 = p2.mul(m2.rimHeight).mul(band2).mul(crust2);
+    const h2 = p2.mul(m2.rimHeight).mul(band2).mul(crust2).mul(gateOf('M2'));
+
+    // M8 granite domes and tors
+    const dome = smoothstep(m8.threshold, m8.threshold + 0.3, vnoise(qx.mul(m8.domeFreq), qz.mul(m8.domeFreq), U(P.sM8)));
+    const up8 = smoothstep(m8.uplandMin, m8.uplandMin + 0.3, bn);
+    const dH = dome.mul(m8.domeHeight);
+    const u8 = dH.div(m8.stackStep);
+    const stack8 = floor(u8).add(smoothstep(0.5 - w8, 0.5 + w8, fract(u8))).mul(m8.stackStep);
+    const h8 = p8.mul(up8).mul(dH.add(stack8.sub(dH).mul(m8.stackShare))).mul(gateOf('M8'));
+
+    // M9 nitride crystals
+    const hx9 = hexCell(x.div(m9.size), z.div(m9.size));
+    const here9 = smoothstep(1 - m9.density, 1 - m9.density + 0.04, hash(hx9.ix, hx9.iz, U(P.sM9a)));
+    const tall9 = hash(hx9.ix, hx9.iz, U(P.sM9b)).mul(0.5).add(0.5);
+    const tip9 = pow(max(F(1).sub(hx9.hd.div(0.5 * m9.girth)), 0), m9.sharp);
+    const h9 = p9.mul(m9.spikeHeight).mul(here9).mul(tall9).mul(tip9).mul(gateOf('M9'));
 
     // M4 canyon
     const cx = fbm(z.mul(m4.meanderFreq).add(7.3), F(0.5), 2, P.lac, P.gain, P.sM4).mul(m4.meanderAmp).add(P.m4x);
@@ -141,7 +212,7 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
       relic = relic.add(s.mul(s).mul(pier.height));
     }
 
-    const hTerrain = hb.add(h3).add(h6).add(h2).sub(carve).add(relic);
+    const hTerrain = hb.add(h3).add(h6).add(h2).add(h8).add(h9).sub(carve).add(relic);
 
     // shore ramp
     const rdx = x.sub(R.cx), rdz = z.sub(R.cz);
@@ -149,9 +220,16 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
     const mask = F(1).sub(smoothstep(R.rIn, R.rOut, dist));
     const t = rdx.mul(R.ux).add(rdz.mul(R.uz));
     const rampH = mix(F(-P.rampRange * P.A), F(P.rampRange * P.A), smoothstep(-R.rIn, R.rIn, t)).add(base.mul(P.rampDetail));
-    const h = mix(hTerrain, rampH, mask);
+    const hf = mix(hTerrain, rampH, mask);
 
-    return u.rise.mul(h);
+    // M7 basalt columns
+    const hx7 = hexCell(x.div(m7.size), z.div(m7.size));
+    const band7 = bandOf(hf.div(0.5 * P.A), m7.bandCenter, m7.bandWidth);
+    const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
+    const col7 = floor(hash(hx7.ix, hx7.iz, U(P.sM7)).mul(m7.nSteps)).mul(m7.stepH).sub(rim7.mul(m7.groove));
+    const h7 = p7.mul(band7).mul(F(1).sub(mask.mul(1 - m7.rampKeep))).mul(col7).mul(gateOf('M7'));
+
+    return u.rise.mul(hf.add(h7));
   }) as (x: N, z: N) => N;
 }
 

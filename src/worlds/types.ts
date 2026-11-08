@@ -117,7 +117,7 @@ export interface TerrainConfig extends Sourced {
   base: Record<string, number>;       // fBm amplitude, octaves, warp…
   spawn: { shoreDistance: number };   // metres from spawn to the build's shoreline
   heatSolventSpan: number;            // °C mapped onto heatSolvent 0..1 (0.5 = solvent freezing point)
-  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number>; minerals?: string[] }[];   // minerals: crust ids the machine acts on, weighted by their local share (absent = everywhere)
+  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9'; rate: number; params: Record<string, number>; minerals?: string[] }[];   // minerals: crust ids the machine acts on, weighted by their local share (absent = everywhere)
   relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number>; minerals?: string[] }[];   // silicon only; seeded; minerals: crust ids they may stand on
   crust: CrustConfig;                 // seeded mineral map (src/gen/crust.ts)
 }
