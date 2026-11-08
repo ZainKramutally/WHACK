@@ -15,7 +15,8 @@ import { gasDensity } from '../sim/models';
 import { beadLayout, cellCentre } from './layout';
 import { floraForm } from './floraForm';
 import { crustFloraTint, crustRatchet, floraPigment } from './crustLook';
-import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixHex, seaStyle, skyStyle } from './palette';
+import { LOOK_PALETTES, WORLD_TONE, creatureColour, lookKind, mixHex, seaStyle, skyStyle } from './palette';
+import { cellPlateColour, otherGroundColour } from './cardGround';
 import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
 import type { PlacedPlant } from './flora';
 import { plantViewMaterial } from './material';
@@ -322,7 +323,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   function seaContent(other: WorldConfig, frozen = false) {
     const s = seaStyle(other.solvent.name, frozen, other.solvent.solidSinks);
-    const bed = new THREE.Mesh(geo(new THREE.BoxGeometry(2.4, 0.3, 2.4)), mat(groundColour(other.life.composition, 1)));
+    const bed = new THREE.Mesh(geo(new THREE.BoxGeometry(2.4, 0.3, 2.4)), mat(otherGroundColour(other)));
     bed.position.y = -0.15;
     const liquid = new THREE.Mesh(geo(new THREE.BoxGeometry(2.4, 0.7, 2.4)), mat(s.colour, { rough: 0.1, opacity: Math.max(0.3, s.opacity) }));
     liquid.position.y = 0.35;
@@ -330,7 +331,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function groundContent(other: WorldConfig) {
-    const base = groundColour(other.life.composition, 1);
+    const base = otherGroundColour(other);
     const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1.3, 1.3, 0.25, 24)), mat(base));
     plate.position.y = -0.12;
     turntable.add(plate);
@@ -377,7 +378,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const patch = inputs.terrain.patchSize ?? world.terrain.patchSize;
     const lib = floraLibrary();
     const kind = lookKind(inputs.world.composition);
-    const pal = floraPigment(LOOK_PALETTES[kind], kind === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress), crustFloraTint(inputs));   // the world's own pigment, so the card matches the plants outside
+    const rust = crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress);
+    const pal = floraPigment(LOOK_PALETTES[kind], kind === 'silicon', rust, crustFloraTint(inputs));   // the world's own pigment, so the card matches the plants outside
     const cc = cellCentre(cell, patch);
     const group = new THREE.Group();
     let reach = 0.3, top = 0.3;
@@ -411,7 +413,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       group.add(mesh);
       releaseOnClear(mesh);
     }
-    const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1, 1, 0.2, 24)), mat(groundColour(world.life.composition, 1)));
+    const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1, 1, 0.2, 24)), mat(cellPlateColour(inputs.terrain, cc.x, cc.z, rust, world)));
     const thick = Math.max(0.05, 0.08 * top);
     plate.scale.set(reach, thick, reach);
     plate.position.y = -0.1 * thick; // its top face at y = 0, where the plants stand
