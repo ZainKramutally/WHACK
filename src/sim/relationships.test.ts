@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CONSTANTS } from './constants';
 import { relationship, type RelBody } from './relationships';
 
 const body = (o: Partial<RelBody['plan']> = {}, lineage = 0, sociality = 0.5): RelBody => ({
@@ -12,8 +13,8 @@ describe('relationship (derived from bodies only)', () => {
   const hunter = body({ gapeSize: 2, diet: 0.9 });
   const prey = body({ scale: 1, defence: 0.5, diet: 0.1 });
   it('Eats iff the gape beats the prey size × (1 + defence); Afraid is the reverse', () => {
-    expect(relationship(hunter, prey, ctx).eats).toBeCloseTo(0.81);
-    expect(relationship(prey, hunter, ctx).afraid).toBeCloseTo(0.81);
+    expect(relationship(hunter, prey, ctx).eats).toBeCloseTo(0.9 ** CONSTANTS.DIET_EXP.value);
+    expect(relationship(prey, hunter, ctx).afraid).toBeCloseTo(0.9 ** CONSTANTS.DIET_EXP.value);
     expect(relationship(hunter, prey, ctx).afraid).toBe(0);
   });
   it('armour or size can put a prey out of reach', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BODY_GENES, makeFounders, mutate, type AnimalGenome } from './genome';
+import { CONSTANTS } from './constants';
 import { makeRng } from './rng';
 
 const comp = { c: 0.8, si: 0.05, o: 0.15 };
@@ -69,7 +70,7 @@ describe('mutate', () => {
     const diffs: number[] = [];
     for (let i = 0; i < 400; i++) for (const k of BODY_GENES) diffs.push(mutate(mid, rng).body[k] - 0.5);
     const sd = Math.sqrt(diffs.reduce((a, b) => a + b * b, 0) / diffs.length);
-    expect(sd).toBeGreaterThan(0.065);
-    expect(sd).toBeLessThan(0.085);
+    expect(sd).toBeGreaterThan(0.87 * CONSTANTS.SIGMA.value);
+    expect(sd).toBeLessThan(1.13 * CONSTANTS.SIGMA.value);
   });
 });
