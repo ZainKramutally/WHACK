@@ -7,6 +7,8 @@ import { PART, bellSphere, describe as describeFauna, pickBounds } from './adapt
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
 import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
+import { GROWN_FLOOR, drawnFactor, drawnLength, growthLength } from './growth';
+import { displayLength } from '../layout';
 import { creatureRing } from '../palette';
 
 const water: DevelopInputs = {
@@ -254,5 +256,23 @@ describe('picking a carbon floater', () => {
     expect(pb.r + 1e-9).toBeGreaterThanOrEqual(Math.abs(lay.centreY - pb.cy) + lay.radius);
     expect(pb.r + 1e-9).toBeGreaterThanOrEqual(Math.hypot(b.x, b.y - pb.cy, b.z) + b.r);
     expect(pickBounds(lay, null)).toEqual({ cy: lay.centreY, r: lay.radius });
+  });
+});
+
+describe('juveniles draw smaller (OrganismField.grown)', () => {
+  it('maps mass to length by a cube root, floored and monotone; missing, 0, NaN or full-grown is adult size', () => {
+    expect(growthLength(1)).toBe(1);
+    expect(growthLength(0.125)).toBeCloseTo(0.5, 9);
+    expect(growthLength(1e-6)).toBe(GROWN_FLOOR);
+    for (const bad of [undefined, 0, NaN, -1, 2]) expect(growthLength(bad)).toBe(1);
+    let prev = 0;
+    for (let m = 0.001; m <= 1; m += 0.01) { const g = growthLength(m); expect(g).toBeGreaterThanOrEqual(prev); prev = g; }
+  });
+
+  it('enters the display-size curve as the juvenile’s real length, smaller than its adult', () => {
+    expect(drawnLength(2, 0.5)).toBe(displayLength(1));
+    expect(drawnFactor(2, 0.5) * 2).toBeCloseTo(displayLength(1), 9);
+    expect(drawnFactor(2, 0.5)).toBeLessThan(drawnFactor(2, 1));
+    expect(drawnFactor(2, 1)).toBeCloseTo(displayLength(2) / 2, 9); // adults are drawn exactly as before
   });
 });

@@ -29,7 +29,7 @@ import { ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim
 import { unpackBodyPlan } from '../sim/plan';
 import { LOCOMOTION, type BodyPlan } from '../sim/develop';
 import {
-  armRods, beadLayout, capsuleLayout, displayFactor, displayLength, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
+  armRods, beadLayout, capsuleLayout, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
   armStance, bellPulse, fadeScale, gaitFoot, interpPose, limbPhaseOffset, rollAngle, swayOffset, swimWave,
@@ -44,6 +44,7 @@ import {
 import { RING_STRIDE, circleSection, gridIndex, ngonSection, setRing, writeRings, type Section } from './faunaLib/loft';
 import { PartBatch, partBatches } from './faunaLib/parts';
 import { SpeciesBook, rememberLook, type SpeciesLook } from './faunaLib/species';
+import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
 
 const len2 = (x: number, y: number) => Math.sqrt(x * x + y * y);
 const len3 = (x: number, y: number, z: number) => Math.sqrt(x * x + y * y + z * z);
@@ -84,6 +85,8 @@ const ALT_H0_M = 1500;
 
 interface Entry {
   alt?: number; // physical altitude (m), eased toward the snapshot value so a climb never pops
+  /** Drawn length as a fraction of adult (faunaLib/growth: grown^(1/3), floored), eased so growth never pops. */
+  g: number;
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -350,7 +353,7 @@ export function createFauna(app: App): FaunaPart {
 
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
-      layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false,
+      layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -390,7 +393,7 @@ export function createFauna(app: App): FaunaPart {
   ): number {
     const lay = e.layout, src = e.flat, nb = lay.beads.length, nBody = lay.nBody;
     const out = scratch;
-    const moving = Math.min(1, e.speed / (0.12 * displayLength(e.scale))); // 0 idle … 1 at 0.12 body lengths per second
+    const moving = Math.min(1, e.speed / (0.12 * drawnLength(e.scale, e.g))); // 0 idle … 1 at 0.12 body lengths per second
     // Body beads: copy, then bend by locomotion mode. (Hoverers ride under a bell: the body only breathes a little.)
     for (let i = 0; i < nBody; i++) {
       const f = i * 5;
@@ -452,7 +455,7 @@ export function createFauna(app: App): FaunaPart {
   ): void {
     const lay = e.layout, R = lay.radial!;
     const src = e.rods, out = rodScratch, eyes = scratch;
-    const moving = Math.min(1, e.speed / (0.12 * displayLength(e.scale)));
+    const moving = Math.min(1, e.speed / (0.12 * drawnLength(e.scale, e.g)));
     const pulse = mode === LOCOMOTION.hover ? bellPulse(t, e.id) : 1;
     for (let i = 0; i < R.nHubRods * ROD_STRIDE; i++) out[i] = src[i];
     if (pulse !== 1) for (let i = 0; i < R.nTiers; i++) out[i * ROD_STRIDE + 6] *= pulse;
@@ -698,7 +701,7 @@ export function createFauna(app: App): FaunaPart {
   /** Tendrils hanging from a ring of radius rr around (cx, cy, cz), trailing behind the heading with speed. */
   function tendrils(cx: number, cy: number, cz: number, rr: number, len: number, t: number, lattice: boolean, armR: number): void {
     const e = ENT;
-    const lag = 0.18 + Math.min(1, e.speed / Math.max(0.1, displayLength(e.scale) * 0.12)) * 0.5;
+    const lag = 0.18 + Math.min(1, e.speed / Math.max(0.1, drawnLength(e.scale, e.g) * 0.12)) * 0.5;
     const sl = len / TENDRIL_LINKS;
     const glowing = e.slotGlow[SLOT.glow] > 0;
     for (let i = 0; i < TENDRILS; i++) {
@@ -866,10 +869,10 @@ export function createFauna(app: App): FaunaPart {
   function draw(e: Entry, alpha: number, mode: number, live: boolean, tier: number) {
     e.tier = 0; e.bell = false;
     const ground = fHeight(e.x, e.z);
-    const s = fBoost * displayFactor(e.scale) * alpha;
+    const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
     let y0 = ground;
-    if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + displayLength(e.scale) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
+    if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + drawnLength(e.scale, e.g) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
     else if (mode === LOCOMOTION.swim && fSeaThere && ground < fSea) y0 = ground + (fSea - ground) * 0.35;
 
     const lay = e.layout;
@@ -882,7 +885,7 @@ export function createFauna(app: App): FaunaPart {
     if (tier === 0) { drawFar(e, s, y0, cosH, sinH, e.flat, e.rods); return; }
     fPosed++;
     e.tier = 1;
-    const s0 = fBoost * displayFactor(e.scale);
+    const s0 = fBoost * drawnFactor(e.scale, e.g);
     if (lay.radial) animateRadial(e, ft, s0, mode, fHeight, y0, cosH, sinH);
     else animate(e, ft, s0, mode, fHeight, y0, cosH, sinH);
     if (tier === 2) {
@@ -1020,6 +1023,8 @@ export function createFauna(app: App): FaunaPart {
         e.mode = mode;
         const altNow = buf[o + OrganismField.altitude];
         e.alt = e.alt === undefined ? altNow : e.alt + (altNow - e.alt) * 0.1;
+        const gNow = growthLength(buf[o + OrganismField.grown]);
+        e.g = e.born === t ? gNow : e.g + (gNow - e.g) * 0.1;
         if (snapshot) {
           const tx = patchToWorld(buf[o + OrganismField.x], patch), tz = patchToWorld(buf[o + OrganismField.y], patch);
           const th = buf[o + OrganismField.heading];
@@ -1038,10 +1043,10 @@ export function createFauna(app: App): FaunaPart {
         const pose = interpPose(P0, P1, (t - e.snapT) / e.dtSnap);
         e.x = pose.x; e.z = pose.z; e.h = pose.h;
         // Gait advances with distance: cadence follows speed relative to body length.
-        const rel = e.speed / displayLength(e.scale);
+        const rel = e.speed / drawnLength(e.scale, e.g);
         e.gait += dt * Math.min(3, 1.2 + 6 * rel);
         if (mode === LOCOMOTION.swim && e.layout.radial) {
-          e.roll = (e.roll + rollAngle(e.speed * dt / (boost * displayFactor(e.scale)), e.layout.radial.rollRadius)) % (2 * Math.PI);
+          e.roll = (e.roll + rollAngle(e.speed * dt / (boost * drawnFactor(e.scale, e.g)), e.layout.radial.rollRadius)) % (2 * Math.PI);
         }
         const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
         e.rank = d2 < R2 ? d2 * (e.tier === 2 ? LOFT_STICK : 1) : Infinity;
