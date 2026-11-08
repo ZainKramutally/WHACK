@@ -94,3 +94,4 @@
 - 02:46 16: merged #74 (sticky creature lock, NEW SPECIES label until found; swimmers pickable from above water).
 - 02:52 16: merged loud NEW SPECIES lock (gold, pulse, ping; UNCLASSIFIED dim). #75 (swimmer name) with sim-worker.
 - 02:55 16: merged #75 (mode-aware species mapping; movement words by mode and traits, Diver for swim+fly).
+- 03:11 16: merged #76 pass 6 (seeded founder lineage, seeded genus names); between-run BC carbon 0.07→~0.38, silicon 0.09→~0.27; names never repeat. Demo-seed names changed.
