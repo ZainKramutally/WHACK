@@ -27,11 +27,11 @@ Proposed minerals. Agents may tune the numbers, and every value needs `why` plus
 |---|---|---|---|---|---|---|
 | Carbon | Basalt | 0.25 | 0.45–0.65 | 1.4, 1.4, 1.4 | yes (iron-rich, rusts red) | Dark volcanic rock rich in iron; it weathers fast and feeds life |
 | Carbon | Granite | 0.75 | 0.35–0.55 | 0.6, 0.6, 0.6 | no | Pale, silica-rich rock that rides high as continents and weathers slowly |
-| Silicon | Silicide | 0.25 | 0.30–0.50 | 1, 1.6, 1 | yes (turns to silica) | Metallic grains of iron silicide, as in the most oxygen-poor meteorites |
+| Silicon | Silicide | 0.25 | 0.30–0.50 | 1, 1.6, 1 | yes (turns to silica) | Metallic grains of silicon-bearing iron, as in the most oxygen-poor meteorites |
 | Silicon | Nitride (nierite) | 0.5 | 0.25–0.40 | 1, 1.2, 1 | no | Hard silicon-nitride rock, found in oxygen-poor meteorites |
 | Silicon | Water ice | 0.9 | 0.15–0.30 | 0, 0, 0 | no | Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it |
 
-Carbon `rustOxygen` is about 2% (`assumption: true`). Silicon's value hardly matters, because its oxygen is pinned at 0, but the box uses it.
+Carbon `rustOxygen` is 1% (`assumption: true`). Its order of magnitude comes from `rye1998`: paleosols keep their iron above about 0.01–0.02 PAL, roughly 0.2–0.4% absolute. Silicon's value hardly matters, because its oxygen is pinned at 0, but the box uses it.
 
 ## API (`src/gen/crust.ts`)
 
@@ -81,12 +81,16 @@ export function rust(world: WorldConfig, oxygenPct: number): number;   // 0..1
 - **Designed:** the elevation rule and the renormalisation (the crust redistributes nutrients and adds none).
 - **Speculative:** the silicon minerals as this world's feedstock.
 
-## Sources to verify (scout)
+## Sources (scout, 2026-11-08)
 
-- Basalt vs granite weathering rates and nutrient release (Dessert et al. 2003, *Chemical Geology*).
-- Continental crust is granitic and oceanic crust is basaltic, and the density difference lifts continents (for example Rudnick and Gao 2003, *Treatise on Geochemistry*).
-- Red beds and oxidised iron appear after the Great Oxidation Event, and the oxygen level at which iron-rich rock rusts (for example Holland 2006, *Phil. Trans. R. Soc. B*).
-- Silicides and silicon-bearing metal in enstatite chondrites (for example Keil 1968, *JGR*). `lee1995` (nierite) is already in `sources.ts`.
+The scout verified the bibliographic data and DOIs. It did not verify the supporting facts, which it recalled from memory. Every value they support therefore stays `assumption: true`, and the why sentences stay qualitative.
+
+- `dessert2003` (10.1016/j.chemgeo.2002.10.001): basalt weathers faster than granite. The exact ratio is unverified.
+- `rudnick2003` (10.1016/b978-0-08-095975-7.00301-6): continents are felsic, and ocean floors are basaltic.
+- `holland2006` (10.1098/rstb.2006.1838): red beds appear after the Great Oxidation Event.
+- `rye1998` (10.2475/ajs.298.8.621): the order of magnitude for `rustOxygen`.
+- `keil1968` (10.1029/jb073i022p06945): enstatite chondrites contain silicon-bearing metal and nitrides. `lee1995` covers nierite. The scout found no source for the names perryite or suessite, so we don't use them.
+- Magnetism (rejected below): there is no source in config. It's textbook rock magnetism (Dunlop and Özdemir 1997).
 
 ## Rejected
 
