@@ -27,7 +27,7 @@ import { PAL, PIXEL, worldMaterial } from './material';
 import { INTERNAL_H } from './post';
 import { createHeightNode, createTerrainMesh, createTerrainUniforms } from './terrainNode';
 import {
-  alpha, BOX_FADE, BOX_STOP, D0, hermite, LIFT, planSteps, PULSE0, PULSE_DT, refineEarly, REVEAL_RES, spawnCameraPose, sstep,
+  alpha, BOX_FADE, fitInstanceData, BOX_STOP, D0, hermite, LIFT, planSteps, PULSE0, PULSE_DT, refineEarly, REVEAL_RES, spawnCameraPose, sstep,
   type CamPose, type GenPlan, type PlanInput, type Vec3,
 } from './generatePlan';
 
@@ -94,6 +94,8 @@ interface Primed {
   tu: ReturnType<typeof createTerrainUniforms>;
   U: Record<string, N>;
   pxPerM0: number; boxSize: number;
+  /** What the node graph was built for: a re-plan may reuse these GPU objects only when all three match. */
+  seed: number; W: number; H: number;
   dispose(): void;
 }
 
@@ -172,19 +174,50 @@ export function createGenerate(app: App): Generate {
 
   async function finish(a: PrimeArgs, key: string, plan: GenPlan, inp: PlanInput) {
     try {
-      const p = build(a, key, plan, inp);
-      scene.add(p.group);
-      p.group.visible = true;
-      await app.compile(p.group, camera);
-      p.group.visible = false;
+      const p = obtain(a, key, plan, inp);
+      if (p.fresh) {
+        scene.add(p.p.group);
+        p.p.group.visible = true;
+        await app.compile(p.p.group, camera);
+        p.p.group.visible = false;
+      }
       // A plan that finishes after Generate was clicked (the sliders glided, so an earlier job was still running) is stale:
       // replacing `primed` now would dispose the group the transition is drawing and cut the whole tide in one frame.
-      if (active) { p.dispose(); return; }
-      store(slotOf(a.worldId, a.crust), p);
+      if (active) { if (p.fresh) p.p.dispose(); return; }
+      store(slotOf(a.worldId, a.crust), p.p);
     } catch (e) {
       console.warn('generate: prime failed, the plain fade will be used', e);
     }
     if (pending) { const n = pending; pending = null; prime(n.worldId, n.terrain, n.seed, n.requested, n.handle, n.crust); }
+  }
+
+  /** The slot's existing GPU objects with the new plan swapped in, or a fresh build. The node graph depends only on the terrain,
+   *  seed and viewport (all part of the reuse test), never on the plan, so a re-plan for a new start temperature only needs new
+   *  reveal texels and instance data: no new NodeMaterials, no app.compile. */
+  function obtain(a: PrimeArgs, key: string, plan: GenPlan, inp: PlanInput): { p: Primed; fresh: boolean } {
+    const old = primedBy.get(slotOf(a.worldId, a.crust));
+    const { W, H } = dims();
+    if (old && old !== running && old.terrain === a.terrain && old.seed === a.seed && old.W === W && old.H === H) {
+      const rv = old.revealTex.image.data as Float32Array;
+      rv.set(plan.reveal);
+      plan.reveal = rv;   // run() edits plan arrays in place and expects them to be the GPU-backed ones
+      old.revealTex.needsUpdate = true;
+      for (const [name, arr] of [['aA', plan.A], ['aB', plan.B], ['aC', plan.C], ['aD', plan.D]] as const) {
+        const at = old.geo.getAttribute(name) as THREE.InstancedBufferAttribute;
+        const fit = fitInstanceData(at.array as Float32Array, arr);
+        plan[name === 'aA' ? 'A' : name === 'aB' ? 'B' : name === 'aC' ? 'C' : 'D'] = fit.array;
+        if (fit.reused) at.needsUpdate = true;
+        else {
+          const n = new THREE.InstancedBufferAttribute(fit.array, 4);
+          n.setUsage(THREE.DynamicDrawUsage);
+          old.geo.setAttribute(name, n);
+        }
+      }
+      old.geo.instanceCount = plan.N;
+      old.plan = plan; old.key = key; old.boxSize = inp.boxSize;
+      return { p: old, fresh: false };
+    }
+    return { p: build(a, key, plan, inp), fresh: true };
   }
 
   /** GPU objects for a plan: the ghost slab, the reveal field and the grains. */
@@ -282,6 +315,7 @@ export function createGenerate(app: App): Generate {
     const boxSize = inp.boxSize;
     return {
       key, plan, group, geo, ghostMat, grainMat, revealTex, ghostGeo: terrainMesh.geometry, terrain: a.terrain, tu, U,
+      seed: a.seed, W, H,
       pxPerM0: H / (2 * D0 * Math.tan((camera.fov * Math.PI) / 360)), boxSize,
       dispose() {
         scene.remove(group);
@@ -321,8 +355,9 @@ export function createGenerate(app: App): Generate {
         const it = planSteps(inp);
         let r = it.next();
         while (!r.done) r = it.next();
-        p = build(a, key, r.value, inp);
-        scene.add(p.group);
+        const got = obtain(a, key, r.value, inp);
+        p = got.p;
+        if (got.fresh) scene.add(p.group);
         store(slot, p);
       } catch (e) {
         console.warn('generate: plan failed, using the plain fade', e);

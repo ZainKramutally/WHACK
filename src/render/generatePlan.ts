@@ -379,3 +379,10 @@ export function refineEarly(plan: GenPlan, terrain: Terrain, gen0World: Vec3[], 
   void gen;
   return upto;
 }
+
+/** Copy `src` into the existing instance array when it fits (in place, `reused: true`); else return `src` itself (a new, larger buffer). */
+export function fitInstanceData(dst: Float32Array, src: Float32Array): { array: Float32Array; reused: boolean } {
+  if (src.length > dst.length) return { array: src, reused: false };
+  dst.set(src);
+  return { array: dst, reused: true };
+}

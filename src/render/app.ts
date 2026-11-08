@@ -15,7 +15,7 @@ export interface App {
   /** DOM overlay root (#ui). pointer-events: none on the root; set `auto` on your own children. */
   ui: HTMLElement;
   /** Called every frame before render, in registration order. Returns an unregister function. */
-  registerFrameHook(fn: FrameHook): () => void;
+  registerFrameHook(fn: FrameHook, opts?: { whileSuspended?: boolean }): () => void;
   /** Swap the VisualInputs source (default: a stub). Called once per frame. */
   setVisualInputsSource(fn: () => VisualInputs): void;
   /** Latest VisualInputs read this frame. */
@@ -30,7 +30,7 @@ export interface App {
   registerOverlay(fn: OverlayDraw): () => void;
   /** Compile a scene's materials for both the post pass target and the canvas. Use instead of renderer.compileAsync. */
   compile(scene?: THREE.Object3D, camera?: THREE.Camera): Promise<void>;
-  /** While true the frame loop still runs the inputs source and frame hooks but skips post.update, the render step and overlays
+  /** While true the frame loop skips the inputs source, frame hooks (except those registered with `whileSuspended`) and post.update, the render step and overlays
    *  (the GPU work). Used while the opaque selection screen covers the canvas. compile() is unaffected. */
   setSuspended(on: boolean): void;
 }
@@ -80,6 +80,7 @@ export async function createApp(): Promise<App> {
   };
 
   const hooks: FrameHook[] = [];
+  const awake = new Set<FrameHook>();   // hooks that keep running while suspended
   /** Frame callbacks (inputs source, hooks, post update, render step, overlays) that have thrown: warned once each, still called. */
   const failed = new WeakSet<object>();
   const warnOnce = (what: string, fn: object, err: unknown) => {
@@ -119,8 +120,12 @@ export async function createApp(): Promise<App> {
     // A throwing inputs source, hook, post update, render step or overlay must not stop the rest of the frame (later
     // hooks, post, render, the held target's restore) and freeze the picture: warn once per callback and keep calling
     // it, so one bad frame doesn't end the run. A failed source keeps the previous frame's inputs.
-    try { inputs = source(); } catch (err) { warnOnce('inputs source', source, err); }
+    // Suspended = the opaque selection screen covers the canvas: nothing visible depends on the source or hooks, and
+    // start() resumes with a fresh source, so skip them (the world step alone costs sky/sea/fauna/flora updates).
+    if (suspended && !awake.size) return;
+    if (!suspended) { try { inputs = source(); } catch (err) { warnOnce('inputs source', source, err); } }
     for (const h of hooks) {
+      if (suspended && !awake.has(h)) continue;
       try { h(dt, now / 1000, inputs); } catch (err) { warnOnce('frame hook', h, err); }
     }
     if (suspended) return;
@@ -146,9 +151,11 @@ export async function createApp(): Promise<App> {
     scene,
     camera,
     ui,
-    registerFrameHook(fn) {
+    registerFrameHook(fn, opts) {
       hooks.push(fn);
+      if (opts?.whileSuspended) awake.add(fn);
       return () => {
+        awake.delete(fn);
         const i = hooks.indexOf(fn);
         if (i >= 0) hooks.splice(i, 1);
       };

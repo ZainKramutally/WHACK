@@ -680,6 +680,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   // ---- Main loop ----
   let last = performance.now();
+  // Last-written tag state: DOM writes only on change (each write dirties style/layout).
+  let tlHidden: boolean | null = null, tlText = '', tlTop = '', blHidden: boolean | null = null, blText = '';
   function frame(now: number) {
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -689,11 +691,15 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     box.frame(now, launching ? dt * boxSpeed : dt, world, state.conditions);
     if (!launching) {
       const tag = box.liquidTag(world), tl = r('tagLiq');
-      tl.hidden = !tag;
-      if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 50px))`; }
+      if (tlHidden !== !tag) { tlHidden = !tag; tl.hidden = !tag; }
+      if (tag) {
+        if (tlText !== tag.text) { tlText = tag.text; tl.textContent = tag.text; }
+        const top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 50px))`;
+        if (tlTop !== top) { tlTop = top; tl.style.top = top; }
+      }
       const bt = box.bedTag(world), bl = r('tagBed');
-      bl.hidden = !bt;
-      if (bt) bl.textContent = bt.text;
+      if (blHidden !== !bt) { blHidden = !bt; bl.hidden = !bt; }
+      if (bt && blText !== bt.text) { blText = bt.text; bl.textContent = bt.text; }
     }
     raf = requestAnimationFrame(frame);
   }
