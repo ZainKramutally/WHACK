@@ -117,6 +117,17 @@ Each mineral brings its own rock features. Every landform is a machine in the on
 - **Ground inspect card (not shipped).** `InspectTarget` `ground` carries an optional `point: { x, z }`, and the card code can show `mineralAt` there. But the owner ruling of 2026-11-07 says clicking the sea, ground or sky opens nothing (`main.ts` onInspect), so this path can't be reached. The Ground fact row in the Conditions panel names the minerals instead. Lifting the ruling is a one-line change in `main.ts`.
 - **Stretch: plate tint.** Creature plates take a slight tint from the home cell's mineral, as decoration only.
 
+## Rock chips on the selection screen (owner ruling 2026-11-08)
+
+Under the particle box sits one optional row of chips: `Rock: [Volcanic] [Continental] [Iron-rich]` on carbon, and `[Metal-rich] [Nitride]` on silicon.
+- **Default.** No chip is picked, which gives the natural seeded mix, so the rehearsed demo is unchanged.
+- **What a pick does.** The picked mineral takes `crust.favour` of the patch, and the other minerals share the rest in proportion to the midpoints of their share bounds. The bed, the terrain landforms, the ground colours, the palette, fertility and the box all follow, because they all read the same crust.
+- **Picking again** deselects the chip.
+- **Data.** Chips come from `MineralDef.pick` (label and hint) in config. They are only on minerals that feed life: water ice can't be picked, because founders start in the shallows and an icy shore would starve them.
+- **Mechanism: a derived world.** `withCrustChoice(world, mineralId?)` is pure and memoised per (world, choice). It returns the same object when no rock is picked, and otherwise a WorldConfig with adjusted share bounds. Every part of a run uses that derived world: terrain, the sim worker, VisualInputs, the box and the caches. Object identity keeps the caches correct.
+- **Bus.** `selection:changed` and `world:selected` carry `crust?: string`.
+- **Not a condition slider.** The crust is the planet's starting rock and doesn't change during a run, so the three-slider rule stands.
+
 ## Honesty box additions
 
 - **Seeded:** the crust map.

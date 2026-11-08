@@ -104,12 +104,14 @@ export interface MineralDef extends Sourced {
   elevation: number;                             // 0..1 by height rank in the patch: 0 = lowest ground, 1 = highest
   supply: { c: number; si: number; o: number };  // nutrient multiplier per cell (1 = the world's base life.ledger supply); the patch mean is renormalised to base
   oxidises: boolean;                             // reacts with free oxygen (iron-bearing rock rusts; silicide turns to silica)
+  pick?: { label: string; hint: string };        // selection-screen rock chip (e.g. 'Volcanic', 'A young volcanic crust: dark basalt, fertile soil'); only on minerals that feed life
 }
 
 export interface CrustConfig extends Sourced {
   minerals: MineralDef[];                        // at least one; ids unique
   patchCells: number;                            // typical mineral patch size, in grid cells (noise scale of the map)
   rustOxygen: number;                            // oxygen % at which oxidising rock is fully oxidised at the surface
+  favour?: number;                               // share of the patch a picked rock takes (the other minerals share the rest by their midpoints)
 }
 
 export interface TerrainConfig extends Sourced {
@@ -185,8 +187,8 @@ export interface NewFormEvent { binId: number; name: string; organismId: number 
 
 /** Typed bus events (CLAUDE.md "Bus events"). */
 export interface BusEvents {
-  'selection:changed': { worldId: WorldId; conditions: Conditions };
-  'world:selected': { worldId: WorldId; requested: Conditions; seed?: number };   // seed: this run's seed (default world.demoSeed)
+  'selection:changed': { worldId: WorldId; conditions: Conditions; crust?: string };   // crust: picked mineral id (rock chip), absent = the natural mix
+  'world:selected': { worldId: WorldId; requested: Conditions; seed?: number; crust?: string };   // seed: this run's seed (default world.demoSeed); crust: picked mineral id, absent = natural mix
   'build:life': { worldId: WorldId };
   'build:complete': { worldId: WorldId };
   'sim:snapshot': SimSnapshot;
