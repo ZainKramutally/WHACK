@@ -26,7 +26,7 @@ export function buildGroundTexture(size = 2048): any {
 }
 
 /** Axis coordinates: 2.5 m cells at the origin, 10 m at the edge of the walkable disc, then fast growth out to 9.5 km. */
-function axis(extent = 9500): number[] {
+export function axis(extent = 9500): number[] {
   const half: number[] = [0];
   let x = 0;
   while (x < extent) {
@@ -58,7 +58,7 @@ export function buildTerrain(): any {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeVertexNormals();
-  const mesh = new THREE.Mesh(g, worldMaterial({ colorNode: groundColor(positionWorld.xz), bounce: false, lampPool: true }));
+  const mesh = new THREE.Mesh(g, worldMaterial({ colorNode: groundColor(positionWorld.xz), bounce: false, lampPool: true, surface: 'ground' }));
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;
   return mesh;

@@ -6,6 +6,7 @@ import { heightAt } from './field';
 import { paint, tube, merge, lerpHex } from './geo';
 import { worldMaterial } from './material';
 import { ARCH2, RIBS } from './layout';
+import { ENV } from './env/active';
 
 function strata(y: number, h: number, seed: number): [number, number, number] {
   const band = Math.floor((y / h) * 9 + fbm(y * 0.02, seed, 2, seed) * 1.5);
@@ -52,7 +53,15 @@ export function arch(cx: number, cz: number, span: number, height: number, thick
     radii.push(thick * (0.62 + 0.75 * Math.pow(1 - Math.sin(a), 2.2)));
   }
   const g = tube(pts, radii, 22, (i, j) => 1 + 0.18 * fbm(i * 0.18, j * 0.6, 3, seed), true);
-  return paint(g, (pp, n) => (n.y > 0.75 ? lerpHex(PALETTE.redLight, PALETTE.blush, 0.3) : strata(pp.y - base, height, seed)));
+  const ice = ENV.ground.relicIce;
+  return paint(g, (pp, n) => {
+    const rock = n.y > 0.75 ? lerpHex(PALETTE.redLight, PALETTE.blush, 0.3) : strata(pp.y - base, height, seed);
+    if (ice <= 0) return rock;
+    // relic water-ice bedrock (silicon): blue-white ice with darker blue annual-layer bands, not rock strata
+    const band = Math.floor(((pp.y - base) / height) * 14 + fbm(pp.x * 0.004, pp.z * 0.004, 2, seed) * 2);
+    const iceCol = n.y > 0.6 ? lerpHex(PALETTE.bone, PALETTE.redLight, 0.2) : lerpHex(PALETTE.bone, PALETTE.blush, band % 3 === 0 ? 0.85 : band % 3 === 1 ? 0.25 : 0.5);
+    return [rock[0] + (iceCol[0] - rock[0]) * ice, rock[1] + (iceCol[1] - rock[1]) * ice, rock[2] + (iceCol[2] - rock[2]) * ice];
+  });
 }
 
 /** Mountain range: an arc-shaped ridge strip at distance R spanning angles [a0, a1] (radians from -Z, + = left). */
@@ -83,7 +92,7 @@ export function range(R: number, depth: number, a0: number, a1: number, H: numbe
 
 export function buildLandforms(): any {
   const group = new THREE.Group();
-  const mat = worldMaterial({ bounce: true });
+  const mat = worldMaterial({ bounce: true, surface: 'rock' });
   const add = (geo: any, shadow = true) => {
     const m = new THREE.Mesh(geo, mat);
     m.castShadow = shadow; m.receiveShadow = true;

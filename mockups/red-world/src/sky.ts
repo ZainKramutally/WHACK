@@ -5,6 +5,9 @@ import * as THREE from 'three/webgpu';
 import { Fn, float, vec3, mix, smoothstep, positionWorldDirection, dot, normalize, floor, clamp, length, max, mx_noise_float } from 'three/tsl';
 import { PALETTE } from './contracts';
 import { PIXEL, bayer4, FOG } from './material';
+import { ENV } from './env/active';
+
+const [MOON_A, MOON_B] = ENV.sky.moonStrength;
 
 const MOON_SUN = vec3(-0.62, 0.42, 0.66).normalize();
 const c3 = (hex: number) => { const c = new THREE.Color(hex); return vec3(c.r, c.g, c.b); };
@@ -33,7 +36,7 @@ function moon(d: any, sky: any, azDeg: number, elDeg: number, radiusDeg: number,
   let maria: any = smoothstep(0.05, 0.35, mx_noise_float(n.mul(2.3).add(seed)).add(mx_noise_float(n.mul(5.1).add(seed * 3)).mul(0.35)));
   if (PIXEL) maria = floor(maria.mul(2).add(0.5)).div(2);
   const limb = mix(0.86, 1.0, z.pow(0.6));
-  const bright = mix(c3(PALETTE.bone), c3(PALETTE.blush), maria.mul(0.28)).mul(limb);
+  const bright = mix(c3(ENV.sky.moonTint), c3(PALETTE.blush), maria.mul(0.28)).mul(limb);
   const dark = mix(c3(PALETTE.skyZenith), c3(PALETTE.blush), 0.35).mul(0.84);
   const body = mix(dark, bright, lit);
   // atmospheric fade: low moons sink into the haze
@@ -50,8 +53,9 @@ export function skyNode(): any {
     const col = mix(c3(FOG.haze), c3(FOG.horizon), smoothstep(0, 0.12, t)).toVar();
     col.assign(mix(col, c3(PALETTE.skyZenith), smoothstep(0.1, 1, t)));
     // large moon centre-top between the arch and the hero; small moon high right, clear of the hero cap
-    col.assign(moon(d, col, 2.5, 17.5, 3.4, 3.1, 0.78));
-    col.assign(moon(d, col, -29, 15.5, 1.8, 7.7, 0.82));
+    // moon visibility comes from the air's optical depth (environmentFrom → sky.moonStrength): thick air hides them
+    if (MOON_A > 0.01) col.assign(moon(d, col, 2.5, 17.5, 3.4, 3.1, MOON_A));
+    if (MOON_B > 0.01) col.assign(moon(d, col, -29, 15.5, 1.8, 7.7, MOON_B));
     return clamp(col, 0, 2);
   })();
 }

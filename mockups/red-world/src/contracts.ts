@@ -2,28 +2,15 @@
 // Brief: docs/features/red-world.md. Units: metres, Y-up.
 import type { BufferGeometry } from 'three';
 
-/** sRGB hex. The whole frame is built from these. Agents may tune values, not add keys, without agreement. */
-export const PALETTE = {
-  // sky / air (white family)
-  skyZenith: 0xeef0f4,
-  skyHorizon: 0xf3eef8,
-  haze: 0xe4daef,      // far fog: pale cool lilac (human pick 2026-11-07; warm original: ?fog=current)
-  // ground (red family)
-  redLight: 0xff5a36,  // sunlit ground
-  red: 0xe8331f,       // base ground
-  crimson: 0xa8122a,   // shadowed ground / plant undersides
-  maroon: 0x5c0a1e,    // deep crevices, foreground silhouettes
-  ink: 0x22060f,       // graphic dark + outline
-  // plant bodies
-  bone: 0xf4e6dc,      // pale caps, stalk highlights
-  blush: 0xf2a2a0,     // pale-red transitional
-  // shadow tint (Bruno-style coloured shadow, never grey)
-  shadow: 0x5a1040,
-  // accent: under 5% of pixels
-  glow: 0x3ff5e0,
-  glowDeep: 0x0f8f9a,
-} as const;
-export type PaletteKey = keyof typeof PALETTE;
+/**
+ * sRGB hex. The whole frame is built from these. The values come from the active environment (src/env/active.ts →
+ * environmentFrom(soup)); with no ?env/?soup they are the Red World (src/env/palette.ts RED_WORLD). Keys are colour
+ * roles named after the Red World: on other worlds `red` is still "the base ground" and `glow` still "the accent".
+ */
+import { ENV } from './env/active';
+import type { PaletteKey, Palette } from './env/palette';
+export type { PaletteKey };
+export const PALETTE: Readonly<Palette> = ENV.palette;
 
 export type SpeciesId =
   | 'parasolTitan'

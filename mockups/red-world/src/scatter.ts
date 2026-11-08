@@ -5,6 +5,9 @@ import * as THREE from 'three/webgpu';
 import type { FloraLibrary, PlantInstance } from './contracts';
 import { heightAt } from './field';
 import { worldMaterial } from './material';
+import { ENV } from './env/active';
+
+
 
 function groupKey(x: number, z: number): string {
   const d = Math.hypot(x, z);
@@ -15,7 +18,8 @@ function groupKey(x: number, z: number): string {
 
 export function buildInstances(lib: FloraLibrary, plants: PlantInstance[]): any {
   const group = new THREE.Group();
-  const mat = worldMaterial({ glow: true, sway: true, instanced: true, translucent: true, side: THREE.DoubleSide });
+  // silicon (environmentFrom → flora.facet): flat-shaded facets, so ring-stack tissue reads as cut crystal
+  const mat = worldMaterial({ glow: true, sway: true, instanced: true, translucent: true, side: THREE.DoubleSide, facet: ENV.flora.facet > 0.5 });
   mat.shadowSide = THREE.FrontSide;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3();
   for (const a of lib.archetypes) {

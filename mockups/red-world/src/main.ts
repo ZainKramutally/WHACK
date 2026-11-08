@@ -16,6 +16,13 @@ import { buildInstances } from './scatter';
 import { buildExplorer } from './explorer';
 import { buildFloraLibrary } from './flora/index';
 import { createPlayer } from './player/index';
+import { ENV, ENV_NAME, SOUP } from './env/active';
+import { formatSoup, NAMED } from './env/derive';
+import { buildSea, SEA_LEVEL } from './sea';
+import { buildCrystals } from './crystals';
+import { dryExplorer } from './env/sealevel';
+import { HAND } from './placement';
+import { hash2 } from './rng';
 
 const params = new URLSearchParams(location.search);
 const FREE = params.has('free');
@@ -53,11 +60,31 @@ const lib = buildFloraLibrary(SEED);
 const avgH = new Map<string, number>();
 for (const a of lib.archetypes) avgH.set(`${a.species}:${a.variant}`, a.height);
 const heightOf = (s: SpeciesId, v: number) => avgH.get(`${s}:${v}`) ?? lib.bySpecies(s)[0]?.height ?? 1;
-const plants = placePlants(SEED, heightOf, (s) => Math.max(1, lib.bySpecies(s).length));
+// environment flora bias (environmentFrom → flora): dim worlds keep the glowing lantern pods and thin the rest; cold
+// makes tall. Hand-placed set pieces (hero, framing cap) are never touched, so the composition holds.
+const handAt = new Set(HAND.map((h) => `${Math.round(h.x)}:${Math.round(h.z)}`));
+const plants = placePlants(SEED, heightOf, (s) => Math.max(1, lib.bySpecies(s).length)).filter((p, i) => {
+  if (handAt.has(`${Math.round(p.position[0])}:${Math.round(p.position[2])}`)) return true;
+  if (Number.isFinite(SEA_LEVEL) && heightAt(p.position[0], p.position[2]) < SEA_LEVEL - 0.3) return false; // no plants under the sea
+  p.scale *= ENV.flora.heightScale;
+  const thin = p.species === 'lanternPods' ? 0 : (ENV.flora.lanternBias - 0.3) * 0.5;
+  return hash2(i, 17, 3) >= thin;
+});
 const known = new Set(lib.archetypes.map((a) => `${a.species}:${a.variant}`));
 scene.add(buildInstances(lib, plants.filter((p) => known.has(`${p.species}:${p.variant}`))));
-const explorer = buildExplorer(EXPLORER.x, EXPLORER.z, 2.6);
+const stand = Number.isFinite(SEA_LEVEL) ? dryExplorer(SEA_LEVEL) : EXPLORER;
+const explorer = buildExplorer(stand.x, stand.z, 2.6);
 scene.add(explorer);
+const sea = buildSea();
+if (sea) scene.add(sea);
+const crystals = buildCrystals();
+if (crystals) scene.add(crystals);
+if (params.has('label')) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:12px;bottom:10px;font:13px/1.4 ui-monospace,monospace;color:#fff;background:#0008;padding:6px 9px;max-width:60ch';
+  el.textContent = `${NAMED[ENV_NAME]?.title ?? ENV_NAME}: ${formatSoup(SOUP)}. ${ENV.rationale}`;
+  document.body.appendChild(el);
+}
 
 const camera = new THREE.PerspectiveCamera(CAMERA.fov, innerWidth / innerHeight, 1, 14000);
 const eyeY = heightAt(0, 0) + CAMERA.eye;
@@ -106,3 +133,4 @@ renderer.setAnimationLoop(() => {
   if (++frames === 4) (window as any).__ready = true;
 });
 (window as any).__scene = { scene, camera, plants: plants.length, player, controls };
+(window as any).__env = { name: ENV_NAME, title: NAMED[ENV_NAME]?.title ?? ENV_NAME, soup: SOUP, soupText: formatSoup(SOUP), env: ENV, seaLevel: SEA_LEVEL, named: NAMED };
