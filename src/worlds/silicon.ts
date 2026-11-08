@@ -297,7 +297,7 @@ export const silicon: WorldConfig = {
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
       growRate: 0.05, // assumption: true. A juvenile turns surplus energy into body at 5% of its mass per ecology second, so a large mutant is born small (never larger than its parent) and grows up
-      meatAssim: 0.9, // assumption: true. A hunter keeps about half of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
+      meatAssim: 0.6, // assumption: true. A hunter keeps about 60% of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
       grazeReach: 1, // assumption: true. A grazer feeds one extra cell out per metre of body length, up to 2 cells
       canopyReach: 0.6, // assumption: true. Metres of limb a body needs to reach canopy biomass: tall bodies open food small ones cannot get (megafauna niche, owner ruling 2026-11-08)
       deepScale: 0.9, // assumption: true. Body length (m) a swimmer needs to feed below the shallows: only large swimmers use deep-water food

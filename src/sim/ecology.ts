@@ -865,14 +865,14 @@ export class Ecology {
     // after a stranding, land after it shrinks). In steady state, share ≈ peak and nothing fires. Symmetric across modes.
     const pm = this.plan[p].mode;
     if (this.modeShare[pm] < SEA_FAIR * this.modePeak[pm]) {
-      const pr = this.energy[p] / this.struct[p];
+      const pr = this.energy[p] / this.struct[p] ** 0.75;
       let victim = -1, worst = Infinity, seen = 0;
       const start = Math.floor(this.rnd() * CAP);
       for (let k = 0; k < CAP && seen < SLOT_SAMPLE; k++) {
         const j = (start + k) % CAP;
         if (!this.alive[j] || j === p || this.age[j] < 1 || this.plan[j].mode === pm) continue;
         seen++;
-        const r = this.energy[j] / this.struct[j];
+        const r = this.energy[j] / this.struct[j] ** 0.75;
         if (r < worst && r < pr * SLOT_MARGIN) { worst = r; victim = j; }
       }
       if (victim >= 0) {
@@ -884,7 +884,7 @@ export class Ecology {
       }
     }
     const cx = Math.floor(this.x[p]), cy = Math.floor(this.y[p]);
-    const pr = this.energy[p] / this.struct[p];
+    const pr = this.energy[p] / this.struct[p] ** 0.75;
     let victim = -1, worst = Infinity;
     for (let yy = Math.max(0, cy - SLOT_RADIUS); yy <= Math.min(GRID - 1, cy + SLOT_RADIUS); yy++) {
       for (let xx = Math.max(0, cx - SLOT_RADIUS); xx <= Math.min(GRID - 1, cx + SLOT_RADIUS); xx++) {
@@ -892,7 +892,7 @@ export class Ecology {
         for (let k = this.cellStart[c]; k < this.cellStart[c + 1]; k++) {
           const j = this.cellItems[k];
           if (j === p || !this.alive[j] || this.age[j] < 1 || cellOf(this.x[j], this.y[j]) !== c) continue;
-          const r = this.energy[j] / this.struct[j];
+          const r = this.energy[j] / this.struct[j] ** 0.75;
           const score = r + (this.genome[j].lineage === this.genome[p].lineage ? 100 : 0);
           if (score < worst && r < pr * SLOT_MARGIN) { worst = score; victim = j; }
         }
