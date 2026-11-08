@@ -20,7 +20,13 @@ import { rayPlants } from './floraHit';
 import { worldEnv as gateWorld } from './floraLib/gates';
 import { SHARE_REBUILD, easeShares, gateTargets, shareDelta, statsMoved, statsOf, type GateShares, type StatKeys } from './floraLib/succession';
 import { cellAt, type Vec3 } from './layout';
-import { VTX_CAP, VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { VTX_CAP, VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, copyPlant, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { DYING_CAP, GROW_SEC, Presence, plantKey } from './floraLib/presence';
+
+/** Plants within this many metres of the camera ease in and out; farther ones simply appear and go (thinning, LOD). */
+const ANIM_NEAR = 90;
+/** Picking ignores plants less grown than this. */
+const PICK_MIN_GROWN = 0.3;
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
@@ -187,7 +193,12 @@ export function createFlora(app: App): FloraPart {
   }
 
   const radiusPerHeight = lib.archetypes.map((a) => a.radius / a.size);
-  const list = makePlantList();
+  let list = makePlantList(), next = makePlantList();
+  const pres = new Presence(list.arch.length);
+  const dying = makePlantList(DYING_CAP);
+  /** Where each drawn plant sits (instance slot) in its bucket, for the per-frame grow pass; dying ones likewise. */
+  const slotOf = new Int32Array(list.arch.length), dLook = new Int32Array(DYING_CAP), dSlot = new Int32Array(DYING_CAP);
+  const dirty = new Set<number>();
   /** Contact-ring radius and drawn height ÷ native size per archetype: place.ts tilts and sinks plants onto the ground. */
   const shapes = { foot: Float32Array.from(lib.archetypes, (a) => a.foot / a.size), height: Float32Array.from(lib.archetypes, (a) => a.height / a.size) };
   const heights = makeHeightCache();
@@ -197,6 +208,7 @@ export function createFlora(app: App): FloraPart {
   const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
   const m4 = new THREE.Matrix4();
+  let lastWorldKey = '';
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
   let clearing: Clearing | null = null, clearingSet = false, clearingDirty = false;
@@ -205,6 +217,25 @@ export function createFlora(app: App): FloraPart {
   const eased: GateShares = {}, targets: GateShares = {};
   let placedShares: GateShares = {};
   let lastStats: StatKeys | null = null;
+
+  /** Per frame: ease growing and dying plants by rewriting only their instance matrices (no allocation). */
+  const animate = (dt: number) => {
+    pres.tick(dt);
+    if (!pres.active && !dirty.size) return;
+    const write = (l: PlantList, i: number, id: number, k: number, scale: number) => {
+      const b = buckets.get(id);
+      if (!b || k < 0) return;
+      plantMatrix(l, i, lib.archetypes[l.arch[i]], m4, false, scale).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
+      dirty.add(id);
+    };
+    for (let i = 0; i < list.n; i++) if (drawn[i] && pres.age[i] < GROW_SEC) write(list, i, lookIds[i], slotOf[i], pres.growScale(i));
+    for (let j = 0; j < DYING_CAP; j++) if (pres.dAge[j] >= 0 && dLook[j] >= 0) write(dying, j, dLook[j], dSlot[j], pres.dieScale(j));
+    for (const id of dirty) {
+      const b = buckets.get(id)!, m = b.mesh.instanceMatrix;
+      m.clearUpdateRanges(); m.addUpdateRange(0, b.mesh.count * 16); m.needsUpdate = true;
+    }
+    if (!pres.active) dirty.clear(); // one last upload happened above
+  };
 
   const part: FloraPart = {
     plants: 0,
@@ -237,6 +268,7 @@ export function createFlora(app: App): FloraPart {
       const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5, 0.03, k, shapes.height);
       if (!h) return null;
       const i = h.index;
+      if (pres.growScale(i) < PICK_MIN_GROWN) return null;
       const cell = cellAt(list.x[i], list.z[i], lastPatch);
       if (cell < 0) return null;
       // bounds from the ground at the plant's centre to its drawn top (archetype height ÷ size × h above its base, which
@@ -245,6 +277,7 @@ export function createFlora(app: App): FloraPart {
     },
     update(dt, t, inputs, patch) {
       const cam = app.camera.position;
+      animate(dt);
       // Between rebuilds the terrain keeps rising (height = rise × h): stretch the flora vertically with it so every base
       // stays on the ground. Plant heights stretch by the same ≤ 3% while everything grows; a rebuild resets it to 1.
       const rise = inputs.terrain.rise;
@@ -276,13 +309,29 @@ export function createFlora(app: App): FloraPart {
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
       placedShares = { ...eased }; lastStats = statsOf(inputs, lastStats);
 
-      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes, eased);
+      if (inputs.world.id !== lastWorldKey) { pres.reset(); lastWorldKey = inputs.world.id; }
+      placePlants(inputs, patch, { x: cam.x, z: cam.z }, next, heights, clearing, shapes, eased);
+      for (let i = 0; i < next.n; i++) pres.nextKeys[i] = plantKey(next.cell[i], next.slot[i], next.arch[i], next.dark[i]);
+      const nearCam = (l: PlantList, i: number) => Math.hypot(l.x[i] - cam.x, l.z[i] - cam.z) < ANIM_NEAR;
+      pres.sync(next.n, (i) => nearCam(next, i), (old, slot) => {
+        if (!nearCam(list, old) || pres.growScale(old) < 0.05) return false;
+        copyPlant(list, old, dying, slot);
+        return true;
+      });
+      [list, next] = [next, list];
       const kindOfWorld = lookKind(inputs.world.composition);
       const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress), crustFloraTint(inputs));
       counts.fill(0);
       for (let i = 0; i < list.n; i++) {
         const look = bucketId(list.arch[i], list.lod[i], list.dark[i]);
         lookIds[i] = look;
+        counts[look]++;
+      }
+      for (let j = 0; j < DYING_CAP; j++) {
+        dLook[j] = -1;
+        if (pres.dAge[j] < 0) continue;
+        const look = bucketId(dying.arch[j], dying.lod[j], dying.dark[j]);
+        dLook[j] = look;
         counts[look]++;
       }
       // hide every mesh; the ones in use are shown below
@@ -309,12 +358,26 @@ export function createFlora(app: App): FloraPart {
         if (!b || fill[id] >= b.cap) continue;
         drawn[i] = 1;
         const k = fill[id]++;
+        slotOf[i] = k;
         const a = lib.archetypes[list.arch[i]];
         // its size, girth, yaw, slope tilt and lean, and the sink that puts its contact ring on the ground (place.ts);
         // its crown, twist, droop and bend for the material; its tint and own glow
-        plantMatrix(list, i, a, m4).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
+        plantMatrix(list, i, a, m4, false, pres.growScale(i)).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
         plantShape(list, i, a, b.shape.array as Float32Array, k * 4);
         plantLook(list, i, b.look.array as Float32Array, k * 4);
+      }
+      for (let j = 0; j < DYING_CAP; j++) {
+        const id = dLook[j];
+        dSlot[j] = -1;
+        if (id < 0) continue;
+        const b = buckets.get(id);
+        if (!b || fill[id] >= b.cap) { dLook[j] = -1; continue; }
+        const k = fill[id]++;
+        dSlot[j] = k;
+        const a = lib.archetypes[dying.arch[j]];
+        plantMatrix(dying, j, a, m4, false, pres.dieScale(j)).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
+        plantShape(dying, j, a, b.shape.array as Float32Array, k * 4);
+        plantLook(dying, j, b.look.array as Float32Array, k * 4);
       }
       // upload only the used part of each fixed-size buffer
       const upload = (at: THREE.BufferAttribute, n: number) => { at.clearUpdateRanges(); at.addUpdateRange(0, n * at.itemSize); at.needsUpdate = true; };
@@ -328,6 +391,7 @@ export function createFlora(app: App): FloraPart {
       }
       if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
       part.plants = list.n - dropped;
+      dirty.clear();
       part.dropped = dropped;
       part.triangles = tris;
       part.rebuildMs = performance.now() - t0;
