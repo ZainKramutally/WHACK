@@ -69,6 +69,8 @@ export function createEngine(): Engine {
   const reverbOut = c.createGain(); reverbOut.gain.value = 0.5;
   reverbIn.connect(reverb); reverb.connect(reverbOut); reverbOut.connect(lp);
   const duckGain = c.createGain(); duckGain.connect(lp);
+  const steps = c.createGain(); const stepsLp = c.createBiquadFilter(); stepsLp.type = 'lowpass'; stepsLp.frequency.value = 1600;   // footsteps: muffled, no reverb send
+  steps.connect(stepsLp); stepsLp.connect(lp);
   const groups: Record<Group, GainNode> = { ambience: c.createGain(), sfx: c.createGain(), ui: c.createGain(), creatures: c.createGain(), build: c.createGain() };
   groups.ambience.connect(duckGain); groups.sfx.connect(lp); groups.creatures.connect(lp); // ui skips the underwater filter but is capped below 5 kHz
   const uiLp = c.createBiquadFilter(); uiLp.type = 'lowpass'; uiLp.frequency.value = 5000; uiLp.Q.value = 0.7; groups.ui.connect(uiLp); uiLp.connect(master);
@@ -143,7 +145,7 @@ export function createEngine(): Engine {
       p.positionX.value = o.at.x; p.positionY.value = o.at.y; p.positionZ.value = o.at.z;
       g.connect(p); tail = p;
     }
-    tail.connect(groups[group]);
+    tail.connect(base.startsWith('step.') ? steps : groups[group]);
     voices++; if (group === 'creatures') creatureVoices++;
     const rec = { stop: () => { try { src.stop(); } catch { /* ended */ } } };
     if (group === 'creatures') creatureList.push(rec);

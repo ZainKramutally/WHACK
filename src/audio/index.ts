@@ -258,8 +258,8 @@ export function mountAudio(): AudioApi {
           if (p.onIce) cue = 'step.ice';
           else if (!frozen && shoreK > 0.85 && seasFilled) cue = 'step.wet';
           else if (id === 'silicon') cue = min === 'ice' || min === 'waterIce' ? 'step.ice' : 'step.crystal';
-          else cue = min === 'basalt' && lifeStarted ? 'step.soil' : min ? 'step.rock' : 'step.soil';
-          engine.once(cue, { gain: p.sprinting ? 1 : 0.75, rate: 0.94 + Math.random() * 0.12 });
+          else cue = min === 'granite' ? 'step.rock' : 'step.soil';
+          engine.once(cue, { gain: p.sprinting ? 0.45 : 0.3, rate: 0.94 + Math.random() * 0.12 });
         }
       } else stepDist = Math.min(stepDist, 1);
       if (p.mode === 'swim' && p.speed > 1.5) { swimT += dt; if (swimT > 1.1) { swimT = 0; engine.once('player.swim', { gain: 0.7 }); } } else swimT = 0.8;
