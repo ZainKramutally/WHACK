@@ -74,3 +74,4 @@
 - ~01:40 (11-08): main d98ed2f (Red World phase 1 merged by 6a, landmarks, sprint, sim pass 2). Owner: prey-mass meat + big grazing reach (sim-worker), bestiary uses sim species rule (#59, bestiary-align agent), feature freeze 10:00.
 - 02:23 16: started scan-hover (#60–#62), jump (#65), climate-evo (#66, absorbs #55), flight (#67); asked 6a for every-plant-unique (#63), the plant-asset audit (#64) and the plant card live view (#62). Filed suggestions #68–#72 (Devpost, backup video, fps, README, public link).
 - 02:26 16: merged sim pass 4 (rare jumps, juvenile growth) + CLAUDE.md; main fec7c44. 6a told to push stage. sim-worker pass 5: build jump schedule, re-check #39/#47, #51.
+- 02:28 16: merged jump (#65) and scan-hover (#60, #61; #62 toggle half) + CLAUDE.md (scanner lock, inspect:hover, no plant counterparts, jump).
