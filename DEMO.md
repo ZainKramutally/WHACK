@@ -1,6 +1,6 @@
 # Demo Script: Life Is ▢ Based
 
-The 3-minute talk track for the 20 s build (issue #29). It uses only what works on `main` at `b62ddc9`, checked against the code. Nothing here was run in a browser, because of the 2026-11-08 no-browser-tests ruling, so do the **rehearsal checks** below in your own browser before the first run-through.
+The 3-minute talk track for the 20 s build (issue #29). It uses only what works on `main` at `85d55b6` (plus the fixes on `fix/open-issues`), checked against the code and, for the life on the demo seeds, against headless runs of the simulation. Nothing here was run in a browser, because of the 2026-11-08 no-browser-tests ruling, so do the **rehearsal checks** below in your own browser before the first run-through.
 
 The story turns on one idea: carbon is the familiar world, and silicon is the door nobody has walked through. The judge watches a world build itself and then breaks its own physics on purpose.
 
@@ -18,16 +18,16 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 
 | Build time | What judges see | Say |
 |---|---|---|
-| 0–6 s | The box zooms in, and its particles multiply and settle into ground. Caption: *A carbon world forms* | "None of this is pre-made. Terrain, seas, air and life all grow from one seed, and every number comes from real chemistry." |
-| about 6 s | The character spawns on land near the shore | *(Press W and walk towards the water.)* |
+| 0–6 s | The camera pushes into the box, and its particles double into about 25,000 grains that land on the real terrain and build the world pixel by pixel. Caption: *A carbon world forms* | "None of this is pre-made. Terrain, seas, air and life all grow from one seed, and every number comes from real chemistry." |
+| about 6 s | The character spawns on land near the shore | *(Press W, holding Shift to sprint, towards the water.)* |
 | about 9 s | Caption: *Life stirs in the shallows* | "Those are the founders: two dozen tiny worms. Nobody designed what comes next." |
-| 9–20 s | The terrain keeps rising and life spreads | "About a thousand animals, each carrying 15 genes, mutating and competing. Legs, plates and eyes have to be earned." |
+| 9–20 s | The terrain keeps rising and life spreads. By about 12 s the first species have formed: on the demo seed, an eel in the shallows and skitters on the shore | "About a thousand animals, each carrying 15 genes, mutating and competing. Legs, plates and eyes have to be earned." |
 
 ### Explore (0:40–1:10): click a creature
 
-**Do:** walk up to a creature and click it (a click without dragging). Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design.
+**Do:** walk up to a creature and click it (a click without dragging). On carbon almost all the animals swim in the shallows, and skitters walk the shore. Click creatures or plant patches only: clicking the sea, ground or sky closes the card by design.
 
-**Judges see:** the inspect card. It describes the body plan in words, its role, size and generation. It has a slowly turning live 3D view, and a comparison table with the columns **This world**, **A silicon world (at start)** and **Earth**. A caption *New entry: (name)* adds it to the Bestiary.
+**Judges see:** the inspect card. It describes the body plan in words, its role, size and generation. It has a slowly turning live 3D view, and a comparison table with the columns **This world**, **A silicon world (at start)** and **Earth**. If the animal belongs to a named species, a caption *New entry: (name)* files it in the Bestiary. If not, the card says *Form: (not yet a recognised species)*, so click another.
 
 **Say:** "One function grows every body from its genes, and the world's chemistry sets the grammar. This one is generation *(read the number)*. Next to it is the same table for a silicon world: minus 183 degrees, air at three and a half bar, seas of liquid nitrogen. Finding it put it in our bestiary."
 
@@ -65,7 +65,8 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 - [ ] Pull `main`, then `npm run build && npm run preview`, and serve at http://127.0.0.1:4173. Use the production build, not the dev server.
 - [ ] **Tab 1:** `http://127.0.0.1:4173/?demo`, carbon selected, sliders untouched. `?demo` pins carbon's seed (1108), so it matches rehearsal.
 - [ ] **Tab 2:** `http://127.0.0.1:4173/?demo`, left on the selection screen for the silicon turn. `?demo` pins silicon's seed (2611) too.
-- [ ] **Fonts:** #41 is open, so the fonts still load from Google. Load both tabs on the venue network first. Offline, the selection screen falls back to monospace.
+- [ ] **Rock chips:** leave them unpicked on both tabs (the natural crust mix), so the runs match rehearsal.
+- [ ] **Fonts:** self-hosted since `acb8b23` (#41), so the selection screen works offline. If that commit isn't on the build you present, load both tabs online first.
 - [ ] **Machine load:** the journal recorded fps halving from background agents (load average 18). Quit other apps, plug in the charger, and check Activity Monitor.
 - [ ] **fps:** watch `?demo&debug` during rehearsal (it shows the fps readout). The bar is 60.
 - [ ] Browser in full screen (Ctrl+Cmd+F), at the resolution you'll present at.
@@ -84,9 +85,9 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 ## Known fragile points
 
 - **Red walls (#39, #47): don't drag Temperature into one.** After carbon's 122 °C wall, life takes about 60 s to climb back to a few hundred animals. On silicon the world looks dead for over a minute. If a judge does it, say "That's the edge: no known organism grows above 122 °C. Life dies there and comes back from spores", then move to the next beat or switch tabs.
-- **No hunters yet (#48).** Don't say "predators" or "predator–prey cycles". The honesty box in `CLAUDE.md` still claims hunters cycle, which isn't currently true. If asked: grazers and omnivores evolve, but a stable hunter tier doesn't, because meat pays `diet²` (`src/sim/develop.ts:360`), so half-carnivores earn too little. It's a known issue and being worked on.
-- **Generate transition (#40).** The live version is still the 2D stand-in (`src/ui/selection/launch.ts`). The three.js "mitosis tide" version is in development. The narration fits both.
-- **Silicon creatures (#50, #51).** They're low contrast, and Roller cards say "Moves: Swims", so the silicon path doesn't click any creatures.
+- **No hunters (#48).** Don't say "predators" or "predator–prey cycles". A headless run of the demo seeds on `85d55b6` found 0 hunters on carbon (all 1,024 animals grazers) and at most 1 on silicon. The honesty box in `CLAUDE.md` still claims hunters cycle. If asked: hunting doesn't pay yet in our ecology, so no stable hunter tier evolves within a demo. It's a known issue.
+- **Generate transition (#40, #58).** The three.js "mitosis tide" is live. A flat red ring could show beyond the patch edge during the reveal. The fix is `2e2bf03` on `fix/open-issues`, so check by eye that it's gone.
+- **Silicon creatures (#50).** They may be low contrast, so the silicon path doesn't click any creatures. (The Roller card text is fixed.)
 - **fps after the art layer (#50).** Its last status reported about 9 fps lost on carbon. Re-check fps once it lands on `main`.
 - **Demo seeds are placeholders** (`demoSeed` in `src/worlds/carbon.ts` and `src/worlds/silicon.ts`). If either changes, rehearse again.
 - **Silicon run after the puzzle.** It matches rehearsal only if the slider values match exactly, so use the key presses, not free dragging.
@@ -99,6 +100,8 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 - **Why carbon and silicon bodies look different:** chemistry picks the body architecture. Carbon is head-to-tail with paired limbs. Silicon is a radial, faceted hub with straight arms. The same genes give unrelated bodies.
 - **What is tuned (be honest):** raised mutation, a compressed pace of chemistry (silicon at about 0.42 × carbon's in the sim, about 10⁻¹³ uncompressed), and a spore bank that regrows life after a crash. The full list is the honesty box in `CLAUDE.md`.
 - **Gravity:** it doesn't change creature costs. That rule failed its headless A/B, so we left it out.
+- **Nitrogen on silicon (#55):** on silicon the Nitrogen slider is the sea. Lower it (not into the red zone) and the sea shrinks. On the demo seed, swimmers drop by about two thirds within about 5 s, then recover over about a minute once you raise it again. On carbon nitrogen is air, so only its 0.05× edge hurts life. `src/sim/nitrogen.test.ts` pins both.
+- **Rock chips:** they pick the crust's minerals, which tint the ground, the shallows and the plants. Oxygen rusts the rock.
 - **The full silicon reasoning chain:** in Conditions on the silicon world, and in the selection screen's Appendix A.
 - **Team split:** engineering lead: generation, simulation, character and integration. Caden: creatures, UI and the art layer.
 - **What next:** germanium, the next element down ("bonds even weaker than silicon's"), and sound that changes per world.
@@ -107,7 +110,6 @@ The story turns on one idea: carbon is the familiar world, and silicon is the do
 
 | Issue | Change |
 |---|---|
-| #40 three.js transition | Describe the mitosis-tide moment in the 0–6 s row |
 | #48 hunters | If hunters evolve, add one line on predators. If not, fix the `CLAUDE.md` honesty box |
-| #54 species experience | If 4–5 species are visible at spawn, point at them in the explore beat |
+| #54, #76 species | If 4–5 species are visible at spawn, or the names change, update the 9–20 s row and the explore beat. Today the demo seed gives 3 species by the end of the build on carbon (an eel and two skitters) and 2 on silicon (a tripod and a roller) |
 | #39, #47 recovery | If wall-and-back recovers within about 20 s, the red wall can become a deliberate beat |

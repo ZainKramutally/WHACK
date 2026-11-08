@@ -759,9 +759,9 @@ The art layer sits on top of this logic and only reads it. It never writes sim s
 - **Speculative (silicon):** the chemistry itself, silicon–nitrogen bodies and ceramic plates, glow from non-oxygen chemiluminescence, the crystal crusts, life leaving the sea, and the nitrogen feedback loop.
 - **Illustrations (render-only):** the particle box (including its mineral bed), the sizes of basalt columns, granite tors and nitride crystals (at least 6 m, because the mesh is about 2 m per vertex), the purple-to-green plant pigment (a hypothesis, keyed to oxygen), the live view in inspect cards, sky and fog, the moons in the sky (decoration only; no stat models them), plant shapes (the sim has only per-cell biomass), body-template look attractors, IK feet (in the sim, agents are points), the player's diving suit, **flight altitude display**: altitude is physical (power balance, thinning air, gravity) but is drawn at 150 m · tanh(h ÷ 1.5 km), because the patch is a few hundred metres across. All flight coefficients are typical-bird orders of magnitude, `assumption: true`. And **creature display size**: drawn length = 60 m · tanh(2 m · (size ÷ 0.15)^0.8 ÷ 60 m), so a founder worm draws 2 m and a 9.6 m giant about 43 m; size order is kept and the real ~64× range shows as ~25×.
 
-## Demo script (to be rewritten)
+## Demo script
 
-The three-minute demo script will be rewritten for the 20 s build, and that work is tracked in GitHub issue #29. Until then, there are no fixed demo timings. The world is alive about 20 s after Generate, so the talk track has to fit around a living world rather than a slow time-lapse.
+The three-minute script for the 20 s build is in `DEMO.md` (issue #29): the timed talk track, the pre-demo checklist, the rehearsal checks, the fragile points and the Q&A lines. The world is alive about 20 s after Generate, so the talk track fits around a living world rather than a slow time-lapse.
 
 Rehearse silicon as well, so we can switch to it if the judges ask "what about silicon?" Know the caveat line by heart. On silicon, the sliders are the fastest answer, and it can start on the selection screen:
 1. Select silicon. At 15 °C the box shows its nitrogen pool boiling off.
