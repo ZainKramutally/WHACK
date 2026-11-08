@@ -33,7 +33,9 @@ describe('rock landmark colours follow the mineral', () => {
     const t = createTerrain(carbon.terrain, carbon.demoSeed);
     const lms = createLandmarks(t, { chemistry: 'carbon', seaCover: 0.5 }).landmarks;
     const rock = lms.find((l) => ROCK.has(l.kind));
-    if (rock) expect(landmarkPieces(rock).some((p) => [...p.mesh.hex].some(red))).toBe(true);
+    const hood = rock ?? { id: 0, kind: 'hoodoo' as const, x: 0, z: 0, height: 20, radius: 4, span: 0, angle: 0, seed: 7, gate: 'M3' as const, heat: true, biomass: false };
+    expect(ROCK.has(hood.kind)).toBe(true);
+    expect(landmarkPieces(hood, rockPalette('ironstone')).some((p) => [...p.mesh.hex].some(red))).toBe(true);
     const pal = rockPalette('basalt');
     for (const lm of lms.filter((l) => !ROCK.has(l.kind)))
       expect(landmarkPieces(lm, pal).map((p) => [...p.mesh.hex])).toEqual(landmarkPieces(lm).map((p) => [...p.mesh.hex]));
