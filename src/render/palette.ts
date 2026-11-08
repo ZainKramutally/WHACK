@@ -316,10 +316,12 @@ export function skinGroundShift(silicon: boolean, diet: number, hue: number, acc
   if (silicon || groundHex === undefined) return 0;
   const L = hexToLab(creatureColour(false, diet, 0, hue, accent))[0], g = hexToLab(groundHex)[0];
   if (Math.abs(L - g) >= SKIN_GROUND_GAP) return 0;
-  let t = L >= g ? g + SKIN_GROUND_GAP : g - SKIN_GROUND_GAP;
-  if (t > 0.92) t = g - SKIN_GROUND_GAP;
-  if (t < 0.15) t = g + SKIN_GROUND_GAP;
-  return t - L;
+  // an offset, not a clamp: skins in the band move by the same amount on their side, so species keep their spacing
+  // (a clamp snapped them all to g ± GAP and merged them). Every one ends at least GAP off the ground.
+  const up = L >= g;
+  const dl = up ? SKIN_GROUND_GAP : -SKIN_GROUND_GAP;
+  if (L + dl <= 0.92 && L + dl >= 0.15) return dl;
+  return up ? g - SKIN_GROUND_GAP - L : g + SKIN_GROUND_GAP - L; // no room on its side at the end of the scale: the other
 }
 
 /** Plant value inverts with height (ART_DIRECTION rule 4): dark stems, pale tips that read against the white sky. */

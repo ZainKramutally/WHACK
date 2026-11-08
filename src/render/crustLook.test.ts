@@ -277,4 +277,29 @@ describe('one armour family per mineral on both worlds; the carbon skin guard (r
     }
     expect(skinGroundShift(true, 0.3, 0.4, 0.5, 0x2c3634)).toBe(0);
   });
+  // A skin moved by the guard can land nearer an unmoved neighbour just outside the band, so 'no closer' holds for skins
+  // on the same side (exact) and overall to the #57 floor: never below 0.03 and never below where it started, if lower.
+  it('the guard keeps species spacing: same-side skins exactly, and the 9 candidates never under min(before, 0.03)', () => {
+    const hues = Array.from({ length: 9 }, (_, i) => i / 8);
+    const minDE = (labs: number[][]) => {
+      let m = Infinity;
+      for (let i = 0; i < labs.length; i++) for (let j = i + 1; j < labs.length; j++) m = Math.min(m, Math.hypot(labs[i][0] - labs[j][0], labs[i][1] - labs[j][1], labs[i][2] - labs[j][2]));
+      return m;
+    };
+    for (const id of [...mix(carbon).ids, 'natural']) for (const rust of [0, 1]) for (const diet of [0.05, 0.5, 0.95]) {
+      const crust = id === 'natural' ? mix(carbon) : only(carbon, id);
+      const ground = blendFamilies(crust, crust.shares, rust).family.red;
+      const before = minDE(hues.map((h) => hexToLab(creatureColour(false, diet, 0, h, 0.5))));
+      const after = minDE(hues.map((h) => hexToLab(creatureColour(false, diet, 0, h, 0.5, undefined, skinGroundShift(false, diet, h, 0.5, ground)))));
+      expect(after, `${id} rust ${rust} diet ${diet}`).toBeGreaterThanOrEqual(Math.min(before, 0.03) - 1e-3);
+      // same side of the ground, both moved: their spacing is exactly kept (an offset, not a clamp)
+      const g = hexToLab(ground)[0];
+      const moved = hues.filter((h) => skinGroundShift(false, diet, h, 0.5, ground) !== 0);
+      for (const a of moved) for (const b of moved) {
+        const la = hexToLab(creatureColour(false, diet, 0, a, 0.5))[0], lb = hexToLab(creatureColour(false, diet, 0, b, 0.5))[0];
+        const da = skinGroundShift(false, diet, a, 0.5, ground), db = skinGroundShift(false, diet, b, 0.5, ground);
+        if ((la >= g) === (lb >= g) && Math.sign(da) === Math.sign(db) && Math.abs(da) === SKIN_GROUND_GAP && Math.abs(db) === SKIN_GROUND_GAP) expect(Math.abs((la + da) - (lb + db))).toBeCloseTo(Math.abs(la - lb), 9);
+      }
+    }
+  });
 });
