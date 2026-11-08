@@ -13,6 +13,7 @@ const water: DevelopInputs = {
   solvent: { rho: 1.0, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] },
   airDensity: 0.1,
   tissueDensity: { C: 1.05, Si: 2.2 },
+  gravity: 1,
 };
 const day = { light: 1, heatBand: 0.5 };
 const founder = makeFounders(1, 1, { c: 0.8, si: 0.05, o: 0.15 })[0]!;
