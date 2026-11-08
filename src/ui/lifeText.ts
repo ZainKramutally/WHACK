@@ -9,7 +9,6 @@ import type { FloraForm, FloraSpecies } from '../render/floraForm';
 import type { WorldConfig } from '../worlds/types';
 import type { LifeRules } from '../sim/population';
 import { habitatOf, type Habitat } from './cardIcons';
-import { formatValue } from './format';
 
 export type Rows = [string, string][];
 
