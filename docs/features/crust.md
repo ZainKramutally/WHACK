@@ -75,10 +75,53 @@ export function rust(world: WorldConfig, oxygenPct: number): number;   // 0..1
 - **Purity.** `boxState()` gains a pure `bed` field (grain shares and rust per mineral) and stays tested. The box keeps its own RNG stream.
 - **Label.** The bed gets a region label, like `liquidTag`, for example "basalt · granite".
 
+## Landforms per mineral (owner ruling 2026-11-08: build all of it)
+
+Each mineral brings its own rock features. Every landform is a machine in the one height function (`heightCore` in `src/gen/terrain.ts`, mirrored in TSL in `src/render/terrainNode.ts`). Each is gated by the local share of its minerals, through the new `machines[].minerals` field in the config. No landform is grown by hand.
+
+| World | Mineral | Machine | Landform | Mechanism |
+|---|---|---|---|---|
+| Carbon | Basalt (lowlands, coast, spawn) | M7 columns (new) | Stepped hexagonal columns in shore cliffs and coastal platforms | Thick lava cracks into mostly hexagonal columns as it cools (Giant's Causeway; Goehring et al. 2009, to verify) |
+| Carbon | Ironstone (new, mid-slopes) | M5 strata + M4 walls, gated to ironstone | Banded red-and-black canyon walls | Banded iron formations form where dissolved iron meets oxygen (Karijini, Hamersley; to verify) |
+| Carbon | Granite (highlands) | M8 tors (new) | Pale domes and stacked-boulder tors | Granite weathers along its joints into tors, and unloading peels it into domes (Dartmoor, Yosemite; to verify) |
+| Silicon | Silicide (shore) | none | Dark metallic pebble flats, where life feeds | n/a |
+| Silicon | Nitride (mid) | M9 crystals (new) | Hexagonal crystal spikes and outcrops, a crystal echo of carbon's basalt columns | Silicon nitride crystallises in the hexagonal crystal family |
+| Silicon | Water ice (highlands) | relics, with `minerals: ['waterIce']` | The existing relic arches and spires, now standing only on ice | Already seeded |
+
+**Canyons (M4) stay wherever water ran.** Canyons come from water, not iron. Ironstone only gives their walls bands.
+
+**Column, tor and crystal sizes are stylised**, because the terrain mesh is about 2 m per vertex, so columns are at least 6 m wide. This is declared as an illustration, like creature display size.
+
+**Shared crust weights.** The mineral weights have to be identical on CPU and GPU, and the sim's cell mineral has to equal what the look shows at that cell centre. Suggested approach:
+- `crustMap` becomes the argmax of a closed-form weight function: a score mixing base height and seeded noise, with quantile thresholds computed once on the CPU and baked into the node as constants.
+- That function is evaluated in `heightCore` (CPU) and in TSL.
+- Mineral borders blend smoothly by `smoothstep` across each threshold.
+
+**Third carbon mineral: ironstone.** Elevation 0.5, share 0.15–0.30, supply 0.5 (poor soil), `oxidises: true`. Basalt is rebalanced to 0.40–0.55 at elevation 0.2, and granite to 0.25–0.40 at elevation 0.8.
+
+## The look (art layer)
+
+- **Ground colour per mineral** comes from the same TSL weights:
+  - basalt: charcoal, green-black
+  - ironstone: red jasper and black hematite bands by height
+  - granite: pale pink-grey
+  - silicide: dark metallic
+  - nitride: pale cream with facet glints
+  - ice: white-blue
+- **Rust ratchet.** Oxidising minerals blend towards rust by `rust(world, maxOxygenSeen)`.
+- **Carbon flora is purple, then green.** Under a Sun-like star, photosynthesis is expected to be Earth-like and green (Kiang et al. 2007, to verify). The "Purple Earth" hypothesis (DasSarma and Schwieterman 2018, to verify) says early life used purple retinal pigments before chlorophyll.
+  - Flora blends from purple to green on the same ratchet that rusts the rock, because both come from oxygenic photosynthesis taking over.
+  - This needs a carbon `facts` row, "Plant colour", with its why, its sources, and `assumption: true` for the hypothesis.
+  - Lushness needs nothing extra: flora already follows per-cell biomass, which the fertile basalt raises.
+- **Silicon flora** is unchanged.
+- **Ground inspect card.** `InspectTarget` `ground` now carries an optional `point: { x, z }` (world metres). `pick.ts` fills it, and the card shows `mineralAt` there: label, description and why.
+- **Stretch: plate tint.** Creature plates take a slight tint from the home cell's mineral, as decoration only.
+
 ## Honesty box additions
 
 - **Seeded:** the crust map.
-- **Designed:** the elevation rule and the renormalisation (the crust redistributes nutrients and adds none).
+- **Designed:** the elevation rule and the renormalisation (the crust redistributes nutrients and adds none), and the mineral-to-landform mapping.
+- **Illustration:** the column, tor and crystal sizes, and plant colour (purple then green, from a hypothesis).
 - **Speculative:** the silicon minerals as this world's feedstock.
 
 ## Sources (scout, 2026-11-08)

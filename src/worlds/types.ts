@@ -21,7 +21,8 @@ export type InspectKind = 'organism' | 'producer' | 'sea' | 'ground' | 'sky';
 export type InspectTarget =
   | { kind: 'organism'; organismId: number }
   | { kind: 'producer'; cell: number }       // index into the 64² world grid
-  | { kind: 'sea' | 'ground' | 'sky' };
+  | { kind: 'ground'; point?: { x: number; z: number } }   // world metres of the clicked spot, so the card can name the mineral there
+  | { kind: 'sea' | 'sky' };
 
 /** One fast build: Generate → living world in ~20 s, then live. */
 export interface BuildConfig extends Sourced {
@@ -116,8 +117,8 @@ export interface TerrainConfig extends Sourced {
   base: Record<string, number>;       // fBm amplitude, octaves, warp…
   spawn: { shoreDistance: number };   // metres from spawn to the build's shoreline
   heatSolventSpan: number;            // °C mapped onto heatSolvent 0..1 (0.5 = solvent freezing point)
-  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];
-  relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
+  machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number>; minerals?: string[] }[];   // minerals: crust ids the machine acts on, weighted by their local share (absent = everywhere)
+  relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number>; minerals?: string[] }[];   // silicon only; seeded; minerals: crust ids they may stand on
   crust: CrustConfig;                 // seeded mineral map (src/gen/crust.ts)
 }
 
