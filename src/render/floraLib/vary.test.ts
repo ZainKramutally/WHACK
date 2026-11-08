@@ -5,7 +5,11 @@ import { FLORA_GRID } from '../layout';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_META, ROLE_BAND, buildFloraLibrary } from './index';
 import { makePlantList, placePlants, type PlantList } from './place';
-import { VARY_JND, varyDistance, varyPlant, type PlantVary } from './vary';
+import { TRAITS, VARY_JND, varyDistance, varyPlant, type PlantVary, type TraitContext } from './vary';
+
+/** A trait context: the cell's biomass and sea, the world's light and heat band. */
+const cx = (mat: number, canopy: number, submerged: boolean, light: number, heatBand: number): TraitContext =>
+  ({ mat, canopy, submerged, elevation: submerged ? -1 : 1, light, heatBand, airDensity: 1.2, stats: {} });
 import { plantMatrix, plantShape } from './instance';
 
 const PATCH = 400;
@@ -29,8 +33,8 @@ const worlds: [string, Partial<VisualInputs>][] = [['carbon', {}], ['silicon', s
 
 describe('per-plant variation (vary.ts)', () => {
   it('is pure: the same plant always gets the same look, and a moving camera never changes a plant', () => {
-    const a = varyPlant(5, 1234, 3, false, 0.7, 0.4, false, 0.8, 0.5);
-    expect(varyPlant(5, 1234, 3, false, 0.7, 0.4, false, 0.8, 0.5)).toEqual(a);
+    const a = varyPlant(5, 1234, 3, false, cx(0.7, 0.4, false, 0.8, 0.5));
+    expect(varyPlant(5, 1234, 3, false, cx(0.7, 0.4, false, 0.8, 0.5))).toEqual(a);
     for (const [, over] of worlds) {
       const inp = inputs(varied, over);
       const near = placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList());
@@ -105,12 +109,12 @@ describe('per-plant variation (vary.ts)', () => {
   });
 
   it('carbon curls: stems bend, twist and droop or splay, and the cell biomass shapes them', () => {
-    const lean = varyPlant(5, 700, 1, false, 0.1, 0.1, false, 0.8, 0.5), dense = varyPlant(5, 700, 1, false, 1, 1, false, 0.8, 0.5);
+    const lean = varyPlant(5, 700, 1, false, cx(0.1, 0.1, false, 0.8, 0.5)), dense = varyPlant(5, 700, 1, false, cx(1, 1, false, 0.8, 0.5));
     expect(Math.hypot(dense.leanX, dense.leanZ)).toBeLessThan(Math.hypot(lean.leanX, lean.leanZ)); // dense cells stand straighter
     let bend = 0, twist = 0, droop = 0;
     const carbon = ARCHETYPE_META.findIndex((m) => m.chem === 'carbon' && m.role === 'mid');
     for (let c = 0; c < 200; c++) {
-      const v = varyPlant(carbon, c, 0, false, 0.6, 0.6, false, 0.2, 0.5);
+      const v = varyPlant(carbon, c, 0, false, cx(0.6, 0.6, false, 0.2, 0.5));
       bend = Math.max(bend, Math.abs(v.bend)); twist = Math.max(twist, Math.abs(v.twist)); droop = Math.max(droop, v.droop);
     }
     expect(bend).toBeGreaterThan(5 * VARY_JND.bend);
@@ -130,6 +134,20 @@ describe('per-plant variation (vary.ts)', () => {
     const m = plantMatrix(l, 0, a, new Matrix4()), sc = new Vector3();
     m.decompose(new Vector3(), new Quaternion(), sc);
     expect(sc.x).toBeCloseTo(s * 1.1, 5); expect(sc.y).toBeCloseTo(s, 5); expect(sc.z).toBeCloseTo(s * 1.1, 5);
+  });
+});
+
+describe('condition traits (TRAITS)', () => {
+  it('each maps its driver monotonically, and only world-wide drivers move the level parameters (girth, crown)', () => {
+    const ids = new Set<string>();
+    for (const t of TRAITS) {
+      expect(ids.has(t.id), t.id).toBe(false); ids.add(t.id);
+      expect(t.why.length, t.id).toBeGreaterThan(10);
+      if (t.param === 'girth' || t.param === 'crown') expect(t.scope, `${t.id} moves a level parameter`).toBe('world');
+      let up = 0, down = 0, prev = t.map(-1);
+      for (let x = -1; x <= 3; x += 0.01) { const y = t.map(x); if (y > prev + 1e-12) up++; if (y < prev - 1e-12) down++; prev = y; }
+      expect(up === 0 || down === 0, `${t.id} is monotone`).toBe(true);
+    }
   });
 });
 

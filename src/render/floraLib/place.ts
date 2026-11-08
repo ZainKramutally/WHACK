@@ -15,7 +15,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
-import { varyPlant, type PlantVary } from './vary';
+import { varyPlant, type PlantVary, type TraitContext } from './vary';
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
@@ -193,11 +193,13 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
   const look: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
+  const traits: TraitContext = { mat: 0, canopy: 0, submerged: false, elevation: 0, light: inputs.light, heatBand: inputs.heatBand, airDensity: inputs.airDensity, stats: inputs.stats };
   const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number, c: number, slot: number) => {
     if (!key || out.n >= cap) return;
     const ai = ARCHETYPE_INDEX.get(key)!;
     // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
-    const v = varyPlant(ai, c, slot, dark, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y < sea, inputs.light, inputs.heatBand, look);
+    traits.mat = inputs.flora[c * 2] ?? 0; traits.canopy = inputs.flora[c * 2 + 1] ?? 0; traits.submerged = y < sea; traits.elevation = y - sea;
+    const v = varyPlant(ai, c, slot, dark, traits, look);
     let tx = 0, tz = 0, sink = 0;
     const r = shapes ? shapes.foot[ai] * h * v.girth : 0;
     let ringed = false;

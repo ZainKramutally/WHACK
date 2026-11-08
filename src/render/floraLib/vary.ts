@@ -14,6 +14,11 @@
 // Chemistry (CLAUDE.md "Plant form"): silicon stays straight, faceted and 60°-branched, so it never bends, twists or
 // droops, and its girth and crown stay within ±6%: a branch built at 60° is drawn between 57° and 63°. Carbon gets all.
 //
+// Conditions shape the look through TRAITS: one row per rule, a driver read from the plant's cell or world, a monotone
+// mapping and the parameter it moves. A new trait is a new row. Rows driven by the cell (biomass, sea, elevation) may
+// move only the free parameters (lean, bend, twist, droop): girth and crown carry the levels that keep neighbours
+// apart, so they take world-wide drivers only (tested).
+//
 // No two neighbours alike. Each plant's girth, crown, value and hue LEVELS come from a code that is distinct for every
 // plant of the same role and value step within any 3 × 3 block of cells: the cell's class (col mod 3, row mod 3) × its
 // slot, scrambled by a fixed permutation so no stripes form. Adjacent levels sit ≥ 2.4 JND apart and jitter by at most
@@ -74,17 +79,66 @@ const LEAN_DEG: Record<FloraRole, [number, number]> = { ground: [1, 8], mid: [1,
 const ROLE_INDEX: Record<FloraRole, number> = { ground: 0, mid: 1, giant: 2 };
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+/** What a trait can read: the plant's cell, and the world. */
+export interface TraitContext {
+  /** The cell's biomass, whether the plant stands under the sea, and its base height above sea level (m). */
+  mat: number; canopy: number; submerged: boolean; elevation: number;
+  /** World-wide: light at the surface, the heat band 0..1, air density (kg/m³) and the live stats (oxygen, nitrogen,
+   * co2 on carbon, pressure, temperature, …). */
+  light: number; heatBand: number; airDensity: number; stats: Readonly<Record<string, number>>;
+}
+export type TraitParam = 'girth' | 'crown' | 'lean' | 'bend' | 'twist' | 'droop';
+/** One condition → look rule. */
+export interface Trait {
+  id: string;
+  /** Why the condition shapes the plant, in one plain sentence (render-only: plant shapes are an illustration). */
+  why: string;
+  param: TraitParam;
+  /** 'mul' multiplies the parameter by map(driver), 'add' adds it. Rows apply in table order. */
+  op: 'mul' | 'add';
+  /** Only on this chemistry (silicon never curls, and keeps its girth and crown for the 60° rule). */
+  chem?: 'carbon' | 'silicon';
+  /** 'world': the same for every plant; 'cell': differs between neighbours, so only free parameters may use it. */
+  scope: 'world' | 'cell';
+  driver: (c: TraitContext) => number;
+  /** Monotone in the driver. */
+  map: (x: number) => number;
+}
+const total = (c: TraitContext) => c.mat + c.canopy, wet = (c: TraitContext) => (c.submerged ? 1 : 0);
+export const TRAITS: readonly Trait[] = [
+  { id: 'coldStocky', why: 'Cold favours stockier stems: less surface to lose heat from.', param: 'girth', op: 'mul', chem: 'carbon', scope: 'world', driver: (c) => c.heatBand, map: (x) => 1 + 0.06 * (0.5 - clamp01(x)) },
+  { id: 'lightWideCaps', why: 'Bright light spreads caps wide to catch it; dim light keeps them narrow.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'world', driver: (c) => c.light, map: (x) => 0.96 + 0.1 * smooth(0.05, 0.4, x) },
+  { id: 'denseStraight', why: 'Plants in dense cells hold each other up, so they stand straighter.', param: 'lean', op: 'mul', scope: 'cell', driver: total, map: (x) => 1.15 - 0.3 * clamp01(x / 1.5) },
+  { id: 'waterHolds', why: 'Water buoys submerged plants upright.', param: 'lean', op: 'mul', scope: 'cell', driver: wet, map: (x) => 1 - 0.3 * x },
+  { id: 'lushCurls', why: 'Lush cells grow longer stems that curl further.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: total, map: (x) => 0.8 + 0.4 * clamp01(x / 1.2) },
+  { id: 'waterBendsLess', why: 'Water buoys submerged stems, so they bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: wet, map: (x) => 1 - 0.5 * x },
+  { id: 'lightSplays', why: 'Bright light lifts caps toward it; in dim light they hang.', param: 'droop', op: 'add', chem: 'carbon', scope: 'world', driver: (c) => c.light, map: (x) => -0.06 * smooth(0.05, 0.4, x) },
+  { id: 'lushDroops', why: 'Heavier, lusher caps droop further.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: total, map: (x) => 0.8 + 0.4 * clamp01(x / 1.2) },
+  { id: 'waterDroopsLess', why: 'Water buoys submerged caps, so they droop less.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: wet, map: (x) => 1 - 0.5 * x },
+];
+/** Apply every trait row for a chemistry to a parameter's base value. */
+function traited(param: TraitParam, chem: 'carbon' | 'silicon', ctx: TraitContext, base: number): number {
+  let v = base;
+  for (const t of TRAITS) {
+    if (t.param !== param || (t.chem && t.chem !== chem)) continue;
+    const m = t.map(t.driver(ctx));
+    v = t.op === 'mul' ? v * m : v + m;
+  }
+  return v;
+}
 /** Level value: (level − centre) × step, jittered by ±JITTER step. */
 const level = (lvl: number, n: number, step: number, u: number) => (lvl - (n - 1) / 2 + (u - 0.5) * 2 * JITTER) * step;
 
 /**
  * The look of one plant. `arch`: archetype index; `cell`, `slot`: where place.ts put it (slot counts within the cell's
- * role, and for the darker foreground extras from 0 again); `mat`, `canopy`: the cell's biomass; `submerged`: it stands
- * under the sea; `light`, `heatBand`: the world's. Pure and deterministic; writes into `out` when given.
+ * role, and for the darker foreground extras from 0 again); `ctx`: its cell and world (TRAITS read it). Pure and
+ * deterministic; writes into `out` when given.
  */
 export function varyPlant(
-  arch: number, cell: number, slot: number, dark: boolean, mat: number, canopy: number, submerged: boolean,
-  light: number, heatBand: number, out: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
+  arch: number, cell: number, slot: number, dark: boolean, ctx: TraitContext,
+  out: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
 ): PlantVary {
   const meta = ARCHETYPE_META[arch];
   const chem = meta.chem, role = meta.role, G = GRID[chem];
@@ -102,31 +156,24 @@ export function varyPlant(
   const hl = code % G.hue[0];
 
   const carbon = chem === 'carbon';
-  // world-wide biases only (the same for every neighbour, so levels keep their spacing): cold → stockier (carbon),
-  // bright light → wider caps, dark → narrower ones (carbon); silicon keeps its ranges for the 60° rule
-  const stock = carbon ? 1 + 0.06 * (0.5 - clamp01(heatBand)) : 1;
-  const wide = carbon ? (light >= 0.4 ? 1.06 : light < 0.05 ? 0.96 : 1) : 1;
-  out.girth = (1 + level(gl, G.girth[0], G.girth[1], u(0))) * stock;
-  out.crown = (1 + level(cl, G.crown[0], G.crown[1], u(1))) * wide;
+  // the levels, then the traits (world-wide only on these two, so the levels keep their spacing between neighbours)
+  out.girth = traited('girth', chem, ctx, 1 + level(gl, G.girth[0], G.girth[1], u(0)));
+  out.crown = traited('crown', chem, ctx, 1 + level(cl, G.crown[0], G.crown[1], u(1)));
   const v = 1 + level(vl, G.value[0], G.value[1], u(2));
   const h = level(hl, G.hue[0], G.hue[1], u(3));
   out.r = v * (1 + h); out.g = v; out.b = v * (1 - h);
 
-  // free per-plant noise, biased by the cell's own conditions
-  const total = mat + canopy;
+  // free per-plant noise, shaped by the traits of the plant's own cell and world
   const [lo, hi] = LEAN_DEG[role];
-  const dense = 1.15 - 0.3 * clamp01(total / 1.5); // dense cells stand straighter
-  const deg = (lo + (hi - lo) * u(4)) * dense * (LEAN_SCALE[ARCHETYPE_KEYS[arch]] ?? 1) * (submerged ? 0.7 : 1);
+  const deg = traited('lean', chem, ctx, (lo + (hi - lo) * u(4)) * (LEAN_SCALE[ARCHETYPE_KEYS[arch]] ?? 1));
   const t = Math.tan((deg * Math.PI) / 180), az = u(5) * Math.PI * 2;
   out.leanX = -t * Math.cos(az); out.leanZ = -t * Math.sin(az);
   if (!carbon) { out.twist = 0; out.droop = 0; out.bend = 0; return out; }
   const sign = (k: number) => (u(k) < 0.5 ? -1 : 1);
-  const lush = clamp01(total / 1.2), water = submerged ? 0.5 : 1;
-  // carbon curls: stems bend (more in lush cells) and twist; bright light splays caps up, dim light lets them hang
-  out.bend = sign(6) * (0.02 + 0.1 * u(7)) * (0.8 + 0.4 * lush) * water;
-  out.twist = sign(8) * (role === 'giant' ? 0.05 + 0.35 * u(9) : 0.1 + 0.6 * u(9));
-  const hang = light >= 0.4 ? -0.05 + 0.09 * u(10) : 0.12 * u(10);
-  out.droop = hang * (0.8 + 0.4 * lush) * water;
+  // carbon curls: stems bend and twist, caps droop or splay
+  out.bend = sign(6) * traited('bend', chem, ctx, 0.02 + 0.1 * u(7));
+  out.twist = sign(8) * traited('twist', chem, ctx, role === 'giant' ? 0.05 + 0.35 * u(9) : 0.1 + 0.6 * u(9));
+  out.droop = traited('droop', chem, ctx, 0.12 * u(10));
   return out;
 }
 
