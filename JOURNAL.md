@@ -277,3 +277,4 @@
 - 09:25 16: merged years counter keeps rising after the build.
 - 09:16 owner: perf-height (heightCore early-outs, bit-exact vs oracle; ironstone 2.39 -> 1.29 us), perf-genstart (landmarks/rockForms/pillars precomputed in idle on the selection screen per world|chip, warmed via app.compile; restores basalt pillars dropped by my 6812548 terrain-mesh cache), perf-retint (4 Hz retints, ranged pillar uploads). Owner OK'd main.
 09:27 merged feature/lead-pick (Pb one-click selectable); Tier 1 green
+- 09:27: fx-warm merged (609055c): underwaterFx under named group, added to warmFeatures. 9 tests + build green. 2c perf fixes on main (158fc63) incl. pillars-not-created hook bug.
