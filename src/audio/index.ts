@@ -162,7 +162,7 @@ export function mountAudio(): AudioApi {
     if (isNew && !lockWasNew) engine.lockOn();
     lockWasNew = isNew;
     const cap = document.querySelector('.wu-caption')?.textContent ?? '';
-    if (cap !== lastCaption) { lastCaption = cap; if (cap.startsWith('New entry')) lastFlash = performance.now(); engine.once('ui.scan.flash'); }
+    if (cap !== lastCaption) { lastCaption = cap; if (cap.startsWith('New entry') && performance.now() - lastFlash > 1000) { lastFlash = performance.now(); engine.once('ui.scan.flash'); } }
     const counts = document.querySelectorAll('.wu-bestiary .wu-bt-count');
     const dn = counts.length > 1 ? Number(counts[1].textContent) || 0 : 0;
     if (dn > deadN) engine.once('ui.extinct');
