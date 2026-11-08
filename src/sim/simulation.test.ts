@@ -538,7 +538,9 @@ describe('WorldSimulation', () => {
     const sim = new WorldSimulation(silicon, EARTH);
     sim.advance(silicon.build.durationSec);
     const before = sim.snapshot().population.consumers;
-    expect(before).toBeGreaterThanOrEqual(900);
+    // Intent unchanged: a populated world, then a visible die-off that is not a wipe-out. The floor was 900, but 815c219 (M4/M5 ironstone-only)
+    // took natural silicon's canyon and strata shallows, so its demo seed ends the build at 830. Now 70% of the 1,024 cap.
+    expect(before).toBeGreaterThanOrEqual(Math.floor(0.7 * 1024));
 
     sim.setControl('temperature', -100); // clamped to the current warm edge
     sim.advance(10);
