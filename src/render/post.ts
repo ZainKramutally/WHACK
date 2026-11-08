@@ -14,7 +14,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, If, pass, vec2, vec3, vec4, screenUV, screenSize, perspectiveDepthToViewZ, getViewPosition, smoothstep, max, min, mix, float, uniform,
-  floor, round, sin, fract, dot, length, exp,
+  floor, round, sin, fract, dot, length, exp, texture,
 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import type { VisualInputs } from '../worlds/types';
@@ -22,6 +22,9 @@ import { LOOK, PAL, PAL_LIT, PIXEL } from './material';
 import { waterlineNdc } from './underwater';
 
 export { PIXEL };
+// Pixel mode evaluates the output node once per INTERNAL pixel into a small RT, then blits it nearest-neighbour to the
+// canvas (≈k² less fragment work). `?postfull` restores the old path (output node per canvas pixel) for A/B.
+const INTERNAL = PIXEL && !(typeof location !== 'undefined' && /[?&]postfull(?:[=&]|$)/.test(location.search));
 export const INTERNAL_H = 360;
 // Outline colour: the palette's `ink` role (PAL.ink, set per world by updateLook). Outline fade, patch-relative: full
 // strength in the fore/midground (under 0.3 patch, LOOK.patch = 400 m), gone by 0.6 of the camera far plane (1000 m),
@@ -95,6 +98,14 @@ export interface Post {
 
 export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.Camera): Post {
   const pipeline = new THREE.RenderPipeline(renderer);
+  // INTERNAL path: stage A renders the output node (linear, untransformed) into outRT; stage B (`pipeline`) blits it to the
+  // canvas, where the pipeline's own output transform (tone mapping + sRGB) is applied exactly once, as before.
+  const outRT = new THREE.RenderTarget(1, 1, {
+    type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+  });
+  const matA = new THREE.NodeMaterial();
+  const quadA = new THREE.QuadMesh(matA);
+  quadA.name = 'Post internal';
   const scenePass: N = pass(scene, camera);
   const color: N = scenePass.getTextureNode('output');
   const depth: N = scenePass.getTextureNode('depth');
@@ -102,7 +113,9 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
   if (PIXEL) for (const t of [rt.texture, rt.depthTexture]) if (t) t.minFilter = t.magFilter = THREE.NearestFilter;
 
   const k = uniform(PIXEL ? 3 : 1); // canvas px per internal px
-  const texel = vec2(k, k).div(screenSize);
+  // INTERNAL: the output node runs with the internal RT bound, so screenSize IS the internal size (1:1 with the scene RT
+  // texels) and k no longer enters the maths; otherwise screenSize is the canvas and k converts.
+  const texel = INTERNAL ? vec2(1, 1).div(screenSize) : vec2(k, k).div(screenSize);
   const b: N = PIXEL ? bloom(color, 0.9, 0.05, 1.0) : bloom(color, 0.55, 0.35, 1.0);
   if (PIXEL) b._nMips = 2;
   const bloomTex: N = b.getTextureNode();
@@ -124,7 +137,7 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
   const sunXU = uniform(0);
   const shaftU = uniform(0);
   // The art-pixel grid: the internal pixels in pixel mode; smooth mode uses the same ~360 px grid, unquantised.
-  const grid: N = PIXEL ? screenSize.div(k) : screenSize.mul(float(INTERNAL_H).div(screenSize.y));
+  const grid: N = INTERNAL ? screenSize : PIXEL ? screenSize.div(k) : screenSize.mul(float(INTERNAL_H).div(screenSize.y));
   const LUMA: N = vec3(...LUMA_W);
 
   /**
@@ -184,7 +197,7 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     c.assign(mix(c, tint.mul(0.45), band(rel, 1, 2).mul(0.5).mul(u)));
   };
 
-  pipeline.outputNode = Fn(() => {
+  const outputNode: N = Fn(() => {
     // Underwater: which art pixels are in the water (under the waterline, with a gentle integer-row wave across x),
     // and the refraction wobble, which shifts whole wet rows by integer art pixels so it never smears.
     // (declared at the top so every branch below reads the same values)
@@ -232,13 +245,46 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       overlay(c, ip, wet, rel, wp, zc);
     });
     // Stepped pixel bloom: sample at the internal pixel centre, quantise magnitude to quarter steps.
-    const isz: N = screenSize.div(k);
+    const isz: N = INTERNAL ? screenSize : screenSize.div(k);
     const snap: N = floor(uv.mul(isz)).add(0.5).div(isz);
     const bl: N = bloomTex.sample(snap).rgb;
     const mag: N = max(bl.r, max(bl.g, bl.b));
     const q: N = floor(mag.mul(4).add(0.15)).div(4);
     return vec4(c.add(bl.mul(q.div(mag.max(1e-4)))), 1);
   })();
+
+  if (INTERNAL) {
+    matA.fragmentNode = outputNode;
+    pipeline.outputNode = vec4(texture(outRT.texture, screenUV).rgb, 1);
+  } else {
+    pipeline.outputNode = outputNode;
+  }
+  const sizeV = new THREE.Vector2();
+  // Match the scene RT's texels 1:1 (same formula as PassNode.setSize with resolutionScale 1/k + 1e-6). Only on change.
+  const syncOutRT = () => {
+    renderer.getDrawingBufferSize(sizeV);
+    const sc = 1 / Math.max(1, appliedK) + 1e-6;
+    const w = Math.max(1, Math.floor(sizeV.x * sc));
+    const h = Math.max(1, Math.floor(sizeV.y * sc));
+    if (outRT.width !== w || outRT.height !== h) outRT.setSize(w, h);
+  };
+  const renderInternal = () => {
+    syncOutRT();
+    const tm = renderer.toneMapping;
+    const cs = renderer.outputColorSpace;
+    const prev = renderer.getRenderTarget();
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.ColorManagement.workingColorSpace;
+    renderer.setRenderTarget(outRT);
+    try {
+      quadA.render(renderer);
+    } finally {
+      renderer.setRenderTarget(prev);
+      renderer.toneMapping = tm;
+      renderer.outputColorSpace = cs;
+    }
+    pipeline.render();
+  };
 
   let baseK = 3; // from the canvas height
   let pixelScale = 1;
@@ -253,7 +299,7 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
   };
 
   return {
-    render: () => pipeline.render(),
+    render: () => (INTERNAL ? renderInternal() : pipeline.render()),
     resize(h) {
       if (!PIXEL) return;
       baseK = Math.max(1, Math.round(h / INTERNAL_H));
@@ -294,6 +340,10 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
         await renderer.compileAsync(s, c);
       } finally {
         renderer.setRenderTarget(prev);
+      }
+      // Warm the RT pass + blit pipelines so the first real frame doesn't hitch (one throwaway frame).
+      if (INTERNAL) {
+        try { renderInternal(); } catch { /* first real frame compiles them */ }
       }
     },
   };
