@@ -62,7 +62,8 @@ function primitives(raw: BodyPlan): Prim[] {
   const lay = beadLayout(plan);
   const silicon = plan.chemistry === 'silicon';
   const colour = (tone: BeadTone, z: number) => {
-    const c = creatureColour(silicon, diet, WORLD_TONE[tone], hue, accent, hard, skin); // armour and skin guard as fauna draws them
+    // armour and skin guard as fauna draws them; a radial body's shell tiles (tone 2) keep the species skin
+    const c = creatureColour(silicon, diet, lay.radial && tone === 2 ? 0 : WORLD_TONE[tone], hue, accent, hard, skin);
     return z > 0.02 * plan.scale ? scaleHex(c, FAR_SHADE) : c;
   };
   const prims: Prim[] = [];

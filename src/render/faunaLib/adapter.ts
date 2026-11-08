@@ -222,7 +222,7 @@ function radialDesc(plan: BodyPlan, lay: BeadLayout): RadialDesc {
       i++; // the tip rod is part of the same spire
     } else {
       const spike = plan.tileLength > 0.5;
-      parts.push(part({ type: spike ? PART.hornSi : PART.plateSi, rod: true, a: i, b: i, t0: spike ? 0 : -0.15, t1: spike ? 1.2 : 0.5, r: spike ? 1.1 : 1.15, rRef: i, slot: rd.tone === BEAD_SPOT ? SLOT.accent : SLOT.hard }));
+      parts.push(part({ type: spike ? PART.hornSi : PART.plateSi, rod: true, a: i, b: i, t0: spike ? 0 : -0.15, t1: spike ? 1.2 : 0.5, r: spike ? 1.1 : 1.15, rRef: i, slot: rd.tone === BEAD_SPOT ? SLOT.accent : SLOT.body })); // the shell tiles are most of a radial body: they keep the species skin (#57); spires are the armour
     }
   }
   const eyes = lay.beads.map((_, i) => i);

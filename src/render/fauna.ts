@@ -201,7 +201,8 @@ function bake(layout: BeadLayout, silicon: boolean, look: SpeciesLook, glow: num
   if (silicon) slotGlow[SLOT.eye] = lit; // silicon's cyan arm-tip eyes are its light organs; carbon's ink eyes never glow
   const rgb = new Float32Array(TONES * 3);
   for (let tone = 0; tone < TONES; tone++) {
-    const sl = tone === 6 && lit > 0 ? SLOT.glow : TONE_SLOT[tone];
+    // radial bodies: tone 2 is their shell tiles, which keep the species skin (only spires, tone 4, are armour)
+    const sl = tone === 6 && lit > 0 ? SLOT.glow : tone === 2 && layout.radial ? SLOT.body : TONE_SLOT[tone];
     rgb[tone * 3] = slotRgb[sl * 3]; rgb[tone * 3 + 1] = slotRgb[sl * 3 + 1]; rgb[tone * 3 + 2] = slotRgb[sl * 3 + 2];
   }
   return { flat, shape, flap, rgb, slotRgb, slotGlow, rods, rodTone, hue, accent, hard, skin, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };

@@ -216,7 +216,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
         const target = i < R.nTiers ? hub : hex;
         const idx = i < R.nTiers ? i : i - R.nTiers;
         target.setMatrixAt(idx, m4);
-        target.setColorAt(idx, c.setHex(creatureColour(true, diet, WORLD_TONE[r.tone], hue, accent, hard, skin)));
+        target.setColorAt(idx, c.setHex(creatureColour(true, diet, r.tone === 2 ? 0 : WORLD_TONE[r.tone], hue, accent, hard, skin))); // tiles keep the skin
       });
       for (const m of [hub, hex]) { m.frustumCulled = false; m.position.y = 0.6; turntable.add(m); }
     }

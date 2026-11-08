@@ -10,7 +10,7 @@ import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type Species
 import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
 import { GROWN_FLOOR, drawnFactor, drawnLength, growthLength } from './growth';
 import { displayLength } from '../layout';
-import { creatureRing } from '../palette';
+import { creatureColour, creatureRing, hexToLab } from '../palette';
 import { swimmerParamsFromPlan } from './aquatic/fromPlan';
 
 const water: DevelopInputs = {
@@ -206,6 +206,23 @@ describe('loft writer', () => {
 });
 
 describe('fauna adapter', () => {
+  it('radial silicon shell tiles keep the species skin, so radial species stay #57 apart; only spires wear the armour', () => {
+    const plan = develop(genome({ size: 0.4, segments: 0.3, limbPairs: 0.5, limbLen: 0.6, plates: 0.3, horns: 0.6 }, true), day, water);
+    const lay = beadLayout(plan), d = describeFauna(plan, lay);
+    if (d.kind !== 'radial') throw new Error('radial expected');
+    const R = lay.radial!;
+    const tiles = d.parts.filter((p) => p.type === PART.plateSi);
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const p of tiles) expect(p.slot === SLOT.body || (p.slot === SLOT.accent && R.rods[p.a].tone === 6)).toBe(true);
+    for (const p of d.parts) if (p.slot === SLOT.hard) expect(R.rods[p.a].tone).toBe(4); // spires only
+    // the dominant drawn colour (hub and tiles) is the skin: candidate species stay >= 0.03 apart whatever the armour
+    const lab = (h: number) => hexToLab(creatureColour(true, 0.3, 0, h, 0.5, 0xd2d7dc));
+    for (let i = 0; i < 9; i++) for (let j = i + 1; j < 9; j++) {
+      const a = lab(i / 8), b = lab(j / 8);
+      expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])).toBeGreaterThanOrEqual(0.03);
+    }
+  });
+
   it('a far radial swimmer lies along its travel axis, never a tower standing out of the water (owner bug)', () => {
     const p = { ...develop(genome({ size: 0.4, segments: 0.3, limbPairs: 0.5, limbLen: 0.6 }, true), day, water) };
     const R = beadLayout(p).radial!;
