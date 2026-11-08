@@ -137,7 +137,9 @@ describe('terrain', () => {
       for (const [x, z] of grid(80, 400)) {
         const weight = t.crustWeights(x, z).reduce((a, v, j) => a + (gate.includes(j) ? v : 0), 0);
         const d = Math.abs(t.height(x, z, full()) - t.height(x, z, off));
-        if (weight < 1e-9) expect(d).toBe(0);
+        // a pillar is flat across its hex at the cell-centre ground, which includes every other machine at the centre, so inside a pillar only M7's own absence check is pointwise
+        const inPillar = id !== 'M7' && t.height(x, z, full()) !== t.height(x, z, { ...full(), progress: { ...full().progress, M7: 0 } });
+        if (weight < 1e-9 && !inPillar) expect(d).toBe(0);
         if (d > 0.01) moved++;
       }
       expect(moved, id).toBeGreaterThan(20);

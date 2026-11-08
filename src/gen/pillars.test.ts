@@ -41,7 +41,9 @@ describe('basalt pillars', () => {
       const p = pillarTops(t, s, i, full);
       if (!p.present) continue;
       checked++;
+      const gate = w.terrain.machines.find((m) => m.id === 'M7')!.minerals!.map((m) => w.terrain.crust.minerals.findIndex((c) => c.id === m));
       for (const [dx, dz] of [[0, 0], [0.2, 0.1], [-0.15, 0.25], [0.3, -0.1]]) {
+        if (t.crustWeights(s.cx[i] + dx * s.size, s.cz[i] + dz * s.size).reduce((a, v, j) => a + (gate.includes(j) ? v : 0), 0) <= 0.5) continue;   // a cell edge on other rock is smooth ground
         expect(t.height(s.cx[i] + dx * s.size, s.cz[i] + dz * s.size, full)).toBeCloseTo(p.top, 6);
       }
       expect(p.top).toBeGreaterThan(p.base);

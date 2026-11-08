@@ -333,7 +333,7 @@ export function heightCore(
     const m7 = M.M7!;
     const hx7 = hexCell(x / m7.size, z / m7.size);
     const pc = pillarCell(P, hx7.ix, hx7.iz, hs, p2, p3, p4, p5, p6, p8, p9, k);
-    if (pc.present) return rise * (pc.ground + p7 * pc.step);
+    if (pc.present && gateOf('M7') > 0.5) return rise * (pc.ground + p7 * pc.step);   // the point itself must also be on an M7 mineral, so no pillar overhangs other rock
   }
   return rise * hf;
 }
