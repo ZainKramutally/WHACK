@@ -174,3 +174,17 @@ export function armStance(stance: ArmStance, reach: number, t: number, phase: nu
 export function rollAngle(distance: number, radius: number): number {
   return distance / Math.max(1e-6, radius);
 }
+
+/**
+ * Lay a radial (silicon) body along its travel axis: a quarter turn about the lateral (z) axis through the hub centre
+ * at height `pivotY`, so the hub's axis points forward (+x) instead of up and the arms radiate around the travel axis,
+ * as the near LOD's rower swims (faunaLib/aquatic). In place, on rods (a and b endpoints at offsets 0 and 3 of each
+ * `rodStride` record) and eye beads (x, y at offsets 0 and 1 of each `eyeStride` record).
+ */
+export function layAlongTravel(
+  rods: Float32Array, nRods: number, rodStride: number, eyes: Float32Array, nEyes: number, eyeStride: number, pivotY: number,
+): void {
+  const rot = (a: Float32Array, i: number) => { const x = a[i], y = a[i + 1] - pivotY; a[i] = y; a[i + 1] = pivotY - x; };
+  for (let r = 0; r < nRods; r++) { rot(rods, r * rodStride); rot(rods, r * rodStride + 3); }
+  for (let k = 0; k < nEyes; k++) rot(eyes, k * eyeStride);
+}

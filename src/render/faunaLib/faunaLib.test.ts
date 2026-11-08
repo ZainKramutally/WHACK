@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { develop, type DevelopInputs } from '../../sim/develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from '../../sim/genome';
 import { OrganismField, geneField } from '../../sim/organismLayout';
-import { BEAD_EYE, BEAD_PLATE, beadLayout } from '../creatureLayout';
+import { BEAD_EYE, BEAD_PLATE, ROD_STRIDE, beadLayout } from '../creatureLayout';
+import { layAlongTravel } from '../motion';
 import { PART, bellSphere, describe as describeFauna, pickBounds, spineCount } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
@@ -181,6 +182,22 @@ describe('loft writer', () => {
 });
 
 describe('fauna adapter', () => {
+  it('a far radial swimmer lies along its travel axis, never a tower standing out of the water (owner bug)', () => {
+    const p = { ...develop(genome({ size: 0.4, segments: 0.3, limbPairs: 0.5, limbLen: 0.6 }, true), day, water) };
+    const R = beadLayout(p).radial!;
+    expect(R.nTiers).toBeGreaterThan(1);
+    const rods = new Float32Array(R.rods.length * ROD_STRIDE);
+    R.rods.forEach((r, i) => rods.set([r.ax, r.ay, r.az, r.bx, r.by, r.bz, r.r], i * ROD_STRIDE));
+    const span = (o: number) => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < R.rods.length; i++) for (const k of [0, 3]) { const v = rods[i * ROD_STRIDE + k + o]; lo = Math.min(lo, v); hi = Math.max(hi, v); } return hi - lo; };
+    const towerUp = span(1), towerAlong = span(0);
+    layAlongTravel(rods, R.rods.length, ROD_STRIDE, new Float32Array(0), 0, 5, R.pivotY);
+    expect(span(0)).toBeCloseTo(towerUp, 6);    // the hub's height now runs along the travel axis
+    expect(span(1)).toBeCloseTo(towerAlong, 6); // and its old footprint is its height
+    for (let i = 0; i < R.nTiers; i++) {        // hub tiers sit on the axis through the hub centre
+      expect(rods[i * ROD_STRIDE + 1]).toBeCloseTo(R.pivotY, 6); expect(rods[i * ROD_STRIDE + 4]).toBeCloseTo(R.pivotY, 6);
+    }
+  });
+
   it('a swimmer’s upright tail fin sits on the body axis and is no taller than the body (owner bug: far fish spiking up)', () => {
     for (const body of [{ size: 0.4, segments: 0.2, buoy: 0.6 }, { size: 0.3, segments: 0.5, buoy: 0.8 }]) {
       const p = { ...develop(genome(body), day, water), tailKind: 'fluke' as const, tailSegments: 1 };

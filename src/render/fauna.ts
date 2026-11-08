@@ -32,7 +32,7 @@ import {
   armRods, beadLayout, capsuleLayout, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
-  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, limbPhaseOffset, rollAngle, slewAngle, swayOffset, swimWave,
+  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave,
   turnRateMax,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
@@ -135,8 +135,6 @@ interface Entry {
   /** Radial bodies: rest rods (ROD_STRIDE floats: ax, ay, az, bx, by, bz, r, flat, up) and their tones. */
   rods: Float32Array; rodTone: Uint8Array;
   hue: number; accent: number;
-  /** Accumulated roll angle (radians) of a rolling radial body. */
-  roll: number;
   // body extents for the motion maths
   xmin: number; xspan: number; ymax: number;
   // snapshot interpolation: previous rendered pose → newest target, over dtSnap seconds from snapT
@@ -155,6 +153,8 @@ interface Entry {
   pitch: number; gHead: number; gTail: number; pX: number; pZ: number; pH: number; pStamp: number;
   /** Swimmers drawn as swimmers: their trail slot in the shared ring buffers (−1 none). */
   trail: number;
+  /** Radial swimmers: the rest pose laid along the travel axis (laidRest), built on first need. */
+  laid?: { rods: Float32Array; flat: Float32Array };
   /** True when the layout comes from a real BodyPlan (not the capsule fallback). */
   planned: boolean;
   /** Radial bodies: arms are walking arms (the plan has leg pairs); otherwise they are short spikes. */
@@ -403,7 +403,7 @@ export function createFauna(app: App): FaunaPart {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
       sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
-      lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
+      lastSeen: frame, glow, silicon, scale, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
       pitch: 0, gHead: 0, gTail: 0, pX: 0, pZ: 0, pH: 0, pStamp: -1, trail: -1, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -557,16 +557,22 @@ export function createFauna(app: App): FaunaPart {
         eyes[q] = tx + rig.eyeDX[k]; eyes[q + 1] = ty + rig.eyeR * 0.6; eyes[q + 2] = tz + rig.eyeDZ[k]; eyes[q + 3] = rig.eyeR; eyes[q + 4] = 1;
       }
     }
-    if (mode === LOCOMOTION.swim && e.roll !== 0) {
-      // A rolling hub turns like a wheel about its lateral axis, top moving forward.
-      const c = Math.cos(e.roll), sn = Math.sin(e.roll), py = R.pivotY;
-      const rot = (a: Float32Array, i: number) => {
-        const x = a[i], y = a[i + 1] - py;
-        a[i] = x * c + y * sn; a[i + 1] = py - x * sn + y * c;
-      };
-      for (let r = 0; r < R.rods.length; r++) { rot(out, r * ROD_STRIDE); rot(out, r * ROD_STRIDE + 3); }
-      for (let k = 0; k < lay.beads.length; k++) rot(eyes, k * 5);
+    // A radial swimmer lies along its travel axis, hub top forward, as the near LOD's rower (faunaLib/aquatic) swims;
+    // its rest layout is a standing tower, which far away read as a fish spiking up out of the water.
+    if (mode === LOCOMOTION.swim) layRadial(out, R.rods.length, eyes, lay.beads.length, R.pivotY);
+  }
+
+  const layRadial = (rods: Float32Array, nRods: number, eyes: Float32Array, nEyes: number, py: number) =>
+    layAlongTravel(rods, nRods, ROD_STRIDE, eyes, nEyes, 5, py);
+  /** A radial swimmer's rest pose lying along its travel axis (far tier and picking), built once per entry. */
+  function laidRest(e: Entry): { rods: Float32Array; flat: Float32Array } {
+    if (!e.laid) {
+      const R = e.layout.radial!;
+      const rods = e.rods.slice(), flat = e.flat.slice();
+      layRadial(rods, R.rods.length, flat, e.layout.beads.length, R.pivotY);
+      e.laid = { rods, flat };
     }
+    return e.laid;
   }
 
   function emitRod(
@@ -1188,7 +1194,11 @@ export function createFauna(app: App): FaunaPart {
       pe[pn] = e; pS[pn] = s; pY0[pn] = y0;
       pn++;
     }
-    if (tier === 0) { drawFar(e, s, y0, cosH, sinH, e.flat, e.rods); return; }
+    if (tier === 0) {
+      if (mode === LOCOMOTION.swim && lay.radial) { const L = laidRest(e); drawFar(e, s, y0, cosH, sinH, L.flat, L.rods); }
+      else drawFar(e, s, y0, cosH, sinH, e.flat, e.rods);
+      return;
+    }
     fPosed++;
     e.tier = 1;
     const s0 = fBoost * drawnFactor(e.scale, e.g);
@@ -1414,9 +1424,6 @@ export function createFauna(app: App): FaunaPart {
           const dist = Math.hypot(e.x - ox, e.z - oz) + 0.5 * Lw * Math.abs(dh);
           e.hW = gaitStep(e, dist, e.speed, Lw, rig.hip.y * s0, (rig.len1 + rig.len2) * s0, dt, fGravity);
         }
-        if (mode === LOCOMOTION.swim && e.layout.radial) {
-          e.roll = (e.roll + rollAngle(e.speed * dt / (boost * drawnFactor(e.scale, e.g)), e.layout.radial.rollRadius)) % (2 * Math.PI);
-        }
         const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
         if (d2 < R2) {
           const sv = boost * drawnFactor(e.scale, e.g);
@@ -1504,7 +1511,14 @@ export function createFauna(app: App): FaunaPart {
           const bend = walk && j < nBody;
           test(b.x, b.y + (bend ? kp * (b.x - xc) : 0), b.z + (bend ? walkBendZ(e, b.x, kap) : 0), b.r * Math.max(b.sx ?? 1, b.sz ?? 1, b.sy ?? 1) * 0.8);
         });
-        for (const r of e.layout.radial?.rods ?? e.layout.limbRods ?? []) {
+        if (e.layout.radial && e.mode === LOCOMOTION.swim) {
+          // a radial swimmer lies along its travel axis (laidRest), as it is drawn
+          const L = laidRest(e).rods;
+          for (let q = 0; q < e.layout.radial.rods.length; q++) {
+            const o = q * ROD_STRIDE;
+            for (const f of [0, 0.33, 0.67, 1]) test(L[o] + (L[o + 3] - L[o]) * f, L[o + 1] + (L[o + 4] - L[o + 1]) * f, L[o + 2] + (L[o + 5] - L[o + 2]) * f, L[o + 6]);
+          }
+        } else for (const r of e.layout.radial?.rods ?? e.layout.limbRods ?? []) {
           for (const f of [0, 0.33, 0.67, 1]) test(r.ax + (r.bx - r.ax) * f, r.ay + (r.by - r.ay) * f, r.az + (r.bz - r.az) * f, r.r);
         }
         if (e.bell && e.bellS) test(e.bellS.x, e.bellS.y, e.bellS.z, e.bellS.r * 0.85); // a carbon floater's gas bell
