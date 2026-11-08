@@ -4,7 +4,6 @@ import type { WorldConfig } from './types';
 
 export type Egg = 'lead';
 
-export const EGG_LABEL = 'Easter egg: not science';
 
 export function leadVariant(base: WorldConfig): WorldConfig {
   const rules = base.life.rules;
