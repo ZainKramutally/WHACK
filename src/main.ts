@@ -127,11 +127,16 @@ async function start(
       groundAt: (x, z) => (latest ? terrain.height(x, z, terrainState(latest, world)) : 0),
       seaLevelNow: () => latest?.stats.seaLevel ?? -1000,
       frozenNow: () => (latest ? latest.stats.temperature < world.solvent.freezeC : false),
+      // The UI's first caption ran while the HUD was still hidden by the transition: say it again as the HUD fades in
+      // (unless a later caption, e.g. a start-condition reason, is already on screen).
+      onReveal: () => { if (!document.querySelector('.wu-caption.wu-on')) uiRef?.showCaption(world.build.captions.start); },
     });
   } else handle?.dispose();
 
+  let uiRef: ReturnType<typeof mountWorldUI> | null = null;
   // In-world UI. The player's input owns Tab/Esc/gamepad, so the UI skips its own.
   const ui = mountWorldUI(app.ui, bus, world, { controls: controlList, otherWorld, externalInput: true, seed, floraSubmerged: (cell) => cellSubmerged(cell, app.inputs) });
+  uiRef = ui;
 
   // Player.
   const pick = view.pick;
@@ -168,14 +173,21 @@ async function start(
 
   // The character spawns once the ground is solid (build.spawnSec); before that the player is frozen and hidden.
   let spawned = false;
+  let appear = 1;   // the character grows in over APPEAR_SEC after it spawns (smoothstep), instead of popping
+  const APPEAR_SEC = 0.35;
   bus.on('world:selected', () => { spawned = false; player.setVisible(false); });
   app.registerFrameHook((dt) => {
     if (!spawned) {
       if (!latest || latest.timeSec < world.build.spawnSec) return;
       const p = spawnFor(terrain, latest, world);
       player.respawn(p.x, p.z);
-      player.setVisible(true);
+      appear = 0;
+      player.setAppear(0);
       spawned = true;
+    }
+    if (appear < 1) {
+      appear = Math.min(1, appear + dt / APPEAR_SEC);
+      player.setAppear(appear * appear * (3 - 2 * appear));
     }
     player.update(dt);
     // Structures are solid: slide the character out of any footprint (heightAt alone would lift it onto a pillar).

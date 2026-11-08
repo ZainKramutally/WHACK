@@ -21,6 +21,8 @@ export interface AttachedPlayer {
   /** Move the player (e.g. to the spawn point once the ground is solid) and snap the camera. */
   respawn(x: number, z: number): void;
   setVisible(v: boolean): void;
+  /** Grow the character in from its feet: 0 hides it, 1 is full size (the spawn ramp). */
+  setAppear(k: number): void;
 }
 
 export interface AttachOptions {
@@ -92,6 +94,11 @@ export function attachPlayer(
     },
     setVisible(v) {
       character.root.visible = v;
+      if (v) character.root.scale.setScalar(1);
+    },
+    setAppear(k) {
+      character.root.visible = k > 0;
+      character.root.scale.setScalar(Math.max(k, 0.001));
     },
     dispose() {
       input.dispose();

@@ -55,6 +55,8 @@ export interface StartOptions {
   handle: LaunchHandle;
   /** Latest sim snapshot (null until the first arrives). */
   snapshot(): SimSnapshot | null;
+  /** Called once as the HUD begins to fade in (T = spawnSec − 0.45): the world UI's first caption was shown while it was hidden. */
+  onReveal?(): void;
   /** Where the player will spawn (main.ts spawnFor) and the ground there as the sim stands. */
   spawnFor(s: SimSnapshot): { x: number; z: number };
   groundAt(x: number, z: number): number;
@@ -155,6 +157,9 @@ export function createGenerate(app: App): Generate {
       p.group.visible = true;
       await app.compile(p.group, camera);
       p.group.visible = false;
+      // A plan that finishes after Generate was clicked (the sliders glided, so an earlier job was still running) is stale:
+      // replacing `primed` now would dispose the group the transition is drawing and cut the whole tide in one frame.
+      if (active) { p.dispose(); return; }
       primed?.dispose();
       primed = p;
     } catch (e) {
@@ -258,7 +263,7 @@ export function createGenerate(app: App): Generate {
   }
 
   function prime(worldId: WorldId, terrain: Terrain, seed: number, requested: Conditions, handle: LaunchHandle) {
-    if (!('relics' in terrain)) return;   // flat fallback: nothing to land on
+    if (!('relics' in terrain) || active) return;   // flat fallback: nothing to land on; or the transition is running
     const a: PrimeArgs = { worldId, terrain, seed, requested, handle };
     const key = keyOf(a);
     if (primed?.key === key || job?.key === key) return;
@@ -352,9 +357,13 @@ export function createGenerate(app: App): Generate {
     const seaMat = (sea as THREE.Mesh | null)?.material as THREE.Material | undefined;
     let seaBase = seaMat?.opacity ?? 1, seaWritten = -1;
 
+    // The world UI is mounted at Generate but stays invisible, then fades in with T (--gen-ui 0 → 1) just before the character spawns.
     const hideUi = document.createElement('style');
-    hideUi.textContent = '.wu-root{visibility:hidden}';
+    hideUi.textContent = '.wu-root{opacity:var(--gen-ui,0)} .wu-root,.wu-root *{pointer-events:none!important}';
     document.head.appendChild(hideUi);
+    const UI_FADE: [number, number] = [spawnSec - 0.45, spawnSec - 0.05];
+    let uiShown = false, uiRevealed = false;
+    const showUi = () => { hideUi.remove(); document.documentElement.style.removeProperty('--gen-ui'); uiShown = true; };
     p.group.visible = true;
     const baseFov = camera.fov;
     let anchor: { sim: number; wall: number } | null = null, lastSim = -1, lastT = 0;
@@ -384,6 +393,7 @@ export function createGenerate(app: App): Generate {
       const T0 = anchor ? anchor.sim + (now - anchor.wall) / 1000 : (now - wall0) / 1000;
       const T = Math.max(lastT, T0);
       lastT = T;
+      if (dbg) (window as unknown as Record<string, unknown>).__genT = T;
 
       // Terrain uniforms: what the real terrain mesh uses (stepped per snapshot), else the build clock.
       const inp = snap ? app.inputs : null;
@@ -457,7 +467,11 @@ export function createGenerate(app: App): Generate {
           }
           if (T >= 1.45) { domGone = true; overlay.remove(); handle.dispose(); }
         }
-        if (T >= spawnSec - 0.25) hideUi.remove();
+        if (!uiShown) {
+          const u = sstep(UI_FADE[0], UI_FADE[1], T);
+          if (u > 0 && !uiRevealed) { uiRevealed = true; o.onReveal?.(); }
+          if (u >= 1) showUi(); else document.documentElement.style.setProperty('--gen-ui', u.toFixed(3));
+        }
         if (T >= spawnSec) { released = true; camera.fov = baseFov; camera.clearViewOffset(); camera.updateProjectionMatrix(); }
       }
 
@@ -493,7 +507,7 @@ export function createGenerate(app: App): Generate {
       resetPixelScale(app);
       p.group.visible = false;
       if (seaMat) seaMat.opacity = seaBase;
-      overlay.remove(); hideUi.remove();
+      overlay.remove(); showUi();
       if (!domGone) { domGone = true; handle.dispose(); }
       camera.fov = baseFov; camera.clearViewOffset(); camera.updateProjectionMatrix();
       active = null;
