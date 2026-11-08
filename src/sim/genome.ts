@@ -79,7 +79,7 @@ const BUD_SHARE = 0.15;
 const BUD_RANGE: [number, number] = [0.02, 0.12]; // below 0.125 = 0 leg pairs after round(4·g)
 
 /** Per-world bounds for the run-seeded mean of the founders' latent genes (and the share with a limb bud). A gene not listed keeps its fixed founder value. */
-export type FounderLatent = Partial<Record<BodyGene | 'budShare', [number, number]>>;
+export type FounderLatent = Partial<Record<BodyGene | 'budShare' | 'budMax', [number, number]>>;
 
 /** Fallback climate genes, until the caller passes the world's. Placeholder: `life.rules` should supply them. */
 const DEFAULT_FOUNDER_CLIMATE: ClimateGenes = { prefTemp: 15, tolerance: 8, chem: 0.5 };
@@ -100,17 +100,20 @@ export function makeFounders(
   // seed inside the world's bounds, so each run starts from a differently-leaning lineage. Standing variation (σ) is unchanged.
   const mean = { ...FOUNDER_BASE };
   let budShare = BUD_SHARE;
+  let budMax = BUD_RANGE[1];
   if (latent) {
     const lr = makeRng(seed)('founder-mean');
     for (const g of BODY_GENES) { const b = latent[g]; if (b) mean[g] = b[0] + (b[1] - b[0]) * lr(); }
     if (latent.budShare) budShare = latent.budShare[0] + (latent.budShare[1] - latent.budShare[0]) * lr();
+    if (latent.budMax) budMax = latent.budMax[0] + (latent.budMax[1] - latent.budMax[0]) * lr();
   }
   const out: AnimalGenome[] = [];
   for (let i = 0; i < count; i++) {
     const body = { ...mean };
     for (const g of FOUNDER_VARIED) body[g] = clamp01(mean[g] + FOUNDER_SIGMA * gaussian(rng));
     const bud = rng() < budShare;
-    const budSize = BUD_RANGE[0] + (BUD_RANGE[1] - BUD_RANGE[0]) * rng(); // always drawn, so the stream is stable
+    const budLo = latent?.budMax ? 0.6 * budMax : BUD_RANGE[0];   // with a seeded leg lean the run's founders all lean about the same way
+    const budSize = budLo + (budMax - budLo) * rng(); // always drawn, so the stream is stable
     body.limbPairs = bud ? budSize : 0;
     out.push({ body, climate: { ...climate }, comp: { ...worldComposition }, lineage: i });
   }
