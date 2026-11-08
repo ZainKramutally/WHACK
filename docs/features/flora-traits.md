@@ -183,6 +183,28 @@ counts never change:
 - **Silhouette.** A bristle of long hex needles leaning out in 15° steps, tipped with glow pods. Height = depth − 0.5 m,
   so it never breaks the surface (crystals don't float). Mid: a violet thicket under the clear sea. **Cost:** ≈ 180.
 
+## 2b. Silicon-only archetypes (5, owner ask: "more plant things on silicon")
+
+All five are **[speculative]**: living silicon-nitride crystal is this world's invention. Each is reasoned from one of
+silicon's own conditions (liquid-N₂ shallows, ~1% light, ~13 kg/m³ air, the evaporating sea margin), and none has a
+carbon twin. Silicon grammar throughout (`species/silicon.ts`): hex prisms and 3-sided struts, 60° steps, flat-shaded
+facets, far LOD = near, stiff sway, part weights (0, 0) (crystals never droop). Gates are MAP substitutions plus
+per-plant predicates in `gates.ts`; when a gate fails, the base pick stands. Two new gate fields: `band` (own ground
+height above the sea, in a shoreline cell) and `share` (only that share of matching plants, by a per-plant hash, so the
+base kind still grows beside the new one).
+
+| | Archetype | Role | Gate (replaces) | Tris | Why |
+|---|---|---|---|---|---|
+| S1 | Nitride crown | ground | dry sea margin, 0–2.5 m above the sea in a shoreline cell (crystalGround#0 druse) | 252 | nitride precipitates where liquid N₂ evaporates off the margin: the M2 crust bands, grown as a crown of hex columns out of a glowing geode dish |
+| S2 | Lace fan | mid | air ≥ 5 × Earth's density (shardTree#2 basalt columns, all) | 363 | a 60° lattice spread across the dense air as a filter, on the sea-fan analogy (gorgonians catch plankton across the flow) [analogue] |
+| S3 | Air-plankton raft | mid | air ≥ 5 × Earth's density, share 0.5 (shardTree#1 pod shards) | 165 | ≈ 11 × Earth's air density gives a gas bladder ≈ 11 × the lift [physics]; the lifting gas and living rafts are speculative (as A6). A hex raft of seven bladders on a tether |
+| S4 | Glass kelp | mid (aquatic) | silicon water 4–12 m deep; whisker reefs keep 1–4 m (`aquaticFor` `deep`) | 228 | liquid nitrogen is colourless, so light reaches deeper water and tall blades can reach up; top kept 0.5 m under the surface (crystals don't float) |
+| S5 | Lantern bulbs | ground | light < `DARK_BELOW` (0.05), on land, share 0.5 (crystalGround#1 tile crust) | 135 | glow pays as a lure only where light is scarce (glow from darkness, CLAUDE.md); faceted bulbs on struts with glowing waists |
+
+**On the default silicon demo seed** (−183 °C, default N, thick air, 1.6% light; the mixed-world fixture on
+`createTerrain(silicon.terrain, silicon.demoSeed)`), all five grow: lantern 249, glass kelp 135, crown 83, lace 73,
+plankton 71 plants. A test asserts at least 2.
+
 ## 3. Substrate colour field (ground and what plants take from it)
 
 ### 3.1 Derivation (pure, per 64² cell, CPU)
@@ -410,12 +432,18 @@ no browser runs). Rendering is checked by the owner by eye.
 | A7 frost fern | ground | ≈ 140 | = near | replaces needle tufts |
 | A8 whisker reef | mid | ≈ 180 | = near | new aquatic slot, ≤ 1 per cell |
 | T9 dense builds | as base | as base | as base | swap with the sparse build (world-wide) |
+| S1 nitride crown | ground | 252 | = near | replaces druse on the margin band |
+| S2 lace fan | mid | 363 | = near | replaces every basalt column in thick air |
+| S3 air-plankton raft | mid | 165 | = near | replaces half the pod shards in thick air |
+| S4 glass kelp | mid | 228 | = near | the aquatic slot's deep window (4–12 m); reefs keep 1–4 m |
+| S5 lantern bulbs | ground | 135 | = near | replaces half the land tile crusts in the dark |
 
 ### 9.2 Worst-case draw calls (the cap is 33)
 | World | Today | After | How |
 |---|---|---|---|
 | Carbon | 33 (ground 9, mid 12, giant 12) | **31** (ground 9, mid 8 + 4 gated, giant 8 + 2 gated) | the dither always shows two body variants per species, and that is what is counted: weeper {0,1,3} → 2, ribFan {0,1,2} → 2, parasolTitan {0–3} → 2, coilSpire {0,2} → 2, so mid kinds 6 → 4 and giant 6 → 4, each × 2 draws; the T9 density build is a hard switch at `P` = 0.45 (one build at a time; pure, because `P` moves smoothly); at most two gated mids (A1 or A3, plus A5) and one gated giant (A2) |
 | Silicon | 18 (ground 4 kinds × near+dark = 8, shardTree 3 × 2 = 6, prismTitan 2 × 2 = 4) | **22** (ground 8 + frost fern 2, mid 6 + reef 2, giant 4) | air kelp replaces the candelabra patch-wide (world-wide gate): 0 net; per-cell supply picks stay inside the dim list's 3 shardTree kinds: 0 net; frost fern is per cell, so it adds its near + dark (2); the reef adds 2. If supply branching also pulls in shardTree#0: 24 |
+| Silicon + §2b | 22 (realistic mixed) | **30** realistic mixed (ground 14, mid 12, giant 4); uniform worst case ≤ 33 | crown and lantern add a ground kind each (near + dark, 2 each); lace replaces basalt (0 net); plankton and glass kelp add a mid kind each (2 each, plankton keeps half the pods) |
 
 Triangles: substitution changes per-instance cost by ≤ ±25%, and the new aquatic slots add ≈ 0.1M, so the worst case
 stays well under 4.5M. The test in `floraLib.test.ts` gains the new cases from WP-B.
@@ -429,7 +457,8 @@ stays well under 4.5M. The test in `floraLib.test.ts` gains the new cases from W
   `granite` note must drop "feeds life poorly").
 - **[art]:** base hues, cold → tall (owner rule; Earth runs the other way), the climate cline that orders body
   variants, the root-depth blend, the vitality chroma, and every threshold not tied to a source.
-- **Speculative:** every silicon trait and archetype, and gas floats in air on both worlds.
+- **Speculative:** every silicon trait and archetype (including all five §2b silicon-only forms), and gas floats in
+  air on both worlds.
 - **State:** the rust ratchet (declared in crust.md); everything else is a pure function of the current inputs.
 - **Unverified:** cushion-plant source, kelp-float source, β-Si₃N₄ habit, dopant-colour source, the margin-formula
   coefficients, the light-versus-temperature numbers, and the Nitrogen setting at which carbon air reaches 5 ×
