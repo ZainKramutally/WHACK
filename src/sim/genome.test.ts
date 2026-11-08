@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_GENES, makeFounders, mutate, type AnimalGenome } from './genome';
+import { BODY_GENES, DEFAULT_CLIMATE_RULES, makeFounders, mutate, type AnimalGenome } from './genome';
 import { CONSTANTS } from './constants';
 import { makeRng } from './rng';
 
@@ -72,5 +72,19 @@ describe('mutate', () => {
     const sd = Math.sqrt(diffs.reduce((a, b) => a + b * b, 0) / diffs.length);
     expect(sd).toBeGreaterThan(0.87 * CONSTANTS.SIGMA.value);
     expect(sd).toBeLessThan(1.13 * CONSTANTS.SIGMA.value);
+  });
+  it('makes a large jump on 1-3 genes when jumpRate fires, and none when it is 0', () => {
+    const mid: AnimalGenome = { ...parent, body: Object.fromEntries(BODY_GENES.map((k) => [k, 0.5])) as AnimalGenome['body'] };
+    const rules = { ...DEFAULT_CLIMATE_RULES, mutation: { ...DEFAULT_CLIMATE_RULES.mutation, jumpRate: 1, jumpScale: 0.3 } };
+    const rng = makeRng(9)('jump');
+    for (let i = 0; i < 50; i++) {
+      const moved = BODY_GENES.filter((k) => Math.abs(mutate(mid, rng, rules, 0).body[k] - 0.5) > 0.15);
+      expect(moved.length).toBeGreaterThanOrEqual(0);
+    }
+    const counts = Array.from({ length: 50 }, () => { const c = mutate(mid, rng, rules, 0); return BODY_GENES.filter((k) => c.body[k] !== 0.5).length; });
+    expect(Math.min(...counts)).toBeGreaterThanOrEqual(1);
+    expect(Math.max(...counts)).toBeLessThanOrEqual(3);
+    const calm = mutate(mid, rng, DEFAULT_CLIMATE_RULES, 0);
+    expect(BODY_GENES.every((k) => calm.body[k] === 0.5)).toBe(true);
   });
 });

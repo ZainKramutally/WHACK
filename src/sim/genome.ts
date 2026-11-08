@@ -47,6 +47,17 @@ export function mutate(
   const body = {} as BodyGenes;
   const sizeBoost = climate.mutation.sizeBoost ?? 1;
   for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * (g === 'size' ? sizeBoost : 1) * gaussian(rng));
+  // Punctuated equilibrium (Gould & Eldredge 1972): rarely, 1-3 genes jump far, founding a new form that establishes or dies out.
+  const jumpRate = climate.mutation.jumpRate ?? 0;
+  if (jumpRate > 0 && rng() < jumpRate) {
+    const scale = climate.mutation.jumpScale ?? 0;
+    const n = 1 + Math.floor(rng() * 3);
+    for (let k = 0; k < n; k++) {
+      const g = BODY_GENES[Math.floor(rng() * BODY_GENES.length)];
+      const step = scale * (0.6 + 0.8 * rng());
+      body[g] = clamp01(body[g] + (rng() < 0.5 ? -step : step));
+    }
+  }
   return {
     body,
     climate: mutateClimate(parent.climate, climate, rng),
