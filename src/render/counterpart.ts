@@ -1,7 +1,7 @@
 // The inspect card's 3D window: while the UI holds an `inspect:window` rect, draw a small scissored viewport of the
 // inspected thing, turning slowly. Organisms: the creature itself, built from its own cached BodyPlan as beads (never
-// another chemistry's rebuild). Producer: the clicked cell's own plants, the real flora archetypes the world places
-// there (near LOD, the world's palette and glow). Sea/ground/sky: this world's swatch. There is no other-world view.
+// another chemistry's rebuild). Producer: exactly the plants the world drew in the clicked cell
+// (FloraPart.plantsIn), from its shared flora library at their own LOD, with their own curl, tint and glow. Sea/ground/sky: this world's swatch. There is no other-world view.
 // Runs only while the window is set. Drawn as an app overlay: after the post pipeline has written the frame, straight to the
 // canvas at full resolution, so the card's view stays crisp (never pixelated or outlined).
 import { flightParamsFor } from '../sim/flight';
@@ -14,9 +14,9 @@ import { gasDensity } from '../sim/models';
 import { beadLayout, cellCentre } from './layout';
 import { floraForm } from './floraForm';
 import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixHex, seaStyle, skyStyle } from './palette';
-import { buildFloraLibrary, paint, type FloraLibrary } from './floraLib';
-import { makePlantList, type Clearing } from './floraLib/place';
-import { plantsInCell } from './cellPlants';
+import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
+import type { PlacedPlant } from './flora';
+import { plantViewMaterial } from './material';
 import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
@@ -41,8 +41,9 @@ export interface CounterpartDeps {
     /** The creature as the world's near LOD draws it (loft and parts) at rest pose; the live view prefers this. */
     bake?: () => BakedCreature | null;
   } | null;
-  /** The world's spawn clearing (as given to flora.setClearing), so the producer view drops the plants the world clears. */
-  getClearing?: () => Clearing | null;
+  /** The plants the world drew in a flora cell at its last rebuild (FloraPart.plantsIn): the producer view draws exactly
+   * these, so it matches the world after the spawn clearing, cliff skips and distance thinning. */
+  plantsIn?: (cell: number) => PlacedPlant[];
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -306,65 +307,72 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   // ---- producer: the clicked cell's real plants ---------------------------------------------------------------------
-  // The world's flora archetypes, rebuilt here from the same seed (pure and deterministic, so the same geometry), near LOD.
-  // CARD_LIB_SEED must equal flora.ts LIB_SEED; switch to a shared floraLib library export once there is one.
-  const CARD_LIB_SEED = 0x5eed_f10a;
-  let floraLib: FloraLibrary | null = null;
-  const libOf = () => (floraLib ??= buildFloraLibrary(CARD_LIB_SEED));
-  const darkGeo = new Map<number, THREE.BufferGeometry>(); // the foreground value step needs its own colours (as flora.ts)
-  // Two-sided like the world's plants (open webs, sieve plates and parasol discs); vertex colours from paint().
-  const plantMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.7 });
-  const plants = makePlantList(2048); // ≥ 81 cells × ~20 plants: the clicked cell's plants are never dropped for its neighbours'
-  /** One plant the world draws in a cell: its archetype index, world instance transform, the ground height under it
-   *  (the card stands every plant on its plate), and the world's paint for it (value step, glow). */
-  interface CellPlant { arch: number; m: THREE.Matrix4; ground: number; dark: boolean; glow: number }
-  const UP = new THREE.Vector3(0, 1, 0), tq = new THREE.Quaternion(), tp = new THREE.Vector3(), ts = new THREE.Vector3();
-
-  /**
-   * The plants the world draws in `cell`. Today re-derived with the world's own placement (cellPlants.ts) and composed
-   * as flora.ts composes its instances; when FloraPart.plantsIn(cell) lands, this is the only function to change.
-   */
-  function plantsToDraw(cell: number, inputs: VisualInputs, patch: number): CellPlant[] {
-    const lib = libOf();
-    return plantsInCell(inputs, patch, cell, { x: app.camera.position.x, z: app.camera.position.z }, plants, deps.getClearing?.() ?? null).map((i) => {
-      const a = lib.archetypes[plants.arch[i]], s = plants.h[i] / a.size;
-      tq.setFromAxisAngle(UP, plants.yaw[i]);
-      const m = new THREE.Matrix4().compose(tp.set(plants.x[i], plants.y[i] - 0.03 * plants.h[i], plants.z[i]), tq, ts.set(s, s, s));
-      return { arch: plants.arch[i], m, ground: plants.y[i], dark: plants.dark[i] === 1, glow: plants.glow[i] };
-    });
+  // Exactly the plants the world drew in the cell at its last rebuild (deps.plantsIn), from the world's shared flora
+  // library at each plant's own LOD and value step, standing upright on the plate with its size, girth, yaw and lean,
+  // its curl (shape terms), tint and own glow: one InstancedMesh per look (archetype × LOD × value step). The library is
+  // read-only: each look draws through its own geometry (shared position, normal, sway and index; its own colour, glow
+  // and per-instance buffers), kept for later cards and repainted only when the palette changes.
+  const PLANT_CAP = 32; // plants of one look in one cell (a cell holds at most ~18)
+  const plantMat = plantViewMaterial({ plantAttr: 'aPlant', lookAttr: 'aLook', glowAttr: 'aGlow' });
+  interface CardLook { geometry: THREE.BufferGeometry; shape: THREE.InstancedBufferAttribute; look: THREE.InstancedBufferAttribute; painted: FloraPalette | null }
+  const cardLooks = new Map<string, CardLook>();
+  function cardLook(arch: number, lod: 0 | 1, dark: boolean, pal: FloraPalette): CardLook {
+    const id = `${arch}|${lod}|${dark ? 1 : 0}`;
+    const built = floraLibrary().archetypes[arch].lod[lod];
+    let L = cardLooks.get(id);
+    if (!L) {
+      const geometry = new THREE.BufferGeometry();
+      for (const [name, at] of Object.entries(built.geometry.attributes)) geometry.setAttribute(name, name === 'color' || name === 'aGlow' ? at.clone() : at);
+      geometry.setIndex(built.geometry.index);
+      const shape = new THREE.InstancedBufferAttribute(new Float32Array(PLANT_CAP * 4), 4);
+      const look = new THREE.InstancedBufferAttribute(new Float32Array(PLANT_CAP * 4), 4);
+      geometry.setAttribute('aPlant', shape);
+      geometry.setAttribute('aLook', look);
+      L = { geometry, shape, look, painted: null };
+      cardLooks.set(id, L);
+    }
+    if (L.painted !== pal) { paintSites({ ...built, geometry: L.geometry }, pal, dark); L.painted = pal; }
+    return L;
   }
 
-  /** The clicked cell's plants on a plate of this world's ground: real archetypes, painted as the world paints them. */
+  /** The clicked cell's plants on a plate of this world's ground: the world's own plants, drawn as the world draws them. */
   function producerContent(cell: number, inputs: VisualInputs, aspect: number) {
     const world = deps.worldFor(inputs.world.id);
     const patch = inputs.terrain.patchSize ?? world.terrain.patchSize;
-    const lib = libOf();
+    const lib = floraLibrary();
     const pal = LOOK_PALETTES[lookKind(inputs.world.composition)];
     const cc = cellCentre(cell, patch);
     const group = new THREE.Group();
     let reach = 0.3, top = 0.3;
-    const painted = new Set<string>();
-    const toCard = new THREE.Matrix4();
-    for (const p of plantsToDraw(cell, inputs, patch)) {
-      const a = lib.archetypes[p.arch];
-      const built = a.lod[0];
-      let g = built.geometry;
-      if (p.dark) {
-        g = darkGeo.get(a.index) ?? built.geometry.clone();
-        darkGeo.set(a.index, g);
+    const byLook = new Map<string, PlacedPlant[]>();
+    for (const p of deps.plantsIn?.(cell) ?? []) {
+      const id = `${p.arch}|${p.lod}|${p.dark ? 1 : 0}`;
+      let ps = byLook.get(id);
+      if (!ps) byLook.set(id, (ps = []));
+      ps.push(p);
+    }
+    const toCard = new THREE.Matrix4().makeTranslation(-cc.x, 0, -cc.z), m = new THREE.Matrix4();
+    for (const ps of byLook.values()) {
+      const { arch, lod, dark } = ps[0];
+      const a = lib.archetypes[arch], L = cardLook(arch, lod, dark, pal);
+      const n = Math.min(ps.length, PLANT_CAP);
+      const mesh = new THREE.InstancedMesh(L.geometry, plantMat, n);
+      const sh = L.shape.array as Float32Array, lk = L.look.array as Float32Array;
+      for (let k = 0; k < n; k++) {
+        const p = ps[k];
+        m.multiplyMatrices(toCard, p.flat); // around the cell, upright on the plate
+        mesh.setMatrixAt(k, m);
+        sh.set(p.shape, k * 4);
+        lk[k * 4] = p.tint[0]; lk[k * 4 + 1] = p.tint[1]; lk[k * 4 + 2] = p.tint[2]; lk[k * 4 + 3] = p.glow;
+        const e = m.elements;
+        const sc = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
+        reach = Math.max(reach, Math.hypot(e[12], e[14]) + a.radius * sc);
+        top = Math.max(top, e[13] + a.height * sc);
       }
-      const tag = `${a.index}|${p.dark ? 1 : 0}`;
-      if (!painted.has(tag)) { paint({ ...built, geometry: g }, pal, p.glow, p.dark); painted.add(tag); }
-      const mesh = new THREE.Mesh(g, plantMat);
-      mesh.matrixAutoUpdate = false;
-      mesh.matrix.multiplyMatrices(toCard.makeTranslation(-cc.x, -p.ground, -cc.z), p.m); // around the cell, on the plate
+      for (const at of [L.shape, L.look]) { at.clearUpdateRanges(); at.addUpdateRange(0, n * 4); at.needsUpdate = true; }
       mesh.frustumCulled = false;
       group.add(mesh);
       releaseOnClear(mesh);
-      const e = mesh.matrix.elements;
-      const sc = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
-      reach = Math.max(reach, Math.hypot(e[12], e[14]) + a.radius * sc);
-      top = Math.max(top, e[13] + a.height * sc);
     }
     const plate = new THREE.Mesh(geo(new THREE.CylinderGeometry(1, 1, 0.2, 24)), mat(groundColour(world.life.composition, 1)));
     const thick = Math.max(0.05, 0.08 * top);
@@ -420,12 +428,11 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       seaContent(other); groundContent(other); skyContent(other);
       // The producer view: the flora library is built now (not on the first plant card) and its material compiled on
       // one archetype of this chemistry (every archetype shares the same vertex layout, so one pipeline serves them all).
-      const lib = libOf(), chem = id;
-      const arch = lib.archetypes.find((x) => x.chem === chem);
+      const chem = id;
+      const arch = floraLibrary().archetypes.find((x) => x.chem === chem);
       if (arch) {
-        paint(arch.lod[0], LOOK_PALETTES[chem], 0);
-        const plant = new THREE.Mesh(arch.lod[0].geometry, plantMat);
-        plant.scale.setScalar(1e-3);
+        const plant = new THREE.InstancedMesh(cardLook(arch.index, 0, false, LOOK_PALETTES[chem]).geometry, plantMat, 1);
+        plant.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-3, 1e-3, 1e-3));
         turntable.add(plant);
         releaseOnClear(plant);
       }
@@ -493,8 +500,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       for (const m of Object.values(beadMat)) m.dispose();
       for (const g of Object.values(beadGeo)) g.dispose();
       loftMat.dispose(); partMat.dispose(); plantMat.dispose();
-      for (const g of darkGeo.values()) g.dispose();
-      if (floraLib) for (const a of floraLib.archetypes) for (const l of a.lod) l.geometry.dispose();
+      // the plant looks' geometries share the world's library buffers (position, normal, sway, index), so they are left
+      // to the renderer: disposing one would free the world's buffers too
       if (partGeo) for (const g of Object.values(partGeo)) g.dispose();
       if (notScanned) { (notScanned.material as THREE.MeshBasicNodeMaterial).map?.dispose(); (notScanned.material as THREE.Material).dispose(); notScanned.geometry.dispose(); }
     },

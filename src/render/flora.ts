@@ -81,6 +81,9 @@ export interface PlacedPlant {
   /** Instance matrix as drawn (size, girth, yaw, slope tilt and lean, base sink), in the flora group's frame: the
    * world applies group.matrixWorld on top, a vertical stretch of a few % between rebuilds while the terrain rises. */
   matrix: THREE.Matrix4;
+  /** The same plant upright on flat ground at height 0 at its own x, z: size, girth, yaw and lean, without the slope
+   * tilt and sink (the inspect card's plate). */
+  flat: THREE.Matrix4;
   /** Its centre on the ground (m): x, z and the drawn ground height there. */
   x: number; z: number; ground: number;
   /** Drawn height above its base and crown radius (m). */
@@ -215,7 +218,7 @@ export function createFlora(app: App): FloraPart {
         plantShape(list, i, a, shape, 0);
         out.push({
           index: i, arch: list.arch[i], key: a.key, role: a.role, lod: list.lod[i] ? 1 : 0, dark: list.dark[i] === 1, glow: list.glow[i],
-          matrix: plantMatrix(list, i, a, new THREE.Matrix4()), x: list.x[i], z: list.z[i], ground: list.y[i],
+          matrix: plantMatrix(list, i, a, new THREE.Matrix4()), flat: plantMatrix(list, i, a, new THREE.Matrix4(), true), x: list.x[i], z: list.z[i], ground: list.y[i],
           height: (a.height / a.size) * list.h[i], radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]), cell, slot: list.slot[i],
           tint: [tint[0], tint[1], tint[2]], shape: [shape[0], shape[1], shape[2], shape[3]],
         });

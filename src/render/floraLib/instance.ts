@@ -10,13 +10,15 @@ const q = new THREE.Quaternion(), qt = new THREE.Quaternion(), p = new THREE.Vec
 
 /**
  * Instance matrix of plant `i`: scaled to its size with its girth (xz ÷ y), turned by its yaw, tilted by its slope and
- * lean (gx/gz), and sunk 3% of its height plus its slope sink.
+ * lean (gx/gz), and sunk 3% of its height plus its slope sink. `onFlat`: the same plant standing on flat ground at
+ * height 0 (its own lean only, no slope tilt or slope sink), as the inspect card's plate shows it.
  */
-export function plantMatrix(list: PlantList, i: number, a: Archetype, out: THREE.Matrix4): THREE.Matrix4 {
+export function plantMatrix(list: PlantList, i: number, a: Archetype, out: THREE.Matrix4, onFlat = false): THREE.Matrix4 {
   const s = list.h[i] / a.size, g = 1 + list.wg[i];
+  const tx = onFlat ? list.lx[i] : list.gx[i], tz = onFlat ? list.lz[i] : list.gz[i];
   q.setFromAxisAngle(UP, list.yaw[i]);
-  if (list.gx[i] || list.gz[i]) q.premultiply(qt.setFromUnitVectors(UP, n.set(-list.gx[i], 1, -list.gz[i]).normalize()));
-  p.set(list.x[i], list.y[i] - 0.03 * list.h[i] - list.sink[i], list.z[i]);
+  if (tx || tz) q.premultiply(qt.setFromUnitVectors(UP, n.set(-tx, 1, -tz).normalize()));
+  p.set(list.x[i], onFlat ? -0.03 * list.h[i] : list.y[i] - 0.03 * list.h[i] - list.sink[i], list.z[i]);
   return out.compose(p, q, sc.set(s * g, s, s * g));
 }
 

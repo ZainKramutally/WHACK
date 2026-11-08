@@ -188,6 +188,37 @@ class PlantMaterial extends THREE.MeshLambertNodeMaterial {
   }
 }
 
+/** A plant's own glow and tint (lookAttr: vec4(r, g, b, glow)) on colours painted by floraLib paintSites: its glow sites
+ * (signed weight `glowW`: + glow, − glowDeep) turn toward their glow colour by min(1, 1.5 g), as paint() does at that glow,
+ * then the tint applies. */
+const plantSiteColour = (base: N, look: N, glowW: N): N => {
+  const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW));
+  return mix(base, key, min(look.w.mul(1.5), 1).mul(step(1e-4, abs(glowW)))).mul(look.xyz);
+};
+
+/** The world's plants drawn outside the world look (the inspect card's live view, standard lighting): bent per instance
+ * like the world's, with each instance's own tint and glow. Its geometry needs `color` and `aGlow` painted by
+ * paintSites, and per-instance `plantAttr` (shape) and `lookAttr` (tint, glow) attributes. */
+class PlantViewMaterial extends THREE.MeshStandardNodeMaterial {
+  deform: (() => void) | null = null;
+  setupPosition(builder: N): N {
+    this.deform?.();
+    return super.setupPosition(builder);
+  }
+  customProgramCacheKey(): string {
+    return 'plantView:' + super.customProgramCacheKey();
+  }
+}
+export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string }): N {
+  const m = new PlantViewMaterial({ side: THREE.DoubleSide, roughness: 0.7 });
+  m.deform = plantDeform(opts.plantAttr);
+  const look = attribute(opts.lookAttr, 'vec4'), glowW = attribute(opts.glowAttr, 'float');
+  m.colorNode = plantSiteColour(attribute('color', 'vec3'), look, glowW);
+  m.emissiveNode = vec3(PAL.glow).mul(abs(glowW).mul(look.w).mul(0.8)); // no bloom here: the sites just light up
+  m.userData.look = 'flora';
+  return m;
+}
+
 export function worldMaterial(opts: WorldMaterialOpts): N {
   const kind = opts.kind;
   const translucent = opts.translucent ?? kind === 'flora';
@@ -230,13 +261,8 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
     }
     // diffuseColor = colorNode (or material colour) × vertex colour × instance colour, with opacity in .a
     const base = vec3(diffuseColor.rgb).toVar();
-    if (look && glowW) {
-      // this instance's glow lights its glow sites (toward glow or glowDeep by min(1, 1.5 g), as paint() does), then
-      // its tint (vertex colours stay the palette's)
-      const site = abs(glowW);
-      const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW));
-      base.assign(mix(base, key, min(look.w.mul(1.5), 1).mul(step(1e-4, site))).mul(look.xyz));
-    } else if (look) base.assign(base.mul(look.xyz));
+    if (look && glowW) base.assign(plantSiteColour(base, look, glowW));
+    else if (look) base.assign(base.mul(look.xyz));
     const N = normalWorld;
     const col = base.toVar();
     const dist = positionWorld.sub(cameraPosition).length();
