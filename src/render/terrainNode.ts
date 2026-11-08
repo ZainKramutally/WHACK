@@ -261,8 +261,11 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
       const hx7 = hexCell(x.div(m7.size), z.div(m7.size));
       const band7 = bandOf(hf.div(0.5 * P.A), m7.bandCenter, m7.bandWidth);
       const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
-      const col7 = floor(hash(hx7.ix, hx7.iz, U(P.sM7)).mul(m7.nSteps)).mul(m7.stepH).sub(rim7.mul(m7.groove));
-      h7 = p7.mul(band7).mul(F(1).sub(mask.mul(1 - m7.rampKeep))).mul(col7).mul(gateOf('M7'));
+      const q7 = floor(hash(hx7.ix, hx7.iz, U(P.sM7)).mul(m7.nSteps));
+      const col7 = q7.mul(m7.stepH).sub(rim7.mul(m7.groove));
+      const inl7 = m7.inlandStepH ?? 0;
+      const pav7 = q7.mul(inl7).sub(rim7.mul(m7.stepH > 0 ? m7.groove * (inl7 / m7.stepH) : 0));
+      h7 = p7.mul(F(1).sub(mask.mul(1 - m7.rampKeep))).mul(band7.mul(col7).add(F(1).sub(band7).mul(pav7))).mul(gateOf('M7'));
     }
 
     return u.rise.mul(h7 ? hf.add(h7) : hf);
@@ -346,6 +349,19 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N
       });
       const lum = c.x.mul(0.3).add(c.y.mul(0.5)).add(c.z.mul(0.2));
       c.assign(mix(c, mc.mul(lum.mul(0.9).add(0.55)), 0.9));
+    }
+
+    // basalt cooling joints: thin dark hex lines on the same tiling as the M7 columns, weighted by the local basalt weight
+    const m7 = P.machines.M7;
+    if (m7 && P.active.M7 && minerals.length && (m7.jointDark ?? 0) > 0) {
+      const ids = terrain.config.machines.find((m) => m.id === 'M7')?.minerals ?? [];
+      const comp7 = [cw.x, cw.y, cw.z, cw.w];
+      let bw: N = float(0);
+      minerals.slice(0, 4).forEach((m, i) => { if (ids.includes(m.id)) bw = bw.add(comp7[i]); });
+      const hx = hexCell(x.div(m7.size), z.div(m7.size));
+      const w = m7.jointWidth ?? 0.04;
+      const joint = smoothstep(0.5 - w, 0.5 - w * 0.4, hx.hd).mul(flat.mul(0.5).add(0.5));
+      c.assign(c.mul(float(1).sub(joint.mul(bw).mul(m7.jointDark ?? 0))));
     }
 
     // strata: stepped bands on walls, keyed to the terrace height (index mod 3 → light / dark / mid)

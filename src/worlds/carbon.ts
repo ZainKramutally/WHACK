@@ -363,10 +363,10 @@ export const carbon: WorldConfig = {
       { id: 'M4', rate: 0.01, params: { depth: 18, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons (progress = age × past liquid)
       { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 6, sharpness: 0.7, strength: 0.8, offMineral: 0.35 } },                                                              // strata terraces
       { id: 'M6', rate: 0.01, params: { moundHeight: 4, bandCenter: 0.1, bandWidth: 0.25, moundFreq: 0.03, threshold: 0.5 } },                  // shell stone in the shallows
-      { id: 'M7', rate: 0.01, minerals: ['basalt'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15 } },   // basalt columns on coastal platforms (stylised, declared illustration: 8 m wide so the 2 m mesh resolves them; kept to 15% size on the spawn ramp)
+      { id: 'M7', rate: 0.01, minerals: ['basalt'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // basalt cooling columns: tall on coastal platforms, low pavement inland, dark joint lines (stylised, declared illustration: 8 m wide so the 2 m mesh resolves them; kept to 15% size on the spawn ramp)
       { id: 'M8', rate: 0.01, minerals: ['granite'], params: { domeHeight: 18, domeFreq: 0.02, threshold: 0.55, uplandMin: 0.2, stackStep: 3, stackSharp: 0.6, stackShare: 0.5 } },   // granite domes and stacked-boulder tors on highlands (stylised sizes)
     ],
-    why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder. Basalt columns (M7), granite domes and tors (M8) and ironstone strata are stylised, declared illustration: columns are 8 m wide because the terrain mesh is about 2 m per vertex.',
+    why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder. Basalt cools into hexagonal columns (M7): tall on the coast, low pavement inland, stylised size. Granite domes and tors (M8) and ironstone strata are stylised, declared illustration: columns are 8 m wide because the terrain mesh is about 2 m per vertex.',
     sources: ['goehring2009', 'bekker2010', 'linton1955'],
     assumption: true,
     crust: {

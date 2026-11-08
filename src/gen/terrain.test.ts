@@ -125,6 +125,22 @@ describe('terrain', () => {
     }
   });
 
+  it('M7 inland pavement: adds low steps on basalt away from the coast, nothing where basalt is absent or at progress 0', () => {
+    const noPav = { ...carbon.terrain, machines: carbon.terrain.machines.map((m) => (m.id === 'M7' ? { ...m, params: { ...m.params, inlandStepH: 0 } } : m)) };
+    const a = createTerrain(carbon.terrain, carbon.demoSeed), b = createTerrain(noPav, carbon.demoSeed);
+    const basalt = carbon.terrain.crust.minerals.findIndex((m) => m.id === 'basalt');
+    const inl = carbon.terrain.machines.find((m) => m.id === 'M7')!.params.inlandStepH;
+    expect(inl).toBeGreaterThan(0);
+    let moved = 0;
+    for (const [x, z] of grid(80, 400)) {
+      const d = Math.abs(a.height(x, z, full()) - b.height(x, z, full()));
+      if (a.crustWeights(x, z)[basalt] < 1e-9) expect(d).toBe(0);
+      if (d > 0.05) moved++;
+      expect(Math.abs(a.height(x, z, { ...full(), progress: { ...full().progress, M7: 0 } }) - b.height(x, z, { ...full(), progress: { ...full().progress, M7: 0 } }))).toBe(0);
+    }
+    expect(moved).toBeGreaterThan(10);
+  });
+
   it.each([['carbon', carbon, ['M7', 'M8']], ['silicon', silicon, ['M9']]] as const)('%s landform machines: 0 at progress 0, 0 where their minerals are absent, something elsewhere', (_n, w, ids) => {
     const t = createTerrain(w.terrain, w.demoSeed);
     const minerals = w.terrain.crust.minerals.map((m) => m.id);

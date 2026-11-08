@@ -54,6 +54,10 @@ const SILICON_SPRITE = ['..w..', '.w12.', 'w1210', '.110.', '..0..'];
 const ROCK_SPRITE = ['123', '220', '100'];
 /** Bed grain sprites (0 dark, 1 mid, 2 light); a few variants so the packed bed does not tile. */
 const GRAIN_SPRITES = [['120', '011', '100'], ['011', '121', '010'], ['210', '110', '001']];
+/** Basalt grains are small hexagons (columnar jointing, goehring2009); '.' is transparent. */
+export const HEX_GRAIN_SPRITE = ['.121.', '12221', '12211', '.100.'];
+/** The sprite a bed grain draws: basalt gets the hexagon, every other mineral keeps its square variant. */
+export const grainSprite = (mineralId: string, variant: number): string[] => (mineralId === 'basalt' ? HEX_GRAIN_SPRITE : GRAIN_SPRITES[variant]);
 /** Bed geometry: grain size and rows in box pixels; BED_U is the same height in field units. */
 const GRAIN = 3, BED_ROWS = 4, BED_PX = GRAIN * BED_ROWS, BED_U = BED_PX / K;
 const BED_COLS = LO / GRAIN;
@@ -363,13 +367,13 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       for (let gi = 0; gi < grains.length; gi++) {
         const g = grains[gi];
         const col = gi % BED_COLS, row = Math.floor(gi / BED_COLS);
-        const tgt = bedPal[pickBedIdx(st, g.u)];
+        const bi = pickBedIdx(st, g.u), tgt = bedPal[bi];
         if (!g.cur) g.cur = tgt.map((c) => [...c]);
         else for (let i = 0; i < g.cur.length; i++) { const c = g.cur[i]; for (let k = 0; k < 3; k++) c[k] += (tgt[i][k] - c[k]) * ease; }
         const x0 = col * GRAIN, y0 = LO - BED_PX + row * GRAIN;
-        const sp = GRAIN_SPRITES[g.v];
+        const sp = grainSprite(st.bed[bi].id, g.v), off = sp[0].length > GRAIN ? 1 : 0;   // basalt draws a 5-wide hex, centred on its 3-px cell
         for (let i = 0; i < 3; i++) grainCols[i] = rgbHex(g.cur[i]);
-        for (let r = 0; r < GRAIN; r++) for (let c = 0; c < GRAIN; c++) dot(x0 + c, y0 + r, grainCols[+sp[r][c]]);
+        for (let r = 0; r < sp.length; r++) for (let c = 0; c < sp[r].length; c++) if (sp[r][c] !== '.') dot(x0 + c - off, y0 + r, grainCols[+sp[r][c]]);
       }
     }
     for (let i = 0; i < st.n2Gas; i++) pair(gasN2[i], F[1]);

@@ -304,8 +304,12 @@ export function heightCore(
     const hx7 = hexCell(x / m7.size, z / m7.size);
     const band7 = 1 - smoothstep(0, 1, Math.abs(hf / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
     const rim7 = smoothstep(0.5 - m7.edge, 0.5, hx7.hd);
-    const col7 = m7.stepH * Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps) - m7.groove * rim7;
-    h7 = p7 * band7 * (1 - mask * (1 - m7.rampKeep)) * col7 * gateOf('M7');
+    const q7 = Math.floor(hash(hx7.ix, hx7.iz, P.sM7) * m7.nSteps);
+    const col7 = m7.stepH * q7 - m7.groove * rim7;
+    // Low pavement on inland basalt (outside the coastal band): same hex tiling, `inlandStepH` per step, groove scaled to match.
+    const inl7 = m7.inlandStepH ?? 0;
+    const pav7 = inl7 * q7 - (m7.stepH > 0 ? m7.groove * (inl7 / m7.stepH) : 0) * rim7;
+    h7 = p7 * (1 - mask * (1 - m7.rampKeep)) * (band7 * col7 + (1 - band7) * pav7) * gateOf('M7');
   }
 
   return rise * (hf + h7);
