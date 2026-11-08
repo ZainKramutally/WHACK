@@ -11,7 +11,7 @@ const sw = { id: 'silicon', rustOxygen: silicon.terrain.crust!.rustOxygen };
 describe('RustRatchet', () => {
   it('never decreases', () => {
     const r = new RustRatchet();
-    const seq = [0, 0.5, 1.5, 0.2, 0, 3].map((o) => r.update(cw, o));
+    const seq = [0, 0.5, 1.5, 0.2, 0, 3].map((k) => r.update(cw, k * cw.rustOxygen));
     for (let i = 1; i < seq.length; i++) expect(seq[i]).toBeGreaterThanOrEqual(seq[i - 1]);
     expect(seq[seq.length - 1]).toBe(1);
     expect(new RustRatchet().update(cw, 1)).toBe(rust(carbon, 1));
