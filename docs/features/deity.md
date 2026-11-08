@@ -8,7 +8,7 @@ It replaces the placeholder explorer in `src/player/character.ts` and keeps the 
 
 ## How it is seen
 - The follow camera sits 5.5 m behind with a 60° field of view and aims 1.4 m above the feet (`src/player/camera.ts`, the eng lead's file). The character fills about a quarter of the frame height, which is roughly 100 px in the pixel pass, where 1 px is about 2 cm.
-- **You mostly see its back,** so the eyes are hidden most of the time. The back silhouette has to carry the identity on its own: the orb, the gap under it, the body shape and any head extras. The gap must read from behind, so make it at least 10 cm.
+- **You mostly see its back,** so the eyes are hidden most of the time. The back silhouette has to carry the identity on its own: the orb, the gap under it, the body shape and any head extras. The gap must read from behind. It was at least 10 cm; Caden set C to 7 cm (2026-11-08), and animation keeps at least 2 cm clearance.
 - **The detached head can turn further than a neck would.** Use that to show the eyes. After a few seconds idle, the head turns all the way round to look back at the camera, blinks, holds, then turns forward again while the body keeps facing away.
 
 ## Look rules
