@@ -85,7 +85,7 @@ describe('gated archetypes', () => {
 
   it('world-wide halves follow the stats', () => {
     const on = (stats: Record<string, number>) => Object.values(activeGates(worldEnv(shore(stats)))).flat().map((g) => g.id);
-    expect(on({ nitrogen: 1, temperature: 15 })).toEqual([]);
+    expect(on({ nitrogen: 1, temperature: 15 })).toEqual(['mangrove']);   // the carbon default: every run's shore
     expect(on({ nitrogen: 0.2 })).toContain('pitcher');
     expect(on({ temperature: -1 })).toContain('cushion');
   });
@@ -166,5 +166,49 @@ describe('gated archetypes', () => {
       const l = placed(inp);
       for (let i = 0; i < l.n; i++) expect(keyOf(l, i)).not.toBe('woollyRosette#0');
     }
+  });
+
+  it('A3 stilt mangroves stand on warm shores at N ≥ 0.3, on dry ground beside the water', () => {
+    const warm = placed(shore({ temperature: 15, nitrogen: 1 }));
+    let n = 0;
+    for (let i = 0; i < warm.n; i++) if (keyOf(warm, i) === 'stiltMangrove#0') {
+      n++;
+      expect(warm.y[i]).toBeGreaterThanOrEqual(SHORE_BAND[0]);
+      expect(warm.y[i]).toBeLessThanOrEqual(SHORE_BAND[1]);
+    }
+    expect(n).toBeGreaterThan(0);
+    for (const stats of [{ temperature: 5 }, { nitrogen: 0.2 }]) {
+      const l = placed(shore({ temperature: 15, nitrogen: 1, ...stats }));
+      for (let i = 0; i < l.n; i++) expect(keyOf(l, i)).not.toBe('stiltMangrove#0');
+    }
+  });
+
+  it('A6 air-kelp floats replace the candelabra patch-wide in thick air only', () => {
+    const giants = (air: number) => { const l = placed(siShore({ airDensity: air * AIR_EARTH })); const k = new Set<string>(); for (let i = 0; i < l.n; i++) if (ARCHETYPE_META[l.arch[i]].role === 'giant') k.add(keyOf(l, i)); return k; };
+    const thick = giants(10.8), thin = giants(4);
+    expect(thick.has('airKelpFloat#0')).toBe(true);
+    expect(thick.has('prismTitan#2')).toBe(false);
+    expect(thin.has('airKelpFloat#0')).toBe(false);
+    expect(thin.has('prismTitan#2')).toBe(true);
+  });
+
+  it('A1/A3 and A2/A3 are never on together, over a grid of temperature, nitrogen and light', () => {
+    for (let T = -45; T <= 120; T += 2.5) for (const N of [0.05, 0.1, 0.2, 0.29, 0.3, 0.31, 0.5, 1, 3, 30]) for (const L of [0.1, 0.4, 1, 2]) {
+      const ids = new Set(Object.values(activeGates(worldEnv(shore({ temperature: T, nitrogen: N }, { light: L })))).flat().map((g) => g.id));
+      expect(ids.has('pitcher') && ids.has('mangrove'), `T ${T} N ${N}`).toBe(false);
+      expect(ids.has('rosette') && ids.has('mangrove'), `T ${T} N ${N}`).toBe(false);
+    }
+  });
+
+  it('draw budget: silicon thick air + submerged reefs + supply ferns ≤ 33 draws, < 4.5M tris, nothing dropped', () => {
+    const inp = siShore({ seaLevel: -3 }), f = inp.flora;
+    for (let c = 0; c < 4096; c++) { f[c * 2] = 0.6; f[c * 2 + 1] = 1; }
+    const l = placed(inp, shapesOf());
+    const keys = new Set(Array.from(l.arch.subarray(0, l.n), (a) => ARCHETYPE_KEYS[a]));
+    for (const k of ['airKelpFloat#0', 'whiskerReef#0', 'frostFern#0']) expect(keys.has(k), k).toBe(true);
+    const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
+    expect(d.draws).toBeLessThanOrEqual(33);
+    expect(d.triangles).toBeLessThan(4.5e6);
+    expect(d.dropped).toBe(0);
   });
 });

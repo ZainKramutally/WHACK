@@ -68,7 +68,7 @@ export interface CellProbe {
   total(c: number): number;
 }
 
-export type GateId = 'pitcher' | 'cushion' | 'kelpAir' | 'rosette' | 'fern';
+export type GateId = 'pitcher' | 'mangrove' | 'cushion' | 'kelpAir' | 'rosette' | 'fern' | 'airFloat';
 
 export interface GateSpec {
   id: GateId;
@@ -93,6 +93,10 @@ export const GATES: readonly GateSpec[] = [
   // A1 pitcher urn: carnivory where light and water are plentiful and nitrogen scarce (Givnish et al. 1984; Ellison &
   // Gotelli 2001). Exclusive with A3 by N (< 0.3 here, ≥ 0.3 there).
   { id: 'pitcher', chem: 'carbon', role: 'mid', replaces: /^(ribFan|ribFanDense|lanternPods)#/, by: 'pitcherUrn#0', world: (e) => e.N < 0.3 && e.L >= 0.4, shore: true },
+  // A3 stilt-root mangrove: prop roots ventilate roots in waterlogged mud (Scholander et al. 1955), frost-limited
+  // (Osland et al. 2013): a 10 °C mean-temperature floor ([art] threshold). Before the air kelp, so a shore weeper#3
+  // becomes a mangrove. Exclusive with A1 by N and with A2 by T.
+  { id: 'mangrove', chem: 'carbon', role: 'mid', replaces: /^(weeper#3|ribFan#|ribFanDense#)/, by: 'stiltMangrove#0', world: (e) => e.T >= 10 && e.N >= 0.3, shore: true },
   // A5 bladder kelp, air niche: gas floats lift as well in air over ~5 × Earth's density (ρ_air − ρ_gas; DESIGN R11,
   // speculative in air). On carbon the Nitrogen slider thickens the air. A tethered float: upright, mid sink rule.
   { id: 'kelpAir', chem: 'carbon', role: 'mid', replaces: /^weeper#/, by: 'bladderKelp#0', world: (e) => e.air >= AIR_FLOAT, land: true },
@@ -102,6 +106,9 @@ export const GATES: readonly GateSpec[] = [
   // A7 frost fern: rich silicon supply × biomass (a supersaturation proxy) branches crystals into 60° dendrites
   // (Mullins & Sekerka 1964), so ferns gather on silicide margins.
   { id: 'fern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#2$/, by: 'frostFern#0', world: () => true, cell: (c, p) => supplySi(p.rank(c)) * p.total(c) > 1.2, land: true },
+  // A6 air-kelp float: gas floats in air ≥ 5 × Earth's density (silicon ≈ 11 ×). World-wide, so it replaces the
+  // candelabra patch-wide (net 0 draws). A tethered float: upright, giant sink rule.
+  { id: 'airFloat', chem: 'silicon', role: 'giant', replaces: /^prismTitan#2$/, by: 'airKelpFloat#0', world: (e) => e.air >= AIR_FLOAT },
   // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
   { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
 ];

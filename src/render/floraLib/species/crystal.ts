@@ -276,3 +276,29 @@ export function frostFern(rng: Rng, _variant: number) {
   }
   return b.build({ flat: true });
 }
+
+/**
+ * Air-kelp float (silicon giant, 20–35 m; flora-traits A6): "thick nitrogen air holds crystal floats aloft". A straight
+ * hex tether from an anchor crystal, with faceted hex-bipyramid floats on three 60° side stubs and a largest one on top;
+ * the float waists are glow sites (glow from darkness). 3.6 bar of N₂ at −183 °C is ≈ 11 × Earth's air density, so a
+ * gas float lifts ≈ 11 × as much [physics sci]; the lifting gas and living floats are [speculative] (CLAUDE.md's
+ * compressed-lift declaration covers them). Stiff sway. ~340 tris, far LOD = near.
+ */
+export function airKelpFloat(rng: Rng, _variant: number) {
+  const b = new MeshBuilder();
+  const H = 30 * rng.range(0.94, 1.06);
+  const sw = (y: number) => STIFF * clamp01(Math.pow(Math.max(0, y) / H, 1.2));
+  const rT = H * 0.012;
+  rod(b, [0, -0.3, 0], [0, H * 0.08, 0], rT * 3, rT * 1.6, 6, () => 'ink', (s) => sw(s * H * 0.08));
+  rod(b, [0, H * 0.08, 0], [0, H * 0.86, 0], rT, rT * 0.7, 6, (s) => (s < 0.4 ? 'maroon' : 'crimson'), (s) => sw(H * (0.08 + 0.78 * s)));
+  const az0 = rng.range(0, Math.PI * 2);
+  for (let k = 0; k < 3; k++) {
+    const y = H * (0.38 + 0.18 * k), az = az0 + (k * 2 * Math.PI) / 3;
+    const o: V3 = [0, y, 0], e = add(o, scl(dirAt(D60, az), H * 0.06));
+    rod(b, o, e, rT * 0.6, rT * 0.45, 6, () => 'crimson', () => sw(y));
+    const L = H * (0.07 + 0.015 * k);
+    pod(b, add(e, [0, -L * 0.45, 0]), UP, L, sw(y));
+  }
+  pod(b, [0, H * 0.86, 0], UP, H * 0.14, sw(H));
+  return b.build({ flat: true });
+}
