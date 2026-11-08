@@ -8,6 +8,7 @@ import type { InspectTarget, VisualInputs } from '../worlds/types';
 import type { FaunaPart } from './fauna';
 import type { FloraPart } from './flora';
 import { cellCentre, marchRay } from './layout';
+import { chooseHit } from './pickRule';
 
 export interface PickerDeps {
   app: App;
@@ -55,18 +56,19 @@ export function createPicker(deps: PickerDeps): Picker {
     const org = fauna.hit(o, d);
     const plant = flora.hit(o, d);
     let bounds: PickBounds | undefined;
-    let best = world.dist;
-    // Nearest of the organism, the drawn plant and the terrain march wins (a creature in front of a plant wins).
-    if (plant && plant.dist <= best) {
-      best = plant.dist;
-      target = { kind: 'producer', cell: plant.cell };
-      bounds = { x: plant.x, y: plant.y, z: plant.z, height: plant.height, radius: plant.radius };
-    }
-    // Water is clear: a creature seen through the sea surface (swimmers, from above) beats the sea hit, not the ground.
-    if (org && (org.dist <= best || world.target.kind === 'sea')) {
+    // Solid ground along the ray: the march stops at the sea surface, so look past it for the seafloor.
+    const groundDist = world.target.kind === 'sea' ? marchRay(o, d, {
+      maxDist: patch * 1.5, step: Math.max(0.5, patch / 400), patch,
+      heightAt: inputs.terrain.height, seaLevel: inputs.seaLevel, seaVisible: false, flora: inputs.flora,
+    }).dist : world.dist;
+    const choice = chooseHit(org ? org.dist : null, plant ? plant.dist : null, world.dist, groundDist);
+    if (choice === 'organism' && org) {
       target = { kind: 'organism', organismId: org.id };
       const l = fauna.locate(org.id);
       bounds = l ? { x: l.x, y: l.y - l.radius, z: l.z, height: 2 * l.radius, radius: l.radius } : undefined;
+    } else if (choice === 'plant' && plant) {
+      target = { kind: 'producer', cell: plant.cell };
+      bounds = { x: plant.x, y: plant.y, z: plant.z, height: plant.height, radius: plant.radius };
     }
     if (target.kind === 'producer' && !bounds) {
       const c = cellCentre(target.cell, patch);
