@@ -16,8 +16,8 @@ import type { VisualInputs } from '../worlds/types';
 import { makeRng, type Rng } from '../sim/rng';
 import { worldMaterial, PAL } from './material';
 import { lookKind } from './palette';
-import { FLORA_GRID } from './layout';
-import { cellSubmerged, floraBin, formForBin, type FloraForm } from './floraForm';
+import { FLORA_GRID, patchToWorld } from './layout';
+import { floraBin, formForBin, type FloraForm } from './floraForm';
 import { plantHeight } from './floraLib';
 import { GIANT_CANOPY } from './floraLib/place';
 
@@ -99,12 +99,15 @@ export function backdropLayout(kind: 'carbon' | 'silicon', patch: number): Backd
 
 /**
  * Land mask over the flora grid: 1 where a cell is land, by the flora's own test (floraForm's cellSubmerged: the cell
- * centre against sea level), with cell centres on this patch. 4096 terrain samples: redo it only when the sea or the
- * relief moves.
+ * centre against sea level; backdrop.test.ts checks they agree), with cell centres on this patch, computed without a
+ * per-cell object. 4096 terrain samples (~3 ms): the part throttles it (LAND_EVERY).
  */
 export function landMask(i: Pick<VisualInputs, 'terrain' | 'seaLevel'>, patch: number, out = new Uint8Array(FLORA_GRID * FLORA_GRID)): Uint8Array {
-  const at = { terrain: { ...i.terrain, patchSize: patch }, seaLevel: i.seaLevel };
-  for (let c = 0; c < out.length; c++) out[c] = cellSubmerged(c, at) ? 0 : 1;
+  const H = i.terrain.height, sea = i.seaLevel;
+  for (let row = 0, c = 0; row < FLORA_GRID; row++) {
+    const z = patchToWorld((row + 0.5) / FLORA_GRID, patch);
+    for (let col = 0; col < FLORA_GRID; col++, c++) out[c] = H(patchToWorld((col + 0.5) / FLORA_GRID, patch), z) < sea ? 0 : 1;
+  }
   return out;
 }
 
@@ -265,6 +268,11 @@ export function giantGeometry(kind: 'carbon' | 'silicon'): THREE.BufferGeometry 
 
 // ---------------- the part ----------------
 
+/** Land mask refresh: at most once per LAND_EVERY s of frame time, and only when the sea (0.25 m steps) or, during the
+ * build, the relief (0.1 rise steps) has moved; once more at the build's end (rise 1), so the end state is exact. The
+ * canopy share tolerates a mask up to ~1 s stale. */
+const LAND_EVERY = 1;
+
 export interface BackdropPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
   readonly giantsDrawn: number;
@@ -289,7 +297,7 @@ export function createBackdrop(app: App): BackdropPart {
   let giants: THREE.InstancedMesh | null = null;
   let layout: BackdropLayout | null = null;
   let builtKey = '';
-  let landKey = '';
+  let landKey = '', landAt = -Infinity;
   const landCells = new Uint8Array(FLORA_GRID * FLORA_GRID);
   let lastFlora: Float32Array | null = null, lastLife = false;
   let grow = 0;
@@ -314,7 +322,7 @@ export function createBackdrop(app: App): BackdropPart {
     giants.count = 0;
     giants.name = 'backdropGiants';
     app.scene.add(giants);
-    landKey = ''; lastFlora = null; drawn = []; grow = 0;
+    landKey = ''; landAt = -Infinity; lastFlora = null; drawn = []; grow = 0;
   }
 
   function dispose() {
@@ -324,7 +332,7 @@ export function createBackdrop(app: App): BackdropPart {
 
   return {
     get giantsDrawn() { return drawnCount; },
-    update(dt, _t, inputs, patch) {
+    update(dt, t, inputs, patch) {
       const kind = lookKind(inputs.world.composition);
       const key = `${kind}|${patch}`;
       if (key !== builtKey) { builtKey = key; rebuild(kind, patch); }
@@ -333,12 +341,13 @@ export function createBackdrop(app: App): BackdropPart {
 
       // Which giants stand, and how tall: from the patch's land canopy, re-evaluated only when the flora grid, life on
       // land, or the land under the grid (sea level, relief) changes, never per frame. The land mask is the costly
-      // part (a terrain sample per cell), so it waits for the sea or the relief to move noticeably.
+      // part (a terrain sample per cell): throttled (LAND_EVERY), with an exact last pass when the build ends.
       let dirty = false;
       let landMoved = false;
       if (inputs.lifeOnLand) {
-        const lk = `${Math.round(inputs.seaLevel * 4)}|${Math.round(inputs.terrain.rise * 50)}`;
-        if (lk !== landKey) { landKey = lk; landMask(inputs, patch, landCells); landMoved = true; }
+        const rise = inputs.terrain.rise;
+        const lk = `${Math.round(inputs.seaLevel * 4)}|${rise >= 1 ? 'end' : Math.round(rise * 10)}`;
+        if (lk !== landKey && t - landAt >= LAND_EVERY) { landKey = lk; landAt = t; landMask(inputs, patch, landCells); landMoved = true; }
       }
       if (inputs.flora !== lastFlora || inputs.lifeOnLand !== lastLife || landMoved) {
         lastFlora = inputs.flora; lastLife = inputs.lifeOnLand;
