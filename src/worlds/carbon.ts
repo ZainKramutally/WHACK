@@ -158,7 +158,7 @@ export const carbon: WorldConfig = {
         luminosity: 1,              // star luminosity relative to the Sun
         albedo: 0.3,
         greenhouseK: 33,            // baseline greenhouse warming with the reference air (1× nitrogen, 0.04% CO₂)
-        greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling (Goldblatt 2009, sourced only for about 0.5–2×). Beyond that it is a log extrapolation: +10 K at 1,000× and −7 K at 0.01×, assumption: true
+        greenhousePerLnN: 1.44,     // K per ln(nitrogen): about 1 K per doubling, assumption: true. Goldblatt 2009's abstract gives 4.4 °C per doubling, but at the CO₂ and CH₄ levels of 2.5 billion years ago; we assume pressure broadening warms less with today's 0.04% CO₂, so we use less (abstract checked 2026-11-08, #26). Beyond 0.5–2× it is a log extrapolation: +10 K at 1,000× and −7 K at 0.01×
         nitrogenRef: 1,             // × Earth
         referenceCo2: 0.04,         // %, the CO₂ the baseline greenhouse already includes (Earth today)
         co2PerDoublingK: 3,         // K of extra warming per doubling of CO₂ (Myhre 1998 forcing; Sherwood 2020 sensitivity about 3.1 K)

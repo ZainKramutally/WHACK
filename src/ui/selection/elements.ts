@@ -1,6 +1,7 @@
 // Group 14 of the periodic table as the selection screen lists it (CLAUDE.md "The experience").
 // Selectable rows point at a world config (status label and everything else comes from there). Greyed rows carry a
 // one-line reason. Reasons marked `copy` are design-doc wording with no citation yet: needs a source or an assumption flag.
+// Reasons with `sources` cite ids in worlds/sources.ts (Ge and Fl come from CLAUDE.md).
 import type { WorldId } from '../../worlds/types';
 
 export interface ElementRow {
@@ -13,14 +14,16 @@ export interface ElementRow {
   reason?: string;
   /** True when the reason is draft wording that still needs a source (see docs/features/selection-screen.md §3.2). */
   copy?: boolean;
+  /** Source ids (worlds/sources.ts) behind the reason. */
+  sources?: string[];
 }
 
 export const group14: ElementRow[] = [
   { z: 6, symbol: 'C', name: 'Carbon', worldId: 'carbon' },
   { z: 14, symbol: 'Si', name: 'Silicon', worldId: 'silicon' },
   { z: 32, symbol: 'Ge', name: 'Germanium', reason: "Bonds even weaker than silicon's" },
-  { z: 50, symbol: 'Sn', name: 'Tin', reason: 'A metal: its bonds are too weak to hold a chain', copy: true },
-  { z: 82, symbol: 'Pb', name: 'Lead', reason: 'A heavy metal that barely bonds to itself', copy: true },
+  { z: 50, symbol: 'Sn', name: 'Tin', reason: 'A metal whose bonds to itself are weaker still', sources: ['libretextsGroup14'] },
+  { z: 82, symbol: 'Pb', name: 'Lead', reason: 'A heavy metal; its chains are the least stable', sources: ['libretextsGroup14'] },
   { z: 114, symbol: 'Fl', name: 'Flerovium', reason: 'Made in a lab; atoms last only seconds' },
 ];
 

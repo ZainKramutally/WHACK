@@ -122,6 +122,18 @@ const list: Source[] = [
     note: "Crossref. Huygens measured Titan's surface at about 94 K and about 1.5 bar of nitrogen: the real thick cold air our silicon world is modelled on.",
   },
   {
+    id: 'libretextsGroup14',
+    citation: 'LibreTexts. 18.6: Group 4A Elements. In Map: Chemistry (Zumdahl and DeCoste). CC BY-NC-SA 4.0.',
+    url: 'https://chem.libretexts.org/Bookshelves/General_Chemistry/Map%3A_Chemistry_(Zumdahl_and_Decoste)/18%3A_The_Representative_Elements/18.06%3A_Group_4A_Elements',
+    note: 'Group 14 trend for the greyed selection rows (#42): "bond energies for both the E–E and E–H bonds decrease with increasing atomic number"; "the thermal stability of catenated compounds decreases rapidly from carbon to lead"; white tin is metallic, and lead "behaves purely as a metal". Checked 2026-11-08.',
+  },
+  {
+    id: 'nssdcSaturnSat',
+    citation: 'NASA NSSDCA (Williams D R). Saturnian Satellite Fact Sheet.',
+    url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/saturniansatfact.html',
+    note: "Titan: mass 1,345.5 × 10²⁰ kg, radius 2,575 km, so surface gravity GM/r² ≈ 1.35 m/s² ≈ 0.14 g (checked 2026-11-08, #26).",
+  },
+  {
     id: 'mastrogiuseppe2014',
     citation: 'Mastrogiuseppe M et al. (2014). The bathymetry of a Titan sea. Geophysical Research Letters.',
     doi: '10.1002/2013GL058618',
