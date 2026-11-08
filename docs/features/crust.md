@@ -139,6 +139,21 @@ The whole look follows the rock, not only the ground. The families live in `src/
 - **Basalt stays green.** Rusted basalt is only a mild brown-grey, so the Volcanic chip stays a lush, green, Earth-like world after oxygen arrives.
 - **Basalt hexagons.** These are cooling cracks, not crystals. Basalt ground shows dark hexagonal joint lines everywhere. M7 adds low pavement steps inland, the tall columns stay on the coast, and the box draws basalt grains as hexagons.
 
+## Same rock chips on every world (owner ruling 2026-11-08)
+
+Like the sliders, both worlds show the same chips: `Rock: [Volcanic] [Continental] [Iron-rich]`.
+- **Shared vocabulary.** The chips come from `CRUST_PICKS` in `src/worlds/controls.ts`. Each world maps every chip to one of its minerals through `MineralDef.pick: { id: CrustPickId; hint }`, with world-specific hints.
+- **Bus payload.** `crust` on `selection:changed` and `world:selected` is now the chip id, and `withCrustChoice(world, pickId)` resolves it to that world's mineral.
+- **Switching worlds.** A chip stays picked when you switch element, because the options are the same.
+
+| Chip | Carbon | Silicon (speculative) |
+|---|---|---|
+| Volcanic | basalt | reducedLava (new): reduced lava, like aubrite meteorites. Silicate rock with grains of silicon-bearing metal, so a moderate feedstock. Low elevation. Cools into hex columns (M7, gated on reducedLava). |
+| Continental | granite | nitride |
+| Iron-rich | ironstone | silicide (silicon-bearing iron) |
+
+Water ice still can't be picked. Silicon's crust now has 4 minerals, which is the limit of the vec4 crust weights. Carbon's natural mix is unchanged; silicon's natural mix gains reducedLava.
+
 ## Honesty box additions
 
 - **Seeded:** the crust map.
