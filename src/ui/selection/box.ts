@@ -339,8 +339,8 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       ring(x, y, r, BOX_PAL.spark[1]);
       if (r > 3) ring(x, y, r + 1, BOX_PAL.spark[0]);
     }
-    const bedNames = st.bed.filter((b) => b.share >= 0.15).sort((a, b) => b.share - a.share)
-      .map((b) => (crustMinerals(world).find((m) => m.id === b.id)?.label ?? b.id).toLowerCase());
+    const bedNames = st.bed.filter((b) => b.share >= 0.15).sort((a, b) => b.share - a.share).slice(0, 2)
+      .map((b) => (crustMinerals(world).find((m) => m.id === b.id)?.label ?? b.id).replace(/ \(.*\)/, '').toLowerCase());
     lastBedTag = bedNames.length ? { text: bedNames.join(' · '), y: 1 - BED_PX / 2 / LO } : null;
     lastTag = poolNow > 0.06
       ? { text: `${st.frozen >= 1 ? (st.iceFloats ? 'ice' : 'solid') : 'liquid'} ${st.frozen >= 1 && st.iceFloats ? '' : world.solvent.name.toLowerCase().replace(/^liquid /, '')}`.trim(), y: yP / LO }

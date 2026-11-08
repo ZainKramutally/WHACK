@@ -628,7 +628,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     if (!launching) {
       const tag = box.liquidTag(world), tl = r('tagLiq');
       tl.hidden = !tag;
-      if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 28px))`; }
+      if (tag) { tl.textContent = tag.text; tl.style.top = `min(calc(${tag.y * 100}% + 8px), calc(100% - 50px))`; }
       const bt = box.bedTag(world), bl = r('tagBed');
       bl.hidden = !bt;
       if (bt) bl.textContent = bt.text;
