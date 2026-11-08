@@ -1,15 +1,17 @@
 // The sea: a plane at seaLevel in the world material (kind 'sea'), liquid or frozen exactly per inputs.frozen.
-//   carbon water: a dark violet-oxblood body (the palette's shadow) that turns into a pale lilac mirror of the sky at
-//     grazing angles, with slow pale glint lines;
+//   carbon water: blue by its own physics (palette WATER ramp, Braun & Smirnov 1993): navy → ocean blue → cyan with falling
+//     depth, the seabed mineral's tint showing through where it is a few metres deep (crustSeaTint), a ≤ 12% crust nudge on
+//     the open body, and a pale mirror of the sky at grazing angles, with slow pale glint lines. Depth comes from a baked
+//     height texture of the patch (terrain.height), so it is the real water depth over the seabed;
 //   liquid nitrogen: clear and pale (low alpha), barely tinted, so life in it stays visible;
 //   frozen: opaque pale ice (bone/haze) with faint polygonal cracks, lying still.
 // Hidden when there is no sea. The underwater tint lives in sky.ts.
 import * as THREE from 'three/webgpu';
-import { Fn, vec3, vec4, mix, pow, smoothstep, normalize, positionWorld, cameraPosition, mx_noise_float, mx_worley_noise_vec2, uniform, float } from 'three/tsl';
+import { Fn, vec3, vec4, mix, pow, smoothstep, normalize, positionWorld, cameraPosition, mx_noise_float, mx_worley_noise_vec2, uniform, float, texture, vec2, exp, max } from 'three/tsl';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { seaStyle } from './palette';
-import { crustSeaTint } from './crustLook';
+import { seaStyle, waterAtDepth } from './palette';
+import { crustSeaTint, crustWaterNudge } from './crustLook';
 import { worldMaterial, LOOK, PAL } from './material';
 
 export interface SeaPart {
@@ -24,6 +26,17 @@ export function createSea(app: App): SeaPart {
   const uAlpha = uniform(0.8);        // looking straight down
   const uAlphaGraze = uniform(0.95);  // at grazing angles (more reflection)
   const uGlint = uniform(1);
+  // liquid-water depth ramp (colours per depth, set each frame) and the baked seabed heights
+  const uShallow: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const uMid: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const uBed: any = uniform(new THREE.Color()); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const uBedAmt = uniform(0);
+  const uPatch = uniform(256);
+  const RES = 96;
+  const heights = new Float32Array(RES * RES);
+  const heightTex = new THREE.DataTexture(heights, RES, RES, THREE.RedFormat, THREE.FloatType);
+  heightTex.minFilter = heightTex.magFilter = THREE.LinearFilter;
+  heightTex.needsUpdate = true;
 
   // Two colour graphs, swapped when the sea freezes or thaws (the material recompiles then anyway): the liquid path
   // carries only the glint noise, and the worley crack noise runs only on the frozen path.
@@ -31,7 +44,20 @@ export function createSea(app: App): SeaPart {
     const p = positionWorld;
     const v = normalize(cameraPosition.sub(p));
     const fres = pow(float(1).sub(v.y.abs().clamp(0, 1)), 5).mul(0.85);
-    const col = mix(vec3(uDeep), vec3(uSky), fres).toVar();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let body: any = vec3(uDeep);
+    if (!ice) {
+      // water depth under this pixel: plane height minus seabed height (open sea beyond the patch counts as deep)
+      const q = p.xz.div(uPatch).add(0.5);
+      const inside = smoothstep(0.0, 0.02, q.x).mul(smoothstep(1.0, 0.98, q.x)).mul(smoothstep(0.0, 0.02, q.y)).mul(smoothstep(1.0, 0.98, q.y));
+      const bed = texture(heightTex, vec2(q.x, q.y)).r;
+      const depth = mix(float(200), max(p.y.sub(bed), 0), inside);
+      // cyan at the waterline → ocean blue → uDeep (navy-leaning) with depth, then the seabed tint through thin water
+      const ramp = mix(vec3(uShallow), vec3(uMid), float(1).sub(exp(depth.negate().div(5))));
+      const deeper = mix(ramp, vec3(uDeep), float(1).sub(exp(depth.negate().div(14))));
+      body = mix(deeper, vec3(uBed), exp(depth.negate().div(2)).mul(uBedAmt));
+    }
+    const col = mix(body, vec3(uSky), fres).toVar();
     if (ice) {
       // ice: faint polygonal cracks
       const w = mx_worley_noise_vec2(p.xz.mul(0.12));
@@ -56,7 +82,16 @@ export function createSea(app: App): SeaPart {
   mesh.frustumCulled = false;
   app.scene.add(mesh);
 
-  const tint = new THREE.Color();
+  // Re-bake the seabed heights while the terrain moves (build rise, landforms): at most every 0.4 s, and only when its state changed.
+  let bakeKey = '', bakeAt = -1;
+  function bake(inputs: VisualInputs, patch: number, t: number) {
+    const f = inputs.terrain.height;
+    const k = `${patch}|${inputs.terrain.rise.toFixed(3)}|${Object.values(inputs.terrain.progress).map((v) => v.toFixed(3)).join()}`;
+    if (!f || (k === bakeKey) || (bakeAt >= 0 && t - bakeAt < 0.4 && t >= bakeAt)) return;
+    bakeKey = k; bakeAt = t;
+    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) heights[j * RES + i] = f(((i + 0.5) / RES - 0.5) * patch, ((j + 0.5) / RES - 0.5) * patch);
+    heightTex.needsUpdate = true;
+  }
   let key = '';
   return {
     mesh,
@@ -73,7 +108,7 @@ export function createSea(app: App): SeaPart {
       // colours every frame (PAL follows the active world); material rebuild only when the depth-write mode changes
       // opacity follows seaStyle (liquid nitrogen clear, water translucent, ice opaque); colours from the palette roles
       const shallows = crustSeaTint(inputs);
-      const s = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks, shallows);
+      const s = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks, shallows, crustWaterNudge(inputs));
       const deep = uDeep.value as THREE.Color, sky = uSky.value as THREE.Color;
       if (inputs.frozen) {
         deep.copy(PAL.bone.value).lerp(PAL.haze.value, 0.35);
@@ -84,8 +119,15 @@ export function createSea(app: App): SeaPart {
         sky.copy(PAL.skyHorizon.value);
         uAlpha.value = s.opacity; uAlphaGraze.value = Math.min(1, s.opacity + 0.45); uGlint.value = 0.6;
       } else {
-        deep.copy(PAL.shadow.value).lerp(PAL.maroon.value, 0.3);
-        if (shallows !== undefined) deep.lerp(tint.setHex(shallows), 0.6);   // the seabed's shallows
+        // blue by its own physics; minerals reach it as a ≤ 12% body nudge and as the seabed showing in the shallows
+        const nudge = crustWaterNudge(inputs);
+        deep.setHex(waterAtDepth(60, undefined, nudge));
+        uShallow.value.setHex(waterAtDepth(0.5));
+        uMid.value.setHex(waterAtDepth(14, undefined, nudge));
+        uBed.value.setHex(shallows ?? 0);
+        uBedAmt.value = shallows !== undefined ? 0.8 : 0;
+        uPatch.value = patch;
+        bake(inputs, patch, t);
         sky.copy(PAL.haze.value).lerp(PAL.skyHorizon.value, 0.4);
         // seaStyle's opacity (0.62) looking down, a gentle fresnel rise to 0.85 at grazing: founders in the shallows stay visible
         uAlpha.value = s.opacity; uAlphaGraze.value = Math.max(s.opacity, 0.85); uGlint.value = 1;
@@ -102,6 +144,7 @@ export function createSea(app: App): SeaPart {
       app.scene.remove(mesh);
       mesh.geometry.dispose();
       mat.dispose();
+      heightTex.dispose();
     },
   };
 }

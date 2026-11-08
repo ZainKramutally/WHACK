@@ -77,8 +77,27 @@ export interface SeaStyle {
   metalness: number;
 }
 
+// Liquid water's own colour. Water absorbs red light (its O–H stretch overtones), so deep water reads blue and shallow
+// water cyan-blue (Braun & Smirnov 1993, "Why is water blue?", J. Chem. Educ. 70:612). The open sea comes from this ramp,
+// never from the rock roles; minerals reach it only through the seabed showing in the shallows and a small body nudge.
+export const WATER = { navy: 0x0b2a5c, ocean: 0x1670b8, cyan: 0x38b4d8 } as const;
+/** Largest share of the open sea's body colour the crust may move (owner brief: ≤ 15%). */
+export const WATER_NUDGE_MAX = 0.12;
+/** The open sea's body colour at mid depth, nudged a little towards `nudge` (a crust-derived water hue) when given. */
+export function waterBody(nudge?: number): number {
+  const base = labMix(WATER.navy, WATER.ocean, 0.6);
+  return nudge === undefined ? base : labMix(base, nudge, WATER_NUDGE_MAX);
+}
+/** Shallows colour at `depth` metres: the seabed tint where the water is thin (Beer–Lambert-style e-fold of 2 m, capped at 80%), the water ramp below. */
+export function waterAtDepth(depth: number, seabed?: number, nudge?: number): number {
+  const d = Math.max(0, depth);
+  const ramp = labMix(labMix(WATER.cyan, WATER.ocean, 1 - Math.exp(-d / 5)), waterBody(nudge), 1 - Math.exp(-d / 14));
+  const deep = labMix(ramp, WATER.navy, 0.5 * (1 - Math.exp(-d / 40)));
+  return seabed === undefined ? deep : labMix(deep, seabed, 0.8 * Math.exp(-d / 2));
+}
+
 /** Liquid or frozen, from the solvent: water is blue-teal, liquid nitrogen is clear and nearly colourless. */
-export function seaStyle(solventName: string, frozen: boolean, solidSinks: boolean, shallows?: number): SeaStyle {
+export function seaStyle(solventName: string, frozen: boolean, solidSinks: boolean, shallows?: number, nudge?: number): SeaStyle {
   const nitrogen = /nitrogen/i.test(solventName);
   if (frozen) {
     const colour = nitrogen ? 0xe4ecf2 : 0xdcf0f8;
@@ -88,7 +107,8 @@ export function seaStyle(solventName: string, frozen: boolean, solidSinks: boole
     return { colour: 0xd8eaf4, opacity: 0.16, roughness: 0.05, underwater: 0x6a8aa8, underwaterFar: 90, metalness: 0 };
   }
   void solidSinks;
-  return { colour: shallows ?? 0x2a86a0, opacity: 0.62, roughness: 0.08, underwater: shallows !== undefined ? scaleHex(shallows, 0.7) : 0x1b5f78, underwaterFar: 35, metalness: 0 };
+  // underwater: the water's own deep blue (the camera is inside the water, not looking at the seabed), nudged by the crust
+  return { colour: shallows ?? WATER.cyan, opacity: 0.62, roughness: 0.08, underwater: scaleHex(waterBody(nudge), 0.8), underwaterFar: 35, metalness: 0 };
 }
 
 /** Ground colour (Red World base ground): red on carbon, pale violet stone on silicon. Life is the plants' colour, so

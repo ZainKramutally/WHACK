@@ -9,6 +9,7 @@ import { Fn, float, vec3, mix, smoothstep, positionWorldDirection, dot, normaliz
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { seaStyle, skyStyle } from './palette';
+import { crustWaterNudge } from './crustLook';
 import { LOOK, PAL_LIT, PIXEL, bayer4 } from './material';
 import { easeSubmersion, stepSubmersion, submersionTarget } from './underwater';
 
@@ -108,19 +109,19 @@ export function createSky(app: App): SkyPart {
       underwater = camera.position.y < inputs.seaLevel && hasSea;
       sunDir.copy(LOOK.lightDir.value).normalize();
 
-      const sea = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks);
+      const sea = seaStyle(inputs.world.solvent.name, inputs.frozen, inputs.world.solvent.solidSinks, undefined, crustWaterNudge(inputs));
       const nitrogen = /nitrogen/i.test(inputs.world.solvent.name);
-      // the tint in the look's palette (as sea.ts colours the surface): ice pale, nitrogen pale-clear, water violet-oxblood
+      // the tint in the look's palette (as sea.ts colours the surface): ice pale, nitrogen pale-clear, water blue
       if (inputs.frozen) tmp.copy(PAL_LIT.bone.value).multiplyScalar(0.55);
       else if (nitrogen) tmp.copy(PAL_LIT.blush.value).lerp(PAL_LIT.shadow.value, 0.45);
-      else tmp.copy(PAL_LIT.shadow.value).lerp(PAL_LIT.crimson.value, 0.3);
+      else tmp.setHex(sea.underwater);   // liquid water: its own blue, nudged by the seabed crust (palette.waterBody)
 
       // Overlay state for post.ts. Liquid only: a frozen sea is walkable ice, so the gate drops to 0 at once.
       const depth = inputs.seaLevel - camera.position.y;
       const liquid = hasSea && !inputs.frozen;
       submersion = liquid ? stepSubmersion(submersion, submersionTarget(depth, liquid), dt) : 0;
       LOOK.underwater.value = easeSubmersion(submersion);
-      // water grades toward the fog's violet-oxblood; liquid nitrogen toward a paler, clear icy lilac
+      // water grades toward its own blue; liquid nitrogen toward a paler, clear icy lilac
       LOOK.waterTint.value.copy(tmp);
       if (nitrogen) LOOK.waterTint.value.lerp(PAL_LIT.haze.value, 0.5).lerp(PAL_LIT.bone.value, 0.3);
       LOOK.waterClear.value = nitrogen ? 1 : 0;

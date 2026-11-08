@@ -175,6 +175,21 @@ export function crustSeaTint(inputs: Pick<VisualInputs, 'world' | 'stats' | 'bui
   return crustGlobal(inputs)?.family.sea;
 }
 
+// Open-sea body nudge per seabed mineral (≤ WATER_NUDGE_MAX of the body colour, palette.waterBody): granite sand is clear and
+// bright, basalt dark, iron-rich water greener (dissolved iron feeds plankton: the iron hypothesis, Martin 1990, Nature 345:156).
+// Not rusted: rust colours the shallows only.
+const WATER_NUDGE: Record<string, number> = {
+  granite: 0x58d0ec, basalt: 0x08183c, ironstone: 0x2c9c88, silicide: 0x0a1c48, nitride: 0x4cc0d8, waterIce: 0x70c8e8,
+};
+/** The crust-derived hue the open sea's body leans towards (sea-weighted over the seabed rocks); undefined without a crust. */
+export function crustWaterNudge(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number | undefined {
+  const c = inputs.world.crust;
+  if (!c || !crustGlobal(inputs) || !memo.value) return undefined;
+  const sw = memo.value.seaWeights;
+  const items = c.ids.map((id, i) => ({ hex: WATER_NUDGE[id] ?? 0x1670b8, w: sw[i] }));
+  return labMean(items);
+}
+
 /** Local share of the camera's surroundings, eased: haze leans towards the rock under and around the camera. */
 export const LOCAL_SHARE = 0.6;      // 60% local, 40% global
 export const LOCAL_TAU_SEC = 0.7;    // ≈95% of the way in 2 s
