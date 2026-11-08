@@ -438,7 +438,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on brittle glassy crystal shards, high tinkle"
+  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.crystal.2",
@@ -447,7 +447,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on brittle glassy crystal shards, high tinkle"
+  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.crystal.3",
@@ -456,7 +456,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on brittle glassy crystal shards, high tinkle"
+  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.crystal.4",
@@ -465,7 +465,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on brittle glassy crystal shards, high tinkle"
+  "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.ice.1",
@@ -510,7 +510,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.rock.2",
@@ -519,7 +519,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.rock.3",
@@ -528,7 +528,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.rock.4",
@@ -537,7 +537,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.soil.1",

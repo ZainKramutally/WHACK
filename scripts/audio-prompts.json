@@ -225,7 +225,7 @@
   },
   {
     "id": "step.rock",
-    "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only.",
+    "prompt": "Single soft muffled footstep of a padded boot on dusty earth and fine gravel, quiet, close, dry, outdoors, no echo, no hollow knock.",
     "duration": 0.5,
     "loop": false,
     "influence": 0.7,
@@ -233,7 +233,7 @@
   },
   {
     "id": "step.crystal",
-    "prompt": "single step on brittle glassy crystal shards, high tinkle",
+    "prompt": "Single soft footstep of a padded boot crunching lightly on fine frosty grit, quiet, muffled, close, outdoors, no echo, no hollow knock, no ringing.",
     "duration": 0.6,
     "loop": false,
     "influence": 0.7,
