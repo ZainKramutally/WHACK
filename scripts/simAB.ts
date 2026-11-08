@@ -34,7 +34,7 @@ export function runBuild(sim: WorldSimulation, world: WorldConfig, extraSec = 0)
 if (e.AB === 'sim') {
   const w = e.WORLD === 'silicon' ? silicon : carbon;
   const isC = w.id === 'carbon';
-  const cond = { temperature: Number(e.T ?? (isC ? 15 : -183)), nitrogen: Number(e.N ?? (isC ? 1 : 30)), oxygen: Number(e.O2 ?? 0) };
+  const cond = { temperature: Number(e.T ?? (isC ? 15 : -183)), nitrogen: Number(e.N ?? (isC ? 1 : 30)), oxygen: Number(e.O2 ?? (isC ? 21 : 0)) };
   const t0 = Date.now();
   const { sim, eco, world } = makeSim(w, cond, e.G ? Number(e.G) : undefined, e.SEED ? Number(e.SEED) : undefined);
   const forms = runBuild(sim, world, Number(e.EXTRA ?? 0));
