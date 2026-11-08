@@ -35,12 +35,13 @@ Lengths are in metres, or are fractions of body length (`÷ L`). `normaliseParam
 | Param | Range | Meaning |
 |---|---|---|
 | `chemistry` | `carbon` \| `silicon` | Picks the grammar. Silicon is always radial and carbon is always axial, whatever `plan` says. |
-| `plan` | carbon: `fusiform` `ribbon` `disc` `segmented`; silicon: `radial` `bell` | Body plan |
+| `plan` | carbon: `fusiform` `ribbon` `disc` `segmented` `plesiosaur` (app only); silicon: `radial` `bell` | Body plan |
 | `length` | 0.05–40 | Nose to tail (axial), hub tip to tip along the travel axis (radial), or one bell's height (bell) |
 | `aspect` | 0.02–1.6 | Widest width ÷ length; for a bell, rim diameter ÷ height |
 | `depth` | 0.25–4 | Cross-section height ÷ width: above 1 is compressed (oarfish, hatchetfish), below 1 is flattened (anomalocarid) |
 | `peak` | 0.1–0.8 | Where the girth peaks along the body (0.25 gives a blunt head and a long taper) |
 | `undulation` | 0–1 | 0 is carangiform (the rear third beats); 1 is anguilliform (the whole body waves) |
+| `neck`, `tailLen` | 0.06–0.45, 0.1–0.4 | Plesiosaur only (app): skull to front girdle, and hind girdle to tail tip, each ÷ L. The torso between the girdles is at least 0.3 L. |
 | `fins.lateral` | 0–14 | Lateral fin pairs: 1–2 are pectoral paddles, 3 or more are a lobe fringe that ripples metachronally |
 | `fins.lateralSize`, `fins.dorsal`, `fins.ventral` | 0–0.6, 0–0.4, 0–0.5 | Fin size, dorsal sail height and ventral keel depth (the hatchet blade), each ÷ L |
 | `fins.fringe` | 0–1 | Share of thrust from fin ripple instead of the body wave (high: the body stays straight and the fins row) |
@@ -167,6 +168,21 @@ The free camera (`labcam.ts`) works as in the land lab: drag to orbit, wheel to 
 - **Liquid nitrogen** is pale, clear and faintly ice-lilac, with long visibility. The rim turns indigo, so silhouettes read dark on pale.
 
 Depth attenuation darkens bodies toward the floor. Glow is luminance-normalised HDR above 1, so only the cyan accents bloom.
+
+## 5a. In the app (src/render/faunaLib/aquatic, 2026-11-08)
+
+The port follows the tables above with these owner-feedback changes. The code is the reference where they differ.
+
+- **Fish-like by default.** No round paddle pads anywhere. A carbon swimmer has a small swept-back dorsal fin, one small pectoral pair just behind the head and a caudal fin from `tailKind`, all rooted on the body and drawn with the swept, tapered `fin` part. Silicon paddles are rod oars. The bead layout has no paddle beads, so far proxies, the bestiary sprite and the card's bead fallback are pad-free too, and the fluke bead stands upright.
+- **Plesiosaur.** `axialKind` returns `plesiosaur` first when `legPairs ≥ 2` and (`limbLength ≥ scale` or `finSpan ≥ 0.7`).
+  - Body: a small skull, a slim neck, a barrel torso between the girdles and a tapering tail. `fringe` 0.85 keeps the body almost still.
+  - Flippers: four long cambered hydrofoils (the `fin` part at chord-scaled thickness, the left one mirrored so both arch up). The fore root chord starts at the front girdle and the hind one ends at the hind girdle, inset inside the flank along the whole chord.
+  - Motion: each flipper flaps ±0.6 rad with a pitch twist a quarter cycle ahead (leading edge down on the downstroke). Left and right beat together; the hind pair lags the fore pair by 0.3 cycle (a design choice, not a cited measurement). One stroke per stroke cycle, so the rate follows the sim speed through the integrated phase.
+- **Necks and tails** (`fromPlan.ts`, pure and monotone):
+  - `neckFrac` = 0.06 + 0.39·seg·(1 − 0.55·head)·(1 − 0.45·gape), where seg = (segmentCount − 3) ÷ 13, head = (headScale − 0.75) ÷ 1.25 and gape = gapeSize ÷ (2·scale), each clamped to 0–1.
+  - `tailFrac` = base + 0.03·tailSegments (0.1–0.4), with base 0.2 for whip, 0.12 for fluke and 0.14 otherwise. On fish it moves the widest point forward: `peak` −0.8·(tailFrac − 0.2).
+  - fauna.ts passes the species book's attracted plan; `gapeSize` is an attracted proportion, so a species shares its neck.
+- **Level of detail.** The nearest `SWIM_MAX` (12) lofted swimmers pose with this builder, ranked by camera distance with the loft's hysteresis and in view first. The rest use the bead loft. A pose that throws is rolled back and that creature keeps the bead loft. Silicon axial (armoured walker) plans never use this builder.
 
 ## 6. Porting notes for `src/render`
 
