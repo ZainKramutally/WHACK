@@ -189,14 +189,16 @@ export function crustWeights(P: TerrainParams, score: number, k: Kit = kit64): n
 export interface PillarCell { cx: number; cz: number; ground: number; step: number; present: boolean; gate: number; band: number }
 export function pillarCell(
   P: TerrainParams, ix: number, iz: number, hs: number,
-  p2: number, p3: number, p4: number, p5: number, p6: number, p8: number, p9: number, k: Kit = kit64,
+  p2: number, p3: number, p4: number, p5: number, p6: number, p8: number, p9: number, k: Kit = kit64, quick = false,
 ): PillarCell {
   const m7 = P.machines.M7!;
   const cx = ix * 0.5 * m7.size, cz = iz * 0.5 * SQRT3 * m7.size;
-  const ground = heightCore(P, 1, hs, p2, p3, p4, p5, p6, cx, cz, k, 0, p8, p9);
   const g = P.gates.M7;
   const cw = g ? crustWeights(P, crustScore(P, warpBase(P, cx, cz, k).bn, cx, cz, k), k) : [];
   const gate = g ? g.reduce((a, c, j) => a + c * (cw[j] ?? 0), 0) : 1;
+  // quick: the caller only needs `present`, so a cell failing the gate skips the (expensive) ground height; ground/step/band are then NaN
+  if (quick && !(gate > 0.5)) return { cx, cz, ground: NaN, step: NaN, present: false, gate, band: NaN };
+  const ground = heightCore(P, 1, hs, p2, p3, p4, p5, p6, cx, cz, k, 0, p8, p9);
   const band = 1 - k.smoothstep(0, 1, Math.abs(ground / (0.5 * P.A) - m7.bandCenter) / m7.bandWidth);
   // Spawn ramp: a flat-topped pillar on a slope is a cliff, so cells where the ramp mask exceeds `rampClear` stay smooth ground
   // (the walk from the spawn to the sea has no steps); pillars take over beyond it.
@@ -306,7 +308,7 @@ export function heightCore(
     const wC = mix(m4.widthWet, m4.widthDry, dry);
     const stC = mix(m4.steepWet, m4.steepDry, dry);
     const uu = Math.min(Math.abs(qx - cx) / wC, 1);
-    carve = p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC))) * gateOf('M4');
+    carve = p4 === 0 ? 0 : p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC))) * gateOf('M4');
   }
 
   // relic footprints (silicon): fixed positions, scaled by rise like everything else
@@ -329,11 +331,17 @@ export function heightCore(
   const hf = mix(hTerrain, rampH, mask);
 
   // M7 basalt pillars: whole hexagonal cells are flat-topped prisms (see pillarCell). The GPU ground mesh skips this term (file header).
-  if (on.M7 && p7 > 0) {
+  // Exact early-outs (pillarCell recomputes the full ground height): the point must be on an M7 mineral, and the cell centre must clear the spawn-ramp mask.
+  if (on.M7 && p7 > 0 && gateOf('M7') > 0.5) {
     const m7 = M.M7!;
     const hx7 = hexCell(x / m7.size, z / m7.size);
-    const pc = pillarCell(P, hx7.ix, hx7.iz, hs, p2, p3, p4, p5, p6, p8, p9, k);
-    if (pc.present && gateOf('M7') > 0.5) return rise * (pc.ground + p7 * pc.step);   // the point itself must also be on an M7 mineral, so no pillar overhangs other rock
+    const R7 = P.ramp;
+    const pcx = hx7.ix * 0.5 * m7.size, pcz = hx7.iz * 0.5 * SQRT3 * m7.size;
+    const mask7 = 1 - smoothstep(R7.rIn, R7.rOut, Math.sqrt((pcx - R7.cx) ** 2 + (pcz - R7.cz) ** 2));
+    if (mask7 <= m7.rampClear) {
+      const pc = pillarCell(P, hx7.ix, hx7.iz, hs, p2, p3, p4, p5, p6, p8, p9, k, true);
+      if (pc.present) return rise * (pc.ground + p7 * pc.step);   // the point itself must also be on an M7 mineral, so no pillar overhangs other rock
+    }
   }
   return rise * hf;
 }
