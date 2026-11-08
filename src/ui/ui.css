@@ -130,9 +130,6 @@
 .wu-v { text-align: right; }
 .wu-why-line { margin: 8px 0; font-size: 13px; color: var(--wu-dim); }
 .wu-window { height: 140px; margin-top: 8px; border: 2px dashed var(--ink); background: transparent; }
-.wu-toggle { display: flex; gap: 4px; margin-top: 6px; }
-.wu-toggle-btn { flex: 1; font-size: 12px; padding: 3px 6px; border: 2px solid var(--ink); background: transparent; color: var(--wu-fg); cursor: pointer; }
-.wu-toggle-btn.wu-on { color: var(--bone4); background: var(--ink); }
 .wu-window-label { margin: 4px 0 0; font-size: 12px; color: var(--wu-dim); }
 
 /* Captions: game subtitles, cream text with a hard one-pixel-step ink outline, no box */
