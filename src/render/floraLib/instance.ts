@@ -58,7 +58,7 @@ export function plantMatrix(list: PlantList, i: number, a: Archetype, out: THREE
 /**
  * The flora material's per-instance shape terms (material.ts plantAttr), in the archetype's native metres so they
  * apply before instancing: vec4(crown, twist, droop, bend) with crown scale 1 + c·y², twist t·y radians, droop
- * −d·r²·y² and bend b·y² along local +X. So at the top (y = H) the crown is × (1 + wc), the stem has turned wt, the
+ * −d·r²·y² (in full on caps, by the look's cap weight, 35% elsewhere) and bend b·y² along local +X. So at the top (y = H) the crown is × (1 + wc), the stem has turned wt, the
  * rim (r = R) has dropped wd·H and the tip has moved wb·H.
  */
 export function plantShape(list: PlantList, i: number, a: Archetype, out: Float32Array, o: number): void {

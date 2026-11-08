@@ -52,6 +52,8 @@ export interface WorldMaterialOpts {
   lookAttr?: string | null;
   /** Per-vertex rim weight ('name.c'), with lookAttr: a toothed plant's rim vertices take a saw edge (T6). */
   rimAttr?: string | null;
+  /** Per-vertex cap weight ('name.c'), with plantAttr: droop acts on caps in full, DROOP_BODY of it elsewhere. */
+  capAttr?: string | null;
 }
 
 /** Pixel mode (the default look). `?style=smooth` is the comparison view. post.ts reads the same flag. */
@@ -154,10 +156,12 @@ export const fogAt = (p: N): N => {
  * stem) and a bend of b·y² along +X. Normals take the matching first-order correction n − (∇δ)ᵀn (the twist's shear
  * is left out: it is zero on surfaces of revolution).
  */
-const plantDeform = (name: string, teeth?: { look: string; rim: string }) => (): void => {
+const plantDeform = (name: string, teeth?: { look: string; rim: string }, capAttr?: string | null) => (): void => {
   const P = attribute(name, 'vec4');
   const p = positionGeometry, n = normalGeometry;
-  const c = P.x, t = P.y, d = P.z, b = P.w;
+  // droop acts mostly on caps (per-vertex cap weight): DROOP_BODY of it on the rest of the plant
+  const c = P.x, t = P.y, b = P.w;
+  const d: N = capAttr ? P.z.mul(attr1(capAttr).mul(1 - DROOP_BODY).add(DROOP_BODY)) : P.z;
   const y = max(p.y, 0), y2 = y.mul(y);
   const r2 = p.x.mul(p.x).add(p.z.mul(p.z));
   // margin teeth (T6): on a toothed plant, every other rim vertex is pulled TEETH_DEPTH toward the stem, a saw edge
@@ -200,6 +204,8 @@ const attr1 = (name: string): N => {
 
 /** How far a toothed rim's alternate vertices are pulled toward the stem (share of their distance) ([art], T6). */
 const TEETH_DEPTH = 0.18;
+/** Share of the droop a non-cap vertex takes (caps take all of it) ([art], T7 by cap weight). */
+const DROOP_BODY = 0.35;
 /** lookAttr packs a plant's glow 0..1 and its margin teeth 0/1 into w = glow + 2 × teeth (floraLib/instance.ts plantLook). */
 const lookTeeth = (look: N): N => floor(look.w.mul(0.5));
 const lookGlow = (look: N): N => look.w.sub(lookTeeth(look).mul(2));
@@ -226,9 +232,9 @@ class PlantViewMaterial extends THREE.MeshStandardNodeMaterial {
     return 'plantView:' + super.customProgramCacheKey();
   }
 }
-export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string; rimAttr?: string }): N {
+export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string; rimAttr?: string; capAttr?: string }): N {
   const m = new PlantViewMaterial({ side: THREE.DoubleSide, roughness: 0.7 });
-  m.deform = plantDeform(opts.plantAttr, opts.rimAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined);
+  m.deform = plantDeform(opts.plantAttr, opts.rimAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined, opts.capAttr);
   const look = attribute(opts.lookAttr, 'vec4'), glowW = attr1(opts.glowAttr);
   m.colorNode = plantSiteColour(attribute('color', 'vec3'), look, glowW);
   m.emissiveNode = vec3(PAL.glow).mul(abs(glowW).mul(lookGlow(look)).mul(0.8)); // no bloom here: the sites just light up
@@ -241,7 +247,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
   const translucent = opts.translucent ?? kind === 'flora';
   const bounce = kind !== 'sea' && kind !== 'backdrop' && kind !== 'ground';
   const m = opts.plantAttr ? new PlantMaterial() : new THREE.MeshLambertNodeMaterial();
-  if (opts.plantAttr && m instanceof PlantMaterial) m.deform = plantDeform(opts.plantAttr, opts.rimAttr && opts.lookAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined);
+  if (opts.plantAttr && m instanceof PlantMaterial) m.deform = plantDeform(opts.plantAttr, opts.rimAttr && opts.lookAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined, opts.capAttr);
   m.side = (opts.side ?? THREE.FrontSide) as THREE.Side;
   m.vertexColors = opts.vertexColors === true;
   m.flatShading = opts.flat === true;

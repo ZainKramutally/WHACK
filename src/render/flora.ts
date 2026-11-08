@@ -17,7 +17,7 @@ import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Cle
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
-import { VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { VTX_CAP, VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
@@ -112,7 +112,7 @@ export function createFlora(app: App): FloraPart {
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
-  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, rimAttr: VTX_RIM, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, rimAttr: VTX_RIM, capAttr: VTX_CAP, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });
   const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
   const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
