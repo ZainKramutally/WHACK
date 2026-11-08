@@ -247,4 +247,13 @@ describe('crust map in VisualInputs', () => {
     lifeOnLand(new Float32Array(GRID * GRID * 2), 0, s, terrainState(sn, silicon));
     expect(buildVisualInputs(sn, silicon, s).terrain.crust?.weights(-5, 0)).toEqual([0, 1, 0]);
   });
+
+  it('keeps one crust object per sampler across terrain rebuilds (it keys the flora mineral grid)', () => {
+    const s = crusty();
+    const a = buildVisualInputs(snap(silicon, { buildProgress: 0.3 }), silicon, s).terrain;
+    const b = buildVisualInputs(snap(silicon, { buildProgress: 0.6 }), silicon, s).terrain;
+    expect(b).not.toBe(a);
+    expect(b.crust).toBe(a.crust);
+    expect(buildVisualInputs(snap(silicon), silicon, crusty()).terrain.crust).not.toBe(a.crust);
+  });
 });

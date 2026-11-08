@@ -300,6 +300,24 @@ describe('gated archetypes', () => {
     expect(ferns).toBeGreaterThan(0);
   });
 
+  it('the crust mineral grid is computed once per crust map: a repeat rebuild makes no crustWeights calls, no cell is asked twice', () => {
+    const seen = new Map<string, number>();
+    const minerals = silicon.terrain.crust.minerals;
+    const mk = () => ({ minerals, weights: (x: number, z: number) => { const k = `${x},${z}`; seen.set(k, (seen.get(k) ?? 0) + 1); return x > 0 ? [0, 1, 0] : [1, 0, 0]; } });
+    const calls = () => [...seen.values()].reduce((a, b) => a + b, 0);
+    const base = siShore(), inp = { ...base, terrain: { ...base.terrain, crust: mk() } };
+    placed(inp);
+    const first = calls();
+    expect(first).toBeGreaterThan(0);
+    placed(inp);
+    expect(calls()).toBe(first);                         // the same rebuild again: nothing recomputed
+    placed({ ...inp, seaLevel: -1 });                    // live stats moved: only cells never asked before are filled
+    expect(Math.max(...seen.values())).toBe(1);
+    seen.clear();
+    placed({ ...inp, terrain: { ...inp.terrain, crust: mk() } });   // another world's map: recomputed
+    expect(calls()).toBeGreaterThan(0);
+  });
+
   it('§2b: at least 2 silicon-only archetypes grow on the default silicon demo seed (−183 °C, default N, thick air, dim)', () => {
     const l = demoWorld(silicon, 0.016, 0.65, 0.6, {});
     const counts: Record<string, number> = {};

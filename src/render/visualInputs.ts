@@ -64,6 +64,7 @@ interface TerrainMemo {
   ground: Float64Array; // NaN = not sampled yet
 }
 let memo: TerrainMemo | null = null;
+const CRUST = new WeakMap<TerrainSampler, NonNullable<VisualInputs['terrain']['crust']>>();
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
@@ -99,8 +100,14 @@ function copyValue<T>(v: T): T {
 }
 
 function terrainMemo(sampler: TerrainSampler, state: TerrainState, minerals?: readonly MineralDef[]): TerrainMemo {
-  // the crust map is static per sampler (one world, one seed); carried whenever the world has one and the sampler can answer
-  const crustOf = () => (minerals?.length && sampler.crustWeights ? { minerals, weights: (x: number, z: number) => sampler.crustWeights!(x, z) } : undefined);
+  // the crust map is static per sampler (one world, one seed): one object per sampler, so its identity keys the flora
+  // mineral grid (floraLib/place.ts) across rebuilds and frames
+  const crustOf = () => {
+    if (!minerals?.length || !sampler.crustWeights) return undefined;
+    let c = CRUST.get(sampler);
+    if (!c) { c = { minerals, weights: (x: number, z: number) => sampler.crustWeights!(x, z) }; CRUST.set(sampler, c); }
+    return c;
+  };
   if (memo && memo.sampler === sampler && memo.patchSize === sampler.patchSize && sameValue(memo.state, state)) {
     if (minerals && !memo.terrain.crust) memo.terrain.crust = crustOf();   // a memo first built by lifeOnLand (no world to hand)
     return memo;

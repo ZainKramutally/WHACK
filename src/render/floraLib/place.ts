@@ -152,7 +152,10 @@ const RING_C = new Float32Array(6), RING_S = new Float32Array(6), RING_H = new F
 /** Gate probes' scratch (gates.ts CellProbe): cell-centre ground heights stamped per call, and a 32² rank sample. */
 const CELL_Y = new Float32Array(FLORA_GRID * FLORA_GRID), CELL_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);
 const RANK_N = 32, RANK_SAMPLE = new Float32Array(RANK_N * RANK_N);
-const CELL_MIN = new Int16Array(FLORA_GRID * FLORA_GRID), MIN_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);   // crust argmax per cell
+// crust argmax per cell, lazily filled; static per crust map (one per world, visualInputs.ts) and patch size, so it is kept
+// across rebuilds and cleared only when either changes
+const CELL_MIN = new Int16Array(FLORA_GRID * FLORA_GRID), MIN_AT = new Int32Array(FLORA_GRID * FLORA_GRID).fill(-1);
+let minKey: object | null = null, minPatch = NaN, minGen = 0;
 let placeCall = 0;
 for (let k = 0; k < 6; k++) { RING_C[k] = Math.cos((k * Math.PI) / 3); RING_S[k] = Math.sin((k * Math.PI) / 3); }
 
@@ -202,6 +205,64 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   };
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
+  // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
+  // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the
+  // water and land cover on the dry side, whichever side its centre is on.
+  const forms: (FloraForm | null)[] = new Array(cells);
+  const bins: (FloraBin | null)[] = new Array(cells);
+  // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
+  const env = worldEnv(inputs), hb = inputs.heatBand;
+  // gated archetypes (gates.ts): the world-wide halves once here; cells answer the rest lazily through the probe
+  const gates = activeGates(env), aquatic = aquaticFor(env);
+  const call = ++placeCall;
+  const cellY = (c: number) => {
+    if (CELL_AT[c] !== call) {
+      CELL_Y[c] = yAt(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
+      CELL_AT[c] = call;
+    }
+    return CELL_Y[c];
+  };
+  let ranked = false;
+  // the crust map (gen/crust.ts): each cell's mineral is the argmax of the weights at its centre, as crustMap gives the sim
+  const crust = inputs.terrain.crust;
+  if (crust && (crust !== minKey || patch !== minPatch)) { minKey = crust; minPatch = patch; minGen++; }
+  const mineralIx = (c: number) => {
+    if (MIN_AT[c] !== minGen) {
+      const w = crust!.weights(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
+      let best = 0;
+      for (let i = 1; i < w.length; i++) if (w[i] > w[best]) best = i;
+      CELL_MIN[c] = best;
+      MIN_AT[c] = minGen;
+    }
+    return CELL_MIN[c];
+  };
+  const probe: CellProbe = {
+    shore(c) {
+      const col = c % FLORA_GRID, row = Math.floor(c / FLORA_GRID);
+      let lo = Infinity, hi = -Infinity;
+      for (let j = Math.max(0, row - 1); j <= Math.min(FLORA_GRID - 1, row + 1); j++) for (let i = Math.max(0, col - 1); i <= Math.min(FLORA_GRID - 1, col + 1); i++) {
+        const y = cellY(j * FLORA_GRID + i);
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      }
+      return lo < sea && hi > sea;
+    },
+    rank(c) {
+      if (!ranked) {
+        const st = FLORA_GRID / RANK_N;
+        for (let j = 0; j < RANK_N; j++) for (let i = 0; i < RANK_N; i++) RANK_SAMPLE[j * RANK_N + i] = cellY(j * st * FLORA_GRID + i * st);
+        RANK_SAMPLE.sort();
+        ranked = true;
+      }
+      const y = cellY(c);
+      let a = 0, b = RANK_SAMPLE.length;
+      while (a < b) { const m = (a + b) >> 1; if (RANK_SAMPLE[m] < y) a = m + 1; else b = m; }
+      return a / RANK_SAMPLE.length;
+    },
+    total: (c) => (inputs.flora[c * 2] ?? 0) + (inputs.flora[c * 2 + 1] ?? 0),
+    mineral: (c) => (crust ? crust.minerals[mineralIx(c)].id : mineralByRank(env.carbon, probe.rank(c))),
+    si: (c) => (crust ? crust.minerals[mineralIx(c)].supply.si : supplySi(probe.rank(c))),
+  };
   const look: PlantVary = { size: 1, teeth: 0, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
   // the world's stats once; each plant adds its cell, its spot and its cell's height rank (traits.ts)
   const tenv = traitWorld(inputs, makeEnv());
@@ -251,63 +312,6 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     out.cell[i] = c; out.slot[i] = slot;
     out.wg[i] = v.girth - 1; out.wc[i] = v.crown - 1; out.wt[i] = v.twist; out.wd[i] = v.droop; out.wb[i] = v.bend;
     out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - NEUTRAL_TINT; out.tg[i] = v.g - NEUTRAL_TINT; out.tb[i] = v.b - NEUTRAL_TINT; out.teeth[i] = v.teeth;
-  };
-  // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
-  // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the
-  // water and land cover on the dry side, whichever side its centre is on.
-  const forms: (FloraForm | null)[] = new Array(cells);
-  const bins: (FloraBin | null)[] = new Array(cells);
-  // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
-  const env = worldEnv(inputs), hb = inputs.heatBand;
-  // gated archetypes (gates.ts): the world-wide halves once here; cells answer the rest lazily through the probe
-  const gates = activeGates(env), aquatic = aquaticFor(env);
-  const call = ++placeCall;
-  const cellY = (c: number) => {
-    if (CELL_AT[c] !== call) {
-      CELL_Y[c] = yAt(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
-      CELL_AT[c] = call;
-    }
-    return CELL_Y[c];
-  };
-  let ranked = false;
-  // the crust map (gen/crust.ts): each cell's mineral is the argmax of the weights at its centre, as crustMap gives the sim
-  const crust = inputs.terrain.crust;
-  const mineralIx = (c: number) => {
-    if (MIN_AT[c] !== call) {
-      const w = crust!.weights(patchToWorld(((c % FLORA_GRID) + 0.5) / FLORA_GRID, patch), patchToWorld((Math.floor(c / FLORA_GRID) + 0.5) / FLORA_GRID, patch));
-      let best = 0;
-      for (let i = 1; i < w.length; i++) if (w[i] > w[best]) best = i;
-      CELL_MIN[c] = best;
-      MIN_AT[c] = call;
-    }
-    return CELL_MIN[c];
-  };
-  const probe: CellProbe = {
-    shore(c) {
-      const col = c % FLORA_GRID, row = Math.floor(c / FLORA_GRID);
-      let lo = Infinity, hi = -Infinity;
-      for (let j = Math.max(0, row - 1); j <= Math.min(FLORA_GRID - 1, row + 1); j++) for (let i = Math.max(0, col - 1); i <= Math.min(FLORA_GRID - 1, col + 1); i++) {
-        const y = cellY(j * FLORA_GRID + i);
-        if (y < lo) lo = y;
-        if (y > hi) hi = y;
-      }
-      return lo < sea && hi > sea;
-    },
-    rank(c) {
-      if (!ranked) {
-        const st = FLORA_GRID / RANK_N;
-        for (let j = 0; j < RANK_N; j++) for (let i = 0; i < RANK_N; i++) RANK_SAMPLE[j * RANK_N + i] = cellY(j * st * FLORA_GRID + i * st);
-        RANK_SAMPLE.sort();
-        ranked = true;
-      }
-      const y = cellY(c);
-      let a = 0, b = RANK_SAMPLE.length;
-      while (a < b) { const m = (a + b) >> 1; if (RANK_SAMPLE[m] < y) a = m + 1; else b = m; }
-      return a / RANK_SAMPLE.length;
-    },
-    total: (c) => (inputs.flora[c * 2] ?? 0) + (inputs.flora[c * 2 + 1] ?? 0),
-    mineral: (c) => (crust ? crust.minerals[mineralIx(c)].id : mineralByRank(env.carbon, probe.rank(c))),
-    si: (c) => (crust ? crust.minerals[mineralIx(c)].supply.si : supplySi(probe.rank(c))),
   };
   /** The gated archetype for a plant at its own ground height (its base pick when no gate holds). */
   const gated = (key: string | null, role: FloraRole, c: number, y: number, h: number) =>
