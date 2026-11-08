@@ -77,7 +77,7 @@ export async function createApp(): Promise<App> {
   };
 
   const hooks: FrameHook[] = [];
-  /** Frame callbacks (hooks, the render step, overlays) that have thrown at least once: warned once each, still called. */
+  /** Frame callbacks (inputs source, hooks, post update, render step, overlays) that have thrown: warned once each, still called. */
   const failed = new WeakSet<object>();
   const warnOnce = (what: string, fn: object, err: unknown) => {
     if (failed.has(fn)) return;
@@ -112,14 +112,14 @@ export async function createApp(): Promise<App> {
   renderer.setAnimationLoop((now: number) => {
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
-    inputs = source();
-    // A throwing hook, render step or overlay must not stop the rest of the frame (later hooks, post, render, the held
-    // target's restore) and freeze the picture: warn once per callback and keep calling it, so one bad frame doesn't
-    // end the run.
+    // A throwing inputs source, hook, post update, render step or overlay must not stop the rest of the frame (later
+    // hooks, post, render, the held target's restore) and freeze the picture: warn once per callback and keep calling
+    // it, so one bad frame doesn't end the run. A failed source keeps the previous frame's inputs.
+    try { inputs = source(); } catch (err) { warnOnce('inputs source', source, err); }
     for (const h of hooks) {
       try { h(dt, now / 1000, inputs); } catch (err) { warnOnce('frame hook', h, err); }
     }
-    post.update(inputs);
+    try { post.update(inputs); } catch (err) { warnOnce('post update', post.update, err); }
     // compile() may hold the post pass's target as the renderer's current target across awaits; frames draw to the canvas.
     const held = renderer.getRenderTarget();
     if (held) renderer.setRenderTarget(null);
