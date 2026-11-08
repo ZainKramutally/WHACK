@@ -139,3 +139,4 @@
 - 03:53 16: art batch on main 34fccf2 (unique plants, condition traits, 8 archetypes, fish/plesiosaurs, juveniles via grown, silicon armoured walker render). CLAUDE.md plant traits.
 - 03:55 16: merged swim 8.5 m/s (rise 5, cap 9.5, swim camera smoothTime 0.09).
 - 03:53: MAIN PUSH (Caden: reviewed part now): main 34fccf2 = f046658 + art batch through the aPart blocker fix. Gate tsc 0, 302/14, build OK. 16 pinged, #50 updated. Walking fix (dec8975 on stage) awaits review 9 addendum.
+- 04:01 16: merged pass 7 items 1 (founder leg lean) and 4 (announcement pacing: 4–5 at spawn, one per 25 s live). Item 5 (#80 swimmer-only slot rule) sent back to be mode-symmetric.
