@@ -71,3 +71,4 @@
 - 01:21: rw-fish aquatic lab merged (0bd71e8; 5 variants, swimmerParamsFromPlan, ?view=aquatic). Flora re-stack is tree-identical to merged 1bbe571 (no action). Waiting on art-review before main ff.
 - 01:35: integration branch integrate/look-fauna (d147706): art-look 650e295 (main.ts/world.ts conflicts resolved: landmarks pushOut then setFocus; LOOK import), fauna WP5 (ad002c4), flora cutout (d147706). tsc 0, build, 114/114 tests. Fauna next: #57 colour variety + counterpart tone map.
 - 01:37: integrate += lean carbon ground (ca044ec: carbon flora 1.31M->0.87M tris). #57 decision: prefer develop.ts render-only colour lines (A) - asked 16 for OK; fallback sprite.ts helper. art-flora: carbon ground L1.
+- ~01:40 (11-08): main d98ed2f (Red World phase 1 merged by 6a, landmarks, sprint, sim pass 2). Owner: prey-mass meat + big grazing reach (sim-worker), bestiary uses sim species rule (#59, bestiary-align agent), feature freeze 10:00.

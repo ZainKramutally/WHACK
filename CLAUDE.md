@@ -12,7 +12,7 @@ The MVP has two worlds. Carbon gives a living world we recognise. Silicon gives 
 
 ## Context and constraints
 
-The Marshall Wace brief asks for a project that "opens a door to the unexplored", judged on creativity, technical complexity and good presentation (our scoring rubric is in `docs/TRACK.md`). Judging is a strict three-minute slot with the sponsor, presented on our own laptop. Devpost submissions close at 11:00 on Sunday 8 November 2026, and judging starts at 12:30. Unsubmitted projects are ineligible, so submit something by 10:30 even if it is unfinished.
+The Marshall Wace brief asks for a project that "opens a door to the unexplored", judged on creativity, technical complexity and good presentation (our scoring rubric is in `docs/TRACK.md`). Judging is a strict three-minute slot with the sponsor, presented on our own laptop. **Feature freeze: 10:00 on Sunday 8 November (owner).** After that, only demo-path bug fixes. Devpost submissions close at 11:00 on Sunday 8 November 2026, and judging starts at 12:30. Unsubmitted projects are ineligible, so submit something by 10:30 even if it is unfinished.
 
 Owners:
 - **Engineering lead:** generation (including terrain logic in `src/gen/`), simulation, character and integration.
