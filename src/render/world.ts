@@ -19,6 +19,8 @@ import { createFlora } from './flora';
 import { createPicker, type PickResult } from './pick';
 import { createCounterpart } from './counterpart';
 import { createLandmarksPart } from './landmarks';
+import { createRockFormsPart } from './rockForms';
+import type { RockFormSet } from '../gen/rockForms';
 import type { LandmarkSet } from '../gen/landmarks';
 import { LOOK, PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
@@ -47,6 +49,8 @@ export interface WorldView {
   setTerrainSampler(terrain: Terrain, opts?: { segments?: number }): void;
   /** Draw these landmark structures (gen/landmarks.ts); null clears. */
   setLandmarks(set: LandmarkSet | null): void;
+  /** Draw these per-mineral rock structures (gen/rockForms.ts); null clears. */
+  setRockForms(set: RockFormSet | null): void;
   setPatchSize(metres: number): void;
   readonly patchSize: number;
   /**
@@ -128,6 +132,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const flora = createFlora(app);
   reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
   const landmarks = createLandmarksPart(app);
+  const rockForms = createRockFormsPart(app);
   /** Radius (m) of the spawn clearing world.ts gives flora (setSpawn). */
   const SPAWN_CLEARING_R = 25;
   const counterpart = createCounterpart({
@@ -176,6 +181,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     flora.update(dt, t, inputs, patch);
     const t4 = performance.now();
     landmarks.update(dt, t, inputs, patch);
+    rockForms.update(dt, t, inputs, patch);
     const t4b = performance.now();
     counterpart.update(dt, t, inputs);
     const t5 = performance.now();
@@ -226,6 +232,9 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     setLandmarks(s) {
       landmarks.setSet(s);
     },
+    setRockForms(s) {
+      rockForms.setSet(s);
+    },
     setPatchSize(m) {
       patchOverride = m;
       patch = m;
@@ -249,6 +258,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       fauna.dispose();
       flora.dispose();
       landmarks.dispose();
+      rockForms.dispose();
       sea.dispose();
       backdrop.dispose();
       sky.dispose();

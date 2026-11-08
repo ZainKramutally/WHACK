@@ -5,6 +5,7 @@ import { bus } from './bus';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
 import { withCrustChoice } from './gen/crust';
 import { createLandmarks } from './gen/landmarks';
+import { createRockForms } from './gen/rockForms';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
@@ -117,6 +118,9 @@ async function start(
   const landmarks = 'relics' in terrain
     ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
     : null;
+  const rockForms = landmarks && 'relics' in terrain
+    ? createRockForms(terrain, landmarks, { seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
+    : null;
   const myKey = keyOf(worldId, crust);
   ensureTerrainMesh(view, worldId, crust);
   // One world per page load: free the other worlds' cached terrain meshes (setTerrain already took them out of the scene).
@@ -126,6 +130,7 @@ async function start(
     meshes.delete(id);
   }
   view.setLandmarks(landmarks);
+  view.setRockForms(rockForms);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
@@ -237,6 +242,11 @@ async function start(
     if (landmarks && latest) {
       const s = player.state;
       const out = landmarks.pushOut(s.x, s.z, terrainState(latest, world));
+      if (out) { s.x = out.x; s.z = out.z; }
+    }
+    if (rockForms && latest) {
+      const s = player.state;
+      const out = rockForms.pushOut(s.x, s.z, terrainState(latest, world));
       if (out) { s.x = out.x; s.z = out.z; }
     }
     view.setFocus(player.state.x, player.state.y + 1, player.state.z);
