@@ -27,7 +27,7 @@ const silicon = (): Partial<VisualInputs> => {
 /** Biomass that varies from cell to cell (so neighbours differ in their conditions too), canopy over most of the patch. */
 const varied = (c: number): [number, number] => [0.4 + 0.5 * ((c * 37) % 11) / 10, ((c * 53) % 7) < 2 ? 0.05 : 0.5 + 0.5 * ((c * 29) % 5) / 4];
 const lookOf = (l: PlantList, i: number): PlantVary => ({
-  size: 1, girth: 1 + l.wg[i], crown: 1 + l.wc[i], leanX: l.lx[i], leanZ: l.lz[i], twist: l.wt[i], droop: l.wd[i], bend: l.wb[i],
+  size: 1, teeth: l.teeth[i], girth: 1 + l.wg[i], crown: 1 + l.wc[i], leanX: l.lx[i], leanZ: l.lz[i], twist: l.wt[i], droop: l.wd[i], bend: l.wb[i],
   r: 0.9 + l.tr[i], g: 0.9 + l.tg[i], b: 0.9 + l.tb[i],
 });
 const worlds: [string, Partial<VisualInputs>][] = [['carbon', {}], ['silicon', silicon()]];

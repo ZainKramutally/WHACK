@@ -37,6 +37,8 @@ export { NEUTRAL_TINT };
 export interface PlantVary {
   /** Size multiplier from the conditions (T10); place.ts keeps full-grown plants in their role band. */
   size: number;
+  /** 1: its cap and fan rims are toothed (T6), 0: smooth. */
+  teeth: number;
   /** Instance xz ÷ y scale (1: native proportions). */
   girth: number;
   /** Crown radius factor at the plant's top (1: native). */
@@ -102,7 +104,7 @@ const level = (lvl: number, n: number, step: number, u: number) => (lvl - (n - 1
  */
 export function varyPlant(
   arch: number, cell: number, slot: number, dark: boolean, ctx: TraitContext,
-  out: PlantVary = { size: 1, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
+  out: PlantVary = { size: 1, teeth: 0, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
 ): PlantVary {
   const meta = ARCHETYPE_META[arch];
   const chem = meta.chem, role = meta.role, G = GRID[chem];
@@ -131,6 +133,7 @@ export function varyPlant(
   out.g = Math.min(1, NEUTRAL_TINT * v * c[1]);
   out.b = Math.min(1, NEUTRAL_TINT * v * (1 - h) * c[2]);
   out.size = traited('size', chem, ctx, 1);
+  out.teeth = noise(cell, slot, salt, 11) < traited('teeth', chem, ctx, carbon ? 1 : 0) ? 1 : 0;
 
   // free per-plant noise, shaped by the traits of the plant's own cell and world
   const [lo, hi] = LEAN_DEG[role];

@@ -53,6 +53,8 @@ export interface PlantList {
   wg: Float32Array; wc: Float32Array; wt: Float32Array; wd: Float32Array; wb: Float32Array;
   lx: Float32Array; lz: Float32Array;
   tr: Float32Array; tg: Float32Array; tb: Float32Array;
+  /** 1: toothed cap and fan rims (T6). */
+  teeth: Uint8Array;
 }
 
 export function makePlantList(cap = MAX_PLANTS): PlantList {
@@ -63,6 +65,7 @@ export function makePlantList(cap = MAX_PLANTS): PlantList {
     cell: new Uint16Array(cap), slot: new Uint8Array(cap),
     wg: new Float32Array(cap), wc: new Float32Array(cap), wt: new Float32Array(cap), wd: new Float32Array(cap), wb: new Float32Array(cap),
     lx: new Float32Array(cap), lz: new Float32Array(cap), tr: new Float32Array(cap), tg: new Float32Array(cap), tb: new Float32Array(cap),
+    teeth: new Uint8Array(cap),
   };
 }
 
@@ -198,7 +201,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   };
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
-  const look: PlantVary = { size: 1, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
+  const look: PlantVary = { size: 1, teeth: 0, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
   // the world's stats once; each plant adds its cell, its spot and its cell's height rank (traits.ts)
   const tenv = traitWorld(inputs, makeEnv());
   /** `topAt` (optional): size the plant so its drawn top stands at this height (aquatic mids, by the sea surface). */
@@ -245,7 +248,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     out.gx[i] = tx; out.gz[i] = tz; out.sink[i] = sink;
     out.cell[i] = c; out.slot[i] = slot;
     out.wg[i] = v.girth - 1; out.wc[i] = v.crown - 1; out.wt[i] = v.twist; out.wd[i] = v.droop; out.wb[i] = v.bend;
-    out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - NEUTRAL_TINT; out.tg[i] = v.g - NEUTRAL_TINT; out.tb[i] = v.b - NEUTRAL_TINT;
+    out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - NEUTRAL_TINT; out.tg[i] = v.g - NEUTRAL_TINT; out.tb[i] = v.b - NEUTRAL_TINT; out.teeth[i] = v.teeth;
   };
   // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
   // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the

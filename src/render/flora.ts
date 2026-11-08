@@ -17,7 +17,7 @@ import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Cle
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
-import { VTX_GLOW, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
+import { VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 /** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
 const PLANT_ATTR = 'aPlant';
@@ -78,6 +78,8 @@ export interface PlacedPlant {
   lod: 0 | 1; dark: boolean;
   /** Emissive amount 0..1 of its glow sites (form.glow of its cell). */
   glow: number;
+  /** 1: toothed cap and fan rims (T6; a material with lookAttr and rimAttr draws them from lookW(glow, teeth)). */
+  teeth: number;
   /** Instance matrix as drawn (size, girth, yaw, slope tilt and lean, base sink), in the flora group's frame: the
    * world applies group.matrixWorld on top, a vertical stretch of a few % between rebuilds while the terrain rises. */
   matrix: THREE.Matrix4;
@@ -110,7 +112,7 @@ export function createFlora(app: App): FloraPart {
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
-  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: VTX_GLOW, swayAttr: VTX_SWAY, rimAttr: VTX_RIM, plantAttr: PLANT_ATTR, lookAttr: LOOK_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });
   const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
   const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
@@ -215,7 +217,7 @@ export function createFlora(app: App): FloraPart {
         plantTint(list, i, tint, 0);
         plantShape(list, i, a, shape, 0);
         out.push({
-          index: i, arch: list.arch[i], key: a.key, role: a.role, lod: list.lod[i] ? 1 : 0, dark: list.dark[i] === 1, glow: list.glow[i],
+          index: i, arch: list.arch[i], key: a.key, role: a.role, lod: list.lod[i] ? 1 : 0, dark: list.dark[i] === 1, glow: list.glow[i], teeth: list.teeth[i],
           matrix: plantMatrix(list, i, a, new THREE.Matrix4()), flat: plantMatrix(list, i, a, new THREE.Matrix4(), true), x: list.x[i], z: list.z[i], ground: list.y[i],
           height: (a.height / a.size) * list.h[i], radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]), cell, slot: list.slot[i],
           tint: [tint[0], tint[1], tint[2]], shape: [shape[0], shape[1], shape[2], shape[3]],

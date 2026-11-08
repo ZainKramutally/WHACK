@@ -14,8 +14,8 @@
 //     T4 gley bronzing (Becker & Asch 2005), T8 pale coat (Ehleringer et al. 1976; Meinzer et al. 1985), T16 nitride
 //     film colour (Henrie et al. 2004) [speculative], T17 dopant (silicide smoky, nitride pale) [speculative],
 //     T18 vitality [art]
-// Not here: T6 margin teeth (needs flora-audit's per-vertex rim weights, aPart / aVtx, and a per-instance slot; waits for
-// that packing), T14 root nodules (needs the optional luma-weighted tint), T9/T15 variants and T12/T13 archetypes (WP-B).
+//     T6  teeth      toothed leaf margins in the cold, smooth in the warm (leaf-margin analysis, Wolfe 1979) [sci], carbon
+// Not here: T14 root nodules (needs the optional luma-weighted tint), T9/T15 variants and T12/T13 archetypes (WP-B).
 //
 // Mineral: session/crust's crust weights once that branch is on main; until then the doc's height-rank proxy (§3.1):
 // carbon basalt below rank 0.55, granite above; silicon silicide < 0.4, nitride < 0.8, water ice above.
@@ -106,7 +106,7 @@ export function heightRank(sorted: Float32Array, y: number): number {
 
 // ---- shape traits ------------------------------------------------------------------------------------------------
 
-export type TraitParam = 'size' | 'girth' | 'crown' | 'lean' | 'bend' | 'twist' | 'droop';
+export type TraitParam = 'size' | 'girth' | 'crown' | 'lean' | 'bend' | 'twist' | 'droop' | 'teeth';
 /** One condition → look rule. */
 export interface Trait {
   id: string;
@@ -139,6 +139,10 @@ export const TRAITS: readonly Trait[] = [
   { id: 'T4supply', why: 'Fertile basalt grows bigger caps than poor granite.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'cell', driver: (e) => (e.supply - 1) * e.depth, map: (x) => 1 + (x >= 0 ? 0.25 : 0.375) * x },
   { id: 'T7stiffDroop', why: 'Thick, stiff leaves (bright light, poor ground, high CO₂) hold their caps up; thin ones droop.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.2, 1 + 1.2 * (LMA_DEFAULT - x)) },
   { id: 'T7stiffBend', why: 'Thick, stiff leaves bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: lma, map: (x) => Math.max(0.3, 1 + 0.8 * (LMA_DEFAULT - x)) },
+  // T6 leaf-margin analysis: the share of smooth-margined species = (T − 1.14) / 0.306 % (Wing & Greenwood 1993;
+  // Wolfe 1979; Wilf 1997; coefficients [unverified]), so ~45% smooth at 15 °C, all toothed ≤ 1 °C, all smooth ≥ 32 °C.
+  // 'teeth' is the chance a plant is toothed; vary.ts draws it per plant from the seeded hash. [sci]
+  { id: 'T6margin', why: 'Cold climates grow more toothed leaf margins, warm ones smooth (leaf-margin analysis).', param: 'teeth', op: 'mul', chem: 'carbon', scope: 'world', driver: (e) => e.temperature, map: (x) => 1 - clamp01((x - 1.14) / 30.6) },
   { id: 'denseStraight', why: 'Plants in dense cells hold each other up, so they stand straighter.', param: 'lean', op: 'mul', scope: 'cell', driver: total, map: (x) => 1.15 - 0.3 * clamp01(x / 1.5) },
   { id: 'waterHolds', why: 'Water buoys submerged plants upright.', param: 'lean', op: 'mul', scope: 'cell', driver: wetBool, map: (x) => 1 - 0.3 * x },
   { id: 'waterBendsLess', why: 'Water buoys submerged stems, so they bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: wetBool, map: (x) => 1 - 0.5 * x },
@@ -147,7 +151,7 @@ export const TRAITS: readonly Trait[] = [
 
 /** The rows of TRAITS by chemistry and parameter (filtered once, not per plant). */
 const ROWS = Object.fromEntries((['carbon', 'silicon'] as const).map((chem) => [chem, Object.fromEntries(
-  (['size', 'girth', 'crown', 'lean', 'bend', 'twist', 'droop'] as const).map((p) => [p, TRAITS.filter((t) => t.param === p && (!t.chem || t.chem === chem))]),
+  (['size', 'girth', 'crown', 'lean', 'bend', 'twist', 'droop', 'teeth'] as const).map((p) => [p, TRAITS.filter((t) => t.param === p && (!t.chem || t.chem === chem))]),
 )])) as Record<'carbon' | 'silicon', Record<TraitParam, Trait[]>>;
 /** Apply every shape row for a chemistry to a parameter's base value. */
 export function traited(param: TraitParam, chem: 'carbon' | 'silicon', env: CellEnv, base: number): number {

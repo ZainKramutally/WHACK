@@ -69,11 +69,13 @@ export function plantShape(list: PlantList, i: number, a: Archetype, out: Float3
   out[o + 3] = list.wb[i] / H;
 }
 
-/** The flora material's per-instance look (material.ts lookAttr): vec4(tint r, g, b, glow 0..1). */
+/** The flora material's per-instance look (material.ts lookAttr): vec4(tint r, g, b, glow 0..1 + 2 × teeth 0/1). */
 export function plantLook(list: PlantList, i: number, out: Float32Array, o: number): void {
   plantTint(list, i, out, o);
-  out[o + 3] = list.glow[i];
+  out[o + 3] = lookW(list.glow[i], list.teeth[i]);
 }
+/** aLook.w: a plant's glow 0..1 and margin teeth 0/1 in one float (the material decodes teeth = floor(w / 2)). */
+export const lookW = (glow: number, teeth: number): number => Math.min(1, Math.max(0, glow)) + 2 * (teeth ? 1 : 0);
 
 /** Instance colour of plant `i` (linear rgb multiplier on its painted vertex colours). */
 export function plantTint(list: PlantList, i: number, out: Float32Array, o: number): void {

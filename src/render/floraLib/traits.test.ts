@@ -6,6 +6,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_META } from './index';
 import { TINTS, TRAITS, heightRank, heightSample, makeEnv, mineralAt, plantEnv, traitTint, traited, worldEnv, type CellEnv } from './traits';
 import { varyPlant } from './vary';
+import { lookW } from './instance';
 
 /** A carbon or silicon world's environment with some stats overridden, and a plant in a cell. */
 function env(over: Partial<CellEnv> = {}, cell: { mat?: number; canopy?: number; y?: number; rank?: number; role?: 'ground' | 'mid' | 'giant' } = {}): CellEnv {
@@ -65,6 +66,28 @@ describe('plant traits (traits.ts, flora-traits.md §1)', () => {
         }
       }
     expect(checked).toBeGreaterThan(500);
+  });
+
+  it('T6: toothed margins in the cold, smooth in the warm (leaf-margin analysis), carbon only; packed with glow in aLook.w', () => {
+    const arch = ARCHETYPE_META.findIndex((m) => m.chem === 'carbon' && m.role === 'mid');
+    const si = ARCHETYPE_META.findIndex((m) => m.chem === 'silicon' && m.role === 'mid');
+    const toothed = (temperature: number, a = arch) => {
+      let n = 0;
+      for (let c = 0; c < 2000; c++) n += varyPlant(a, c, c % 3, false, env({ temperature, carbon: a === arch })).teeth;
+      return n / 2000;
+    };
+    expect(toothed(0)).toBe(1);
+    expect(toothed(35)).toBe(0);
+    expect(toothed(15)).toBeGreaterThan(0.48); // Wolfe: ~45% smooth at 15 °C, so ~55% toothed
+    expect(toothed(15)).toBeLessThan(0.62);
+    expect(toothed(5)).toBeGreaterThan(toothed(25));
+    expect(toothed(-20, si)).toBe(0);
+    // the material decodes teeth = floor(w / 2) and glow = w − 2 · teeth
+    for (const g of [0, 0.3, 1]) for (const t of [0, 1]) {
+      const w = lookW(g, t);
+      expect(Math.floor(w / 2)).toBe(t);
+      expect(w - 2 * Math.floor(w / 2)).toBeCloseTo(g, 6);
+    }
   });
 
   it('every final plant tint is ≤ 1, and a stat change changes the look', () => {

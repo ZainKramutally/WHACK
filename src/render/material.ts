@@ -13,7 +13,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, mix, max, min, normalWorld, positionWorld, positionLocal, attribute, uniform, cameraPosition,
   sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard, step,
-  positionGeometry, normalGeometry, normalLocal,
+  positionGeometry, normalGeometry, normalLocal, vertexIndex,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
 import { LOOK_PALETTES, lookPalette, type LookKey, type LookPalette } from './palette';
@@ -50,6 +50,8 @@ export interface WorldMaterialOpts {
    *  each instance. With it, `glowAttr` holds signed glow-site weights (floraLib paintSites: + glow, − glowDeep), lit by
    *  the instance's glow. */
   lookAttr?: string | null;
+  /** Per-vertex rim weight ('name.c'), with lookAttr: a toothed plant's rim vertices take a saw edge (T6). */
+  rimAttr?: string | null;
 }
 
 /** Pixel mode (the default look). `?style=smooth` is the comparison view. post.ts reads the same flag. */
@@ -152,13 +154,15 @@ export const fogAt = (p: N): N => {
  * stem) and a bend of b·y² along +X. Normals take the matching first-order correction n − (∇δ)ᵀn (the twist's shear
  * is left out: it is zero on surfaces of revolution).
  */
-const plantDeform = (name: string) => (): void => {
+const plantDeform = (name: string, teeth?: { look: string; rim: string }) => (): void => {
   const P = attribute(name, 'vec4');
   const p = positionGeometry, n = normalGeometry;
   const c = P.x, t = P.y, d = P.z, b = P.w;
   const y = max(p.y, 0), y2 = y.mul(y);
   const r2 = p.x.mul(p.x).add(p.z.mul(p.z));
-  const k = c.mul(y2).add(1);
+  // margin teeth (T6): on a toothed plant, every other rim vertex is pulled TEETH_DEPTH toward the stem, a saw edge
+  const jag = teeth ? lookTeeth(attribute(teeth.look, 'vec4')).mul(attr1(teeth.rim)).mul(mod(float(vertexIndex), 2)).mul(TEETH_DEPTH) : float(0);
+  const k = c.mul(y2).add(1).mul(float(1).sub(jag));
   const a = t.mul(y), ca = cos(a), sa = sin(a);
   const xk = p.x.mul(k), zk = p.z.mul(k);
   positionLocal.assign(vec3(
@@ -194,13 +198,19 @@ const attr1 = (name: string): N => {
   return c ? (attribute(n, 'vec4') as N)[c] : attribute(n, 'float');
 };
 
-/** A plant's own glow and tint (lookAttr: vec4(r, g, b, glow)) on colours painted by floraLib paintSites: its glow sites
+/** How far a toothed rim's alternate vertices are pulled toward the stem (share of their distance) ([art], T6). */
+const TEETH_DEPTH = 0.18;
+/** lookAttr packs a plant's glow 0..1 and its margin teeth 0/1 into w = glow + 2 × teeth (floraLib/instance.ts plantLook). */
+const lookTeeth = (look: N): N => floor(look.w.mul(0.5));
+const lookGlow = (look: N): N => look.w.sub(lookTeeth(look).mul(2));
+
+/** A plant's own glow and tint (lookAttr: vec4(r, g, b, glow + 2·teeth)) on colours painted by floraLib paintSites: its glow sites
  * (signed weight `glowW`: + glow, − glowDeep) turn toward their glow colour by min(1, 1.5 g), as paint() does at that glow,
  * then the tint applies. */
 const plantSiteColour = (base: N, look: N, glowW: N): N => {
   // ÷ the neutral tint (paintSites' headroom), so a glow site at the neutral tint shows its exact glow colour
   const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW)).div(0.9);
-  return mix(base, key, min(look.w.mul(1.5), 1).mul(step(1e-4, abs(glowW)))).mul(look.xyz);
+  return mix(base, key, min(lookGlow(look).mul(1.5), 1).mul(step(1e-4, abs(glowW)))).mul(look.xyz);
 };
 
 /** The world's plants drawn outside the world look (the inspect card's live view, standard lighting): bent per instance
@@ -216,12 +226,12 @@ class PlantViewMaterial extends THREE.MeshStandardNodeMaterial {
     return 'plantView:' + super.customProgramCacheKey();
   }
 }
-export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string }): N {
+export function plantViewMaterial(opts: { plantAttr: string; lookAttr: string; glowAttr: string; rimAttr?: string }): N {
   const m = new PlantViewMaterial({ side: THREE.DoubleSide, roughness: 0.7 });
-  m.deform = plantDeform(opts.plantAttr);
+  m.deform = plantDeform(opts.plantAttr, opts.rimAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined);
   const look = attribute(opts.lookAttr, 'vec4'), glowW = attr1(opts.glowAttr);
   m.colorNode = plantSiteColour(attribute('color', 'vec3'), look, glowW);
-  m.emissiveNode = vec3(PAL.glow).mul(abs(glowW).mul(look.w).mul(0.8)); // no bloom here: the sites just light up
+  m.emissiveNode = vec3(PAL.glow).mul(abs(glowW).mul(lookGlow(look)).mul(0.8)); // no bloom here: the sites just light up
   m.userData.look = 'flora';
   return m;
 }
@@ -231,7 +241,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
   const translucent = opts.translucent ?? kind === 'flora';
   const bounce = kind !== 'sea' && kind !== 'backdrop' && kind !== 'ground';
   const m = opts.plantAttr ? new PlantMaterial() : new THREE.MeshLambertNodeMaterial();
-  if (opts.plantAttr && m instanceof PlantMaterial) m.deform = plantDeform(opts.plantAttr);
+  if (opts.plantAttr && m instanceof PlantMaterial) m.deform = plantDeform(opts.plantAttr, opts.rimAttr && opts.lookAttr ? { look: opts.lookAttr, rim: opts.rimAttr } : undefined);
   m.side = (opts.side ?? THREE.FrontSide) as THREE.Side;
   m.vertexColors = opts.vertexColors === true;
   m.flatShading = opts.flat === true;
@@ -317,7 +327,7 @@ export function worldMaterial(opts: WorldMaterialOpts): N {
     out.assign(mix(out, vec3(LOOK.fogColor), f));
 
     if (glowW) {
-      const weight = (look ? abs(glowW).mul(look.w) : glowW).mul(f.oneMinus()).clamp(0, 1);
+      const weight = (look ? abs(glowW).mul(lookGlow(look)) : glowW).mul(f.oneMinus()).clamp(0, 1);
       out.assign(mix(out, glowHDR(), weight));
     }
     return vec4(out, diffuseColor.a);

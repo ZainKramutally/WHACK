@@ -17,7 +17,7 @@ import { LOOK_PALETTES, WORLD_TONE, creatureColour, groundColour, lookKind, mixH
 import { floraLibrary, paintSites, type FloraPalette } from './floraLib';
 import type { PlacedPlant } from './flora';
 import { plantViewMaterial } from './material';
-import { VTX_GLOW, lookGeometry } from './floraLib/instance';
+import { VTX_GLOW, VTX_RIM, lookGeometry, lookW } from './floraLib/instance';
 import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
@@ -315,7 +315,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   // read-only: each look draws through its own geometry (shared position, normal, sway and index; its own colour, glow
   // and per-instance buffers), kept for later cards and repainted only when the palette changes.
   const PLANT_CAP = 32; // plants of one look in one cell (a cell holds at most ~18)
-  const plantMat = plantViewMaterial({ plantAttr: 'aPlant', lookAttr: 'aLook', glowAttr: VTX_GLOW });
+  const plantMat = plantViewMaterial({ plantAttr: 'aPlant', lookAttr: 'aLook', glowAttr: VTX_GLOW, rimAttr: VTX_RIM });
   interface CardLook { geometry: THREE.BufferGeometry; shape: THREE.InstancedBufferAttribute; look: THREE.InstancedBufferAttribute; painted: FloraPalette | null }
   const cardLooks = new Map<string, CardLook>();
   function cardLook(arch: number, lod: 0 | 1, dark: boolean, pal: FloraPalette): CardLook {
@@ -363,7 +363,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
         m.multiplyMatrices(toCard, p.flat); // around the cell, upright on the plate
         mesh.setMatrixAt(k, m);
         sh.set(p.shape, k * 4);
-        lk[k * 4] = p.tint[0]; lk[k * 4 + 1] = p.tint[1]; lk[k * 4 + 2] = p.tint[2]; lk[k * 4 + 3] = p.glow;
+        lk[k * 4] = p.tint[0]; lk[k * 4 + 1] = p.tint[1]; lk[k * 4 + 2] = p.tint[2]; lk[k * 4 + 3] = lookW(p.glow, p.teeth);
         const e = m.elements;
         const sc = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
         reach = Math.max(reach, Math.hypot(e[12], e[14]) + a.radius * sc);
