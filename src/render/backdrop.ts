@@ -20,11 +20,15 @@ import { FLORA_GRID, patchToWorld } from './layout';
 import { floraBin, formForBin, type FloraForm } from './floraForm';
 import { plantHeight } from './floraLib';
 import { GIANT_CANOPY } from './floraLib/place';
+import { newSoup, plainLook, tubeSoup, type V3 } from '../gen/rockFormMesh';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
 
-export interface Mesa { x: number; z: number; r: number; h: number; taper: number; seed: number }
+/** Silhouette family of a far structure, from the world's dominant mineral: table (ironstone/basalt tablelands, ice spires),
+ * dome (granite), mound (silicide), crystal (nitride ridges), arch (basalt lava-tube arches). */
+export type MesaShape = 'table' | 'dome' | 'mound' | 'crystal' | 'arch';
+export interface Mesa { x: number; z: number; r: number; h: number; taper: number; seed: number; shape: MesaShape }
 export interface Ridge { R: number; depth: number; H: number; seed: number; tone: number }
 /** `jitter` (0..1) varies the height inside the flora's giant band; `rank` (k / giants) is the land canopy share at
  * which this giant starts to grow, a seeded permutation so the ring fills evenly rather than one side first. */
@@ -54,11 +58,15 @@ function clearOut(ang: number, d: number, foot: number, half: number, margin: nu
  * Seeded placement of every backdrop item, in metres around the patch centre. Pure: same chemistry + patch → same
  * layout. Every footprint lies outside the patch. Giants are placed always; visibleGiants() decides what is drawn.
  */
-export function backdropLayout(kind: 'carbon' | 'silicon', patch: number): BackdropLayout {
+export function backdropLayout(kind: 'carbon' | 'silicon', patch: number, dominant?: string): BackdropLayout {
   const rng = makeRng(kind === 'silicon' ? 2611 : 1108);
   const half = patch / 2;
   const margin = 0.03 * patch;
-  const spireShare = kind === 'silicon' ? 0.4 : 0.15;   // silicon: relic-ice spires; carbon: the odd hoodoo stack
+  // spires: ice on silicon only where water ice dominates; a few elsewhere on silicon; the odd hoodoo stack on carbon tablelands
+  const tableLand = dominant === undefined || dominant === 'ironstone' || dominant === 'basalt' || dominant === 'reducedLava' || dominant === 'waterIce';
+  const spireShare = dominant === 'waterIce' ? 0.55 : kind === 'silicon' ? (tableLand ? 0.1 : 0) : tableLand ? 0.15 : 0;
+  const SHAPES: Record<string, MesaShape[]> = { granite: ['dome'], silicide: ['mound'], nitride: ['crystal'], basalt: ['table', 'arch', 'table'], reducedLava: ['table', 'arch', 'table'] };
+  let count = 0;
   const mesas: Mesa[] = [];
   const layer = (r: Rng, n: number, d0: number, d1: number, r0: number, r1: number, h0: number, h1: number) => {
     for (let i = 0; i < n; i++) {
@@ -67,7 +75,8 @@ export function backdropLayout(kind: 'carbon' | 'silicon', patch: number): Backd
       const rad = lerp(r0, r1, r()) * patch * (spire ? 0.45 : 1);
       const h = lerp(h0, h1, r()) * patch * (spire ? 1.25 : 1);
       const [x, z] = clearOut(ang, lerp(d0, d1, r()) * patch, rad * 2.5, half, margin);
-      mesas.push({ x, z, r: rad, h, taper: spire ? 0.22 + 0.15 * r() : 0.72 + 0.15 * r(), seed: Math.floor(r() * 1e6) });
+      const shape: MesaShape = spire ? 'table' : (SHAPES[dominant ?? ''] ?? ['table'])[count++ % (SHAPES[dominant ?? ''] ?? ['table']).length];
+      mesas.push({ x, z, r: rad, h, taper: spire ? 0.22 + 0.15 * r() : 0.72 + 0.15 * r(), seed: Math.floor(r() * 1e6), shape });
     }
   };
   layer(rng('backdrop:near'), 10, 0.78, 1.2, 0.04, 0.09, 0.18, 0.32);
@@ -210,6 +219,67 @@ export function mesaGeometry(m: Mesa, sink: number): THREE.BufferGeometry {
   return toned(g, (pp, n) => (n.y > 0.7 ? 1 : strata(pp.y + sink, m.h, m.seed)));
 }
 
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Soup positions (from gen/rockFormMesh) as a toned geometry. */
+function fromSoup(pos: number[], toneOf: (p: THREE.Vector3, n: THREE.Vector3) => number): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  return toned(g, toneOf);
+}
+
+/** Far structure by silhouette family; same footprint contract as mesaGeometry (centre m.x/m.z, base sunk by `sink`). */
+export function shapeGeometry(m: Mesa, sink: number): THREE.BufferGeometry {
+  switch (m.shape) {
+    case 'dome':
+    case 'mound': {
+      // granite bornhardt (tall, steep) or silicide mound (low, wide, rounded): a noisy half-ellipsoid, base sunk
+      const wide = m.shape === 'mound' ? 1.9 : 1.35, high = m.shape === 'mound' ? 0.5 : 0.9;
+      const g = new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+      const p = g.attributes.position, v = new THREE.Vector3();
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i);
+        const a = Math.atan2(v.z, v.x), k = 1 + 0.14 * fbm1(a * 1.6 + m.seed % 53, m.seed, 3);
+        p.setXYZ(i, m.x + v.x * m.r * wide * k, -sink + v.y * m.h * high * 1.1 + (v.y < 0.02 ? -sink : 0), m.z + v.z * m.r * wide * k);
+      }
+      return toned(g, (pp, n) => clamp01(0.3 + (pp.y + sink) / (m.h * high * 1.1) * 0.45 + (n.y > 0.75 ? 0.25 : 0)));
+    }
+    case 'crystal': {
+      // nitride ridge: a cluster of tilted hexagonal prisms with pointed tips
+      const parts: THREE.BufferGeometry[] = [];
+      const n = 6;
+      for (let k = 0; k < n; k++) {
+        const a = hash(k, m.seed) * Math.PI * 2, off = k === 0 ? 0 : m.r * (0.4 + 0.9 * hash(k + 9, m.seed));
+        const L = m.h * (k === 0 ? 1 : 0.45 + 0.4 * hash(k + 4, m.seed)), rr = m.r * (k === 0 ? 0.3 : 0.14 + 0.1 * hash(k + 2, m.seed));
+        const tilt = k === 0 ? 0.05 : 0.2 + 0.3 * hash(k + 6, m.seed);
+        const body = new THREE.CylinderGeometry(rr, rr * 1.05, L, 6), tip = new THREE.ConeGeometry(rr, rr * 2.2, 6);
+        tip.translate(0, L / 2 + rr * 1.1, 0);
+        const g = mergeGeometries([toned(body, () => 0), toned(tip, () => 0)], false);
+        g.translate(0, L / 2 - sink, 0);
+        g.rotateZ(-Math.cos(a) * tilt); g.rotateX(Math.sin(a) * tilt);
+        g.translate(m.x + Math.cos(a) * off, 0, m.z + Math.sin(a) * off);
+        parts.push(toned(g, (pp, nn) => clamp01(0.35 + (pp.y + sink) / m.h * 0.4 + (nn.y > 0.4 ? 0.2 : 0))));
+      }
+      return mergeGeometries(parts, false);
+    }
+    case 'arch': {
+      // basalt lava-tube arch: the Red World tube technique, foot to foot across a gap, feet sunk
+      const N = 28, span = m.r * 3.2, rad = m.r * 0.3, H = m.h * 0.8;
+      const path: V3[] = [], radii: number[] = [];
+      const ca = Math.cos(m.seed % 628 / 100), sa = Math.sin(m.seed % 628 / 100);
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, a = Math.PI * t, along = -Math.cos(a) * span * 0.5;
+        path.push([m.x + ca * along, -sink + Math.pow(Math.sin(a), 0.75) * H, m.z + sa * along]);
+        radii.push(rad * (0.7 + 0.7 * Math.pow(1 - Math.sin(a), 2)));
+      }
+      const soup = newSoup();
+      tubeSoup(soup, path, radii, 10, m.seed, plainLook(m.seed), 0, false);
+      return fromSoup(soup.pos, (pp, n) => clamp01(0.3 + (pp.y + sink) / H * 0.45 + (n.y > 0.7 ? 0.2 : 0)));
+    }
+    default: return mesaGeometry(m, sink);
+  }
+}
+
 /** A ring ridge at radius R around the patch: crest from ridged noise, sunk base, lit crests. */
 export function ridgeGeometry(r: Ridge, sink: number): THREE.BufferGeometry {
   const NA = 200, NR = 6, pos: number[] = [], idx: number[] = [];
@@ -305,11 +375,11 @@ export function createBackdrop(app: App): BackdropPart {
   let drawnCount = 0;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
-  function rebuild(kind: 'carbon' | 'silicon', patch: number) {
+  function rebuild(kind: 'carbon' | 'silicon', patch: number, dominant?: string) {
     dispose();
-    layout = backdropLayout(kind, patch);
+    layout = backdropLayout(kind, patch, dominant);
     const sink = 0.08 * patch;
-    const geos = [...layout.mesas.map((m) => mesaGeometry(m, sink)), ...layout.ridges.map((r) => ridgeGeometry(r, sink * 1.5))];
+    const geos = [...layout.mesas.map((m) => shapeGeometry(m, sink)), ...layout.ridges.map((r) => ridgeGeometry(r, sink * 1.5))];
     land = new THREE.Mesh(mergeGeometries(geos, false), landMat);
     land.frustumCulled = false;
     land.raycast = () => {};
@@ -334,8 +404,12 @@ export function createBackdrop(app: App): BackdropPart {
     get giantsDrawn() { return drawnCount; },
     update(dt, t, inputs, patch) {
       const kind = lookKind(inputs.world.composition);
-      const key = `${kind}|${patch}`;
-      if (key !== builtKey) { builtKey = key; rebuild(kind, patch); }
+      // the world's dominant mineral (realised share) picks the far silhouettes
+      const cr = inputs.world.crust;
+      let dominant: string | undefined;
+      if (cr) { let best = -1; cr.shares.forEach((sh, i) => { if (sh > best) { best = sh; dominant = cr.ids[i]; } }); }
+      const key = `${kind}|${patch}|${dominant ?? ''}`;
+      if (key !== builtKey) { builtKey = key; rebuild(kind, patch, dominant); }
       uRise.value = inputs.terrain.rise;
       if (!giants || !layout) return;
 
