@@ -145,7 +145,7 @@ describe('follow camera', () => {
     cam.orbit(0, -5);
     for (let i = 0; i < 100; i++) cam.update(0.016, target, false);
     expect(cam.position.y).toBeGreaterThanOrEqual(10 + 0.6 - 1e-9);
-    expect(cam.pitch).toBeCloseTo(-0.25);
+    expect(cam.pitch).toBeCloseTo(-1.55); // walk pitch now spans almost straight down to straight up
   });
   it('sits behind the target for yaw 0 (camera on +z, looking toward -z)', () => {
     const cam = createFollowCamera({ floorAt: () => -100 });
