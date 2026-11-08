@@ -246,7 +246,7 @@ export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z
       const wC = mix(F(m4.widthWet), F(m4.widthDry), dry);
       const stC = mix(F(m4.steepWet), F(m4.steepDry), dry);
       const uu = min(abs(qx.sub(cx)).div(wC), 1);
-      carve = p4.mul(m4.depth).mul(F(1).sub(smoothstep(0, 1, pow(uu, stC))));
+      carve = p4.mul(m4.depth).mul(F(1).sub(smoothstep(0, 1, pow(uu, stC)))).mul(gateOf('M4'));
     }
 
     // relic footprints

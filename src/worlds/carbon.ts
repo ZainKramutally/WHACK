@@ -370,14 +370,14 @@ export const carbon: WorldConfig = {
     heatSolventSpan: 120,   // −60..60 °C maps to 0..1, so 0 °C (freezing) sits at 0.5
     machines: [
       { id: 'M3', rate: 0.01, params: { halfWidth: 0.25, finHeight: 14, finSpacing: 14, finWarp: 10, finSharp: 6, breakup: 0.35, uplandMin: 0.1 } },   // frost fins, hoodoos (water only, heatSolvent near 0.5)
-      { id: 'M4', rate: 0.01, params: { depth: 18, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons (progress = age × past liquid)
-      { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 6, sharpness: 0.7, strength: 0.8, offMineral: 0.35 } },                                                              // strata terraces
+      { id: 'M4', rate: 0.01, minerals: ['ironstone'], params: { depth: 18, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons (progress = age × past liquid)
+      { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 6, sharpness: 0.7, strength: 0.8, offMineral: 0 } },                                                              // strata terraces
       { id: 'M6', rate: 0.01, params: { moundHeight: 4, bandCenter: 0.1, bandWidth: 0.25, moundFreq: 0.03, threshold: 0.5 } },                  // shell stone in the shallows
       { id: 'M7', rate: 0.01, minerals: ['basalt'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // basalt cooling columns: tall on coastal platforms, low pavement inland, dark joint lines (stylised, declared illustration: 8 m wide so the 2 m mesh resolves them; kept to 15% size on the spawn ramp)
       { id: 'M8', rate: 0.01, minerals: ['granite'], params: { domeHeight: 18, domeFreq: 0.02, threshold: 0.55, uplandMin: 0.2, stackStep: 3, stackSharp: 0.6, stackShare: 0.5 } },   // granite domes and stacked-boulder tors on highlands (stylised sizes)
       { id: 'M9', rate: 0.01, minerals: ['nitride'], params: { spikeHeight: 14, size: 10, density: 0.12, girth: 0.5, sharp: 1.6 } },   // nitride crystal spikes, only where the nitride rock is picked (stylised, as on silicon)
     ],
-    why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder. Basalt cools into hexagonal columns (M7): tall on the coast, low pavement inland, stylised size. Granite domes and tors (M8) and ironstone strata are stylised, declared illustration: columns are 8 m wide because the terrain mesh is about 2 m per vertex.',
+    why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder. Basalt cools into hexagonal columns (M7): tall on the coast, low pavement inland, stylised size. Banded iron formations erode into deep gorges with banded walls (M4 canyons and M5 strata, ironstone only; bekker2010); each other rock has its own landform. Granite domes and tors (M8) are stylised, declared illustration: columns are 8 m wide because the terrain mesh is about 2 m per vertex.',
     sources: ['goehring2009', 'bekker2010', 'linton1955'],
     assumption: true,
     crust: {
@@ -395,7 +395,7 @@ export const carbon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 10,
-      favour: 0.75,   // assumption: a picked rock takes about three quarters of the patch, leaving the rest visibly mixed
+      favour: 0.9,   // assumption: a picked rock takes about nine tenths of the patch, leaving only small accents of the others
       why: 'Rock is sorted by height, with the nutrient multipliers as placeholders; the crust redistributes the base nutrient supply and adds none. Rust begins with the first oxygen (paleosols keep their iron above roughly 0.2–0.4%, rye1998), and the world is drawn fully rusted by about 10%, half of today\'s level (a declared look choice).',
       sources: ['rye1998'],
       assumption: true,

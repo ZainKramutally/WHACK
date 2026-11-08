@@ -279,7 +279,7 @@ export function heightCore(
     const wC = mix(m4.widthWet, m4.widthDry, dry);
     const stC = mix(m4.steepWet, m4.steepDry, dry);
     const uu = Math.min(Math.abs(qx - cx) / wC, 1);
-    carve = p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC)));
+    carve = p4 * m4.depth * (1 - smoothstep(0, 1, Math.pow(uu, stC))) * gateOf('M4');
   }
 
   // relic footprints (silicon): fixed positions, scaled by rise like everything else

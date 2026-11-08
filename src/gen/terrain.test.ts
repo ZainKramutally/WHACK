@@ -1,3 +1,4 @@
+import { withCrustChoice } from './crust';
 import { describe, expect, it } from 'vitest';
 import { createTerrain, crustScore, crustWeights, heightCore, kit32, kit64, warpBase, sampleHeights, seaLevelForCover, seaLevelFromHeights, spawnPoint, type TerrainState, type Terrain } from './terrain';
 import { carbonLike, siliconLike } from './terrainFixtures';
@@ -141,7 +142,7 @@ describe('terrain', () => {
     expect(moved).toBeGreaterThan(10);
   });
 
-  it.each([['carbon', carbon, ['M7', 'M8']], ['silicon', silicon, ['M9']]] as const)('%s landform machines: 0 at progress 0, 0 where their minerals are absent, something elsewhere', (_n, w, ids) => {
+  it.each([['carbon', carbon, ['M4', 'M5', 'M7', 'M8']], ['silicon', withCrustChoice(silicon, 'ironstone'), ['M4', 'M5']], ['silicon', withCrustChoice(silicon, 'nitride'), ['M9']]] as const)('%s landform machines: 0 at progress 0, 0 where their minerals are absent, something elsewhere', (_n, w, ids) => {
     const t = createTerrain(w.terrain, w.demoSeed);
     const minerals = w.terrain.crust.minerals.map((m) => m.id);
     for (const id of ids) {
@@ -245,5 +246,13 @@ describe('real world configs across seeds', () => {
         expect(Object.is(a, b) || (a === 0 && b === 0), `${name} ${x},${z} rise ${rise}`).toBe(true);
       }
     }
+  });
+});
+
+describe('canyons and strata are ironstone-only', () => {
+  it('silicon with no ironstone has no M4 or M5 relief at all', () => {
+    const t = createTerrain(silicon.terrain, silicon.demoSeed);
+    const none = (id: 'M4' | 'M5'): TerrainState => ({ ...full(), progress: { ...full().progress, [id]: 0 } });
+    for (const id of ['M4', 'M5'] as const) for (const [x, z] of grid(40, 400)) expect(t.height(x, z, full())).toBe(t.height(x, z, none(id)));
   });
 });

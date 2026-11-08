@@ -390,8 +390,8 @@ export const silicon: WorldConfig = {
     heatSolventSpan: 40,   // −230..−190 °C maps to 0..1, so −210 °C (freezing) sits at 0.5
     machines: [
       { id: 'M2', rate: 0.01, params: { rimHeight: 2.5, bandCenter: 0.08, bandWidth: 0.2, patchFreq: 0.05, threshold: 0.45 } },   // silicon-nitride crusts at the sea margin
-      { id: 'M4', rate: 0.01, params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
-      { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 4, sharpness: 0.6, strength: 0.8, offMineral: 0.625 } },                                              // strata terraces
+      { id: 'M4', rate: 0.01, minerals: ['ironstone'], params: { depth: 8, widthWet: 35, widthDry: 20, steepWet: 1.35, steepDry: 3.2, dryStart: 0.55, dryEnd: 0.95, meanderAmp: 35, meanderFreq: 0.01, offsetFrac: 0.25 } },   // canyons
+      { id: 'M5', rate: 0.01, minerals: ['ironstone'], params: { bandH: 4, sharpness: 0.6, strength: 0.8, offMineral: 0 } },                                              // strata terraces
       { id: 'M7', rate: 0.01, minerals: ['reducedLava', 'basalt'], params: { stepH: 1.5, nSteps: 3, groove: 0.6, edge: 0.25, size: 8, bandCenter: 0.15, bandWidth: 0.3, rampKeep: 0.15, inlandStepH: 0.3, jointDark: 0.55, jointWidth: 0.05 } },   // lava cooling columns, as on carbon: any lava that cools thick forms them (stylised, 8 m wide so the 2 m mesh resolves them)
       { id: 'M8', rate: 0.01, minerals: ['granite'], params: { domeHeight: 18, domeFreq: 0.02, threshold: 0.55, uplandMin: 0.2, stackStep: 3, stackSharp: 0.6, stackShare: 0.5 } },   // granite domes and tors, only where granite is picked (stylised sizes)
       { id: 'M9', rate: 0.01, minerals: ['nitride'], params: { spikeHeight: 14, size: 10, density: 0.12, girth: 0.5, sharp: 1.6 } },   // sparse hexagonal nitride crystal spikes (stylised, declared illustration: 10 m cells so the 2 m mesh resolves them)
@@ -400,7 +400,7 @@ export const silicon: WorldConfig = {
       { kind: 'iceArch', count: 3, minerals: ['waterIce'], params: { height: 28, radius: 5.5, span: 38 } },
       { kind: 'iceSpire', count: 4, minerals: ['waterIce'], params: { height: 50, radius: 6 } },
     ],
-    why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye. Nitride crystal spikes (M9) are stylised, declared illustration: 10 m cells because the terrain mesh is about 2 m per vertex.',
+    why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye. Canyons and strata (M4, M5) form only on the speculative relic ironstone, as banded iron does on Earth (bekker2010); each other rock has its own landform. Nitride crystal spikes (M9) are stylised, declared illustration: 10 m cells because the terrain mesh is about 2 m per vertex.',
     sources: ['mastrogiuseppe2014'],
     assumption: true,
     crust: {
@@ -424,7 +424,7 @@ export const silicon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 2,
-      favour: 0.75,   // assumption: as on carbon
+      favour: 0.9,   // assumption: as on carbon
       why: 'Four rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
       sources: [],
       assumption: true,
