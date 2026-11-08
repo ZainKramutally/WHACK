@@ -85,8 +85,15 @@ describe('boxState bed', () => {
   const carbon = withCrust(worldFor('carbon'), ms), silicon = withCrust(worldFor('silicon'), ms);
   const good = { temperature: 15, nitrogen: 1, oxygen: 0 };
 
-  it('has no bed without crust data', () => {
-    expect(boxState(worldFor('carbon'), good).bed).toEqual([]);
+  it('real worlds have a bed that rusts by their own rustOxygen', () => {
+    for (const id of ['carbon', 'silicon'] as const) {
+      const w = worldFor(id), ro = w.terrain.crust!.rustOxygen;
+      const dry = boxState(w, { ...good, oxygen: 0 }).bed, wet = boxState(w, { ...good, oxygen: ro }).bed;
+      expect(dry.length).toBeGreaterThan(0);
+      expect(dry.reduce((x, y) => x + y.share, 0)).toBeCloseTo(1);
+      expect(dry.every((g) => g.rust === 0)).toBe(true);
+      expect(wet.some((g) => g.rust === 1)).toBe(true);
+    }
   });
   it('shares sum to 1', () => {
     expect(boxState(carbon, good).bed.reduce((a, b) => a + b.share, 0)).toBeCloseTo(1);
