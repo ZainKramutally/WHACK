@@ -43,16 +43,24 @@ export function rayCapsuleY(o: Vec3, d: Vec3, x: number, z: number, y0: number, 
  * Nearest plant under a ray. `radiusPerHeight[arch]` is the crown radius over the plant's height for each archetype
  * (native radius ÷ native size). `baseDrop` is the fraction of height the drawn plant sits below its list y; it also
  * sits `list.sink` lower (placed onto its slope). `yScale` is the flora group's vertical stretch (flora.ts: it follows
- * the rising terrain between rebuilds), applied about y = 0 as the group applies it.
+ * the rising terrain between rebuilds), applied about y = 0 as the group applies it. `heightPerSize[arch]` is the
+ * archetype's drawn height over its size (flat crusts draw well under their size; default 1): the capsule spans the
+ * plant as drawn, from its sunk base to its top.
  */
-export function rayPlants(list: PlantList, radiusPerHeight: ArrayLike<number>, o: Vec3, d: Vec3, maxDist: number, baseDrop = 0.03, yScale = 1): PlantRayHit | null {
+export function rayPlants(
+  list: PlantList, radiusPerHeight: ArrayLike<number>, o: Vec3, d: Vec3, maxDist: number, baseDrop = 0.03, yScale = 1,
+  heightPerSize?: ArrayLike<number>,
+): PlantRayHit | null {
   let bi = -1, bt = maxDist;
   for (let i = 0; i < list.n; i++) {
-    const h = list.h[i];
+    const h = list.h[i], arch = list.arch[i];
+    const H = h * (heightPerSize ? heightPerSize[arch] : 1) * yScale;
     // the plant's own girth and crown (floraLib/vary.ts; 0 = native) widen or narrow its capsule
-    const r = Math.max(MIN_RADIUS, h * radiusPerHeight[list.arch[i]] * (1 + list.wg[i]) * (1 + list.wc[i]) * CROWN_FRACTION);
+    const r = Math.max(MIN_RADIUS, h * radiusPerHeight[arch] * (1 + list.wg[i]) * (1 + list.wc[i]) * CROWN_FRACTION);
+    const rc = Math.min(r, 0.5 * H);
     const y0 = (list.y[i] - baseDrop * h - list.sink[i]) * yScale;
-    const t = rayCapsuleY(o, d, list.x[i], list.z[i], y0, y0 + h * yScale, Math.min(r, h * 0.5));
+    // end caps inside the drawn span, so the capsule runs from the base to the top and no further
+    const t = rayCapsuleY(o, d, list.x[i], list.z[i], y0 + rc, Math.max(y0 + rc, y0 + H - rc), rc);
     if (t > 0 && t < bt) { bt = t; bi = i; }
   }
   return bi < 0 ? null : { index: bi, dist: bt };

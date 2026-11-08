@@ -217,13 +217,14 @@ export function createFlora(app: App): FloraPart {
     },
     hit(origin, dir) {
       const k = group.scale.y; // the vertical stretch that keeps bases on the rising terrain between rebuilds
-      const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5, 0.03, k);
+      const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5, 0.03, k, shapes.height);
       if (!h) return null;
       const i = h.index;
       const cell = cellAt(list.x[i], list.z[i], lastPatch);
       if (cell < 0) return null;
-      // bounds from the ground at the plant's centre to its drawn top (the base is sunk 3% plus its slope sink)
-      return { cell, dist: h.dist, x: list.x[i], y: list.y[i] * k, z: list.z[i], height: (0.97 * list.h[i] - list.sink[i]) * k, radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]) };
+      // bounds from the ground at the plant's centre to its drawn top (archetype height ÷ size × h above its base, which
+      // is sunk 3% plus its slope sink), with its own crown radius
+      return { cell, dist: h.dist, x: list.x[i], y: list.y[i] * k, z: list.z[i], height: (shapes.height[list.arch[i]] * list.h[i] - 0.03 * list.h[i] - list.sink[i]) * k, radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]) };
     },
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
