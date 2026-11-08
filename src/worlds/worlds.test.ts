@@ -18,7 +18,8 @@ function sourcedItems(w: WorldConfig): [string, Sourced | { sources: string[]; a
   w.limits.forEach((s) => items.push([`limit ${s.id}`, s]));
   w.reasoning.forEach((s, i) => items.push([`reasoning ${i + 1}`, s]));
   Object.entries(w.features).forEach(([k, s]) => items.push([`feature ${k}`, s]));
-  items.push(['build', w.build], ['terrain', w.terrain]);
+  items.push(['build', w.build], ['terrain', w.terrain], ['crust', w.terrain.crust]);
+  w.terrain.crust.minerals.forEach((m) => items.push([`mineral ${m.id}`, m]));
   const { solvent, airDensity, tissueDensity } = w.life.inputs;
   items.push(['life.solvent', solvent], ['life.airDensity', airDensity], ['life.tissueDensity', tissueDensity], ['life.founders', w.life.founders]);
   return items;
@@ -102,6 +103,11 @@ describe.each(all)('$id world config', (w) => {
   it('composition sums to 1', () => {
     const c = w.life.composition;
     expect(c.c + c.si + c.o).toBeCloseTo(1, 10);
+  });
+
+  it('mineral ids are unique', () => {
+    const ids = w.terrain.crust.minerals.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('terrain relics exist only on silicon', () => {

@@ -395,6 +395,21 @@ export const silicon: WorldConfig = {
     why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye.',
     sources: ['mastrogiuseppe2014'],
     assumption: true,
+    crust: {
+      minerals: [
+        { id: 'silicide', label: 'Silicide', description: 'Metallic grains of iron silicide, as in the most oxygen-poor meteorites; they turn to silica if oxygen reaches them.', share: [0.30, 0.50], elevation: 0.25, supply: { c: 1, si: 1.6, o: 1 }, oxidises: true,
+          why: 'Reduced silicon in metal-silicide form is a plausible rich feedstock on an oxygen-poor world, and oxygen would turn it to silica rock.', sources: [], assumption: true },
+        { id: 'nitride', label: 'Nitride (nierite)', description: 'Hard silicon-nitride rock, found in oxygen-poor meteorites.', share: [0.25, 0.40], elevation: 0.5, supply: { c: 1, si: 1.2, o: 1 }, oxidises: false,
+          why: 'Nierite (Si3N4) occurs naturally in enstatite chondrites, so reduced silicon nitride is a plausible feedstock here.', sources: ['lee1995'], assumption: true },
+        { id: 'waterIce', label: 'Water ice', description: 'Water ice, hard as rock at −183 °C; it holds no silicon, so nothing grows on it.', share: [0.15, 0.30], elevation: 0.9, supply: { c: 0, si: 0, o: 0 }, oxidises: false,
+          why: 'Water exists here only as frozen bedrock (the relic ice landmarks); it carries no usable silicon.', sources: [], assumption: true },
+      ],
+      patchCells: 12,
+      rustOxygen: 2,
+      why: 'Three rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
+      sources: [],
+      assumption: true,
+    },
   },
   starType: 'G-type',
 };

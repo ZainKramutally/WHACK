@@ -118,7 +118,7 @@ export interface TerrainConfig extends Sourced {
   heatSolventSpan: number;            // °C mapped onto heatSolvent 0..1 (0.5 = solvent freezing point)
   machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];
   relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
-  crust?: CrustConfig;                // seeded mineral map (src/gen/crust.ts); becomes required once both world configs carry it
+  crust: CrustConfig;                 // seeded mineral map (src/gen/crust.ts)
 }
 
 import type { FlightParams } from '../sim/flight';
