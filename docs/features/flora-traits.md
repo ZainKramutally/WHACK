@@ -211,6 +211,34 @@ mineral is the argmax of `Terrain.crustWeights` at the cell centre, the same rul
 sim, carried to the art layer as the optional `VisualInputs.terrain.crust`. The height-rank proxy (§3.1) is used only
 when a world has no `terrain.crust`.
 
+## 2c. Carbon niche archetypes (6, owner ask: "plants all the same whatever the mineral or temperature")
+
+The edge gates (§2) fire only near the slider ends, so normal slider moves barely changed carbon flora. These six take
+over **within normal moves**, each with a `ramp`: a smoothstep from a threshold to full that sets the share of
+matching plants the new kind takes (per-plant hash, so the set only grows as the slider moves: dragging grows the new
+species in progressively). The edge gates keep priority where both hold. At defaults (15 °C, N 1 ×, O₂ 21%, the natural
+rock mix) every ramp is 0 and the flora is unchanged (tested). Builders: `species/niche.ts`, carbon grammar.
+
+| | Archetype | Role | Ramp (replaces) | Tris near / far | Why |
+|---|---|---|---|---|---|
+| H1 | Barrel succulent | mid | T 30 → 50 °C, on land (weepers) | 292 / 108 | CAM succulents hold hot, dry ground: thick, ribbed, leafless [analogue] |
+| H2 | Thorn shrub | ground | T 30 → 50 °C, on land (groundCover #0, #1) | 406 / 357 | leaf size falls with heat and drought (Wright et al. 2017) [sci] |
+| N1 | Nitrophile grove | mid | N 2 → 5 × Earth's, on land (rib fans, lantern pods) | 376 / 153 | nitrogen loading favours big leaves and fast growth [analogue] |
+| O1 | Lycopod giant | giant | O₂ 28 → 35%, on land (parasol titans, coil spires) | ~440 / ~220 | Carboniferous scale trees (Lepidodendron) grew under 30–35% O₂ [analogue] |
+| R1 | Granite heath | ground | granite's patch share 0.42 → 0.7, granite cells only (groundCover #0, #2) | 162 / 104 | heaths hold poor acid ground [analogue] |
+| R2 | Ironstone reeds | ground | ironstone's patch share 0.42 → 0.7, ironstone cells only (groundCover #1, #2) | 385 / 330 | metal-tolerant reeds on iron-rich ground (metallophytes) [analogue] |
+
+Rock ramps read the realised patch share (`VisualInputs.world.crust.shares`): the natural mix never puts granite above
+0.40 or ironstone above 0.30, and a picked chip takes ~0.75 (`crust.favour`), so the rock plants appear when the player
+picks that rock, on that rock's own cells (the crust map's argmax, as the sim).
+
+**Demo seed counts** (mixed fixture): barrel 0 / 12 / 59 / 105 / 121 at 30 / 35 / 40 / 45 / 50 °C; nitrophile 0 / 11 / 42
+/ 75 / 88 at N 2 / 2.75 / 3.5 / 4.25 / 5; lycopod 0 / 7 / 20 / 28 / 36 at O₂ 28 / 30 / 31.5 / 33 / 35; heath 957 with granite
+picked; reeds 432 with ironstone picked. Draws: half-hot, N-rich and O₂-rich mixed world 42 (ceiling 45); uniform cases
+≤ 33.
+
+All six are Earth patterns applied to our plants by analogy, render-only: the sim still has only per-cell biomass.
+
 ## 3. Substrate colour field (ground and what plants take from it)
 
 ### 3.1 Derivation (pure, per 64² cell, CPU)
