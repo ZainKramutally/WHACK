@@ -271,3 +271,4 @@
 - 09:11 Pushed fish-air swimY fix to main bb69c8b (owner OK). Pending: fish-air shoreline nudge + review fixes, hunt-anim v4 wiring.
 09:10 session/crust: lead/tardigrade easter egg spawned (feature/lead-egg)
 09:15 merged feature/lead-egg (lead/tardigrade easter egg, 56d13d6); Tier 1 green, smoke skipped per owner ruling
+- 09:16: OWNER bug: plant-scan preview ground defaults to red. Cause: counterpart.ts plates use palette groundColour (fixed Red World red / silicon lilac). card-ground agent: plate = clicked cell's mineral via mineralColour + rust; other-world views use the other world's defaultPick mineral.
