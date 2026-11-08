@@ -243,7 +243,7 @@ The simulation runs in a Web Worker so rendering never stutters. It posts snapsh
 
 ## Condition sliders
 
-Three sliders, and only these three, let the player change the conditions life depends on: **Temperature**, **Nitrogen** and **Oxygen**. They are available the whole time: on the selection screen, through the build, and for as long as the world runs. In the world they sit in the Conditions panel, closed by default. A slider change is the player asking "what if?", not a natural event, and the UI labels it that way.
+Three sliders, and only these three, let the player change the conditions life depends on: **Temperature**, **Nitrogen** and **Oxygen**. **No gravity slider** (owner ruling, 2026-11-08): gravity is sampled per seed from the world's range and shown in the Conditions panel, beside air density. They are available the whole time: on the selection screen, through the build, and for as long as the world runs. In the world they sit in the Conditions panel, closed by default. A slider change is the player asking "what if?", not a natural event, and the UI labels it that way.
 
 **On the selection screen (before a world exists):**
 - **Starting positions.** The thumbs start at 15 °C, 1 × Earth's nitrogen and 21% oxygen, Earth's values.
