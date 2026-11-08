@@ -168,3 +168,4 @@
 - 04:35 perf: post output at internal res (owner A/B'd in the browser: looks right). Bar raiser 0 blockers; MED (warm-up on every compile) + 2 LOWs fixed (a08d4d5). Default in pixel mode; ?postfull = old path. Gate: tsc 0, build OK (no post tests). Pushed to main.
 - 04:04: MAIN PUSH (Caden: push all): main 39c07d0 = 8bf07e5 + 12 art commits (teeth+droop+packing, slope pitch, swimmer trails, aquatic pose rewrite SWIM_MAX 24, tail pick, near-draw try, trail-slot reset). Gate tsc 0, 358/14, build OK. 16 pinged. All agents idle; stage == main.
 - 04:13: owner asks via 16: (1) more silicon plants -> flora-audit (4-5 silicon-only gated [speculative] archetypes, >=2 on default seed, 90 min); (2) GitHub #81 bestiary specimen page live 3D view (plan-only bake, bestiary:window event) -> art-fauna whole.
+- 04:19: #81 done by art-fauna (bakePlan, bestiary:window view takeover, bestiaryPanel window) -> stage 8a01cce; gate 334/14, build OK; review 12 running.
