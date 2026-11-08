@@ -12,7 +12,7 @@
 // heights and slopes come from the mesh triangle under the plant, not the analytic height (they differ by metres on
 // frost fins and relic flanks). Each ground plant takes the form of its own side of the sea (a shore cell holds both).
 import type { VisualInputs } from '../../worlds/types';
-import { FLORA_EPS, FLORA_GRID, cellCentre, hash01 } from '../layout';
+import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
 
@@ -130,7 +130,10 @@ const GIANT_OVERHANG = 12;
  * ring meets the ground, up to SINK_MAX × its drawn height; a plant that would still float there (a cliff) is not drawn. */
 const TILT_MAX = Math.tan(0.7);
 const SINK_MAX: Record<FloraRole, number> = { ground: 0.35, mid: 0.15, giant: 0.15 };
-const RING = [0, 1, 2, 3, 4, 5].map((k) => [Math.cos((k * Math.PI) / 3), Math.sin((k * Math.PI) / 3)] as const);
+/** The contact ring: a hexagon of unit offsets, and a scratch for the ground heights under it (reused per plant, so a
+ * rebuild allocates nothing per plant). */
+const RING_C = new Float32Array(6), RING_S = new Float32Array(6), RING_H = new Float32Array(6);
+for (let k = 0; k < 6; k++) { RING_C[k] = Math.cos((k * Math.PI) / 3); RING_S[k] = Math.sin((k * Math.PI) / 3); }
 
 /** Per archetype index, each ÷ the archetype's native size: its contact-ring radius and its drawn height. */
 export interface PlantShapes { foot: ArrayLike<number>; height: ArrayLike<number> }
@@ -185,13 +188,17 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     const r = shapes ? shapes.foot[ai] * h : 0;
     if (r > 0.02) {
       // the ground under the contact ring (a hexagon), its mean slope, and the deepest drop below the drawn plane
-      const hk = RING.map(([c, s]) => yAt(x + c * r, z + s * r));
-      const sx = hk.reduce((a, v, k) => a + v * RING[k][0], 0) / (3 * r), sz = hk.reduce((a, v, k) => a + v * RING[k][1], 0) / (3 * r);
+      let sx = 0, sz = 0;
+      for (let k = 0; k < 6; k++) {
+        const hk = yAt(x + RING_C[k] * r, z + RING_S[k] * r);
+        RING_H[k] = hk; sx += hk * RING_C[k]; sz += hk * RING_S[k];
+      }
+      sx /= 3 * r; sz /= 3 * r;
       if (role === 'ground') {
         const g = Math.hypot(sx, sz), k = g > TILT_MAX ? TILT_MAX / g : 1;
         tx = sx * k; tz = sz * k;
       }
-      for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING[k][0] + tz * RING[k][1]) * r - hk[k]);
+      for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING_C[k] + tz * RING_S[k]) * r - RING_H[k]);
       if (sink > SINK_MAX[role] * shapes!.height[ai] * h) return;
     }
     const i = out.n++;
@@ -230,8 +237,8 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       const mat = inputs.flora[c * 2] ?? 0, canopy = inputs.flora[c * 2 + 1] ?? 0;
       const total = mat + canopy;
       const bright = bin.light === 2;
-      const cc = cellCentre(c, patch);
       const col = c % FLORA_GRID, row = Math.floor(c / FLORA_GRID);
+      const ccx = patchToWorld((col + 0.5) / FLORA_GRID, patch), ccz = patchToWorld((row + 0.5) / FLORA_GRID, patch); // cellCentre, unallocated
       if (pass === 0) {
         // the cell with the most canopy in each superblock may hold its one giant
         if (canopy < GIANT_CANOPY || !inputs.lifeOnLand) continue;
@@ -244,7 +251,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         if (best !== c) continue;
         if (hash01(c, 0, 10) > 0.3 + (bin.mix === 2 ? 0.4 : 0) + 0.6 * canopy) continue;
         const tall = formForBin(withMix(bin, 2));
-        const x = cc.x + (hash01(c, 0, 12) - 0.5) * cell * 0.6, z = cc.z + (hash01(c, 0, 13) - 0.5) * cell * 0.6;
+        const x = ccx + (hash01(c, 0, 12) - 0.5) * cell * 0.6, z = ccz + (hash01(c, 0, 13) - 0.5) * cell * 0.6;
         if (cleared(x, z, GIANT_OVERHANG)) continue;
         const y = yAt(x, z);
         if (y < sea) continue;
@@ -256,7 +263,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row)) * MID_DENSITY[lushOf(form)];
         const n = Math.min(GROUND_SLOT - MID_SLOT, Math.floor(want + hash01(c, 1, 20)));
         for (let k = 0; k < n; k++) {
-          const x = cc.x + (hash01(c, k, 21) - 0.5) * cell, z = cc.z + (hash01(c, k, 22) - 0.5) * cell;
+          const x = ccx + (hash01(c, k, 21) - 0.5) * cell, z = ccz + (hash01(c, k, 22) - 0.5) * cell;
           if (cleared(x, z, 0)) continue;
           const d = Math.hypot(x - cam.x, z - cam.z);
           // far groves thin to 30% (stable per plant): they read as masses in the haze, and it caps the budget
@@ -266,13 +273,13 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y);
         }
       } else {
-        const dc = Math.hypot(cc.x - cam.x, cc.z - cam.z);
+        const dc = Math.hypot(ccx - cam.x, ccz - cam.z);
         if (dc > THIN_END + cell) continue;
         const grown = 1 - Math.exp(-3 * Math.max(mat, 0.3 * total));
         const base = Math.max(1, Math.min(GROUND_PER_CELL + 1, Math.round(GROUND_PER_CELL * grown * LUSH_DENSITY[lushOf(form)])));
         const extra = dc < FOREGROUND_R + cell ? Math.round(FOREGROUND_EXTRA * grown) : 0;
         for (let k = 0; k < base + extra; k++) {
-          const x = cc.x + (hash01(c, k, 31) - 0.5) * cell, z = cc.z + (hash01(c, k, 32) - 0.5) * cell;
+          const x = ccx + (hash01(c, k, 31) - 0.5) * cell, z = ccz + (hash01(c, k, 32) - 0.5) * cell;
           const d = Math.hypot(x - cam.x, z - cam.z);
           const fg = k >= base;
           // foreground extras fade out between 20 and 30 m; base cover thins with distance and gathers into clumps
