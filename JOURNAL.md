@@ -281,3 +281,4 @@
 - 09:28 16: merged #94 milestone captions; hunt animations on main (6a 462dd39); CLAUDE.md kills + life:milestone.
 - 09:27 Pushed hunt-anim (attack/kill anims, v4 intent + kills) + nudge fast path + review fixes to main 462dd39 (owner OK). Running: kelp, plant-grow (due 09:50).
 - 09:41: 2c low-priority note: src/audio/index.ts:153 MutationObserver on document.body runs place() + querySelectors per mutation batch (20-60 Hz in world). Not demo-breaking; skipped before freeze. Fix if fps dips: rAF-throttle the callback or observe #ui only.
+- 09:37 Pushed kelp forests + plant grow/die (+review fixes) to main 4a3c38b (owner OK). Open: flora pick during 2.2 s grow window (MED, skipped for freeze); 45 m kelp may look heavy.
