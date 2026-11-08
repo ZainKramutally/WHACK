@@ -371,15 +371,16 @@ export const carbon: WorldConfig = {
     assumption: true,
     crust: {
       minerals: [
-        { id: 'basalt', label: 'Basalt', description: 'Dark volcanic rock rich in iron; it weathers fast, feeds life, and rusts red once the air holds oxygen.', share: [0.40, 0.55], elevation: 0.2, supply: { c: 1.4, si: 1.4, o: 1.4 }, oxidises: true,
+        { id: 'basalt', label: 'Basalt', description: 'Dark volcanic rock rich in iron; it weathers fast, feeds life, and rusts red once the air holds oxygen.', share: [0.40, 0.55], elevation: 0.2, supply: { c: 1.4, si: 1.4, o: 1.4 }, oxidises: true, pick: { label: 'Volcanic', hint: 'A young volcanic crust: dark basalt and fertile soil' },
           why: 'Oceanic crust is basalt, which lies low and weathers faster than granite, so it releases more nutrients; its iron rusts in oxygen.', sources: ['dessert2003', 'rudnick2003', 'holland2006'], assumption: true },
-        { id: 'granite', label: 'Granite', description: 'Pale, silica-rich rock that rides high as continents and weathers slowly, so it feeds life poorly.', share: [0.25, 0.40], elevation: 0.8, supply: { c: 0.6, si: 0.6, o: 0.6 }, oxidises: false,
+        { id: 'granite', label: 'Granite', description: 'Pale, silica-rich rock that rides high as continents and weathers slowly, so it feeds life poorly.', share: [0.25, 0.40], elevation: 0.8, supply: { c: 0.6, si: 0.6, o: 0.6 }, oxidises: false, pick: { label: 'Continental', hint: 'An old crust of granite continents: pale rock, poorer soil' },
           why: 'Continental crust is granitic and less dense, so it stands higher; it weathers slowly and releases fewer nutrients.', sources: ['dessert2003', 'rudnick2003'], assumption: true },
-        { id: 'ironstone', label: 'Banded ironstone', description: 'Layered red and black iron rock, laid down where dissolved iron met oxygen.', share: [0.15, 0.30], elevation: 0.5, supply: { c: 0.5, si: 0.5, o: 0.5 }, oxidises: true,
+        { id: 'ironstone', label: 'Banded ironstone', description: 'Layered red and black iron rock, laid down where dissolved iron met oxygen.', share: [0.15, 0.30], elevation: 0.5, supply: { c: 0.5, si: 0.5, o: 0.5 }, oxidises: true, pick: { label: 'Iron-rich', hint: 'Banded iron laid down in the seas: red rock once oxygen comes' },
           why: 'Banded iron formations record dissolved iron meeting oxygen in the early oceans; they are iron-rich but poor in other nutrients.', sources: ['holland2006'], assumption: true },
       ],
       patchCells: 12,
       rustOxygen: 10,
+      favour: 0.65,   // assumption: a picked rock takes about two thirds of the patch, leaving the rest visibly mixed
       why: 'Rock is sorted by height, with the nutrient multipliers as placeholders; the crust redistributes the base nutrient supply and adds none. Rust begins with the first oxygen (paleosols keep their iron above roughly 0.2–0.4%, rye1998), and the world is drawn fully rusted by about 10%, half of today\'s level (a declared look choice).',
       sources: ['rye1998'],
       assumption: true,

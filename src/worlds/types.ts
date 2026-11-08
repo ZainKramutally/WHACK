@@ -111,7 +111,7 @@ export interface CrustConfig extends Sourced {
   minerals: MineralDef[];                        // at least one; ids unique
   patchCells: number;                            // typical mineral patch size, in grid cells (noise scale of the map)
   rustOxygen: number;                            // oxygen % at which oxidising rock is fully oxidised at the surface
-  favour?: number;                               // share of the patch a picked rock takes (the other minerals share the rest by their midpoints)
+  favour: number;                               // share of the patch a picked rock takes (the other minerals share the rest by their midpoints)
 }
 
 export interface TerrainConfig extends Sourced {

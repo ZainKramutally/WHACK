@@ -56,7 +56,7 @@ function base(id: 'carbon' | 'silicon'): Omit<WorldConfig, 'solvent' | 'limits' 
         scalings: {},
       },
     },
-    terrain: { ...sourced, patchSize: 300, base: {}, spawn: { shoreDistance: 40 }, heatSolventSpan: 100, machines: [], crust: { ...sourced, patchCells: 12, rustOxygen: 2, minerals: [] } },
+    terrain: { ...sourced, patchSize: 300, base: {}, spawn: { shoreDistance: 40 }, heatSolventSpan: 100, machines: [], crust: { ...sourced, patchCells: 12, rustOxygen: 2, favour: 0.65, minerals: [] } },
     starType: 'G-type',
     caveat: id === 'silicon' ? 'Most chemists doubt this.' : undefined,
   };

@@ -5,7 +5,7 @@ const base = { amplitude: 40, frequency: 1 / 160, octaves: 5, lacunarity: 2, gai
 const src = { why: 'test fixture', sources: [], assumption: true };
 
 const crustOf = (ids: string[]): TerrainConfig['crust'] => ({
-  ...src, patchCells: 12, rustOxygen: 2,
+  ...src, patchCells: 12, rustOxygen: 2, favour: 0.65,
   minerals: ids.map((id, i) => ({ ...src, id, label: id, description: id, share: [0.2, 0.8] as [number, number], elevation: i / Math.max(1, ids.length - 1), supply: { c: 1, si: 1, o: 1 }, oxidises: false })),
 });
 

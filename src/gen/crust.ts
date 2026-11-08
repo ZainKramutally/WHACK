@@ -64,3 +64,33 @@ export function mineralAt(world: WorldConfig, map: CrustMap, x: number, z: numbe
 export function rust(world: WorldConfig, oxygenPct: number): number {
   return Math.min(1, Math.max(0, oxygenPct / crustOf(world).rustOxygen));
 }
+
+const derived = new WeakMap<WorldConfig, Map<string, WorldConfig>>();
+
+/**
+ * The world a run uses when the player picks a rock chip: the picked mineral's share bounds sit at `crust.favour`, the others
+ * share the rest in proportion to their bound midpoints. Pure, memoised per (world, id). No id, or an unknown or unpickable id,
+ * returns `world` itself, so object identity keys every cache.
+ */
+export function withCrustChoice(world: WorldConfig, mineralId?: string): WorldConfig {
+  const crust = world.terrain.crust;
+  const picked = mineralId ? crust?.minerals.find((m) => m.id === mineralId && m.pick) : undefined;
+  if (!picked) return world;
+  let byId = derived.get(world);
+  if (!byId) { byId = new Map(); derived.set(world, byId); }
+  let out = byId.get(picked.id);
+  if (!out) {
+    const HALF = 0.01;
+    const mid = (m: MineralDef) => (m.share[0] + m.share[1]) / 2;
+    const rest = crust.minerals.filter((m) => m !== picked).reduce((a, m) => a + mid(m), 0);
+    const minerals = crust.minerals.map((m): MineralDef => {
+      const t = m === picked ? crust.favour : ((1 - crust.favour) * mid(m)) / rest;
+      return { ...m, share: [t - HALF, t + HALF] };
+    });
+    // The Conditions panel's Ground row says which rock was picked.
+    const facts = world.facts.map((f) => (f.id === 'rock' ? { ...f, value: `Mostly ${picked.label.replace(/ \(.*\)/, '').toLowerCase()} (${picked.pick!.label})` } : f));
+    out = { ...world, facts, terrain: { ...world.terrain, crust: { ...crust, minerals } } };
+    byId.set(picked.id, out);
+  }
+  return out;
+}
