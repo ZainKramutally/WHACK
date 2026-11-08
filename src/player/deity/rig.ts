@@ -42,5 +42,13 @@ export interface DeityRig {
                                            // tells the animation what to do with it: 'orbit' spins it about its own y (an orbit pivot),
                                            // 'sway' gives it a small tilt and bob (the default when unset), 'still' leaves it alone
   dims: DeityDims;
+  /** Optional. The head belongs on the body (the astronaut's helmet). Animation then follows it stiffly,
+   *  never opens or enforces a gap (headGap may be 0 or negative), and limits head yaw to about ±70°
+   *  (a glance, not the full look-back turn). */
+  headAttached?: boolean;
+  /** Optional. The character calls it after the animation every frame, so a model with connecting parts
+   *  (the astronaut's arm tubes from shoulder to mitt) can re-fit them to the animated anchors. It never moves
+   *  the anchors themselves. */
+  update?(): void;
   dispose(): void;
 }
