@@ -145,7 +145,7 @@ export function createEngine(): Engine {
       p.positionX.value = o.at.x; p.positionY.value = o.at.y; p.positionZ.value = o.at.z;
       g.connect(p); tail = p;
     }
-    tail.connect(base.startsWith('step.') ? steps : groups[group]);
+    tail.connect((base.startsWith('step.') || base === 'player.land' || base === 'player.jump') ? steps : groups[group]);
     voices++; if (group === 'creatures') creatureVoices++;
     const rec = { stop: () => { try { src.stop(); } catch { /* ended */ } } };
     if (group === 'creatures') creatureList.push(rec);

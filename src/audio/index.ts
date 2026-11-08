@@ -169,7 +169,7 @@ export function mountAudio(): AudioApi {
     bus.on('build:life', () => { lifeStarted = true; engine.once('build.life', { duck: true }); });
     bus.on('build:complete', () => { complete = true; engine.once('build.complete', { duck: true }); });
     const fired = { push: false, multiply: false, land: false, seas: false };
-    let underwater = false, stepDist = 0, swimT = 0, creatureT = 0, tAcc = 0, bedT = 0;
+    let underwater = false, stepDist = 0, lastJumpT = -1e9, swimT = 0, creatureT = 0, tAcc = 0, bedT = 0;
     let nextCallAt = 8 + Math.random() * 8, lastCallAt = -1e9, lastStingerAt = -1e9;
     const fwd = new Vector3();
     let shoreK = 0, seasFilled = false, frozen = false, stingerAt = 25 + Math.random() * 30;
@@ -246,8 +246,8 @@ export function mountAudio(): AudioApi {
       // footsteps and player cues
       if (p.switchedFrom === 'walk' && p.mode === 'swim') engine.once('player.splash.in');
       else if (p.switchedFrom === 'swim' && p.mode === 'walk') engine.once('player.splash.out');
-      if (p.jumped) engine.once('player.jump', { gain: 0.8 });
-      if (p.landed > 0.05) engine.once('player.land', { gain: Math.min(1, 0.3 + p.landed) });
+      if (p.jumped) { lastJumpT = performance.now(); engine.once('player.jump', { gain: 0.4 }); }
+      if (p.landed > 0.35 || (p.landed > 0.05 && performance.now() - lastJumpT < 2000)) engine.once('player.land', { gain: Math.min(1, 0.2 + 0.3 * p.landed) });
       if (p.mode === 'walk' && p.grounded && p.speed > 0.6) {
         stepDist += p.speed * dt;
         const stride = p.sprinting ? 2.4 : 1.7;
