@@ -56,7 +56,7 @@ export function rust(world: WorldConfig, oxygenPct: number): number;   // 0..1
 4. **Art and inspect** (later, art-layer owner):
    - Terrain colour per mineral id comes from `crustMap`, smoothed across cell edges, with the rust ratchet on oxidising minerals.
    - Carbon starts dark basalt and pale granite, then reddens as oxygen rises. M6 shell stone is unchanged.
-   - The ground inspect card shows `mineralAt` under the click: its label, description and why.
+   - The ground inspect card was not shipped: the owner ruling of 2026-11-07 keeps ground clicks closed. The minerals are named in the Conditions panel's Ground fact row instead.
    - Optional: plates take a tint from the home cell's mineral, as decoration only.
    - The Generate transition needs no change: the particles already take on the ground's colours.
 
@@ -114,7 +114,7 @@ Each mineral brings its own rock features. Every landform is a machine in the on
   - This needs a carbon `facts` row, "Plant colour", with its why, its sources, and `assumption: true` for the hypothesis.
   - Lushness needs nothing extra: flora already follows per-cell biomass, which the fertile basalt raises.
 - **Silicon flora** is unchanged.
-- **Ground inspect card.** `InspectTarget` `ground` now carries an optional `point: { x, z }` (world metres). `pick.ts` fills it, and the card shows `mineralAt` there: label, description and why.
+- **Ground inspect card (not shipped).** `InspectTarget` `ground` carries an optional `point: { x, z }`, and the card code can show `mineralAt` there. But the owner ruling of 2026-11-07 says clicking the sea, ground or sky opens nothing (`main.ts` onInspect), so this path can't be reached. The Ground fact row in the Conditions panel names the minerals instead. Lifting the ruling is a one-line change in `main.ts`.
 - **Stretch: plate tint.** Creature plates take a slight tint from the home cell's mineral, as decoration only.
 
 ## Honesty box additions

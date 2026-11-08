@@ -441,7 +441,7 @@ interface FeatureDef extends Sourced {   // what an inspect card says about a ki
 type InspectTarget =
   | { kind: 'organism'; organismId: number }   // OrganismField.id
   | { kind: 'producer'; cell: number }         // index into the 64² world grid
-  | { kind: 'ground'; point?: { x: number; z: number } }   // world metres of the clicked spot; the card names the mineral there
+  | { kind: 'ground'; point?: { x: number; z: number } }   // world metres of the clicked spot. Unused while the owner ruling keeps ground clicks closed; the card code can name the mineral there if that ruling is lifted
   | { kind: 'sea' | 'sky' };
 
 interface BuildConfig extends Sourced {
@@ -669,7 +669,7 @@ interface TerrainConfig extends Sourced {
 }
 
 interface MineralDef extends Sourced {   // colours are art-layer decisions, keyed by id
-  id: string; label: string; description: string;   // description: one line for the ground inspect card
+  id: string; label: string; description: string;   // description: one plain line about the rock
   share: [number, number];                           // bounds on its share of the patch; sampled from the seed
   elevation: number;                                 // 0..1 by height rank: 0 = lowest ground
   supply: { c: number; si: number; o: number };      // nutrient multiplier per cell (renormalised to the base mean)
