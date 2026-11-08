@@ -1,5 +1,7 @@
 // Flora asset audit (headless): every archetype × LOD × world palette must be visible, on the ground, lit the right
 // way and coloured; and plants must sit on the terrain the GPU draws (same height and rise, slopes, the sea).
+// The audits take ~1.6 s, so they run with SLOW=1 (CLAUDE.md: tests over 1 s); the default run keeps the cheap check
+// that place.ts samples the same triangles the terrain mesh draws. FLORA_AUDIT=1 also prints the tables.
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three/webgpu';
 import { buildFloraLibrary, paint, archetypesFor, type FloraLibrary, type FloraPalette } from './index';
@@ -16,13 +18,15 @@ import { FLORA_GRID } from '../layout';
 import { createFlora } from '../flora';
 import type { App } from '../app';
 
+const ENV = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+const SLOW = !!ENV?.SLOW;
 /** FLORA_AUDIT=1 prints the per-archetype tables. */
-const VERBOSE = !!(globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.FLORA_AUDIT;
+const VERBOSE = !!ENV?.FLORA_AUDIT;
 const PALS: Record<'carbon' | 'silicon', FloraPalette> = { carbon: LOOK_PALETTES.carbon, silicon: LOOK_PALETTES.silicon };
 const lum = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 let lib: FloraLibrary;
-beforeAll(() => { lib = buildFloraLibrary(0x5eed_f10a); });
+const loadLib = () => { lib ??= buildFloraLibrary(0x5eed_f10a); };
 
 interface GeoStats {
   verts: number; tris: number; badPos: number; badNor: number; degenerate: number; agree: number; volume: number; front: number;
@@ -121,7 +125,8 @@ function colourStats(g: THREE.BufferGeometry) {
   return { mean: L / A, top: Atop > 0 ? Ltop / Atop : L / A, black: black / A };
 }
 
-describe('flora asset audit: geometry', () => {
+describe.skipIf(!SLOW)('flora asset audit: geometry (SLOW)', () => {
+  beforeAll(loadLib);
   it('every archetype × LOD is non-empty, finite, unit-normalled, wound with its normals, outward and grounded', () => {
     const rows: string[] = [], fails: string[] = [];
     for (const a of lib.archetypes) for (const lod of [0, 1] as const) {
@@ -259,16 +264,23 @@ function fakeApp(x: number, y: number, z: number): App {
   return { scene: new THREE.Scene(), camera } as unknown as App;
 }
 
-describe('flora asset audit: placement and wiring', () => {
-  const cases = [carbon, silicon].map(worldCase);
-  const shown = (r: Record<string, Gaps>) => Object.entries(r).map(([k, v]) => `${k}: n ${v.n} float p90 ${pct(v.float, 0.9).toFixed(3)} p99 ${pct(v.float, 0.99).toFixed(3)} max ${pct(v.float, 1).toFixed(3)}; buried p90 ${pct(v.buried, 0.9).toFixed(3)} max ${pct(v.buried, 1).toFixed(3)} (× height)`).join('\n  ');
+const caseMemo = new Map<string, WorldCase>();
+const caseOf = (world: WorldConfig) => { let c = caseMemo.get(world.id); if (!c) caseMemo.set(world.id, (c = worldCase(world))); return c; };
+const WORLDS = [carbon, silicon].map((w) => [w.id, w] as const);
 
+describe('flora asset audit: placement and wiring', () => {
   it('TERRAIN_SEGMENTS matches the terrain mesh flora stands on', () => {
-    const mesh = createTerrainMesh(cases[0].terrain, createTerrainUniforms());
+    const mesh = createTerrainMesh(createTerrain(carbon.terrain, carbon.demoSeed), createTerrainUniforms());
     expect(mesh.geometry.getAttribute('position').count).toBe((TERRAIN_SEGMENTS + 1) ** 2);
   });
+});
 
-  it.each(cases.map((c) => [c.world.id, c] as const))('%s: every drawn plant meets the drawn ground (slopes, mesh facets), and the stale-rise stretch keeps it there', (_id, w) => {
+describe.skipIf(!SLOW)('flora asset audit: placement and wiring (SLOW)', () => {
+  beforeAll(loadLib);
+  const shown = (r: Record<string, Gaps>) => Object.entries(r).map(([k, v]) => `${k}: n ${v.n} float p90 ${pct(v.float, 0.9).toFixed(3)} p99 ${pct(v.float, 0.99).toFixed(3)} max ${pct(v.float, 1).toFixed(3)}; buried p90 ${pct(v.buried, 0.9).toFixed(3)} max ${pct(v.buried, 1).toFixed(3)} (× height)`).join('\n  ');
+
+  it.each(WORLDS)('%s: every drawn plant meets the drawn ground (slopes, mesh facets), and the stale-rise stretch keeps it there', (_id, world) => {
+    const w = caseOf(world);
     const sp = spawnPoint(w.terrain, w.state(1), w.sea);
     const app = fakeApp(sp.x, sp.height + 3, sp.z + 6);
     const flora = createFlora(app);
@@ -301,7 +313,8 @@ describe('flora asset audit: placement and wiring', () => {
     flora2.dispose();
   });
 
-  it.each(cases.map((c) => [c.world.id, c] as const))('%s: every bucket the flora draws carries the attributes its material reads, painted', (_id, w) => {
+  it.each(WORLDS)('%s: every bucket the flora draws carries the attributes its material reads, painted', (_id, world) => {
+    const w = caseOf(world);
     const sp = spawnPoint(w.terrain, w.state(1), w.sea);
     const app = fakeApp(sp.x, sp.height + 3, sp.z + 6);
     const flora = createFlora(app);
@@ -328,7 +341,8 @@ describe('flora asset audit: placement and wiring', () => {
     flora.dispose();
   });
 
-  it.each(cases.map((c) => [c.world.id, c] as const))('%s: ground cover keeps to its side of the sea; no land plant stands in it', (_id, w) => {
+  it.each(WORLDS)('%s: ground cover keeps to its side of the sea; no land plant stands in it', (_id, world) => {
+    const w = caseOf(world);
     const inp = inputsFor(w, 1, floraGrid());
     const sp = spawnPoint(w.terrain, w.state(1), w.sea);
     const list = placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList());
@@ -348,7 +362,8 @@ describe('flora asset audit: placement and wiring', () => {
     expect(wrong).toBe(0);
   });
 
-  it.each(cases.map((c) => [c.world.id, c] as const))('%s: cached heights follow the rising terrain during the build', (_id, w) => {
+  it.each(WORLDS)('%s: cached heights follow the rising terrain during the build', (_id, world) => {
+    const w = caseOf(world);
     const flora = floraGrid();
     const cache = makeHeightCache();
     const list = makePlantList();
