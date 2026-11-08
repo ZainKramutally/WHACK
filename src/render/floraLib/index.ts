@@ -41,6 +41,7 @@ import { jellyDome } from './species/dome';
 import { airKelpFloat, crystalGround, frostFern, prismTitan, shardTree, whiskerReef } from './species/crystal';
 import { stiltMangrove } from './species/stilt';
 import { airPlankton, glassKelp, laceFan, lanternBulb, nitrideCrown } from './species/silicon';
+import { barrelSucculent, heathShrub, ironReeds, lycopodGiant, nitroGrove, thornShrub } from './species/niche';
 import { woollyRosette } from './species/rosette';
 import { bladderKelp } from './species/kelp';
 import { pitcherUrn } from './species/pitcher';
@@ -83,6 +84,13 @@ const SPECIES: SpeciesDef[] = [
   { id: 'laceFan', chem: 'silicon', role: 'mid', gen: laceFan, variants: [0] },
   { id: 'airPlankton', chem: 'silicon', role: 'mid', gen: airPlankton, variants: [0] },
   { id: 'glassKelp', chem: 'silicon', role: 'mid', gen: glassKelp, variants: [0] },
+  // carbon niche archetypes, ramped in by condition or by the picked rock (flora-traits §2c, species/niche.ts)
+  { id: 'barrelSucculent', chem: 'carbon', role: 'mid', gen: barrelSucculent, variants: [0] },
+  { id: 'thornShrub', chem: 'carbon', role: 'ground', gen: thornShrub, variants: [0] },
+  { id: 'nitroGrove', chem: 'carbon', role: 'mid', gen: nitroGrove, variants: [0] },
+  { id: 'lycopodGiant', chem: 'carbon', role: 'giant', gen: lycopodGiant, variants: [0] },
+  { id: 'heathShrub', chem: 'carbon', role: 'ground', gen: heathShrub, variants: [0] },
+  { id: 'ironReeds', chem: 'carbon', role: 'ground', gen: ironReeds, variants: [0] },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */

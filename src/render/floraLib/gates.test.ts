@@ -6,6 +6,8 @@ import { AIR_EARTH, GATES, MARGIN_BAND, SHORE_BAND, activeGates, aquaticFor, sup
 import { makePlantList, placePlants, type PlantShapes } from './place';
 import { countDraws } from './buckets';
 import { createTerrain, seaLevelForCover, spawnPoint } from '../../gen/terrain';
+import { crustMap, withCrustChoice } from '../../gen/crust';
+import type { CrustPickId } from '../../worlds/types';
 import { carbon } from '../../worlds/carbon';
 import { silicon } from '../../worlds/silicon';
 import type { WorldConfig } from '../../worlds/types';
@@ -183,6 +185,8 @@ describe('gated archetypes', () => {
     ['carbon cold + low N + bright + kelp shallows', () => uniform({ temperature: -5, nitrogen: 0.2 })],
     ['carbon warm shore + kelp', () => uniform({ temperature: 25, nitrogen: 1 })],
     ['carbon thick air (kelp in air and water)', () => uniform({ temperature: 15, nitrogen: 8 }, { airDensity: 6 * AIR_EARTH })],
+    ['carbon half-hot, half-N-rich, half-O₂-rich (§2c kinds beside their base kinds)', () => uniform({ temperature: 40, nitrogen: 3.5, oxygen: 31 })],
+    ['carbon hot, N-rich, O₂-rich in full', () => uniform({ temperature: 55, nitrogen: 6, oxygen: 36 })],
   ] as const)('draw budget: %s ≤ 33 draws, < 4.5M tris, nothing dropped', (_name, make) => {
     const d = countDraws(placed(make(), shapesOf()), (a, l) => lib.archetypes[a].lod[l].triangles);
     expect(d.draws).toBeLessThanOrEqual(33);
@@ -268,8 +272,11 @@ describe('gated archetypes', () => {
     ['carbon (defaults: mangrove, kelp)', carbon, 1, 0.06, 0.38, {}],
     ['carbon, cold and nitrogen-poor (pitcher, rosette, cushion, kelp)', carbon, 1, 0.06, 0.26, { temperature: -5, nitrogen: 0.2 }],
     ['silicon (defaults: reef, glass kelp, fern, crown, lantern, lace, plankton, air float)', silicon, 0.016, 0.65, 0.6, {}],
-  ] as [string, WorldConfig, number, number, number, Record<string, number>][])('draw ceiling: a mixed %s world on its demo terrain ≤ 45 draws, < 4.5M tris, nothing dropped', (_id, world, light, air, heatBand, over) => {
-    const l = demoWorld(world, light, air, heatBand, over);
+    ['carbon half-hot, N-rich and O₂-rich (§2c beside base kinds)', carbon, 1, 0.06, 0.55, { temperature: 40, nitrogen: 3.5, oxygen: 31 }],
+    ['carbon, granite picked (heath)', carbon, 1, 0.06, 0.38, {}, 'granite'],
+    ['carbon, ironstone picked (reeds)', carbon, 1, 0.06, 0.38, {}, 'ironstone'],
+  ] as [string, WorldConfig, number, number, number, Record<string, number>, CrustPickId?][])('draw ceiling: a mixed %s world on its demo terrain ≤ 45 draws, < 4.5M tris, nothing dropped', (_id, world, light, air, heatBand, over, pick) => {
+    const l = demoWorld(world, light, air, heatBand, over, pick);
     const d = countDraws(l, (a, lod) => lib.archetypes[a].lod[lod].triangles);
     console.log(`${_id} mixed world: ${d.draws} draws`, JSON.stringify(Object.fromEntries(Object.entries(d.byRole).map(([r, v]) => [r, v.draws]))), `${(d.triangles / 1e6).toFixed(2)}M tris`);
     expect(d.draws).toBeLessThanOrEqual(45);
@@ -318,6 +325,42 @@ describe('gated archetypes', () => {
     expect(calls()).toBeGreaterThan(0);
   });
 
+  it('§2c: at defaults (15 °C, N 1, O₂ 21, the natural rock mix) the carbon flora is unchanged: no niche kind anywhere', () => {
+    for (const l of [placed(shore({ temperature: 15, nitrogen: 1, oxygen: 21 })), demoWorld(carbon, 1, 0.06, 0.38, {})]) for (const k of NICHE) expect(countOf(l, k), k).toBe(0);
+  });
+
+  it.each([
+    ['barrel succulents with heat', 'barrelSucculent#0', 'temperature', [15, 30, 35, 40, 45, 50, 60]],
+    ['thorn shrubs with heat', 'thornShrub#0', 'temperature', [15, 30, 35, 40, 45, 50, 60]],
+    ['nitrophile groves with nitrogen', 'nitroGrove#0', 'nitrogen', [1, 2, 2.75, 3.5, 4.25, 5, 8]],
+    ['lycopod giants with oxygen', 'lycopodGiant#0', 'oxygen', [21, 28, 30, 31.5, 33, 35, 40]],
+  ] as const)('§2c: %s: none at the base value, then a share that never falls as the slider moves, the new kind taking most of its slots', (_n, key, stat, xs) => {
+    const counts = xs.map((x) => countOf(demoWorld(carbon, 1, 0.06, 0.38, { [stat]: x }), key));
+    console.log(`${key} by ${stat}`, JSON.stringify(xs), JSON.stringify(counts));
+    expect(counts[0]).toBe(0);
+    for (let i = 1; i < counts.length; i++) expect(counts[i], `${stat} ${xs[i]}`).toBeGreaterThanOrEqual(counts[i - 1]);
+    expect(counts[counts.length - 1]).toBeGreaterThan(0);
+    expect(counts[3]).toBeGreaterThan(0);                 // part-way through the ramp it is already visible
+  });
+
+  it.each([
+    ['granite', 'heathShrub#0'],
+    ['ironstone', 'ironReeds#0'],
+  ] as const)('§2c: picking %s grows its rock plant on its own cells only (none at the natural mix)', (pick, key) => {
+    const l = demoWorld(carbon, 1, 0.06, 0.38, {}, pick);
+    let n = 0;
+    for (let i = 0; i < l.n; i++) {
+      if (keyOf(l, i) !== key) continue;
+      n++;
+      const col = Math.floor((l.x[i] / PATCH + 0.5) * 64), row = Math.floor((l.z[i] / PATCH + 0.5) * 64);
+      const w = l.terrain.crustWeights(((col + 0.5) / 64 - 0.5) * PATCH, ((row + 0.5) / 64 - 0.5) * PATCH);
+      expect(withCrustChoice(carbon, pick).terrain.crust.minerals[w.indexOf(Math.max(...w))].id).toBe(pick);
+    }
+    console.log(`${pick} picked: ${n} ${key}`);
+    expect(n).toBeGreaterThan(0);
+    expect(countOf(demoWorld(carbon, 1, 0.06, 0.38, {}), key)).toBe(0);
+  });
+
   it('§2b: at least 2 silicon-only archetypes grow on the default silicon demo seed (−183 °C, default N, thick air, dim)', () => {
     const l = demoWorld(silicon, 0.016, 0.65, 0.6, {});
     const counts: Record<string, number> = {};
@@ -327,13 +370,17 @@ describe('gated archetypes', () => {
   });
 });
 
+const NICHE = ['barrelSucculent#0', 'thornShrub#0', 'nitroGrove#0', 'lycopodGiant#0', 'heathShrub#0', 'ironReeds#0'];
+const countOf = (l: { n: number; arch: ArrayLike<number> }, key: string) => { let n = 0; for (let i = 0; i < l.n; i++) if (ARCHETYPE_KEYS[l.arch[i]] === key) n++; return n; };
 const SI_ONLY = ['nitrideCrown#0', 'lanternBulb#0', 'laceFan#0', 'airPlankton#0', 'glassKelp#0'];
 
 // A realistic mixed world (team-lead ruling): the demo terrain with its sea, a checkerboard of mat-dominant and mixed
 // cells (tufts, domes and crusts beside groves and giants, on land, on the shore and under the sea), default stats.
 // Three pick lists meet in one carbon world, so its ground cover alone takes 18 draws: the ceiling is 45, not 33.
-function demoWorld(world: WorldConfig, light: number, air: number, heatBand: number, over: Record<string, number>) {
+function demoWorld(world0: WorldConfig, light: number, air: number, heatBand: number, over: Record<string, number>, pick?: CrustPickId) {
+  const world = withCrustChoice(world0, pick);
   const terrain = createTerrain(world.terrain, world.demoSeed);
+  const shares = crustMap(world, world.demoSeed).shares;
   const T = over.temperature ?? world.startDefaults.temperature;
   const hs = Math.min(1, Math.max(0, 0.5 + (T - world.solvent.freezeC) / world.terrain.heatSolventSpan));
   const st = { rise: 1, heatSolvent: hs, progress: Object.fromEntries(world.terrain.machines.map((m) => [m.id, 1])) };
@@ -343,8 +390,9 @@ function demoWorld(world: WorldConfig, light: number, air: number, heatBand: num
   const stub = makeStubVisualInputs();
   const inp: VisualInputs = {
     ...stub, flora, lifeOnLand: true, light, airDensity: air, heatBand, heatSolvent: hs, seaLevel: sea,
-    world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition },
-    stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
+    world: { ...stub.world, id: world.id, solvent: world.solvent, composition: world.life.composition,
+      crust: { ids: world.terrain.crust.minerals.map((m) => m.id), oxidises: world.terrain.crust.minerals.map((m) => m.oxidises), shares, elevation: world.terrain.crust.minerals.map((m) => m.elevation) } },
+    stats: { ...stub.stats, temperature: T, nitrogen: over.nitrogen ?? world.startDefaults.nitrogen, oxygen: over.oxygen ?? world.startDefaults.oxygen, co2: world.id === 'carbon' ? 0.25 : 0, seaLevel: sea },
     terrain: { rise: 1, progress: st.progress, height: (x, z) => terrain.height(x, z, st), patchSize: PATCH, crust: { minerals: world.terrain.crust.minerals, weights: (x, z) => terrain.crustWeights(x, z) } },
   };
   const sp = spawnPoint(terrain, st, sea);

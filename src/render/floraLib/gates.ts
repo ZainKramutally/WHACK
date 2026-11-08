@@ -24,7 +24,14 @@ export interface WorldEnv {
   /** Photorespiration index (0 when CO₂ is unknown). */
   P: number;
   dense: boolean;
+  /** Oxygen, %. */
+  O: number;
+  /** Realised patch share of each crust mineral by id (absent without crust data): a picked rock chip reaches ~0.75. */
+  shares: Record<string, number>;
 }
+
+/** 0 at a, 1 at b, smooth between (Hermite). */
+export const ramp = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export function worldEnv(i: VisualInputs): WorldEnv {
   const co2 = i.stats.co2 ?? 0, o2 = i.stats.oxygen ?? 0;
@@ -32,7 +39,8 @@ export function worldEnv(i: VisualInputs): WorldEnv {
   return {
     carbon: i.world.composition.si <= 0.5, water: /water/i.test(i.world.solvent.name), frozen: i.frozen,
     T: i.stats.temperature ?? 15, N: i.stats.nitrogen ?? 1, L: i.light, air: i.airDensity / AIR_EARTH,
-    P, dense: i.world.composition.si <= 0.5 && P >= DENSE_P,
+    P, dense: i.world.composition.si <= 0.5 && P >= DENSE_P, O: o2,
+    shares: Object.fromEntries((i.world.crust?.ids ?? []).map((id, k) => [id, i.world.crust!.shares[k] ?? 0])),
   };
 }
 
@@ -87,7 +95,8 @@ export interface CellProbe {
   total(c: number): number;
 }
 
-export type GateId = 'pitcher' | 'mangrove' | 'cushion' | 'kelpAir' | 'rosette' | 'fern' | 'airFloat' | 'crown' | 'lantern' | 'lace' | 'plankton';
+export type GateId = 'pitcher' | 'mangrove' | 'cushion' | 'kelpAir' | 'rosette' | 'fern' | 'airFloat' | 'crown' | 'lantern' | 'lace' | 'plankton'
+  | 'barrel' | 'thorn' | 'nitro' | 'lycopod' | 'heath' | 'reeds';
 
 export interface GateSpec {
   id: GateId;
@@ -104,6 +113,9 @@ export interface GateSpec {
   band?: readonly [number, number];
   /** Only this share of the matching plants (by a per-plant hash), so the base kind stays beside the new one. */
   share?: number;
+  /** 0..1 from the world (smoothstep past a threshold): the share of matching plants the new kind takes, so dragging a
+   * slider grows it in progressively. The gate is off at 0. Multiplies `share`. */
+  ramp?: (e: WorldEnv) => number;
   /** Only on land at the plant (y ≥ sea). */
   land?: boolean;
   /** Per-cell half of the gate. */
@@ -145,13 +157,32 @@ export const GATES: readonly GateSpec[] = [
   { id: 'plankton', chem: 'silicon', role: 'mid', replaces: /^shardTree#1$/, by: 'airPlankton#0', world: (e) => e.air >= AIR_FLOAT, share: 0.5 },
   // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
   { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
+  // §2c carbon niche kinds: each ramps in over a normal slider move (or a picked rock), after the edge gates above.
+  // H1 barrel succulent: CAM succulents dominate hot, dry ground (thick, ribbed, leafless) [analogue]; 30 → 50 °C
+  { id: 'barrel', chem: 'carbon', role: 'mid', replaces: /^weeper#/, by: 'barrelSucculent#0', world: () => true, ramp: (e) => ramp(30, 50, e.T), land: true },
+  // H2 thorn shrub: leaf size falls with heat and drought (Wright et al. 2017) [sci]; 30 → 50 °C
+  { id: 'thorn', chem: 'carbon', role: 'ground', replaces: /^groundCover#[01]$/, by: 'thornShrub#0', world: () => true, ramp: (e) => ramp(30, 50, e.T), land: true },
+  // N1 nitrophile grove: nitrogen loading favours big leaves and fast growth [analogue]; 2 → 5 × Earth's nitrogen
+  { id: 'nitro', chem: 'carbon', role: 'mid', replaces: /^(ribFan|ribFanDense|lanternPods)#/, by: 'nitroGrove#0', world: () => true, ramp: (e) => ramp(2, 5, e.N), land: true },
+  // O1 lycopod giant: Carboniferous giant scale trees grew under 30–35% O₂ [analogue]; 28 → 35% O₂
+  { id: 'lycopod', chem: 'carbon', role: 'giant', replaces: /^(parasolTitan|parasolTitanDense|coilSpire)#/, by: 'lycopodGiant#0', world: () => true, ramp: (e) => ramp(28, 35, e.O), land: true },
+  // R1 granite heath: heaths hold poor acid ground [analogue]; on granite cells, ramped by granite's patch share (its
+  // natural mix ≤ 0.40, a picked chip ~0.75), so the natural mix is unchanged
+  { id: 'heath', chem: 'carbon', role: 'ground', replaces: /^groundCover#[02]$/, by: 'heathShrub#0', world: () => true, ramp: (e) => ramp(0.42, 0.7, e.shares.granite ?? 0), land: true, cell: (c, p) => p.mineral(c) === 'granite' },
+  // R2 ironstone reeds: metal-tolerant reeds on iron-rich ground (metallophytes) [analogue]; natural mix ≤ 0.30
+  { id: 'reeds', chem: 'carbon', role: 'ground', replaces: /^groundCover#[12]$/, by: 'ironReeds#0', world: () => true, ramp: (e) => ramp(0.42, 0.7, e.shares.ironstone ?? 0), land: true, cell: (c, p) => p.mineral(c) === 'ironstone' },
 ];
 
 /** The gates whose world-wide half holds now, by role (once per rebuild). */
 export function activeGates(e: WorldEnv): Record<GateSpec['role'], GateSpec[]> {
   const out: Record<GateSpec['role'], GateSpec[]> = { ground: [], mid: [], giant: [] };
   const chem = e.carbon ? 'carbon' : 'silicon';
-  for (const g of GATES) if (g.chem === chem && g.world(e)) out[g.role].push(g);
+  for (const g of GATES) {
+    if (g.chem !== chem || !g.world(e)) continue;
+    if (!g.ramp) { out[g.role].push(g); continue; }
+    const s = g.ramp(e) * (g.share ?? 1);
+    if (s > 0) out[g.role].push({ ...g, share: s });
+  }
   return out;
 }
 
