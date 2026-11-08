@@ -163,7 +163,7 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
   const finTr = p.translucency > 0.35;
   const dorsal = p.fins.dorsal > 0 ? sheets.push({ cols: ribbon ? 44 : 14, colour: p.colour.accent, translucent: true, glow: 0 }) - 1 : -1;
   const ventral = p.fins.ventral > 0 ? sheets.push({ cols: 12, colour: p.colour.body, translucent: false, glow: 0 }) - 1 : -1;
-  const dU: [number, number] = ribbon ? [0.035, 0.985] : [Math.max(0.12, p.peak - 0.12), Math.min(0.8, p.peak + 0.38)];
+  const dU: [number, number] = ribbon ? [0.035, 0.985] : [Math.max(0.12, p.peak - 0.04), Math.min(0.75, p.peak + 0.16)]; // a small dorsal fin
   const vU: [number, number] = [0.14, Math.min(0.78, p.peak + 0.4)];
   const fringeAmp = 0.12 + 0.45 * p.fins.fringe;
   // hatchet keel: rises fast behind the head, deepest in front, tapers back to the tail
@@ -218,7 +218,8 @@ function buildAxial(p: SwimmerParams, seed: number, jit: () => number): Omit<Swi
         const h = p.fins.dorsal * L * (ribbon ? (0.75 + 0.25 * Math.sin(Math.PI * x)) * (1 - 0.6 * ss(0.85, 1, x)) : Math.sin(Math.PI * x) ** 0.7);
         const th = finRipple(kin, u, t, fringeAmp, ph * 6.28);
         const base = add(f.p, scl(f.U, rhTop(u) * 0.8));
-        A.push(base); B.push(add(base, add(scl(f.U, h * Math.cos(th)), scl(f.R, h * Math.sin(th)))));
+        // a fish's dorsal fin sweeps back (the eel ribbon's long fin stands upright)
+        A.push(base); B.push(add(add(base, add(scl(f.U, h * Math.cos(th)), scl(f.R, h * Math.sin(th)))), scl(f.T, ribbon ? 0 : -0.6 * h)));
       }
       sink.sheet(dorsal, A, B);
       // fin rays: every other column, so the ripple reads as a row of tilting spines

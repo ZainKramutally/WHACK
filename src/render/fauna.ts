@@ -919,12 +919,13 @@ export function createFauna(app: App): FaunaPart {
         case 'plate': P = PART.plateC; break;
         case 'ring': P = PART.ring; break;
         case 'crystal': P = PART.hornSi; ox -= y[0] / 2; oy -= y[1] / 2; oz -= y[2] / 2; break; // a spike centred on o
-        case 'blade': case 'bladeSi': {
-          // a leaf from o along y (length) with chord x and thickness z → the plate disc centred mid-blade, its lathe axis
-          // across the blade (columns stay right-handed: x × z = −y)
-          P = type === 'blade' ? PART.plateC : PART.plateSi;
-          ox += y[0] / 2; oy += y[1] / 2; oz += y[2] / 2;
-          X = [x[0] / 2, x[1] / 2, x[2] / 2]; Y = z; Z = [-y[0] / 2, -y[1] / 2, -y[2] / 2];
+        case 'blade': P = PART.fin; break; // a swept, tapered fin rooted at o: x chord (back), y span, z = x × y, as the fin geometry
+        case 'bladeSi': {
+          // silicon paddles are rod oars, never pads: a rod from o along the blade, a little thicker than its chord share
+          P = PART.rodSi;
+          const r = 0.18 * Math.hypot(x[0], x[1], x[2]);
+          const xl = Math.hypot(x[0], x[1], x[2]) || 1, zl = Math.hypot(z[0], z[1], z[2]) || 1;
+          X = [(x[0] / xl) * r, (x[1] / xl) * r, (x[2] / xl) * r]; Y = y; Z = [(z[0] / zl) * r, (z[1] / zl) * r, (z[2] / zl) * r];
           break;
         }
       }

@@ -13,7 +13,7 @@ import {
 
 /** Shared instanced part geometries (render/faunaLib/parts.ts builds one mesh per type). Types ending in Si are silicon's
  *  (their material carries the pale rim); `knob` is carbon's sphere (eyes, knees, tips) and `knobSi` silicon's. */
-export const PART_TYPES = ['thighC', 'rodC', 'thighSi', 'rodSi', 'plateC', 'plateSi', 'hornC', 'hornSi', 'frill', 'knob', 'ring', 'knobSi'] as const;
+export const PART_TYPES = ['thighC', 'rodC', 'thighSi', 'rodSi', 'plateC', 'plateSi', 'hornC', 'hornSi', 'frill', 'knob', 'ring', 'knobSi', 'fin'] as const;
 export type PartType = (typeof PART_TYPES)[number];
 export const PART = Object.fromEntries(PART_TYPES.map((t, i) => [t, i])) as Record<PartType, number>;
 
@@ -118,8 +118,9 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
     } else if (b.tone === BEAD_SPOT) {
       parts.push(part({ type: PART.knob, a: i, slot: glowing ? SLOT.glow : SLOT.accent, glow: glowing ? plan.glow : 0, sx: 0.9, sy: 0.9, sz: 0.5 }));
     } else if (b.tone === BEAD_ACCENT && (b.flap ?? 0) > 0) {
-      // paddle fins (flap 0.6) and membrane wings (flap 1): thin discs, accent
-      parts.push(part({ type: PART.plateC, a: i, slot: SLOT.accent, sx: 0.95 * (b.sx ?? 1), sy: 0.9 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1) }));
+      // membrane wings (flap 1): thin discs, accent. Swimmers' paddle fins (flap 0.6) are not drawn as discs (they read
+      // as detached pads): near swimmers get real fins from faunaLib/aquatic, and the bead fallback stays finless.
+      if ((b.flap ?? 0) >= 0.9) parts.push(part({ type: PART.plateC, a: i, slot: SLOT.accent, sx: 0.95 * (b.sx ?? 1), sy: 0.9 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1) }));
     } else if (b.tone === BEAD_ACCENT) {
       // dorsal crest blade → a scalloped frill standing on the back (x backward along the body, y up)
       parts.push(part({ type: PART.frill, a: i, slot: SLOT.accent, ox: 0.9, oy: -0.45 * (b.sy ?? 1), sx: -1.9, sy: 1.0 * (b.sy ?? 1), sz: 0.7 }));

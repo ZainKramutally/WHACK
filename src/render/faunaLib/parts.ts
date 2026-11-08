@@ -27,6 +27,29 @@ function frill(): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * A swept, tapered fin rooted on its y = 0 edge: chord along +x (0 leading … 1 trailing edge), span up +y to a narrow tip
+ * swept back, a slight camber in z so long flippers read as hydrofoils, and a thin lens section closing at both edges.
+ * Instanced with x = chord (pointing back along the body), y = span (out from the body), z = their cross product.
+ */
+function fin(): THREE.BufferGeometry {
+  const cols = 8, rows = 6, pos: number[] = [];
+  const P = (i: number, j: number, side: number): number[] => {
+    const u = i / cols, v = j / rows;
+    const le = 0.45 * v ** 1.3, te = 1 - 0.45 * v;
+    const z = 0.06 * Math.sin(Math.PI * u) * (1 - 0.6 * v) + side * 0.025 * (1 - 0.7 * v) * Math.sin(Math.PI * u);
+    return [le + (te - le) * u, v, z];
+  };
+  for (const side of [1, -1]) for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+    const a = P(i, j, side), b = P(i + 1, j, side), c = P(i, j + 1, side), d = P(i + 1, j + 1, side);
+    for (const q of side > 0 ? [a, b, c, b, d, c] : [a, c, b, b, c, d]) pos.push(...q);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 function curvedHorn(): THREE.BufferGeometry {
   const g = lathe([[0, -0.05], [0.85, -0.03], [1, 0.05], [0.8, 0.35], [0.5, 0.7], [0.2, 0.93], [0, 1]], 8);
   const p = g.attributes.position;
@@ -53,6 +76,7 @@ export function partGeometries(): Record<PartType, THREE.BufferGeometry> {
     knob,
     ring,
     knobSi,
+    fin: fin(),
   };
 }
 
