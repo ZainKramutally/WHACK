@@ -27,7 +27,7 @@ export interface FormCluster {
 }
 
 /** The members' majority role and locomotion mode, which override the centroid's genes when naming or classifying a form. */
-export interface FormHint { role?: Role; mode?: LocomotionMode }
+export interface FormHint { role?: Role; mode?: LocomotionMode; /** members both swim and hover (at least a quarter each) */ amphibious?: boolean }
 
 export interface NewForm { binId: number; name: string; organismId: number }
 
@@ -158,7 +158,8 @@ export function hintOf(members: readonly GuideAnimal[]): FormHint {
   const roles = members.map((a) => ROLE_ORDER.indexOf(roleOf(a.genome.body.diet)));
   const modes = members.flatMap((a) => (a.mode === undefined ? [] : [a.mode]));
   const r = majority(roles);
-  return { role: r === undefined ? undefined : ROLE_ORDER[r], mode: majority(modes) };
+  const share = (m: LocomotionMode) => (modes.length ? modes.filter((x) => x === m).length / modes.length : 0);
+  return { role: r === undefined ? undefined : ROLE_ORDER[r], mode: majority(modes), amphibious: share(LOCOMOTION.swim) >= 0.25 && share(LOCOMOTION.hover) >= 0.25 };
 }
 const ROLE_ORDER: readonly Role[] = ['grazer', 'omnivore', 'hunter'];
 
@@ -170,18 +171,44 @@ export function functionalType(centroid: FormCentroid, hint: FormHint = {}): Fun
 
 // ---- Names ----
 
-// Nouns fit the architecture: carbon is bilateral and axial (worms, striders), silicon is a radial lattice
-// (arms stepping in tripods, rolling hubs, bells, rooted crystal colonies).
-const NOUN: Record<'si' | 'c', Record<Locomotion, string>> = {
-  c: { floater: 'Drifter', strider: 'Strider', walker: 'Walker', crawler: 'Crawler', swimmer: 'Swimmer' },
-  si: { floater: 'Bloom', strider: 'Spoke', walker: 'Tripod', crawler: 'Lattice', swimmer: 'Roller' },
-};
+// The movement word comes from how the species actually moves (its members' live mode), then from body traits, so names vary:
+// carbon is bilateral and axial (eels, paddlers, striders), silicon is a radial lattice (rollers, tripods, bells, rooted spires).
+type Chem = 'si' | 'c';
+function moveWord(chem: Chem, b: BodyGenes, mode: LocomotionMode, amphibious: boolean): string {
+  const si = chem === 'si';
+  if (amphibious) return 'Diver';
+  if (mode === LOCOMOTION.swim) {
+    if (si) return b.limbPairs >= 0.5 ? 'Spinner' : 'Roller';
+    if (b.segments >= 0.6) return 'Eel';
+    if (b.limbPairs >= LIMBS_PRESENT) return 'Paddler';
+    if (b.buoy >= 0.4 || b.plates >= 0.4) return 'Drifter';
+    return 'Darter';
+  }
+  if (mode === LOCOMOTION.hover) {
+    if (b.buoy >= BUOY_FLOATER) return si ? 'Bell' : 'Floater';
+    if (b.size >= 0.5) return 'Glider';
+    if (b.size <= 0.25) return 'Flitter';
+    return b.eyes >= 0.5 ? 'Soarer' : 'Flier';
+  }
+  if (mode === LOCOMOTION.sessile) return si ? 'Spire' : b.limbLen >= 0.5 ? 'Frond' : 'Anchor';
+  if (b.limbPairs < LIMBS_PRESENT) return si ? 'Lattice' : 'Crawler';
+  if (si) return b.limbLen >= LIMBS_LONG ? 'Spoke' : 'Tripod';
+  if (b.limbLen >= LIMBS_LONG) return 'Strider';
+  if (b.size >= 0.5) return 'Stomper';
+  return b.size <= 0.25 ? 'Skitter' : 'Walker';
+}
 
-// Distinguishing feature, strongest first. Chemistry picks the word set; the feature picks the word.
+// Distinguishing feature, strongest first. Chemistry picks the word set, the feature the row, and the eyes gene the word in it.
 type Feature = 'glow' | 'plated' | 'horned' | 'giant' | 'tiny' | 'plain';
-const ADJ: Record<'si' | 'c', Record<Feature, string>> = {
-  si: { glow: 'Prism', plated: 'Ceramic', horned: 'Shard', giant: 'Monolith', tiny: 'Fleck', plain: 'Glass' },
-  c: { glow: 'Lantern', plated: 'Shell', horned: 'Thorn', giant: 'Great', tiny: 'Mote', plain: 'Soft' },
+const ADJ: Record<Chem, Record<Feature, string[]>> = {
+  si: {
+    glow: ['Prism', 'Beacon', 'Opal'], plated: ['Ceramic', 'Slate', 'Basalt'], horned: ['Shard', 'Spike', 'Quartz'],
+    giant: ['Monolith', 'Colossal', 'Titan'], tiny: ['Fleck', 'Grain', 'Speck'], plain: ['Glass', 'Frost', 'Pale'],
+  },
+  c: {
+    glow: ['Lantern', 'Ember', 'Glimmer'], plated: ['Shell', 'Scale', 'Bark'], horned: ['Thorn', 'Horn', 'Briar'],
+    giant: ['Great', 'Grand', 'Elder'], tiny: ['Mote', 'Wisp', 'Sprig'], plain: ['Soft', 'Dusky', 'Russet'],
+  },
 };
 
 function featureOf(b: BodyGenes): Feature {
@@ -195,9 +222,16 @@ function featureOf(b: BodyGenes): Feature {
 
 /** Deterministic two-word name from traits only, e.g. "Glass Spoke". Centroids that develop() builds radially (si > 0.5) use the silicon word sets. */
 export function nameForm(centroid: FormCentroid, hint: FormHint = {}): string {
-  const chem = centroid.si > 0.5 ? 'si' : 'c';
-  const loco = hint.mode === undefined ? locomotionOf(centroid.body) : locomotionForMode(centroid.body, hint.mode);
-  return `${ADJ[chem][featureOf(centroid.body)]} ${NOUN[chem][loco]}`;
+  const chem: Chem = centroid.si > 0.5 ? 'si' : 'c';
+  const b = centroid.body;
+  const mode: LocomotionMode = hint.mode ?? modeFromGenes(b);
+  const words = ADJ[chem][featureOf(b)];
+  return `${words[Math.min(words.length - 1, Math.floor(b.eyes * words.length))]} ${moveWord(chem, b, mode, hint.amphibious === true)}`;
+}
+
+function modeFromGenes(b: BodyGenes): LocomotionMode {
+  const l = locomotionOf(b);
+  return l === 'swimmer' ? LOCOMOTION.swim : l === 'floater' ? LOCOMOTION.hover : LOCOMOTION.walk;
 }
 
 // ---- Tracker ----

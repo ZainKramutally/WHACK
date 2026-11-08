@@ -8,7 +8,7 @@ import {
   type FormCentroid, type FunctionalType, type GuideAnimal,
 } from '../sim/guide';
 import { Bestiary, type KindSighting } from './bestiary';
-import type { BodyPlan, LocomotionMode } from '../sim/develop';
+import { LOCOMOTION, type BodyPlan, type LocomotionMode } from '../sim/develop';
 import { organismCount, readOrganism } from '../sim/organismLayout';
 import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
@@ -48,7 +48,8 @@ export function assignSpecies(
     let best: Species | undefined;
     let bestD = MATCH_RADIUS;
     for (const sp of ordered) {
-      if (sp.mode !== undefined && sp.mode !== r.mode) continue;
+      const diver = sp.name.endsWith(' Diver') && (r.mode === LOCOMOTION.swim || r.mode === LOCOMOTION.hover);   // an amphibious species takes both movers
+      if (sp.mode !== undefined && sp.mode !== r.mode && !diver) continue;
       const d = centroidDistance(c, sp.centroid);
       if (d <= bestD && (!best || d < bestD)) { best = sp; bestD = d; }
     }

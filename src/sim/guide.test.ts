@@ -40,6 +40,43 @@ describe('clusterForms', () => {
   });
 });
 
+describe('names say how a species moves (owner, #75)', () => {
+  const centroid = (b: Partial<BodyGenes>, c = 0.8, si = 0.1) => clusterForms(group(1, 5, genome(b, c, si)))[0].centroid;
+  const word = (b: Partial<BodyGenes>, mode: LocomotionMode, si = 0.1, amphibious = false) =>
+    nameForm(centroid(b, si > 0.5 ? 0.05 : 0.8, si), { mode, amphibious }).split(' ').pop()!;
+  const SWIM = ['Darter', 'Drifter', 'Paddler', 'Eel', 'Roller', 'Spinner'];
+  const FLY = ['Flier', 'Glider', 'Soarer', 'Flitter', 'Bell', 'Floater'];
+  const WALK = ['Strider', 'Crawler', 'Stomper', 'Skitter', 'Tripod', 'Walker', 'Spoke', 'Lattice'];
+  const SESSILE = ['Anchor', 'Frond', 'Spire'];
+  it('gives each mode a word of that mode', () => {
+    for (const b of [{}, { size: 0.1 }, { size: 0.9 }, { segments: 0.9 }, { limbPairs: 0.6, limbLen: 0.9 }, { buoy: 0.9 }]) {
+      for (const si of [0.1, 0.9]) {
+        expect(SWIM).toContain(word(b, LOCOMOTION.swim, si));
+        expect(FLY).toContain(word(b, LOCOMOTION.hover, si));
+        expect(WALK).toContain(word(b, LOCOMOTION.walk, si));
+        expect(SESSILE).toContain(word(b, LOCOMOTION.sessile, si));
+      }
+    }
+  });
+  it('lets two different bodies of one mode get different words', () => {
+    expect(new Set([{ segments: 0.9 }, { limbPairs: 0.6 }, { buoy: 0.5 }, {}].map((b) => word(b, LOCOMOTION.swim))).size).toBe(4);
+    expect(new Set([{ buoy: 0.9 }, { size: 0.9 }, { size: 0.1 }, { size: 0.4, eyes: 0.9 }].map((b) => word(b, LOCOMOTION.hover))).size).toBe(4);
+    expect(new Set([{ limbPairs: 0.6, limbLen: 0.9 }, { limbPairs: 0.6, size: 0.9 }, { limbPairs: 0.6, size: 0.1 }, {}].map((b) => word(b, LOCOMOTION.walk))).size).toBe(4);
+    expect(word({}, LOCOMOTION.swim, 0.9)).not.toBe(word({ limbPairs: 0.6 }, LOCOMOTION.swim, 0.9));
+  });
+  it('calls a lineage that both swims and flies a Diver, and says so from its members modes', () => {
+    expect(word({}, LOCOMOTION.swim, 0.1, true)).toBe('Diver');
+    const mixed = group(1, 8, carbonWorm).map((a, i) => ({ ...a, mode: i < 4 ? LOCOMOTION.swim : LOCOMOTION.hover }));
+    const cl = clusterForms(mixed)[0];
+    expect(cl.hint.amphibious).toBe(true);
+    expect(nameForm(cl.centroid, cl.hint)).toMatch(/Diver$/);
+    expect(clusterForms(group(1, 8, carbonWorm).map((a) => ({ ...a, mode: LOCOMOTION.swim })))[0].hint.amphibious).toBe(false);
+  });
+  it('varies the first word with the eyes gene within a feature', () => {
+    expect(new Set([0, 0.4, 0.9].map((eyes) => nameForm(centroid({ eyes }), { mode: LOCOMOTION.walk }).split(' ')[0])).size).toBe(3);
+  });
+});
+
 describe('FormTracker discovery (owner ruling 2026-11-08)', () => {
   const opts = { minMembers: 20, persistSec: 20, distinctNames: true };
   it('announces a cluster only after it has held 20 members for 20 s', () => {
@@ -109,19 +146,20 @@ describe('names', () => {
   it('reads locomotion and features from traits', () => {
     const mk = (g: AnimalGenome) => clusterForms([{ id: 1, genome: g }])[0].centroid;
     expect(nameForm(mk(genome({ limbPairs: 0.7, limbLen: 0.8, size: 0.5 }, 0.05, 0.9)))).toBe('Glass Spoke');
-    expect(nameForm(mk(genome({ buoy: 0.9, glow: 0.8 })))).toBe('Lantern Drifter');
+    expect(nameForm(mk(genome({ buoy: 0.9, glow: 0.8 })))).toBe('Lantern Floater');
   });
 
-  it('silicon names use architecture nouns (Spoke, Tripod, Lattice, Roller, Bloom), never carbon\'s', () => {
+  it('silicon names use architecture nouns (Spoke, Tripod, Lattice, Roller, Bell, Spire), never carbon\'s', () => {
     const mk = (b: Partial<AnimalGenome['body']>) => clusterForms([{ id: 1, genome: genome(b, 0.05, 0.9) }])[0].centroid;
     const nm = (b: Partial<AnimalGenome['body']>, mode: LocomotionMode) => nameForm(mk(b), { mode });
     expect(nm({ limbPairs: 0.7, limbLen: 0.8 }, LOCOMOTION.walk)).toMatch(/Spoke$/);
     expect(nm({ limbPairs: 0.7, limbLen: 0.2 }, LOCOMOTION.walk)).toMatch(/Tripod$/);
-    expect(nm({}, LOCOMOTION.sessile)).toMatch(/Lattice$/);
+    expect(nm({}, LOCOMOTION.walk)).toMatch(/Lattice$/);
+    expect(nm({}, LOCOMOTION.sessile)).toMatch(/Spire$/);
     expect(nm({}, LOCOMOTION.swim)).toMatch(/Roller$/);
-    expect(nm({}, LOCOMOTION.hover)).toMatch(/Bloom$/);
+    expect(nm({ buoy: 0.9 }, LOCOMOTION.hover)).toMatch(/Bell$/);
     const carbonNames = (['walk', 'swim', 'hover', 'sessile'] as const).map((m) => nameForm(clusterForms(group(1, 4, carbonWorm))[0].centroid, { mode: LOCOMOTION[m] }).split(' ')[1]);
-    for (const n of carbonNames) expect(['Spoke', 'Tripod', 'Lattice', 'Roller', 'Bloom']).not.toContain(n);
+    for (const n of carbonNames) expect(['Spoke', 'Tripod', 'Lattice', 'Roller', 'Bell', 'Spire']).not.toContain(n);
   });
 
   it('functional type combines role and locomotion', () => {
@@ -137,21 +175,21 @@ describe('real locomotion mode overrides the genes', () => {
     return nameForm(cl.centroid, cl.hint);
   };
 
-  it('never names a cluster of walkers a Swimmer or a Drifter, whatever the genes say', () => {
+  it('never names a cluster of walkers a swimmer or flier word, whatever the genes say', () => {
     // genes that read as floaters (buoy 0.9) and as swimmers (no legs, few segments)
     for (const body of [{ buoy: 0.9 }, { buoy: 0.1, limbPairs: 0, segments: 0.1 }, { buoy: 0.9, glow: 0.8 }]) {
       const name = nameOf(withMode(group(1, 6, genome(body)), LOCOMOTION.walk));
-      expect(name).not.toMatch(/Swimmer|Drifter/);
+      expect(name).not.toMatch(/Darter|Drifter|Paddler|Eel|Diver|Floater|Flier|Glider|Soarer|Flitter/);
     }
     // with legs they are strider / walker; without, they creep
     expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9, limbPairs: 0.7, limbLen: 0.8 })), LOCOMOTION.walk))).toMatch(/Strider$/);
-    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9, limbPairs: 0.7, limbLen: 0.2 })), LOCOMOTION.walk))).toMatch(/Walker$/);
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9, limbPairs: 0.7, limbLen: 0.2 })), LOCOMOTION.walk))).toMatch(/Stomper$/);   // default size 0.5 reads as big
     expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.9 })), LOCOMOTION.walk))).toMatch(/Crawler$/);
   });
 
   it('names swimmers and hoverers by what they do', () => {
-    expect(nameOf(withMode(group(1, 6, genome({ limbPairs: 0.7, limbLen: 0.8 })), LOCOMOTION.swim))).toMatch(/Swimmer$/);
-    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.1 })), LOCOMOTION.hover))).toMatch(/Drifter$/);
+    expect(nameOf(withMode(group(1, 6, genome({ limbPairs: 0.7, limbLen: 0.8 })), LOCOMOTION.swim))).toMatch(/Paddler$/);
+    expect(nameOf(withMode(group(1, 6, genome({ buoy: 0.1 })), LOCOMOTION.hover))).toMatch(/Glider$/);
   });
 
   it('uses the majority mode of the members and breaks ties toward the lower mode', () => {
@@ -172,7 +210,7 @@ describe('real locomotion mode overrides the genes', () => {
 
   it('keeps genes-only behaviour when no mode is given, and the tracker names with the real mode once', () => {
     const plain = group(1, 5, genome({ buoy: 0.9 }));
-    expect(nameOf(plain)).toMatch(/Drifter$/);
+    expect(nameOf(plain)).toMatch(/Floater$/);
     const t = new FormTracker();
     const fired = t.update(withMode(plain, LOCOMOTION.walk));
     expect(fired).toHaveLength(1);
