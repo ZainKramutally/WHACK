@@ -11,6 +11,8 @@
 //  - build({ flat: true }) de-indexes and recomputes normals: true facets for silicon.
 //  - Part weights `aPart` (vec2: rim, cap) per vertex, default (0, 0): rim marks cap and fan rims (margin teeth), cap
 //    marks discs, webs and blades (droop). Per-plant deformation reads them; tops and bases come from the palette key.
+//    The rim weight is baked as rim × (ring column j & 1): the teeth pull alternate rim vertices in, and a ring emitted
+//    twice at the same positions (crease or band change) gives both copies the same weight, so the saw never tears.
 import { BufferAttribute, BufferGeometry } from 'three/webgpu';
 
 export type V3 = [number, number, number];
@@ -143,7 +145,8 @@ export class MeshBuilder {
     const outRow: number[][] = [];
     const emitRow = (i: number, band: number, a: number, b: number) => {
       const out: number[] = [];
-      for (let j = 0; j < P[i].length; j++) out.push(this.vert(P[i][j], normalAt(i, j, a, b), bandKey(band), bandGlow(band), rings[i].sway, rings[i].rim, rings[i].cap));
+      // rim × column parity (see the header): equal on both copies of a doubled ring
+      for (let j = 0; j < P[i].length; j++) out.push(this.vert(P[i][j], normalAt(i, j, a, b), bandKey(band), bandGlow(band), rings[i].sway, (rings[i].rim ?? 0) * (j & 1), rings[i].cap));
       return out;
     };
     for (let i = 0; i < n; i++) {
@@ -307,8 +310,8 @@ export function sheet(b: MeshBuilder, G: V3[][], key: (i: number) => FloraKey, s
       for (let j = 0; j < cols; j++) {
         const na = scl(N[i][j], side), nb = scl(N[i + 1][j], side);
         const pa = part?.(i) ?? NO_PART, pb = part?.(i + 1) ?? NO_PART;
-        A.push(v(add(G[i][j], scl(na, thick)), na, key(i), 0, sway(G[i][j]), pa[0], pa[1]));
-        B.push(v(add(G[i + 1][j], scl(nb, thick)), nb, key(i), 0, sway(G[i + 1][j]), pb[0], pb[1]));
+        A.push(v(add(G[i][j], scl(na, thick)), na, key(i), 0, sway(G[i][j]), pa[0] * (j & 1), pa[1])); // rim × column parity
+        B.push(v(add(G[i + 1][j], scl(nb, thick)), nb, key(i), 0, sway(G[i + 1][j]), pb[0] * (j & 1), pb[1]));
       }
       for (let j = 0; j < cols - 1; j++) {
         if (skip?.(i, j)) continue;

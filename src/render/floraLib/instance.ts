@@ -74,7 +74,7 @@ export function plantLook(list: PlantList, i: number, out: Float32Array, o: numb
   plantTint(list, i, out, o);
   out[o + 3] = lookW(list.glow[i], list.teeth[i]);
 }
-/** aLook.w: a plant's glow 0..1 and margin teeth 0/1 in one float (the material decodes teeth = floor(w / 2)). */
+/** aLook.w: a plant's glow 0..1 and margin teeth 0/1 in one float (the material decodes teeth = w ≥ 1.5, glow = w − 2·teeth). */
 export const lookW = (glow: number, teeth: number): number => Math.min(1, Math.max(0, glow)) + 2 * (teeth ? 1 : 0);
 
 /** Instance colour of plant `i` (linear rgb multiplier on its painted vertex colours). */

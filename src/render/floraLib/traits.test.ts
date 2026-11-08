@@ -82,11 +82,11 @@ describe('plant traits (traits.ts, flora-traits.md §1)', () => {
     expect(toothed(15)).toBeLessThan(0.62);
     expect(toothed(5)).toBeGreaterThan(toothed(25));
     expect(toothed(-20, si)).toBe(0);
-    // the material decodes teeth = floor(w / 2) and glow = w − 2 · teeth
-    for (const g of [0, 0.3, 1]) for (const t of [0, 1]) {
-      const w = lookW(g, t);
-      expect(Math.floor(w / 2)).toBe(t);
-      expect(w - 2 * Math.floor(w / 2)).toBeCloseTo(g, 6);
+    // the material decodes teeth = step(1.5, w) and glow = w − 2 · teeth, with margin for interpolation error
+    for (const g of [0, 0.3, 1]) for (const t of [0, 1]) for (const eps of [-1e-4, 0, 1e-4]) {
+      const w = lookW(g, t) + eps, tt = w >= 1.5 ? 1 : 0;
+      expect(tt).toBe(t);
+      expect(Math.min(1, Math.max(0, w - 2 * tt))).toBeCloseTo(g, 3);
     }
   });
 

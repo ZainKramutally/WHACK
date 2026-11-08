@@ -75,6 +75,32 @@ describe('packed look geometry (aVtx)', () => {
   });
 });
 
+describe('per-vertex deformation weights', () => {
+  it('vertices at the same position carry the same rim (teeth) and cap (droop) weights, so no seam tears (every archetype × LOD)', () => {
+    const torn: string[] = [];
+    let shared = 0, oldScheme = 0;
+    for (const a of floraLibrary().archetypes) for (const [lod, l] of a.lod.entries()) {
+      if (!l.part) continue;
+      const pos = l.geometry.getAttribute('position').array, q = 1e5 / Math.max(1e-3, a.size);
+      const seen = new Map<string, number>();
+      let bad = 0;
+      for (let v = 0; v < pos.length / 3; v++) {
+        const key = `${Math.round(pos[v * 3] * q)},${Math.round(pos[v * 3 + 1] * q)},${Math.round(pos[v * 3 + 2] * q)}`;
+        const w = seen.get(key);
+        if (w === undefined) { seen.set(key, v); continue; }
+        shared++;
+        if (l.part[w * 2] !== l.part[v * 2] || l.part[w * 2 + 1] !== l.part[v * 2 + 1]) bad++;
+        // the old shader parity (vertexIndex & 1) tore doubled rings apart: the scan must see that
+        if (Math.max(l.part[w * 2], l.part[v * 2]) > 0 && (w & 1) !== (v & 1)) oldScheme++;
+      }
+      if (bad) torn.push(`${a.key}/L${lod}: ${bad} split positions`);
+    }
+    expect(shared).toBeGreaterThan(1000); // doubled rings and seams exist, so the scan bites
+    expect(torn).toEqual([]);
+    expect(oldScheme).toBeGreaterThan(0);
+  });
+});
+
 describe('FloraPart.plantsIn', () => {
   it('returns exactly the plants the world drew in a cell, after the spawn clearing, with their drawn instance matrices', () => {
     const app = fakeApp();

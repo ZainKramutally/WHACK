@@ -13,7 +13,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, mix, max, min, normalWorld, positionWorld, positionLocal, attribute, uniform, cameraPosition,
   sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard, step,
-  positionGeometry, normalGeometry, normalLocal, vertexIndex,
+  positionGeometry, normalGeometry, normalLocal,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
 import { LOOK_PALETTES, lookPalette, type LookKey, type LookPalette } from './palette';
@@ -165,7 +165,8 @@ const plantDeform = (name: string, teeth?: { look: string; rim: string }, capAtt
   const y = max(p.y, 0), y2 = y.mul(y);
   const r2 = p.x.mul(p.x).add(p.z.mul(p.z));
   // margin teeth (T6): on a toothed plant, every other rim vertex is pulled TEETH_DEPTH toward the stem, a saw edge
-  const jag = teeth ? lookTeeth(attribute(teeth.look, 'vec4')).mul(attr1(teeth.rim)).mul(mod(float(vertexIndex), 2)).mul(TEETH_DEPTH) : float(0);
+  // (the rim weight is baked × column parity on the CPU, mesh.ts, so a doubled ring's copies move together)
+  const jag = teeth ? lookTeeth(attribute(teeth.look, 'vec4')).mul(attr1(teeth.rim)).mul(TEETH_DEPTH) : float(0);
   const k = c.mul(y2).add(1).mul(float(1).sub(jag));
   const a = t.mul(y), ca = cos(a), sa = sin(a);
   const xk = p.x.mul(k), zk = p.z.mul(k);
@@ -207,8 +208,9 @@ const TEETH_DEPTH = 0.18;
 /** Share of the droop a non-cap vertex takes (caps take all of it) ([art], T7 by cap weight). */
 const DROOP_BODY = 0.35;
 /** lookAttr packs a plant's glow 0..1 and its margin teeth 0/1 into w = glow + 2 × teeth (floraLib/instance.ts plantLook). */
-const lookTeeth = (look: N): N => floor(look.w.mul(0.5));
-const lookGlow = (look: N): N => look.w.sub(lookTeeth(look).mul(2));
+// decoded with a margin (w ≤ 1 smooth, w ≥ 2 toothed), so an interpolated 1.9999 never reads as smooth with glow ≈ 2
+const lookTeeth = (look: N): N => step(1.5, look.w);
+const lookGlow = (look: N): N => clamp(look.w.sub(lookTeeth(look).mul(2)), 0, 1);
 
 /** A plant's own glow and tint (lookAttr: vec4(r, g, b, glow + 2·teeth)) on colours painted by floraLib paintSites: its glow sites
  * (signed weight `glowW`: + glow, − glowDeep) turn toward their glow colour by min(1, 1.5 g), as paint() does at that glow,

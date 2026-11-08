@@ -53,7 +53,7 @@ export function ribFan(rng: Rng, variant: number, dense = false) {
     ribPhis.forEach((phi, k) => {
       const pts: V3[] = [];
       for (let i = 0; i <= 12; i++) pts.push(fanPt(phi, (i / 12) * ribLen[k]));
-      sweep(b, pts, { segs: 6, radius: (s) => rT * 0.75 * (1 - 0.65 * s), key: (s) => keyAt(s * ribLen[k]), sway: (_s, p) => swayY(p[1]), cap: (s) => s, rim: (s) => Math.max(0, (s - 0.8) / 0.2) });
+      sweep(b, pts, { segs: 6, radius: (s) => rT * 0.75 * (1 - 0.65 * s), key: (s) => keyAt(s * ribLen[k]), sway: (_s, p) => swayY(p[1]), cap: (s) => s }); // no rim: teeth belong to the web's edge row, not the 6-sided rib tips
       const tip = pts[12];
       bead(b, tip, norm(sub(tip, pts[11])), rT * 0.85, 6, 3, k % 3 === 1 ? 'glow' : 'maroon', k % 3 === 1 ? 1 : 0, swayY(tip[1]));
     });
