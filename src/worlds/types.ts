@@ -94,6 +94,23 @@ export interface LivingBand {
   blockingLimitId?: string;
 }
 
+/** One kind of rock in a world's crust (docs/features/crust.md). Colours are art-layer decisions, keyed by `id`. */
+export interface MineralDef extends Sourced {
+  id: string;                                    // e.g. 'basalt', 'granite', 'silicide', 'nitride', 'waterIce'
+  label: string;                                 // sentence case, e.g. 'Basalt'
+  description: string;                           // one plain sentence for the ground inspect card
+  share: [number, number];                       // bounds on its share of the patch; the realised share is sampled from the world seed
+  elevation: number;                             // 0..1 by height rank in the patch: 0 = lowest ground, 1 = highest
+  supply: { c: number; si: number; o: number };  // nutrient multiplier per cell (1 = the world's base life.ledger supply); the patch mean is renormalised to base
+  oxidises: boolean;                             // reacts with free oxygen (iron-bearing rock rusts; silicide turns to silica)
+}
+
+export interface CrustConfig extends Sourced {
+  minerals: MineralDef[];                        // at least one; ids unique
+  patchCells: number;                            // typical mineral patch size, in grid cells (noise scale of the map)
+  rustOxygen: number;                            // oxygen % at which oxidising rock is fully oxidised at the surface
+}
+
 export interface TerrainConfig extends Sourced {
   patchSize: number;                  // metres
   base: Record<string, number>;       // fBm amplitude, octaves, warp…
@@ -101,6 +118,7 @@ export interface TerrainConfig extends Sourced {
   heatSolventSpan: number;            // °C mapped onto heatSolvent 0..1 (0.5 = solvent freezing point)
   machines: { id: 'M2' | 'M3' | 'M4' | 'M5' | 'M6'; rate: number; params: Record<string, number> }[];
   relics?: { kind: 'iceArch' | 'iceSpire'; count: number; params: Record<string, number> }[];   // silicon only; seeded
+  crust?: CrustConfig;                // seeded mineral map (src/gen/crust.ts); becomes required once both world configs carry it
 }
 
 import type { FlightParams } from '../sim/flight';
