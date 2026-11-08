@@ -64,7 +64,7 @@ describe('format', () => {
     expect(formatValue(21, '%')).toBe('21.0%');
     expect(formatValue(0.05, '× Earth')).toBe('0.050 × Earth');
   });
-  it('formats years', () => expect(formatYears(4.5e9)).toBe('4.50 billion years'));
+  it('formats years', () => expect(formatYears(4.5e9)).toBe('4.500 billion years'));
 });
 
 describe('pinTraceOxygen', () => {

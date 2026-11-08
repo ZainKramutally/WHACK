@@ -32,6 +32,7 @@ export interface BuildConfig extends Sourced {
   lifeSec: number;              // when founders appear
   ecologySec: number;           // ecology-seconds reached by build end (~340 on carbon); the worker's fixed tick schedule hits it
   yearsShown: number;           // illustrative years-counter end value
+  liveYearsPerEcologySec: number; // illustrative: years the counter adds per ecology-second after the build, so it keeps rising
   captions: { start: string; life: string };
 }
 

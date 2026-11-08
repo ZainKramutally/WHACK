@@ -322,7 +322,7 @@ export class WorldSimulation {
       worldId: w.id,
       timeSec: this.elapsed,
       buildProgress: progress,
-      yearsShown: b.yearsShown * smoothstep(0, 1, progress),
+      yearsShown: this.yearsShown(progress),
       stats,
       population: { producers: summary.producers, consumers: summary.consumers },
       generation: summary.generation,
@@ -335,6 +335,13 @@ export class WorldSimulation {
       bands,
       timeFactor: this.timeFactor,
     };
+  }
+
+  /** Illustrative years counter: eases to the build's end value, then keeps rising per ecology-second (ticks, never wall clock). */
+  private yearsShown(progress: number): number {
+    const b = this.world.build;
+    if (!this.complete) return b.yearsShown * smoothstep(0, 1, progress);
+    return b.yearsShown + Math.max(0, this.ticks - this.buildTicks) / TICK_HZ * b.liveYearsPerEcologySec;
   }
 
   // ---- ticking ------------------------------------------------------------------------------------------

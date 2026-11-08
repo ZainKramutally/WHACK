@@ -130,6 +130,7 @@ export const carbon: WorldConfig = {
     lifeSec: 9,
     ecologySec: 340,
     yearsShown: 4.5e9,
+    liveYearsPerEcologySec: 1e6, // one million years per ecology-second after the build: the counter keeps moving (illustrative, assumption: true)
     captions: { start: 'A carbon world forms', life: 'Life stirs in the shallows' },
     why: 'A fast build for the demo: the timings are showtime targets, and the years counter is illustrative.',
     sources: [],

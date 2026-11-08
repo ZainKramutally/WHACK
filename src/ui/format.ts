@@ -27,7 +27,7 @@ export const TRACE_O2_PCT = 0.01;
 
 /** Illustrative years-since-formation counter. */
 export function formatYears(years: number): string {
-  if (years >= 1e9) return `${(years / 1e9).toFixed(2)} billion years`;
+  if (years >= 1e9) return `${(years / 1e9).toFixed(3)} billion years`;
   if (years >= 1e6) return `${(years / 1e6).toFixed(0)} million years`;
   return `${Math.round(years).toLocaleString('en-GB')} years`;
 }

@@ -144,6 +144,7 @@ export const silicon: WorldConfig = {
     lifeSec: 9,
     ecologySec: 340,
     yearsShown: 6e9,
+    liveYearsPerEcologySec: 2.4e6, // carbon's 1e6 divided by silicon's pace ratio (about 0.42; a fixed constant, not read from config): slow chemistry means each generation spans more years (illustrative, assumption: true)
     captions: { start: 'A silicon world forms (speculative)', life: 'Something stirs in the liquid nitrogen' },
     why: 'A fast build for the demo: the timings are showtime targets, and the years counter is illustrative.',
     sources: [],

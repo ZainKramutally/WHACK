@@ -148,6 +148,22 @@ describe('WorldSimulation', () => {
     expect(end.yearsShown).toBeCloseTo(carbon.build.yearsShown, 0);
   });
 
+  it('keeps the years counter rising after the build, faster at higher time factors', () => {
+    const mk = () => new WorldSimulation(carbon, EARTH, { life: new FixedLife({ producerBiomass: 0, consumerBiomass: 0, deadBiomass: 0 }) });
+    const sim = mk();
+    sim.advance(20);
+    expect(sim.snapshot().yearsShown).toBeCloseTo(carbon.build.yearsShown, 0);
+    const t0 = sim.tickCount;
+    for (let i = 0; i < 100; i++) sim.advance(0.1);
+    const y1 = sim.snapshot().yearsShown;
+    expect(y1 - carbon.build.yearsShown).toBeCloseTo((sim.tickCount - t0) / 20 * carbon.build.liveYearsPerEcologySec, 0);
+    const fast = mk();
+    fast.advance(20);
+    fast.setTimeFactor(4);
+    for (let i = 0; i < 100; i++) fast.advance(0.1);
+    expect(fast.snapshot().yearsShown - carbon.build.yearsShown).toBeGreaterThan(2 * (y1 - carbon.build.yearsShown));
+  });
+
   it('moves sliders in a red zone at start and reports each, in order', () => {
     const si = new WorldSimulation(silicon, EARTH);
     expect(si.drainEvents().map((e) => (e.type === 'control:blocked' ? e.controlId : e.type))).toEqual(['temperature', 'nitrogen', 'oxygen']);

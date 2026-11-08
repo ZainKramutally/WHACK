@@ -41,7 +41,7 @@ function base(id: 'carbon' | 'silicon'): Omit<WorldConfig, 'solvent' | 'limits' 
     stats: [],
     facts: [],
     features: { organism: feature, producer: feature, sea: feature, ground: feature, sky: feature },
-    build: { ...sourced, durationSec: 20, spawnSec: 6, seasSec: [2, 8], lifeSec: 10, ecologySec: 340, yearsShown: 4.5e9, captions: { start: '', life: '' } },
+    build: { ...sourced, durationSec: 20, spawnSec: 6, seasSec: [2, 8], lifeSec: 10, ecologySec: 340, yearsShown: 4.5e9, liveYearsPerEcologySec: 1e6, captions: { start: '', life: '' } },
     feedbacks: [],
     life: {
       rules: {} as LifeRules,
