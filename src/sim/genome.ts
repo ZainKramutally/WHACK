@@ -45,7 +45,8 @@ export function mutate(
   sigma: number = CONSTANTS.SIGMA.value,
 ): AnimalGenome {
   const body = {} as BodyGenes;
-  for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * gaussian(rng));
+  const sizeBoost = climate.mutation.sizeBoost ?? 1;
+  for (const g of BODY_GENES) body[g] = clamp01(parent.body[g] + sigma * (g === 'size' ? sizeBoost : 1) * gaussian(rng));
   return {
     body,
     climate: mutateClimate(parent.climate, climate, rng),

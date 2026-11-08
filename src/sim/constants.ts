@@ -34,7 +34,7 @@ export const CONSTANTS = deepFreeze({
   /** R7: shelter strength (catchability and heat buffering). */
   REFUGE: c(0.8, 'game'),
   /** R8: mutation σ, all genes, every birth ("a stressed young world"). */
-  SIGMA: c(0.012, 'game'),
+  SIGMA: c(0.015, 'game'),
   /** R9: temperature–size magnitude (Atkinson 1994): adult scale × (1 + TSR·(1 − 2·heat)). */
   TSR: c(0.6, 'game'),
   /** R10: flight/hover scale. Swept ×0.25–×4 (issue #19; 8 seeds + demo seed per world at ×0.5/×1/×2, 3 + demo at the rest).
