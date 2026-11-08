@@ -103,30 +103,46 @@ const warpBase = (P: TerrainParams, x: N, z: N): { qx: N; qz: N; bn: N; base: N 
   return { qx, qz, bn, base: bn.mul(0.5 * P.A) };
 };
 
-/** Mirrors crustScore + crustWeights: weights per mineral in ELEVATION order (length = number of minerals, at most 4; sum 1). */
+/**
+ * Mirrors crustScore + crustWeights: weights per mineral in ELEVATION order (length = number of minerals, at most 8; sum 1).
+ * Only present minerals get a smoothstep band; absent ones are the constant 0 (no subgraph), so cost grows with present minerals.
+ */
 const crustW = (P: TerrainParams, bn: N, x: N, z: N): N[] => {
-  const { thr, w, nf, k } = P.crust;
+  const { thr, w, nf, k, bands } = P.crust;
   const nw = CRUST_NOISE_WEIGHT;
+  const out: N[] = Array.from({ length: k }, () => F(0));
+  if (!bands.length) return out;
   const score = bn.mul(0.5 * (1 - nw)).add(0.5 * (1 - nw)).add(vnoise(x.mul(nf), z.mul(nf), U(P.sCrust)).mul(nw));
-  const c: N[] = [F(1)];
-  for (let i = 0; i < k - 1; i++) c.push(smoothstep(thr[i] - w, thr[i] + w, score));
-  c.push(F(0));
-  return c.slice(0, k).map((ci, j) => ci.sub(c[j + 1]));
+  let prev: N = F(1);
+  bands.forEach((e, i) => {
+    const next: N = i < thr.length ? smoothstep(thr[i] - w, thr[i] + w, score) : F(0);
+    out[e] = prev.sub(next);
+    prev = next;
+  });
+  return out;
 };
 
 /**
- * Crust weights node for the ground look: (x, z) → vec4 of mineral weights in `crust.minerals` (config) order, unused = 0, sum 1.
- * CPU twin: terrain.crustWeights(x, z). Evaluates the base relief itself (3 fBm); in a fragment shader prefer evaluating at the vertex and passing it on.
+ * Crust weights for the ground look: (x, z) → two vec4s holding up to 8 mineral weights in `crust.minerals` (config) order
+ * (component i of the pair = mineral i; unused or absent = 0; sum 1). Use crustComponents() to unpack. The second vec4 is a constant
+ * zero when the world has 4 minerals or fewer. CPU twin: terrain.crustWeights(x, z). Evaluates the base relief itself (3 fBm);
+ * in a fragment shader prefer evaluating at the vertex and passing it on.
  */
-export function crustWeightsNode(terrain: Terrain): (x: N, z: N) => N {
+export function crustWeightsNode(terrain: Terrain): (x: N, z: N) => [N, N] {
   const P = terrain.params;
-  return Fn(([x, z]: N[]) => {
+  return (x: N, z: N) => {
     const w = crustW(P, warpBase(P, x, z).bn, x, z);
-    const out: N[] = [F(0), F(0), F(0), F(0)];
+    const out: N[] = Array.from({ length: 8 }, () => F(0));
     P.crust.order.forEach((ci, j) => { out[ci] = w[j]; });
-    return vec4(out[0], out[1], out[2], out[3]);
-  }) as (x: N, z: N) => N;
+    return [vec4(out[0], out[1], out[2], out[3]), vec4(out[4], out[5], out[6], out[7])];
+  };
 }
+
+/** The first `count` weight components (config order) of a crustWeightsNode pair. */
+const crustComponents = (cw: [N, N], count: number): N[] => {
+  const all = [cw[0].x, cw[0].y, cw[0].z, cw[0].w, cw[1].x, cw[1].y, cw[1].z, cw[1].w];
+  return all.slice(0, count);
+};
 
 /** Height node (metres) at world (x, z). Mirrors heightCore. */
 export function createHeightNode(terrain: Terrain, u: TerrainUniforms): (x: N, z: N) => N {
@@ -303,7 +319,7 @@ export function updateGround(inputs: VisualInputs, dt: number): void {
  * only below the solvent's freezing point (heatSolvent < 0.5), heat bleaches, land life darkens the low flats, and the
  * contrast grows with rise so freshly settled ground starts even.
  */
-function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N {
+function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: [N, N]): N {
   const P = terrain.params;
   const minerals = terrain.config.crust?.minerals ?? [];   // cw: vertex-stage crust weights, in config order
   const halfA = 0.5 * P.A;
@@ -345,11 +361,11 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N
     // crust: mineral colours blended by the shared weights, rusted by the ratchet, keeping the ramp's light/shade structure
     if (minerals.length) {
       const col = (hex: number): N => { const k = new THREE.Color(hex); return vec3(k.r, k.g, k.b); };
-      const comp = [cw.x, cw.y, cw.z, cw.w];
+      const comp = crustComponents(cw, minerals.length);
       const hem = step(0.8, fract(h.div(bandH * 0.5).add(fine.mul(0.25))));   // ironstone's thin hematite bands: two per terrace
       let mc: N = vec3(0, 0, 0);
       let wi: N = float(0);   // weight of the minerals drawn with the Red World ramp
-      minerals.slice(0, 4).forEach((m, i) => {
+      minerals.forEach((m, i) => {
         if (RED_WORLD_GROUND_IDS.includes(m.id)) { wi = wi.add(comp[i]); return; }
         mc = mc.add(mix(col(mineralColour(m.id, 0)), col(mineralColour(m.id, 1)), GROUND.rust).mul(comp[i]));
       });
@@ -371,9 +387,9 @@ function groundField(terrain: Terrain, u: TerrainUniforms, h: N, n: N, cw: N): N
     const m7 = P.machines.M7;
     if (m7 && P.active.M7 && minerals.length && (m7.jointDark ?? 0) > 0) {
       const ids = terrain.config.machines.find((m) => m.id === 'M7')?.minerals ?? [];
-      const comp7 = [cw.x, cw.y, cw.z, cw.w];
+      const comp7 = crustComponents(cw, minerals.length);
       let bw: N = float(0);
-      minerals.slice(0, 4).forEach((m, i) => { if (ids.includes(m.id)) bw = bw.add(comp7[i]); });
+      minerals.forEach((m, i) => { if (ids.includes(m.id)) bw = bw.add(comp7[i]); });
       const hx = hexCell(x.div(m7.size), z.div(m7.size));
       const w = m7.jointWidth ?? 0.04;
       const joint = smoothstep(0.5 - w, 0.5 - w * 0.4, hx.hd).mul(flat.mul(0.5).add(0.5));
@@ -431,7 +447,7 @@ export function createTerrainMesh(terrain: Terrain, uniforms: TerrainUniforms, o
   const hD = height(x, z.sub(eps)), hU = height(x, z.add(eps));
   const nLocal = normalize(vec3(hL.sub(hR), 2 * eps, hD.sub(hU)));
 
-  const mat = worldMaterial({ kind: 'ground', colorNode: groundField(terrain, uniforms, vertexStage(h), vertexStage(nLocal), vertexStage(crustWeightsNode(terrain)(x, z))) });
+  const mat = worldMaterial({ kind: 'ground', colorNode: groundField(terrain, uniforms, vertexStage(h), vertexStage(nLocal), (([a, b]) => [vertexStage(a), terrain.params.crust.k > 4 ? vertexStage(b) : b] as [N, N])(crustWeightsNode(terrain)(x, z))) });
   mat.positionNode = vec3(x, h, z);
   mat.normalNode = transformNormalToView(vertexStage(nLocal));
 
