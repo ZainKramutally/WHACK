@@ -1383,11 +1383,16 @@ export function createFauna(app: App): FaunaPart {
     const sx = e.x, sz = e.z;
     if (need < 0) { e.nTx = 0; e.nTz = 0; e.nOk = true; e.nSX = NaN; }
     else {
-      const dx = sx - e.nSX, dz = sz - e.nSZ;
-      if (!(dx * dx + dz * dz <= G_MOVE * G_MOVE) || e.nStamp !== terrainStamp || Math.abs(fSea - e.nSea) > 0.05
+      const gx = sx - e.gX, gz = sz - e.gZ, dx = sx - e.nSX, dz = sz - e.nSZ;
+      if (Math.abs(e.nx) + Math.abs(e.nz) < 1e-3 && e.gStamp === terrainStamp && gx * gx + gz * gz <= G_MOVE * G_MOVE
+        && fSea - (e.gH + e.gSx * gx + e.gSz * gz) >= need) {
+        // fast path: not nudged and the cached ground plane under it is deep enough (no height samples); re-solve when it isn't
+        e.nTx = 0; e.nTz = 0; e.nOk = true; e.nSX = NaN;
+      } else if (!(dx * dx + dz * dz <= G_MOVE * G_MOVE) || e.nStamp !== terrainStamp || Math.abs(fSea - e.nSea) > 0.05
         || Math.abs(need - e.nNeed) > 0.1 * e.nNeed + 0.02) {
-        e.nOk = nudgeToWater(sx, sz, fSea, need, fHeight, fCell, NUDGE);
-        e.nTx = NUDGE.dx; e.nTz = NUDGE.dz;
+        // hysteresis: a nudge that still lands in deep enough water is kept (one sample), else solve again
+        if ((e.nTx !== 0 || e.nTz !== 0) && fSea - fHeight(sx + e.nTx, sz + e.nTz) >= need) e.nOk = true;
+        else { e.nOk = nudgeToWater(sx, sz, fSea, need, fHeight, fCell, NUDGE); e.nTx = NUDGE.dx; e.nTz = NUDGE.dz; }
         e.nSX = sx; e.nSZ = sz; e.nStamp = terrainStamp; e.nSea = fSea; e.nNeed = need;
       }
     }
