@@ -99,8 +99,24 @@ interface Primed {
 
 export function createGenerate(app: App): Generate {
   const scene = app.scene, camera = app.camera;
-  /** The latest finished plan per world, so toggling carbon/silicon reuses what is already built and compiled. */
-  const primedBy = new Map<WorldId, Primed>();
+  /** The latest finished plan per world + rock chip, so toggling carbon/silicon or a chip reuses what is already built and compiled.
+   *  Map order is recency (oldest first); at most MAX_SLOTS are kept. */
+  const MAX_SLOTS = 6;
+  const primedBy = new Map<string, Primed>();
+  let running: Primed | null = null;   // the plan the running transition draws: never evicted
+  const slotOf = (worldId: WorldId, crust?: string) => `${worldId}|${crust ?? ''}`;
+  const touch = (slot: string) => { const p = primedBy.get(slot); if (p) { primedBy.delete(slot); primedBy.set(slot, p); } };
+  const store = (slot: string, p: Primed) => {
+    const old = primedBy.get(slot);
+    if (old && old !== p) old.dispose();
+    primedBy.delete(slot);
+    primedBy.set(slot, p);
+    for (const [k, q] of primedBy) {
+      if (primedBy.size <= MAX_SLOTS) break;
+      if (q === running || k === slot) continue;
+      q.dispose(); primedBy.delete(k);
+    }
+  };
   let job: { key: string; it: Generator<void, GenPlan>; timer: number; inp: PlanInput; args: PrimeArgs } | null = null;
   let pending: PrimeArgs | null = null;
   let debounce = 0;
@@ -164,8 +180,7 @@ export function createGenerate(app: App): Generate {
       // A plan that finishes after Generate was clicked (the sliders glided, so an earlier job was still running) is stale:
       // replacing `primed` now would dispose the group the transition is drawing and cut the whole tide in one frame.
       if (active) { p.dispose(); return; }
-      primedBy.get(a.worldId)?.dispose();
-      primedBy.set(a.worldId, p);
+      store(slotOf(a.worldId, a.crust), p);
     } catch (e) {
       console.warn('generate: prime failed, the plain fade will be used', e);
     }
@@ -270,7 +285,9 @@ export function createGenerate(app: App): Generate {
     if (!('relics' in terrain) || active) return;   // flat fallback: nothing to land on; or the transition is running
     const a: PrimeArgs = { worldId, terrain, seed, requested, handle, crust };
     const key = keyOf(a);
-    if (primedBy.get(worldId)?.key === key || job?.key === key) return;
+    const slot = slotOf(worldId, crust);
+    if (primedBy.get(slot)?.key === key) { touch(slot); return; }
+    if (job?.key === key) return;
     window.clearTimeout(debounce);
     debounce = window.setTimeout(() => {
       if (job) { pending = a; return; }
@@ -286,7 +303,8 @@ export function createGenerate(app: App): Generate {
     const a: PrimeArgs = { worldId: o.worldId, terrain: o.terrain, seed: o.seed, requested: o.requested, handle: o.handle, crust: o.crust };
     // A plan that is missing or stale (click before it finished, or the window resized): finish it now, synchronously.
     const key = keyOf(a);
-    const cached = primedBy.get(o.worldId);
+    const slot = slotOf(o.worldId, o.crust);
+    const cached = primedBy.get(slot);
     let p = cached && cached.key === key ? cached : null;
     if (!p && 'relics' in o.terrain) {
       try {
@@ -296,8 +314,7 @@ export function createGenerate(app: App): Generate {
         while (!r.done) r = it.next();
         p = build(a, key, r.value, inp);
         scene.add(p.group);
-        cached?.dispose();
-        primedBy.set(o.worldId, p);
+        store(slot, p);
       } catch (e) {
         console.warn('generate: plan failed, using the plain fade', e);
       }
@@ -321,7 +338,8 @@ export function createGenerate(app: App): Generate {
   function run(o: StartOptions, p: Primed, world: ReturnType<typeof worldFor>, W: number, H: number) {
     active?.stop();
     // Only this world runs from here on: free the other worlds' primed plans.
-    for (const [id, other] of primedBy) if (id !== o.worldId) { other.dispose(); primedBy.delete(id); }
+    for (const [id, other] of primedBy) if (other !== p) { other.dispose(); primedBy.delete(id); }
+    running = p;
     const plan = p.plan, U = p.U, tu = p.tu;
     const dur = world.build.durationSec, spawnSec = world.build.spawnSec;
     const handle = o.handle;
@@ -519,6 +537,7 @@ export function createGenerate(app: App): Generate {
       if (!domGone) { domGone = true; handle.dispose(); }
       camera.fov = baseFov; camera.clearViewOffset(); camera.updateProjectionMatrix();
       active = null;
+      if (running === p) running = null;
     }
     active = { stop };
   }
