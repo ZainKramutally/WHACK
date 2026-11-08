@@ -4,22 +4,27 @@
 // position (floraLib/place.ts). Drawn as one InstancedMesh per archetype × LOD × value step (floraLib/buckets.ts), not
 // chunked and not frustum-culled: from inside the patch every chunk is partly in view, so chunks only multiplied draw
 // calls. Rebuilt a few times a second during the build, about once a second live, and when the camera has moved.
+// Every plant is its own (floraLib/vary.ts): per-instance girth and lean in its matrix, crown, twist, droop and bend in
+// the `aPlant` attribute the flora material bends it by, and a tint in instanceColor. All static buffers, written per
+// rebuild, so the extra look costs no draw call and nothing per frame.
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
 import { buildFloraLibrary, paint, type Archetype, type FloraPalette } from './floraLib';
 import { worldMaterial } from './material';
 import { LOOK_PALETTES, lookKind } from './palette';
-import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing } from './floraLib/place';
+import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
 import { cellAt, type Vec3 } from './layout';
+import { plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
 const LIB_SEED = 0x5eed_f10a;
+/** Per-instance shape terms (floraLib/instance.ts plantShape) the flora material bends each plant by. */
+const PLANT_ATTR = 'aPlant';
 const REBUILD_EVERY = 0.25; // s while the world builds
 const REBUILD_EVERY_LIVE = 1; // s afterwards: biomass drifts slowly
 const CAMERA_MOVE = 6; // m of camera travel that forces a rebuild (foreground density and LOD follow the camera)
-const UP = new THREE.Vector3(0, 1, 0);
 /** Radius (m) of the spawn clearing: ground cover only, so the spawn frame opens onto groves and giants. */
 const CLEARING_R = 25;
 /** Fallback until setClearing is wired: latch the clearing where the camera looks once the character has spawned. */
@@ -37,6 +42,9 @@ export interface FloraPart {
   dropped: number;
   /** Keep a disc free of mid and giant plants (the spawn point; radius default 25 m). null: back to the fallback. */
   setClearing(x: number, z: number, r?: number): void;
+  /** The plants drawn at the last rebuild (read-only): base x/y/z, size h, yaw, cell and slot, and each one's look
+   * (vary.ts fields). Valid until the next update. */
+  placed(): Readonly<PlantList>;
   /** Nearest drawn plant under a ray (world space, normalised direction): its flora cell, distance and bounds. Read-only. */
   hit(origin: Vec3, dir: Vec3): { cell: number; dist: number; x: number; y: number; z: number; height: number; radius: number } | null;
   dispose(): void;
@@ -55,6 +63,9 @@ interface Bucket {
   mesh: THREE.InstancedMesh;
   /** Fixed instance capacity (allocated once). */
   cap: number;
+  /** Per-instance shape terms (vec4) on the bucket's own geometry, and its instance colours. */
+  shape: THREE.InstancedBufferAttribute;
+  tint: THREE.InstancedBufferAttribute;
 }
 
 export function createFlora(app: App): FloraPart {
@@ -92,16 +103,23 @@ export function createFlora(app: App): FloraPart {
   // (and counted). A bucket is one draw call while it has plants; it is never culled (it spans the camera's surroundings).
   // Instance matrices keep the default static usage: in three r187 a DynamicDraw attribute is re-uploaded whole on every
   // render (Attributes.update), while a static one uploads only after needsUpdate, and then only its update range.
+  // The per-plant look buffers follow the same rule. With aPlant and instanceColor a bucket binds 8 vertex buffers
+  // (position, normal, aSway, color, aGlow, aPlant, the matrix and the colour): WebGPU's default limit, and the most
+  // three r187 shares one build across meshes with (Instance.js canReferenceInstanceData). Add none without removing one.
   const buckets = new Map<number, Bucket>();
   for (const d of bucketDefs()) {
     const L = lookOf(d.arch, d.lod, d.dark);
+    const shape = new THREE.InstancedBufferAttribute(new Float32Array(d.cap * 4), 4);
+    L.geometry.setAttribute(PLANT_ATTR, shape); // each bucket has its own look geometry (lookOf), so this is its own
     const mesh = new THREE.InstancedMesh(L.geometry, materialFor(d.role, d.lod), d.cap);
+    const tint = new THREE.InstancedBufferAttribute(new Float32Array(d.cap * 3).fill(1), 3);
+    mesh.instanceColor = tint;
     mesh.count = 0;
     mesh.visible = false;
     mesh.frustumCulled = false;
     mesh.name = `${L.arch.key}/L${d.lod}${d.dark ? 'd' : ''}`;
     group.add(mesh);
-    buckets.set(d.id, { mesh, cap: d.cap });
+    buckets.set(d.id, { mesh, cap: d.cap, shape, tint });
   }
 
   // Warm-up: a carbon and a silicon mesh per material, a single invisible-sized instance far below ground, so
@@ -114,8 +132,10 @@ export function createFlora(app: App): FloraPart {
     L.painted = { pal: PALETTES[chem], glow: 0 };
     const g = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(L.geometry.attributes)) g.setAttribute(name, attr);
+    g.setAttribute(PLANT_ATTR, new THREE.InstancedBufferAttribute(new Float32Array(4), 4)); // its own: native shape
     g.setIndex(L.geometry.index);
     const w = new THREE.InstancedMesh(g, mat, 1);
+    w.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array([1, 1, 1]), 3); // same pipeline as the buckets
     w.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0));
     w.frustumCulled = false;
     group.add(w);
@@ -131,7 +151,7 @@ export function createFlora(app: App): FloraPart {
   const counts = new Int32Array(BUCKET_IDS);
   const fill = new Int32Array(counts.length);
   const lookGlow = new Float32Array(BUCKET_IDS);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), qt = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), nrm = new THREE.Vector3();
+  const m4 = new THREE.Matrix4();
   let lastBuf: Float32Array | null = null, lastRise = -1, lastWorld = '', lastAt = -1, lastPatch = 0;
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
   let clearing: Clearing | null = null, clearingSet = false, clearingDirty = false;
@@ -145,6 +165,7 @@ export function createFlora(app: App): FloraPart {
     setClearing(x, z, r = CLEARING_R) {
       clearing = { x, z, r }; clearingSet = true; clearingDirty = true;
     },
+    placed: () => list,
     hit(origin, dir) {
       const k = group.scale.y; // the vertical stretch that keeps bases on the rising terrain between rebuilds
       const h = rayPlants(list, radiusPerHeight, origin, dir, lastPatch * 1.5, 0.03, k);
@@ -153,7 +174,7 @@ export function createFlora(app: App): FloraPart {
       const cell = cellAt(list.x[i], list.z[i], lastPatch);
       if (cell < 0) return null;
       // bounds from the ground at the plant's centre to its drawn top (the base is sunk 3% plus its slope sink)
-      return { cell, dist: h.dist, x: list.x[i], y: list.y[i] * k, z: list.z[i], height: (0.97 * list.h[i] - list.sink[i]) * k, radius: list.h[i] * radiusPerHeight[list.arch[i]] };
+      return { cell, dist: h.dist, x: list.x[i], y: list.y[i] * k, z: list.z[i], height: (0.97 * list.h[i] - list.sink[i]) * k, radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]) };
     },
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
@@ -207,31 +228,27 @@ export function createFlora(app: App): FloraPart {
         b.mesh.visible = true;
         tris += counts[id] * L.arch.lod[L.lod].triangles;
       }
-      const arr = new Map<number, Float32Array>();
       for (let i = 0; i < list.n; i++) {
         const id = lookIds[i];
         const b = buckets.get(id);
         if (!b || fill[id] >= b.cap) continue;
         const k = fill[id]++;
         const a = lib.archetypes[list.arch[i]];
-        const s = list.h[i] / a.size;
-        q.setFromAxisAngle(UP, list.yaw[i]);
-        // place.ts tilts ground cover onto the drawn slope and sinks every base until its contact ring meets the ground
-        if (list.gx[i] || list.gz[i]) q.premultiply(qt.setFromUnitVectors(UP, nrm.set(-list.gx[i], 1, -list.gz[i]).normalize()));
-        p.set(list.x[i], list.y[i] - 0.03 * list.h[i] - list.sink[i], list.z[i]);
-        sc.set(s, s, s);
-        m4.compose(p, q, sc);
-        let ma = arr.get(id);
-        if (!ma) { ma = b.mesh.instanceMatrix.array as Float32Array; arr.set(id, ma); }
-        m4.toArray(ma, k * 16);
+        // its size, girth, yaw, slope tilt and lean, and the sink that puts its contact ring on the ground (place.ts);
+        // its crown, twist, droop and bend for the material; its tint
+        plantMatrix(list, i, a, m4).toArray(b.mesh.instanceMatrix.array as Float32Array, k * 16);
+        plantShape(list, i, a, b.shape.array as Float32Array, k * 4);
+        plantTint(list, i, b.tint.array as Float32Array, k * 3);
       }
+      // upload only the used part of each fixed-size buffer
+      const upload = (at: THREE.BufferAttribute, n: number) => { at.clearUpdateRanges(); at.addUpdateRange(0, n * at.itemSize); at.needsUpdate = true; };
       for (const [id, b] of buckets) {
         const n = fill[id] ?? 0;
         if (!n) continue;
         b.mesh.count = n;
-        b.mesh.instanceMatrix.clearUpdateRanges();
-        b.mesh.instanceMatrix.addUpdateRange(0, n * 16); // upload only the used part of the fixed-size buffer
-        b.mesh.instanceMatrix.needsUpdate = true;
+        upload(b.mesh.instanceMatrix, n);
+        upload(b.shape, n);
+        upload(b.tint, n);
       }
       if (!warmHidden && list.n > 0) { for (const w of warm) w.visible = false; warmHidden = true; }
       part.plants = list.n - dropped;

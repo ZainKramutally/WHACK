@@ -49,7 +49,8 @@ export function rayPlants(list: PlantList, radiusPerHeight: ArrayLike<number>, o
   let bi = -1, bt = maxDist;
   for (let i = 0; i < list.n; i++) {
     const h = list.h[i];
-    const r = Math.max(MIN_RADIUS, h * radiusPerHeight[list.arch[i]] * CROWN_FRACTION);
+    // the plant's own girth and crown (floraLib/vary.ts; 0 = native) widen or narrow its capsule
+    const r = Math.max(MIN_RADIUS, h * radiusPerHeight[list.arch[i]] * (1 + list.wg[i]) * (1 + list.wc[i]) * CROWN_FRACTION);
     const y0 = (list.y[i] - baseDrop * h - list.sink[i]) * yScale;
     const t = rayCapsuleY(o, d, list.x[i], list.z[i], y0, y0 + h * yScale, Math.min(r, h * 0.5));
     if (t > 0 && t < bt) { bt = t; bi = i; }

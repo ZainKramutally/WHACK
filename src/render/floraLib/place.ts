@@ -15,6 +15,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickArchetype, plantHeight, type FloraRole } from './index';
+import { varyPlant, type PlantVary } from './vary';
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
@@ -43,6 +44,13 @@ export interface PlantList {
   gx: Float32Array; gz: Float32Array;
   /** Extra depth (m) to sink the base so its contact ring meets the drawn ground on every side. */
   sink: Float32Array;
+  /** Flora cell and slot (within the cell's role; the darker foreground extras count from 0 again) of each plant. */
+  cell: Uint16Array; slot: Uint8Array;
+  /** Per-plant look (vary.ts), each 0 for none, so a zeroed list draws native plants: girth − 1, crown − 1, twist,
+   * droop, bend, the lean slope (already added into gx/gz) and the tint − 1 (rgb). */
+  wg: Float32Array; wc: Float32Array; wt: Float32Array; wd: Float32Array; wb: Float32Array;
+  lx: Float32Array; lz: Float32Array;
+  tr: Float32Array; tg: Float32Array; tb: Float32Array;
 }
 
 export function makePlantList(cap = MAX_PLANTS): PlantList {
@@ -50,6 +58,9 @@ export function makePlantList(cap = MAX_PLANTS): PlantList {
     n: 0, arch: new Int16Array(cap), x: new Float32Array(cap), y: new Float32Array(cap), z: new Float32Array(cap),
     h: new Float32Array(cap), yaw: new Float32Array(cap), lod: new Uint8Array(cap), dark: new Uint8Array(cap), glow: new Float32Array(cap),
     gx: new Float32Array(cap), gz: new Float32Array(cap), sink: new Float32Array(cap),
+    cell: new Uint16Array(cap), slot: new Uint8Array(cap),
+    wg: new Float32Array(cap), wc: new Float32Array(cap), wt: new Float32Array(cap), wd: new Float32Array(cap), wb: new Float32Array(cap),
+    lx: new Float32Array(cap), lz: new Float32Array(cap), tr: new Float32Array(cap), tg: new Float32Array(cap), tb: new Float32Array(cap),
   };
 }
 
@@ -181,11 +192,15 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   };
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
-  const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number) => {
+  const look: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
+  const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number, c: number, slot: number) => {
     if (!key || out.n >= cap) return;
     const ai = ARCHETYPE_INDEX.get(key)!;
+    // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
+    const v = varyPlant(ai, c, slot, dark, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y < sea, inputs.light, inputs.heatBand, look);
     let tx = 0, tz = 0, sink = 0;
-    const r = shapes ? shapes.foot[ai] * h : 0;
+    const r = shapes ? shapes.foot[ai] * h * v.girth : 0;
+    let ringed = false;
     if (r > 0.02) {
       // the ground under the contact ring (a hexagon), its mean slope, and the deepest drop below the drawn plane
       let sx = 0, sz = 0;
@@ -194,10 +209,14 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         RING_H[k] = hk; sx += hk * RING_C[k]; sz += hk * RING_S[k];
       }
       sx /= 3 * r; sz /= 3 * r;
+      ringed = true;
       if (role === 'ground') {
         const g = Math.hypot(sx, sz), k = g > TILT_MAX ? TILT_MAX / g : 1;
         tx = sx * k; tz = sz * k;
       }
+    }
+    tx += v.leanX; tz += v.leanZ;
+    if (ringed) {
       for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING_C[k] + tz * RING_S[k]) * r - RING_H[k]);
       if (sink > SINK_MAX[role] * shapes!.height[ai] * h) return;
     }
@@ -210,6 +229,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     out.dark[i] = dark ? 1 : 0;
     out.glow[i] = glow;
     out.gx[i] = tx; out.gz[i] = tz; out.sink[i] = sink;
+    out.cell[i] = c; out.slot[i] = slot;
+    out.wg[i] = v.girth - 1; out.wc[i] = v.crown - 1; out.wt[i] = v.twist; out.wd[i] = v.droop; out.wb[i] = v.bend;
+    out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - 1; out.tg[i] = v.g - 1; out.tb[i] = v.b - 1;
   };
   // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
   // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the
@@ -256,7 +278,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const y = yAt(x, z);
         if (y < sea) continue;
         const d = Math.hypot(x - cam.x, z - cam.z);
-        push(pickArchetype(tall, 'giant', bright, hash01(c, 0, 14)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y);
+        push(pickArchetype(tall, 'giant', bright, hash01(c, 0, 14)), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
       } else if (pass === 1) {
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
@@ -270,7 +292,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           if (hash01(c, k, 26) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
           const y = yAt(x, z);
           if (y < sea) continue;
-          push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y);
+          push(pickArchetype(tall, 'mid', bright, hash01(c, k, 23)), x, z, plantHeight('mid', tall, canopy * 2.5, hash01(c, k, 24)), hash01(c, k, 25) * 6.283, 'mid', d, false, tall.glow, y, c, k);
         }
       } else {
         const dc = Math.hypot(ccx - cam.x, ccz - cam.z);
@@ -290,7 +312,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
           const under = y < sea;
           if (!under && !inputs.lifeOnLand) continue;
           const f = under ? seaForm(c) : form;
-          push(pickArchetype(f, 'ground', bright, hash01(c, k, 34)), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y);
+          push(pickArchetype(f, 'ground', bright, hash01(c, k, 34)), x, z, plantHeight('ground', f, mat + 0.5 * canopy, hash01(c, k, 35)), hash01(c, k, 36) * 6.283, 'ground', d, fg, f.glow, y, c, fg ? k - base : k);
         }
       }
     }
