@@ -205,8 +205,9 @@ describe('placePlants', () => {
       ['carbon worst case', inputs(() => [0.6, 1]), 33],
       // silicon, dim: crystal ground (4 × 2), shard trees (3 × 2), prism titans (2 × 2)
       ['silicon worst case', inputs(() => [0.6, 1], si), 18],
-      // every cell under the sea: ground cover only, crowded into the low crust row (the fullest bucket)
-      ['silicon submerged', inputs(() => [1, 0.2], { ...si, seaLevel: 5, terrain: { rise: 1, progress: {}, height: () => 0, patchSize: PATCH } }), 4],
+      // every cell under the sea: ground cover crowded into the low crust row (the fullest bucket), plus the aquatic
+      // whisker reef (flora-traits A8: its near and far LOD)
+      ['silicon submerged', inputs(() => [1, 0.2], { ...si, seaLevel: 5, terrain: { rise: 1, progress: {}, height: () => 0, patchSize: PATCH } }), 6],
     ];
     for (const [name, inp, budget] of cases) {
       const d = countDraws(placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList()), tri);
@@ -234,12 +235,15 @@ describe('placePlants', () => {
     expect(lods(inputs(() => [1, 0], siliconOver())).far).toBe(0);
   });
 
-  it('keeps land plants off until lifeOnLand, and only ground cover under the sea', () => {
+  it('keeps land plants off until lifeOnLand, and only ground cover and aquatic mids under the sea', () => {
     const dry = roles(placePlants(inputs(() => [1, 0.9], { lifeOnLand: false }), PATCH, { x: 0, z: 0 }, makePlantList()));
     expect(dry).toEqual({ ground: 0, mid: 0, giant: 0 });
-    const wet = roles(placePlants(inputs(() => [1, 0.9], { seaLevel: 5, lifeOnLand: false }), PATCH, { x: 0, z: 0 }, makePlantList()));
-    expect(wet.mid + wet.giant).toBe(0);
+    const l = placePlants(inputs(() => [1, 0.9], { seaLevel: 5, lifeOnLand: false }), PATCH, { x: 0, z: 0 }, makePlantList());
+    const wet = roles(l);
+    expect(wet.giant).toBe(0);
     expect(wet.ground).toBeGreaterThan(0);
+    // the only mids in the sea are the aquatic ones (flora-traits A5 kelp on a water world)
+    for (let i = 0; i < l.n; i++) if (ARCHETYPE_META[l.arch[i]].role === 'mid') expect(ARCHETYPE_KEYS[l.arch[i]]).toBe('bladderKelp#0');
   });
 
   it('keeps a spawn clearing: ground cover only, giants further out for their overhang', () => {

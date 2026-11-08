@@ -222,3 +222,30 @@ export function crystalGround(rng: Rng, variant: number) {
   }
   return b.build({ flat: true });
 }
+
+/**
+ * Whisker reef (silicon mid; flora-traits A8): "clear liquid nitrogen shows the first crystal life from the shore". A
+ * bristle of long hex needles leaning out in 15° steps from one base, each tipped with a glow site (lit only in the
+ * dark). Elongated hexagonal whiskers echo β-Si₃N₄ grain habit ([unverified], [speculative] as life). place.ts sizes it
+ * to the depth less half a metre, so it never breaks the surface (crystals don't float). ~210 tris, far LOD = near.
+ */
+export function whiskerReef(rng: Rng, _variant: number) {
+  const b = new MeshBuilder();
+  const H = 6 * rng.range(0.94, 1.06);
+  const sw = (y: number) => STIFF * clamp01(y / H) * 0.8;
+  const az0 = rng.range(0, Math.PI * 2);
+  for (let k = 0; k < 5; k++) {
+    const tilt = k === 0 ? 0 : (Math.PI / 12) * (1 + ((k - 1) % 3));   // 15°, 30°, 45° steps
+    const d = dirAt(tilt, az0 + k * D60 * 1.2);
+    const L = (k === 0 ? H : H * rng.range(0.55, 0.85)) / Math.cos(tilt);
+    const r = H * 0.032;
+    revolve(b, [0, -0.1, 0], d, [
+      { r: r * 1.3, y: 0, key: 'ink', sway: 0, crease: true },
+      { r: r * 1.1, y: L * 0.06, key: 'maroon', sway: sw(L * 0.06 * d[1]), crease: true },
+      { r: r * 0.95, y: L * 0.4, key: 'crimson', sway: sw(L * 0.4 * d[1]), crease: true },
+      { r: r * 0.6, y: L * 0.9, key: 'glow', glow: 1, sway: sw(L * 0.9 * d[1]), crease: true },
+      { r: 0, y: L, key: 'glow', glow: 1, sway: sw(L * d[1]) },
+    ], 6, k * 0.1);
+  }
+  return b.build({ flat: true });
+}

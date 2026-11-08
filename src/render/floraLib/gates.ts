@@ -34,6 +34,18 @@ export function worldEnv(i: VisualInputs): WorldEnv {
   };
 }
 
+/** Gas floats lift in air at least this many times Earth's density (A5 air niche, A6). */
+export const AIR_FLOAT = 5;
+/** The aquatic mid slot (A5 water, A8): at most one per cell with biomass B ≥ AQUATIC_B, inside a depth window. */
+export const AQUATIC_B = 0.3;
+export interface Aquatic { key: string; depth: readonly [number, number]; /** drawn top relative to the sea (m) */ top: number }
+/** This world's aquatic mid, or null (frozen seas grow none). Kelp tops float at the surface; reefs stay under it. */
+export function aquaticFor(e: WorldEnv): Aquatic | null {
+  if (e.frozen) return null;
+  if (e.carbon) return e.water ? { key: 'bladderKelp#0', depth: [2, 15], top: 0.3 } : null;
+  return { key: 'whiskerReef#0', depth: [1, 12], top: -0.5 };
+}
+
 /** Shore plants (A1, A3) stand on dry ground beside the water: their own ground this far above the sea (m). */
 export const SHORE_BAND: readonly [number, number] = [0.2, 3];
 
@@ -47,7 +59,7 @@ export interface CellProbe {
   total(c: number): number;
 }
 
-export type GateId = 'pitcher' | 'cushion';
+export type GateId = 'pitcher' | 'cushion' | 'kelpAir';
 
 export interface GateSpec {
   id: GateId;
@@ -72,6 +84,9 @@ export const GATES: readonly GateSpec[] = [
   // A1 pitcher urn: carnivory where light and water are plentiful and nitrogen scarce (Givnish et al. 1984; Ellison &
   // Gotelli 2001). Exclusive with A3 by N (< 0.3 here, ≥ 0.3 there).
   { id: 'pitcher', chem: 'carbon', role: 'mid', replaces: /^(ribFan|ribFanDense|lanternPods)#/, by: 'pitcherUrn#0', world: (e) => e.N < 0.3 && e.L >= 0.4, shore: true },
+  // A5 bladder kelp, air niche: gas floats lift as well in air over ~5 × Earth's density (ρ_air − ρ_gas; DESIGN R11,
+  // speculative in air). On carbon the Nitrogen slider thickens the air. A tethered float: upright, mid sink rule.
+  { id: 'kelpAir', chem: 'carbon', role: 'mid', replaces: /^weeper#/, by: 'bladderKelp#0', world: (e) => e.air >= AIR_FLOAT, land: true },
   // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
   { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
 ];

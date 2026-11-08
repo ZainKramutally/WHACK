@@ -38,7 +38,8 @@ import { weeper } from './species/weeper';
 import { ribFan } from './species/ribfan';
 import { groundCover } from './species/ground';
 import { jellyDome } from './species/dome';
-import { crystalGround, prismTitan, shardTree } from './species/crystal';
+import { crystalGround, prismTitan, shardTree, whiskerReef } from './species/crystal';
+import { bladderKelp } from './species/kelp';
 import { pitcherUrn } from './species/pitcher';
 
 export type { FloraKey } from './mesh';
@@ -67,6 +68,8 @@ const SPECIES: SpeciesDef[] = [
   { id: 'ribFanDense', chem: 'carbon', role: 'mid', gen: (r, v) => ribFan(r, v, true), variants: [0, 1, 2, 3], seedAs: 'ribFan' },
   // gated archetypes (flora-traits §2, gates.ts): drawn only where a gate substitutes them into a pick list
   { id: 'pitcherUrn', chem: 'carbon', role: 'mid', gen: pitcherUrn, variants: [0] },
+  { id: 'bladderKelp', chem: 'carbon', role: 'mid', gen: bladderKelp, variants: [0] },
+  { id: 'whiskerReef', chem: 'silicon', role: 'mid', gen: whiskerReef, variants: [0] },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */

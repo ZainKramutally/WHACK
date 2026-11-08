@@ -2,8 +2,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { makeStubVisualInputs } from '../visualInputs';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_INDEX, ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, type FloraLibrary } from './index';
-import { GATES, SHORE_BAND, activeGates, worldEnv } from './gates';
-import { makePlantList, placePlants } from './place';
+import { AIR_EARTH, GATES, SHORE_BAND, activeGates, aquaticFor, worldEnv } from './gates';
+import { makePlantList, placePlants, type PlantShapes } from './place';
+import { countDraws } from './buckets';
 
 const PATCH = 400;
 let lib: FloraLibrary;
@@ -15,11 +16,18 @@ function shore(stats: Record<string, number>, over: Partial<VisualInputs> = {}):
   const flora = new Float32Array(64 * 64 * 2);
   for (let c = 0; c < 4096; c++) { flora[c * 2] = c % 2 ? 1 : 0.6; flora[c * 2 + 1] = c % 2 ? 0.05 : 0.8; }
   return {
-    ...stub, flora, seaLevel: 0, lifeOnLand: true, stats: { ...stub.stats, ...stats },
+    // airDensity in VisualInputs units (the stub's 1.2 is raw kg/m³, which would read as 20 × Earth's air)
+    ...stub, flora, seaLevel: 0, lifeOnLand: true, airDensity: AIR_EARTH, stats: { ...stub.stats, ...stats },
     terrain: { rise: 1, progress: {}, height: (x) => 0.06 * x, patchSize: PATCH }, ...over,
   };
 }
-const placed = (inp: VisualInputs) => placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList());
+const placed = (inp: VisualInputs, shapes?: PlantShapes) => placePlants(inp, PATCH, { x: 0, z: 0 }, makePlantList(), undefined, null, shapes);
+const shapesOf = (): PlantShapes => ({ foot: lib.archetypes.map((a) => a.foot / a.size), height: lib.archetypes.map((a) => a.height / a.size) });
+/** The same shore on the silicon world (liquid nitrogen, dim light). */
+const siShore = (over: Partial<VisualInputs> = {}): VisualInputs => {
+  const stub = makeStubVisualInputs(), base = shore({ temperature: -183, nitrogen: 30 });
+  return { ...base, world: { ...stub.world, id: 'silicon', composition: { c: 0.1, si: 0.9, o: 0 }, solvent: { ...stub.world.solvent, name: 'Liquid nitrogen' } }, light: 0.016, airDensity: 0.65, ...over };
+};
 const keyOf = (l: ReturnType<typeof placed>, i: number) => ARCHETYPE_KEYS[l.arch[i]];
 
 describe('gated archetypes', () => {
@@ -80,5 +88,56 @@ describe('gated archetypes', () => {
     expect(on({ nitrogen: 1, temperature: 15 })).toEqual([]);
     expect(on({ nitrogen: 0.2 })).toContain('pitcher');
     expect(on({ temperature: -1 })).toContain('cushion');
+  });
+
+  it('A5 kelp tops float at the sea surface and A8 reef tops stay under it; no other mid stands in the sea', () => {
+    const sh = shapesOf();
+    for (const [inp, key, lo, hi] of [[shore({}), 'bladderKelp#0', -0.5, 0.5], [siShore(), 'whiskerReef#0', -Infinity, 0]] as const) {
+      const l = placed(inp, sh);
+      let n = 0;
+      for (let i = 0; i < l.n; i++) {
+        const k = keyOf(l, i), a = lib.archetypes[l.arch[i]];
+        if (k === key) {
+          n++;
+          const top = l.y[i] - 0.03 * l.h[i] - l.sink[i] + (a.height / a.size) * l.h[i];
+          expect(top - inp.seaLevel, k).toBeGreaterThanOrEqual(lo);
+          expect(top - inp.seaLevel, k).toBeLessThanOrEqual(hi);
+          expect(l.y[i]).toBeLessThan(inp.seaLevel - 0.9);
+        } else if (a.role !== 'ground') expect(l.y[i], k).toBeGreaterThanOrEqual(inp.seaLevel);
+      }
+      expect(n, key).toBeGreaterThan(0);
+    }
+  });
+
+  it('frozen seas grow no aquatic mids', () => {
+    expect(aquaticFor(worldEnv(shore({}, { frozen: true })))).toBeNull();
+    const l = placed(shore({}, { frozen: true }));
+    for (let i = 0; i < l.n; i++) expect(keyOf(l, i)).not.toBe('bladderKelp#0');
+  });
+
+  it('A5 air niche: kelp replaces weepers on land only at ≥ 5 × Earth air density', () => {
+    const onLand = (air: number) => { const l = placed(shore({}, { airDensity: air * AIR_EARTH })); let k = 0, w = 0; for (let i = 0; i < l.n; i++) { if (l.y[i] < 0) continue; if (keyOf(l, i) === 'bladderKelp#0') k++; if (keyOf(l, i).startsWith('weeper')) w++; } return { k, w }; };
+    const thin = onLand(4.9), thick = onLand(6);
+    expect(thin.k).toBe(0);
+    expect(thin.w).toBeGreaterThan(0);
+    expect(thick.k).toBeGreaterThan(0);
+    expect(thick.w).toBe(0);
+  });
+
+  // The doc's worst cases (flora-traits §9.2) on a uniform canopy-rich shore (capped/cup forms everywhere, sea and land)
+  const uniform = (stats: Record<string, number>, over: Partial<VisualInputs> = {}) => {
+    const inp = shore(stats, over), f = inp.flora;
+    for (let c = 0; c < 4096; c++) { f[c * 2] = 0.6; f[c * 2 + 1] = 1; }
+    return inp;
+  };
+  it.each([
+    ['carbon cold + low N + bright + kelp shallows', () => uniform({ temperature: -5, nitrogen: 0.2 })],
+    ['carbon warm shore + kelp', () => uniform({ temperature: 25, nitrogen: 1 })],
+    ['carbon thick air (kelp in air and water)', () => uniform({ temperature: 15, nitrogen: 8 }, { airDensity: 6 * AIR_EARTH })],
+  ] as const)('draw budget: %s ≤ 33 draws, < 4.5M tris, nothing dropped', (_name, make) => {
+    const d = countDraws(placed(make(), shapesOf()), (a, l) => lib.archetypes[a].lod[l].triangles);
+    expect(d.draws).toBeLessThanOrEqual(33);
+    expect(d.triangles).toBeLessThan(4.5e6);
+    expect(d.dropped).toBe(0);
   });
 });

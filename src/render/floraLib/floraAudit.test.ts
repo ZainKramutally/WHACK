@@ -264,6 +264,8 @@ function fakeApp(x: number, y: number, z: number): App {
   return { scene: new THREE.Scene(), camera } as unknown as App;
 }
 
+/** Mids built for the sea (flora-traits A5, A8): the only ones allowed below it. */
+const AQUATIC = new Set(['bladderKelp#0', 'whiskerReef#0']);
 const caseMemo = new Map<string, WorldCase>();
 const caseOf = (world: WorldConfig) => { let c = caseMemo.get(world.id); if (!c) caseMemo.set(world.id, (c = worldCase(world))); return c; };
 const WORLDS = [carbon, silicon].map((w) => [w.id, w] as const);
@@ -350,7 +352,7 @@ describe.skipIf(!SLOW)('flora asset audit: placement and wiring (SLOW)', () => {
     for (let i = 0; i < list.n; i++) {
       const a = lib.archetypes[list.arch[i]];
       const wet = list.y[i] < w.sea;
-      if (a.role !== 'ground') { if (wet) landUnder++; continue; }
+      if (a.role !== 'ground') { if (wet && !AQUATIC.has(a.key)) landUnder++; continue; }
       ground++; if (wet) under++;
       const c = Math.floor((list.z[i] / PATCH + 0.5) * FLORA_GRID) * FLORA_GRID + Math.floor((list.x[i] / PATCH + 0.5) * FLORA_GRID);
       const bin = floraBin(inp.flora[c * 2], inp.flora[c * 2 + 1], inp, wet);

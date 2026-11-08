@@ -15,7 +15,7 @@ import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, pickPlant, plantHeight, type FloraRole } from './index';
-import { activeGates, gateKey, worldEnv, type CellProbe } from './gates';
+import { AQUATIC_B, activeGates, aquaticFor, gateKey, worldEnv, type CellProbe } from './gates';
 import { varyPlant, type PlantVary, type TraitContext } from './vary';
 
 export const MAX_PLANTS = 16000;
@@ -199,9 +199,12 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
   const look: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
   const traits: TraitContext = { mat: 0, canopy: 0, submerged: false, elevation: 0, light: inputs.light, heatBand: inputs.heatBand, airDensity: inputs.airDensity, stats: inputs.stats };
-  const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number, c: number, slot: number) => {
+  /** `topAt` (optional): size the plant so its drawn top stands at this height (aquatic mids, by the sea surface). */
+  const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number, c: number, slot: number, topAt = NaN) => {
     if (!key || out.n >= cap) return;
     const ai = ARCHETYPE_INDEX.get(key)!;
+    const hr = shapes ? shapes.height[ai] : 1; // drawn height per unit h
+    if (topAt === topAt) h = Math.max(0.5, (topAt - y) / (hr - 0.03));
     // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
     traits.mat = inputs.flora[c * 2] ?? 0; traits.canopy = inputs.flora[c * 2 + 1] ?? 0; traits.submerged = y < sea; traits.elevation = y - sea;
     const v = varyPlant(ai, c, slot, dark, traits, look);
@@ -227,6 +230,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       for (let k = 0; k < 6; k++) sink = Math.max(sink, y + (tx * RING_C[k] + tz * RING_S[k]) * r - RING_H[k]);
       if (sink > SINK_MAX[role] * shapes!.height[ai] * h) return;
     }
+    if (topAt === topAt) h = Math.max(0.5, (topAt - y + sink) / (hr - 0.03)); // the sunk base still tops out at topAt
     const i = out.n++;
     out.arch[i] = ai;
     out.x[i] = x; out.y[i] = y; out.z[i] = z; out.h[i] = h; out.yaw[i] = yaw;
@@ -248,7 +252,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
   const env = worldEnv(inputs), hb = inputs.heatBand;
   // gated archetypes (gates.ts): the world-wide halves once here; cells answer the rest lazily through the probe
-  const gates = activeGates(env);
+  const gates = activeGates(env), aquatic = aquaticFor(env);
   const call = ++placeCall;
   const cellY = (c: number) => {
     if (CELL_AT[c] !== call) {
@@ -328,6 +332,16 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
         const d = Math.hypot(x - cam.x, z - cam.z);
         push(gated(pickPlant(tall, 'giant', bright, hash01(c, 0, 14), hb, hash01(c, 0, 17), env.dense), 'giant', c, y), x, z, plantHeight('giant', tall, canopy * 2, hash01(c, 0, 15)), hash01(c, 0, 16) * 6.283, 'giant', d, false, tall.glow, y, c, 0);
       } else if (pass === 1) {
+        // the aquatic mid slot (A5 kelp, A8 whisker reef): one per lush submerged cell in the grove field, inside its
+        // depth window and sized to the water; before land life too (life starts in the shallows)
+        if (aquatic && total >= AQUATIC_B && hash01(c, 7, 40) < smooth(AQUATIC_B, 0.9, total) * groveAt(col, row)) {
+          const x = ccx + (hash01(c, 7, 41) - 0.5) * cell, z = ccz + (hash01(c, 7, 42) - 0.5) * cell;
+          const d = Math.hypot(x - cam.x, z - cam.z);
+          if (!cleared(x, z, 0) && hash01(c, 7, 46) < 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) {
+            const y = yAt(x, z), depth = sea - y;
+            if (depth >= aquatic.depth[0] && depth <= aquatic.depth[1]) push(aquatic.key, x, z, depth, hash01(c, 7, 45) * 6.283, 'mid', d, false, seaForm(c).glow, y, c, GROUND_SLOT - MID_SLOT, sea + aquatic.top);
+          }
+        }
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;
         const tall = formForBin(withMix(bin, bin.mix === 0 ? 1 : bin.mix));
         const want = smooth(MID_CANOPY, 0.45, canopy) * (0.08 + 1.3 * groveAt(col, row)) * MID_DENSITY[lushOf(form)];
