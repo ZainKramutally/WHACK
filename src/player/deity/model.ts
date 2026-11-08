@@ -39,7 +39,7 @@ interface Spec {
 const SPECS: Record<DeityVariantId, Spec> = {
   A: { legLength: 0.36, hipHalfWidth: 0.1, bodyHeight: 0.4, bodyRadius: 0.25, headRadius: 0.32, headGap: 0.12, handRadius: 0.085 },
   B: { legLength: 0.2, hipHalfWidth: 0.13, bodyHeight: 0.5, bodyRadius: 0.3, headRadius: 0.31, headGap: 0.12, handRadius: 0.09 },
-  C: { legLength: 0.1, hipHalfWidth: 0.1, bodyHeight: 0.7, bodyRadius: 0.34, headRadius: 0.3, headGap: 0.14, handRadius: 0.085 },
+  C: { legLength: 0.1, hipHalfWidth: 0.1, bodyHeight: 0.6, bodyRadius: 0.34, headRadius: 0.3, headGap: 0.07, handRadius: 0.085 },
   D: { legLength: 0.2, hipHalfWidth: 0.13, bodyHeight: 0.6, bodyRadius: 0.32, headRadius: 0.3, headGap: 0.12, handRadius: 0.09 },
 };
 

@@ -14,7 +14,7 @@ describe.each(DEITY_VARIANTS.map((v) => v.id))('deity variant %s', (id) => {
   });
 
   it('has a readable head gap and chibi height', () => {
-    expect(dims.headGap).toBeGreaterThanOrEqual(0.1);
+    expect(dims.headGap).toBeGreaterThanOrEqual(id === 'C' ? 0.06 : 0.1); // Caden overrode the 10 cm brief rule for C
     const bodyTop = dims.hipHeight + dims.bodyHeight;
     expect(dims.headRestY - dims.headRadius - bodyTop).toBeCloseTo(dims.headGap, 3);
     const bb = new THREE.Box3().setFromObject(rig.body);

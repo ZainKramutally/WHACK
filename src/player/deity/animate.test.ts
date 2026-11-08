@@ -158,4 +158,24 @@ describe('deity animator', () => {
     expect(tt.x).toBeLessThan(-0.01);
     expect(t.m.rzMax).toBeLessThanOrEqual(0.105 + 0.035); // bank cap 6 deg + walk sway 2 deg
   });
+
+  it('C keeps 2 cm between the head and the body top through walk, run, jump and landing', () => {
+    const rig = buildDeity('C');
+    const a = createDeityAnimator(rig);
+    const { hipHeight, bodyHeight, headRadius } = rig.dims;
+    let minClear = 1e9;
+    const step = (st: PlayerState) => {
+      a.update(st, 1 / 60);
+      const clear = rig.head.position.y - headRadius - (hipHeight + bodyHeight * rig.body.scale.y);
+      minClear = Math.min(minClear, clear);
+    };
+    for (let i = 0; i < 120; i++) step(mk({ speed: 5 }));
+    for (let i = 0; i < 120; i++) step(mk({ speed: 9, sprinting: true }));
+    step(mk({ speed: 5, jumped: true, vy: 4.85, grounded: false }));
+    for (let i = 0; i < 20; i++) step(mk({ speed: 5, vy: 4.85 - i * 0.5, grounded: false }));
+    for (let i = 0; i < 20; i++) step(mk({ speed: 5, vy: -i * 0.4, grounded: false }));
+    step(mk({ speed: 5, landed: 1 }));
+    for (let i = 0; i < 120; i++) step(mk());
+    expect(minClear).toBeGreaterThanOrEqual(0.02 - 1e-6);
+  });
 });

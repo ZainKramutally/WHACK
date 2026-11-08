@@ -226,7 +226,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
 
     // Events.
     if (s.jumped) {
-      sx[S_ST] = 0.22;
+      sx[S_ST] = 0.14;
       sv[S_ST] = 0;
       sv[S_HY] -= 2;
       sv[S_H0Y] -= 1.5;
@@ -394,6 +394,12 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     rig.legs[1].rotation.x = rLegs[1].rx + acc[L1X];
     rig.legs[0].rotation.z = rLegs[0].rz + acc[L0Z] - 0.5 * squash;
     rig.legs[1].rotation.z = rLegs[1].rz + acc[L1Z] + 0.5 * squash;
+    // The head floats but never dips into the body: keep its underside 2 cm above the (squashed or stretched) body top.
+    const minHeadY = d.hipHeight + d.bodyHeight * bsy + 0.02 + d.headRadius;
+    if (rHead.y + sx[S_HY] < minHeadY) {
+      sx[S_HY] = minHeadY - rHead.y;
+      if (sv[S_HY] < 0) sv[S_HY] = 0;
+    }
     rig.head.position.set(rHead.x + sx[S_HX], rHead.y + sx[S_HY], rHead.z + sx[S_HZ]);
     rig.head.rotation.x = rHead.rx + sx[S_PITCH];
     rig.head.rotation.y = rHead.ry + sx[S_YAW];
