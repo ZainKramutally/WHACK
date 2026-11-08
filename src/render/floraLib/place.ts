@@ -16,6 +16,7 @@ import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
 import { ARCHETYPE_INDEX, ARCHETYPE_META, NEUTRAL_TINT, ROLE_BAND, pickPlant, plantHeight, type FloraRole } from './index';
 import { AQUATIC_B, activeGates, aquaticFor, gateKey, mineralByRank, supplySi, worldEnv, type CellProbe } from './gates';
+import { easedGates, type GateShares } from './succession';
 import { varyPlant, type PlantVary } from './vary';
 import { makeEnv, plantEnv, worldEnv as traitWorld } from './traits';
 
@@ -164,7 +165,7 @@ export interface PlantShapes { foot: ArrayLike<number>; height: ArrayLike<number
 
 /** With `shapes`, plants tilt and sink onto the drawn ground under their whole contact ring; without, they stand on it
  * at their centre. */
-export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache, clearing?: Clearing | null, shapes?: PlantShapes): PlantList {
+export function placePlants(inputs: VisualInputs, patch: number, cam: { x: number; z: number }, out: PlantList, cache?: HeightCache, clearing?: Clearing | null, shapes?: PlantShapes, gateShares?: GateShares | null): PlantList {
   out.n = 0;
   const cell = patch / FLORA_GRID;
   const cells = Math.min(inputs.flora.length / 2, FLORA_GRID * FLORA_GRID);
@@ -213,7 +214,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   // world-wide: C2 body variants follow heatBand (pickAlong), and the T9 dense build switches on photorespiration
   const env = worldEnv(inputs), hb = inputs.heatBand;
   // gated archetypes (gates.ts): the world-wide halves once here; cells answer the rest lazily through the probe
-  const gates = activeGates(env), aquatic = aquaticFor(env);
+  // with `gateShares` (flora.ts eases them, succession.ts), each gate takes that share of its plants, so species colonise
+  // and recede over seconds; without, the gates' own conditions and shares hold at once
+  const gates = gateShares ? easedGates(env, gateShares) : activeGates(env), aquatic = aquaticFor(env);
   const call = ++placeCall;
   const cellY = (c: number) => {
     if (CELL_AT[c] !== call) {

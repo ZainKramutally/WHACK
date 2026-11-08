@@ -17,6 +17,8 @@ import { crustFloraTint, crustRatchet, floraPigment } from './crustLook';
 import { makeHeightCache, makePlantList, placePlants, resetHeightCache, type Clearing, type PlantList } from './floraLib/place';
 import { BUCKET_IDS, bucketDefs, bucketId } from './floraLib/buckets';
 import { rayPlants } from './floraHit';
+import { worldEnv as gateWorld } from './floraLib/gates';
+import { SHARE_REBUILD, easeShares, gateTargets, shareDelta, statsMoved, statsOf, type GateShares, type StatKeys } from './floraLib/succession';
 import { cellAt, type Vec3 } from './layout';
 import { VTX_CAP, VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, plantMatrix, plantRadius, plantShape, plantTint } from './floraLib/instance';
 
@@ -199,6 +201,10 @@ export function createFlora(app: App): FloraPart {
   let lastCam = { x: 1e9, z: 1e9 }, lastLand = false, lastSea = NaN, warmHidden = false;
   let clearing: Clearing | null = null, clearingSet = false, clearingDirty = false;
   const fwd = new THREE.Vector3();
+  /** Succession: each gate's eased share, the shares the last rebuild placed with, and the stats it read. */
+  const eased: GateShares = {}, targets: GateShares = {};
+  let placedShares: GateShares = {};
+  let lastStats: StatKeys | null = null;
 
   const part: FloraPart = {
     plants: 0,
@@ -237,7 +243,7 @@ export function createFlora(app: App): FloraPart {
       // is sunk 3% plus its slope sink), with its own crown radius
       return { cell, dist: h.dist, x: list.x[i], y: list.y[i] * k, z: list.z[i], height: (shapes.height[list.arch[i]] * list.h[i] - 0.03 * list.h[i] - list.sink[i]) * k, radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]) };
     },
-    update(_dt, t, inputs, patch) {
+    update(dt, t, inputs, patch) {
       const cam = app.camera.position;
       // Between rebuilds the terrain keeps rising (height = rise × h): stretch the flora vertically with it so every base
       // stays on the ground. Plant heights stretch by the same ≤ 3% while everything grows; a rebuild resets it to 1.
@@ -254,16 +260,23 @@ export function createFlora(app: App): FloraPart {
       const needs =
         inputs.flora !== lastBuf || Math.abs(inputs.terrain.rise - lastRise) > 0.02 || inputs.world.id !== lastWorld ||
         patch !== lastPatch || moved || clearingDirty || inputs.lifeOnLand !== lastLand || !(Math.abs(inputs.seaLevel - lastSea) < 0.3);
-      const every = inputs.buildProgress < 1 || moved ? REBUILD_EVERY : REBUILD_EVERY_LIVE;
-      if (!needs || t - lastAt < every) return;
+      // succession (succession.ts): every gate's share eases toward its condition target, snapped while a world forms
+      easeShares(eased, gateTargets(gateWorld(inputs), targets), dt, inputs.world.id !== lastWorld || inputs.buildProgress < 1);
+      const turning = shareDelta(eased, placedShares) > SHARE_REBUILD;
+      // a slider moved a condition the traits and gates read: re-place promptly, not only on the timer
+      const changed = statsMoved(inputs, lastStats);
+      const needsNow = needs || turning || changed;
+      const every = inputs.buildProgress < 1 || moved || turning || changed ? REBUILD_EVERY : REBUILD_EVERY_LIVE;
+      if (!needsNow || t - lastAt < every) return;
       const t0 = performance.now();
       if (inputs.world.id !== lastWorld || patch !== lastPatch) resetHeightCache(heights);
       lastBuf = inputs.flora; lastRise = inputs.terrain.rise; lastWorld = inputs.world.id; lastAt = t; lastPatch = patch;
       group.scale.y = 1;
       clearingDirty = false;
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
+      placedShares = { ...eased }; lastStats = statsOf(inputs, lastStats);
 
-      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes);
+      placePlants(inputs, patch, { x: cam.x, z: cam.z }, list, heights, clearing, shapes, eased);
       const kindOfWorld = lookKind(inputs.world.composition);
       const pal = floraPigment(PALETTES[kindOfWorld], kindOfWorld === 'silicon', crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress), crustFloraTint(inputs));
       counts.fill(0);
