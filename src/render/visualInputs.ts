@@ -57,36 +57,43 @@ export function terrainState(snapshot: SimSnapshot, world: WorldConfig): Terrain
 interface TerrainMemo {
   sampler: TerrainSampler;
   patchSize: number;
-  rise: number;
-  heatSolvent: number;
-  progress: Record<string, number>; // private copy for comparison
+  state: TerrainState; // private copy for comparison and for the height closure
   terrain: VisualInputs['terrain'];
   ground: Float64Array; // NaN = not sampled yet
 }
 let memo: TerrainMemo | null = null;
 
-function sameState(m: TerrainMemo, sampler: TerrainSampler, s: TerrainState): boolean {
-  if (m.sampler !== sampler || m.patchSize !== sampler.patchSize || m.rise !== s.rise || m.heatSolvent !== s.heatSolvent) return false;
-  const a = m.progress, b = s.progress;
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+
+/** Same own-key set, primitives ===, nested plain objects compared the same way (so any future TerrainState field is covered). */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (!isObj(a) || !isObj(b)) return a === b;
+  if (a === b) return true;
   let n = 0;
   for (const k in b) {
-    if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
-    if (!Object.prototype.hasOwnProperty.call(a, k) || a[k] !== b[k]) return false;
+    if (!has(b, k)) continue;
+    if (!has(a, k) || !sameValue(a[k], b[k])) return false;
     n++;
   }
-  for (const k in a) if (Object.prototype.hasOwnProperty.call(a, k)) n--;
+  for (const k in a) if (has(a, k)) n--;
   return n === 0;
 }
 
+function copyValue<T>(v: T): T {
+  if (!isObj(v)) return v;
+  const out: Record<string, unknown> = {};
+  for (const k in v) if (has(v, k)) out[k] = copyValue(v[k]);
+  return out as T;
+}
+
 function terrainMemo(sampler: TerrainSampler, state: TerrainState): TerrainMemo {
-  if (memo && sameState(memo, sampler, state)) return memo;
-  const frozen = { ...state, progress: { ...state.progress } }; // closure must not see later mutation of the caller's state
+  if (memo && memo.sampler === sampler && memo.patchSize === sampler.patchSize && sameValue(memo.state, state)) return memo;
+  const frozen = copyValue(state); // closure must not see later mutation of the caller's state
   memo = {
     sampler,
     patchSize: sampler.patchSize,
-    rise: state.rise,
-    heatSolvent: state.heatSolvent,
-    progress: { ...state.progress },
+    state: copyValue(state),
     terrain: { rise: state.rise, progress: state.progress, height: (x, z) => sampler.height(x, z, frozen), patchSize: sampler.patchSize },
     ground: new Float64Array(GRID * GRID).fill(NaN),
   };

@@ -4,7 +4,7 @@ import { silicon } from '../worlds/silicon';
 import { controls } from '../worlds/controls';
 import { livingBands } from '../sim/limits';
 import type { SimSnapshot, WorldConfig } from '../worlds/types';
-import { buildVisualInputs, drainBirths, flatTerrain, GRID, heatSolvent, lifeOnLand, terrainState, type TerrainSampler } from './visualInputs';
+import { buildVisualInputs, drainBirths, flatTerrain, GRID, heatSolvent, lifeOnLand, terrainState, type TerrainSampler, type TerrainState } from './visualInputs';
 
 function snap(world: WorldConfig, over: Partial<SimSnapshot> & { stats?: Record<string, number> } = {}): SimSnapshot {
   const cond = { temperature: world.id === 'carbon' ? 15 : -183, nitrogen: world.id === 'carbon' ? 1 : 30, oxygen: world.id === 'carbon' ? 21 : 0 };
@@ -125,5 +125,80 @@ describe('births queue', () => {
     expect(buildVisualInputs(s, carbon, flatTerrain).births.map((x) => x.id)).toEqual([9]);
     expect(buildVisualInputs(s, carbon, flatTerrain, [b(1), b(2), b(9)]).births.map((x) => x.id)).toEqual([1, 2, 9]);
     expect(buildVisualInputs(s, carbon, flatTerrain, []).births).toEqual([]);
+  });
+});
+
+describe('terrain memo', () => {
+  const mk = (): TerrainSampler => ({ patchSize: 400, height: (x, z, s) => Math.sin(x * 0.05 + s.rise) + Math.cos(z * 0.04) * (s.progress.M2 ?? 1) + s.heatSolvent });
+  const run = (sampler: TerrainSampler, over: Partial<SimSnapshot> & { stats?: Record<string, number> } = {}) =>
+    buildVisualInputs(snap(carbon, { buildProgress: 0.5, ...over }), carbon, sampler);
+
+  it('keeps height identity while terrain state is unchanged, with identical values', () => {
+    const s = mk();
+    const a = run(s), b = run(s);
+    expect(b.terrain).toBe(a.terrain);
+    expect(b.terrain.height).toBe(a.terrain.height);
+    expect(b.terrain.height(10, 20)).toBe(s.height(10, 20, terrainState(snap(carbon, { buildProgress: 0.5 }), carbon)));
+  });
+
+  it('changes identity when rise, heatSolvent, or the sampler changes', () => {
+    const s = mk();
+    const a = run(s);
+    expect(run(s, { buildProgress: 0.6 }).terrain.height).not.toBe(a.terrain.height);
+    expect(run(s, { stats: { temperature: 30 } }).terrain.height).not.toBe(run(s).terrain.height);
+    expect(run(mk()).terrain.height).not.toBe(run(s).terrain.height);
+  });
+
+  it('changes identity when a progress value or key set changes', () => {
+    const s = mk();
+    const call = (ids: string[], p: number) => {
+      const w = { ...carbon, terrain: { ...carbon.terrain, machines: ids.map((id) => ({ ...carbon.terrain.machines[0], id: id as never })) } } as WorldConfig;
+      return buildVisualInputs(snap(w, { buildProgress: p }), w, s).terrain.height;
+    };
+    const h0 = call(['M2'], 0.5);
+    expect(call(['M2'], 0.5)).toBe(h0);
+    expect(call(['M2'], 0.5 + 1e-9)).not.toBe(h0); // value (rise moves too, so also check below)
+    expect(call(['M2', 'M9'], 0.5)).not.toBe(call(['M2'], 0.5));
+    expect(call(['M9'], 0.5)).not.toBe(call(['M2'], 0.5));
+  });
+
+  it('lifeOnLand matches a direct-sampling oracle across a sweep, incl. all-underwater and moving seaLevel', () => {
+    const s: TerrainSampler = { patchSize: 400, height: (x, z) => (x + z) / 100 };
+    const st = terrainState(snap(carbon), carbon);
+    const oracle = (f: Float32Array, sea: number) => {
+      for (let c = 0; c < GRID * GRID; c++) {
+        if (!(f[c * 2] + f[c * 2 + 1] > 0)) continue;
+        const x = (((c % GRID) + 0.5) / GRID - 0.5) * 400, z = ((Math.floor(c / GRID) + 0.5) / GRID - 0.5) * 400;
+        if (s.height(x, z, st) > sea) return true;
+      }
+      return false;
+    };
+    for (const cells of [[0], [5, 70], [GRID * GRID - 1], [GRID * 32 + 32], []]) {
+      const f = new Float32Array(GRID * GRID * 2);
+      for (const c of cells) f[c * 2] = 1;
+      for (let sea = -6; sea <= 6; sea += 0.37) expect(lifeOnLand(f, sea, s, st)).toBe(oracle(f, sea));
+    }
+  });
+
+  it('repeat lifeOnLand with unchanged state makes no height calls', () => {
+    const s = mk();
+    const spy = vi.spyOn(s, 'height');
+    const f = new Float32Array(GRID * GRID * 2).fill(1);
+    const first = lifeOnLand(f, 1e9, s, terrainState(snap(carbon), carbon)); // all underwater: scans every cell
+    expect(spy.mock.calls.length).toBe(GRID * GRID);
+    expect(lifeOnLand(f, 1e9, s, terrainState(snap(carbon), carbon))).toBe(first);
+    expect(spy.mock.calls.length).toBe(GRID * GRID);
+  });
+
+  it('re-samples when an unknown extra top-level state field changes (memo is keyed generically)', () => {
+    const s = mk();
+    const st = (extra: number) => ({ ...terrainState(snap(carbon), carbon), extra }) as TerrainState & { extra: number };
+    const f = new Float32Array(GRID * GRID * 2).fill(1);
+    const spy = vi.spyOn(s, 'height');
+    lifeOnLand(f, 1e9, s, st(1));
+    lifeOnLand(f, 1e9, s, st(1));
+    expect(spy.mock.calls.length).toBe(GRID * GRID);
+    lifeOnLand(f, 1e9, s, st(2));
+    expect(spy.mock.calls.length).toBe(2 * GRID * GRID);
   });
 });
