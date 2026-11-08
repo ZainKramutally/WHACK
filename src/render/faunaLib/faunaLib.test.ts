@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { develop, type DevelopInputs } from '../../sim/develop';
 import { BODY_GENES, makeFounders, type AnimalGenome, type BodyGenes } from '../../sim/genome';
 import { OrganismField, geneField } from '../../sim/organismLayout';
-import { BEAD_EYE, BEAD_PLATE, ROD_STRIDE, beadLayout } from '../creatureLayout';
+import { BEAD_BODY, BEAD_EYE, BEAD_HORN, BEAD_PLATE, ROD_STRIDE, beadLayout } from '../creatureLayout';
 import { layAlongTravel } from '../motion';
-import { PART, bellSphere, describe as describeFauna, pickBounds, spineCount } from './adapter';
+import { PART, SLOT, bellSphere, describe as describeFauna, pickBounds, spineCount } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
 import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
 import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
 import { GROWN_FLOOR, drawnFactor, drawnLength, growthLength } from './growth';
 import { displayLength } from '../layout';
 import { creatureRing } from '../palette';
+import { swimmerParamsFromPlan } from './aquatic/fromPlan';
 
 const water: DevelopInputs = {
   solvent: { rho: 1.0, mu: 0.89, epsilonR: 80, liquidBandC: [0, 100] },
@@ -307,6 +308,76 @@ describe('fauna adapter', () => {
       expect([PART.ring, PART.frill, PART.hornC, PART.plateC, PART.knob]).not.toContain(p.type);
     }
     for (const a of d.arms) expect(a.tipRod).toBeLessThan(a.nRods);
+  });
+});
+
+describe('mouths (owner: no disc or O stuck on the face)', () => {
+  const grid: { gape: number; diet: number }[] = [];
+  for (const gape of [0, 0.3, 0.5, 0.7, 0.9, 1]) for (const diet of [0, 0.2, 0.4, 0.6, 0.8, 1]) grid.push({ gape, diet });
+  const body = { size: 0.5, segments: 0.5, limbPairs: 0.5, limbLen: 0.5, horns: 0.3, eyes: 0.5 };
+  const PLATES = [PART.plateC, PART.plateSi, PART.ring];
+  const JAWS = [PART.thighC, PART.thighSi];
+  const front = (b: { x: number; r: number; sx?: number }) => b.x + b.r * (b.sx ?? 1);
+
+  it('carbon, across diet and gape: nothing ahead of the head is a flat disc, plate or ring, on any tier', () => {
+    for (const g of grid) for (const buoy of [0, 0.8]) {
+      const plan = develop(genome({ ...body, ...g, buoy }), day, water);
+      const lay = beadLayout(plan), d = describeFauna(plan, lay), N = spineCount(plan), head = lay.beads[N - 1];
+      if (d.kind !== 'axial') throw new Error('axial expected');
+      // the bead tiers (far and posed proxies, sprite, card fallback): no flattened ellipsoid in front of the head
+      for (let i = N; i < lay.nBody; i++) {
+        const b = lay.beads[i];
+        if (b.x <= head.x + 0.3 * head.r) continue;
+        const ax = [b.sx ?? 1, b.sy ?? 1, b.sz ?? 1];
+        expect(Math.min(...ax) / Math.max(...ax), `bead ${i} at ${JSON.stringify(g)}`).toBeGreaterThanOrEqual(0.45);
+      }
+      // the near loft: no plate or ring part anchored ahead of the head (eye rings are anchored on eye beads, and skipped)
+      for (const q of d.parts) {
+        if (!PLATES.includes(q.type) || d.eyes.includes(q.b)) continue;
+        expect(lay.beads[q.a].x, `part ${q.type} at ${JSON.stringify(g)}`).toBeLessThanOrEqual(head.x + 0.05 * head.r);
+      }
+      // the swimmer near LOD never draws the ink cone ring
+      expect(swimmerParamsFromPlan(plan).head.mouth).not.toBe('cone');
+    }
+  });
+
+  it('grazers get a blunt muzzle in the body tone, no jaw; hunters a tapered jaw wedge, with teeth when the gape is large', () => {
+    for (const g of grid) {
+      const plan = develop(genome({ ...body, ...g }), day, water);
+      const lay = beadLayout(plan), d = describeFauna(plan, lay), N = spineCount(plan), head = lay.beads[N - 1];
+      if (d.kind !== 'axial') throw new Error('axial expected');
+      const jaws = d.parts.filter((q) => JAWS.includes(q.type) && q.a >= N);
+      if (g.diet <= 0.2) {
+        expect(jaws, `grazer ${JSON.stringify(g)}`).toEqual([]);
+        for (let i = N; i < lay.nBody; i++) {
+          const b = lay.beads[i];
+          if (b.tone === BEAD_HORN && b.sx === undefined) continue; // horn and tusk chains are horns, not mouths
+          expect(front(b) - front(head), `grazer bead ${i}`).toBeLessThanOrEqual(0.25 * head.r);
+        }
+        expect(lay.beads.slice(N, lay.nBody).some((b) => b.tone === BEAD_BODY), 'muzzle').toBe(true);
+      }
+      if (g.diet >= 0.8 && g.gape >= 0.7) {
+        expect(jaws, `hunter ${JSON.stringify(g)}`).toHaveLength(1);
+        const hinge = lay.beads[jaws[0].a], tip = lay.beads[jaws[0].b];
+        expect(tip.x).toBeGreaterThan(hinge.x + 0.5 * head.r); // points forward
+        expect(tip.r).toBeLessThan(hinge.r);                     // and tapers
+        expect(hinge.y).toBeLessThan(head.y);                    // under the snout
+        const teeth = d.parts.filter((q) => q.a === jaws[0].a && q.slot === SLOT.bone);
+        if (plan.gapeSize > 1.6 * plan.scale) expect(teeth.length).toBeGreaterThan(0);
+        expect(d.headCap).toBeGreaterThan(1.05); // the snout tapers into a wedge over the jaw (grazers: 0.92, blunt)
+      }
+    }
+  });
+
+  it('silicon walkers: a faceted mandible on hunters, never a muzzle, plate or disc ahead of the head', () => {
+    for (const diet of [0.1, 0.9]) {
+      const plan = develop(genome({ size: 0.4, segments: 0.7, limbPairs: 0.3, limbLen: 0.5, plates: 0.6, eyes: 0.5, gape: 0.9, diet }, true), day, water);
+      expect(plan.architecture).toBe('axial');
+      const lay = beadLayout(plan), d = describeFauna(plan, lay), N = spineCount(plan), head = lay.beads[N - 1];
+      expect(lay.beads.slice(N, lay.nBody).some((b) => b.tone === BEAD_BODY)).toBe(false);
+      for (const q of d.parts) if (q.type === PART.plateSi) expect(lay.beads[q.a].x).toBeLessThanOrEqual(head.x + 0.05 * head.r);
+      expect(d.parts.filter((q) => q.type === PART.thighSi && q.a >= N).length).toBe(diet > 0.5 ? 1 : 0);
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 // Pure creature layouts (no three.js): a BodyPlan becomes parts in body space (x forward, y up, z lateral, metres, resting
 // on y = 0). The two chemistries are different architectures:
-//   axial (carbon): a head-to-tail chain of ellipsoid beads (trunk, tail, head, jaw), shields, crests, horns, paddle fins,
+//   axial (carbon): a head-to-tail chain of ellipsoid beads (trunk, tail, head, muzzle or jaw), shields, crests, horns, paddle fins,
 //     membrane wings, and IK limbs (soft tentacles or jointed legs);
 //   radial (silicon): a faceted n-gon hub of stacked tiers, prism arms (rod, branching, fan, whip) with 15° joints, ceramic
 //     tiles or crystal spikes, a spire crown, and dot-eye clusters at the arm tips.
@@ -118,6 +118,17 @@ function h01(a: number, b: number): number {
   h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0;
   h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Lower-jaw beads appear above this bite. */
+export const JAW_MIN = 0.15;
+/**
+ * How much of a hunter's mouth an axial plan has, 0 (a grazer's muzzle) .. 1 (a long tapered jaw): the protruding-jaw
+ * trait scaled by diet, ramping from diet 0.35 to 0.75. Continuous, so mutation walks from muzzle to jaw.
+ */
+export function mouthBite(plan: Pick<BodyPlan, 'jaw' | 'diet'>): number {
+  const d = Math.min(1, Math.max(0, (plan.diet - 0.35) / 0.4));
+  return plan.jaw * d * d * (3 - 2 * d);
 }
 
 // --- axial layout (carbon) ---------------------------------------------------------------------------------------------
@@ -239,7 +250,7 @@ function axialLayout(plan: BodyPlan): BeadLayout {
     extras.push({ x: p.x, y: p.y + p.r * p.sy * 0.95 + p.r * 0.45 * h, z: p.z, r: p.r * 0.5, tone: BEAD_ACCENT, sx: 0.25, sy: h, sz: 0.75, yaw: p.yaw });
   }
 
-  // Head: eyes in pairs, a protruding jaw, and the horn layout.
+  // Head: eyes in pairs, the mouth, and the horn layout.
   const hr = head.r;
   const nEyePairs = Math.min(3, Math.floor(plan.eyeCount / 2));
   const eyeR = Math.max(hr * 0.3, 0.01 * L);
@@ -248,8 +259,19 @@ function axialLayout(plan: BodyPlan): BeadLayout {
       extras.push({ x: head.x + hr * (0.55 - 0.3 * k), y: head.y + hr * head.sy * (0.35 + 0.3 * k), z: head.z + side * hr * (0.65 - 0.05 * k), r: eyeR * (1 - 0.15 * k), tone: BEAD_EYE });
     }
   }
-  if (plan.jaw > 0.05) {
-    extras.push({ x: head.x + hr * (0.8 + 0.5 * plan.jaw), y: head.y - hr * head.sy * 0.35, z: head.z, r: hr * (0.55 + 0.35 * plan.jaw), tone: BEAD_HORN, sx: 1.3, sy: 0.35, sz: 0.9, yaw: head.yaw });
+  // Mouth, formed with the head (owner feedback: the old flat jaw plate read as a disc stuck on the face). Grazers get a
+  // blunt, down-turned muzzle bead in the body tone, mostly inside the head; hunters (bite > JAW_MIN) a tapered lower
+  // jaw tucked under the snout: a hinge bead then a smaller tip bead, both horn tone with sx set (adapter: the jaw wedge).
+  // Silicon walkers have no muzzle, only the mandible.
+  const bite = mouthBite(plan);
+  if (plan.chemistry !== 'silicon' && bite < 0.6) {
+    const mr = hr * (0.6 + 0.1 * plan.jaw) * (1 - 0.5 * bite);
+    extras.push({ x: head.x + hr * 0.5, y: head.y - hr * head.sy * 0.25, z: head.z, r: mr, tone: BEAD_BODY, sx: 1.0, sy: 0.8, sz: 0.85, yaw: head.yaw });
+  }
+  if (bite > JAW_MIN) {
+    const hy = head.y - hr * head.sy * 0.5;
+    extras.push({ x: head.x + hr * 0.1, y: hy, z: head.z, r: hr * (0.38 + 0.1 * bite), tone: BEAD_HORN, sx: 1.25, sy: 0.7, sz: 1.0, yaw: head.yaw });
+    extras.push({ x: head.x + hr * (0.8 + 0.5 * bite), y: hy - hr * 0.1, z: head.z, r: hr * (0.2 + 0.05 * bite), tone: BEAD_HORN, sx: 1.4, sy: 0.7, sz: 0.85, yaw: head.yaw });
   }
   const hl = plan.hornLength;
   const hornR = (j: number) => Math.max(hr * 0.3 * (1 - 0.3 * j), 0.008 * L);

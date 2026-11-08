@@ -2,13 +2,13 @@
 // description: a smooth lofted body plus sculpted parts, every one anchored to the layout's beads or rods so the
 // existing motion (swim wave, bell pulse, sway, IK legs, tripod arms, rolling) drives the new look unchanged.
 //   axial (carbon): a loft through the spine beads, tail cap to head dome; shields, crest frills, paddle fins, membrane
-//     wings, jaw, horns, spots, paired ring eyes with a bone catchlight; jointed or tentacle legs (posed per frame).
+//     wings, a muzzle or tapered lower jaw, horns, spots, paired ring eyes with a bone catchlight; jointed or tentacle legs (posed per frame).
 //   radial (silicon): a lofted crystal hub (rounded n-gon cross-section, one stepped band per tier); hex ceramic tiles,
 //     spire crown, straight rod arms with 15° joints and cyan dot eyes at the arm tips. Never bilateral: no head, no pairs.
 // One body colour + one accent (Red World rule): every part takes `body` or `accent`, plus ink/bone eyes and glow.
 import type { BodyPlan } from '../../sim/develop';
 import {
-  BEAD_ACCENT, BEAD_EYE, BEAD_HORN, BEAD_PLATE, BEAD_SPOT, beadLayout, type BeadLayout,
+  BEAD_ACCENT, BEAD_BODY, BEAD_EYE, BEAD_HORN, BEAD_PLATE, BEAD_SPOT, beadLayout, mouthBite, type BeadLayout,
 } from '../creatureLayout';
 
 /** Shared instanced part geometries (render/faunaLib/parts.ts builds one mesh per type). Types ending in Si are silicon's
@@ -120,6 +120,11 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   const nBody = lay.nBody;
   const horns: number[] = [];
   const eyes: number[] = [];
+  // the mouth (creatureLayout): a body-tone muzzle bead is the only body-tone extra; a jaw is a hinge + tip bead pair
+  const bite = mouthBite(plan);
+  let muzzle = -1;
+  const teeth: PartDesc[] = [];
+  for (let i = N; i < nBody; i++) if (beads[i].tone === BEAD_BODY) { muzzle = i; break; }
   for (let i = N; i < nBody; i++) {
     const b = beads[i];
     if (b.tone === BEAD_PLATE) {
@@ -150,9 +155,23 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
       parts.push(part({ type: PART.ring, a: head, b: i, t0: 1, t1: 1.12, r: 1.02, rRef: i }));
       const side = b.z >= beads[head].z ? 1 : -1;
       parts.push(part({ type: PART.knob, a: i, slot: SLOT.bone, ox: 0.35, oy: 0.45, oz: side * 0.6, sx: 0.3, sy: 0.3, sz: 0.3 }));
-    } else if (b.tone === BEAD_HORN && b.sx !== undefined) {
-      // jaw: a flattened plate under the snout
-      parts.push(part({ type: PLATE, a: i, slot: SLOT.hard, sx: 1.3 * b.sx, sy: 1.1 * (b.sy ?? 1), sz: (b.sz ?? 1) }));
+    } else if (b.tone === BEAD_BODY && i === muzzle) {
+      // grazer's muzzle: a body-tone swelling at the front-bottom of the head, so the snout is blunt and turned down
+      parts.push(part({ type: KNOB, a: i, sx: b.sx ?? 1, sy: b.sy ?? 1, sz: b.sz ?? 1 }));
+    } else if (b.tone === BEAD_HORN && b.sx !== undefined && i + 1 < nBody && beads[i + 1].sx !== undefined) {
+      // lower jaw: a tapered wedge from the hinge bead (i) to the tip bead (i + 1), wider than deep, tucked under the
+      // snout (thighC tapers to 0.4 at its tip; silicon's hexagonal thighSi makes a faceted mandible)
+      const JAW = si ? PART.thighSi : PART.thighC, JAW_SLOT = SLOT.hard; // jaws are hard parts: they wear the world's mineral (fauna-colour.md)
+      parts.push(part({ type: JAW, slot: JAW_SLOT, a: i, b: i + 1, t0: -0.15, t1: 1.3, r: 0.75, rRef: i, flat: 1.45 }));
+      if (!si && plan.gapeSize > 1.6 * plan.scale && bite > 0.5) {
+        // big gape: two small bone teeth per side standing on the jaw's rim, on the hinge bead's frame (added last, so
+        // the part cap drops them before any horn)
+        const span = (beads[i + 1].x - b.x) / b.r;
+        for (const f of [0.55, 0.9]) for (const side of [1, -1]) {
+          teeth.push(part({ type: PART.knob, a: i, slot: SLOT.bone, ox: span * f, oy: 0.35 - 0.15 * f, oz: side * (0.95 - 0.35 * f), sx: 0.13, sy: 0.24, sz: 0.13 }));
+        }
+      }
+      i++; // the tip bead is part of the same jaw
     } else if (b.tone === BEAD_HORN) {
       horns.push(i);
     }
@@ -180,11 +199,13 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
       parts.push(part({ type: KNOB, a: j, slot: SLOT.glow, glow: plan.glow, oy: 0.35, oz: side * 0.85, sx: 0.16, sy: 0.16, sz: 0.16 }));
     }
   }
+  parts.push(...teeth);
   const legs = lay.limbs.map((rig, k) => ({ rig: k, side: rig.side, pair: rig.pair, jointed: plan.limbKind === 'leg' }));
   let rMax = 0, over = head;
   for (const s of spine) if (beads[s.bead].r > rMax) { rMax = beads[s.bead].r; over = s.bead; }
+  // head cap: hunters taper to a wedge snout over the jaw; grazers stay blunt
   return {
-    kind: 'axial', spine, mids, faceted: si, headCap: si ? 0.8 : 1.05, tailCap: plan.tailKind === 'whip' ? 1.6 : 1.1,
+    kind: 'axial', spine, mids, faceted: si, headCap: si ? 0.8 + 0.3 * bite : 0.92 + 0.6 * bite, tailCap: plan.tailKind === 'whip' ? 1.6 : 1.1,
     parts: parts.slice(0, MAX_STATIC_PARTS), legs, eyes, head,
     bell: { r: rMax * (2.2 + 0.8 * plan.wingSpan), h: rMax * (3.2 + 1.0 * plan.wingSpan), over },
   };

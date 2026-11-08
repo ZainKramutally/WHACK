@@ -5,6 +5,7 @@
 // projects), so the app's BodyPlan (or unpackBodyPlan(births[i].plan)) is assignable to it as is.
 // The full mapping table is in docs/features/aquatic-life.md.
 import type { LookKey as PaletteKey } from '../../palette';
+import { JAW_MIN, mouthBite } from '../../creatureLayout';
 import { DEFAULT_PARAMS, normaliseParams, type BodyPlanKind, type Symmetry, type SwimmerParams, type TailKind } from './params';
 
 export interface AppBodyPlan {
@@ -191,7 +192,7 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
     stalks: cl((plan.eyeArea - 0.8) * 0.25, 0, 0.2) * (kind === 'segmented' ? 1.5 : 1),
     feelers: grasp && kind === 'segmented' ? Math.min(4, plan.hornKind === 'pair' || plan.hornKind === 'tusk' ? 2 : plan.hornCount) : 0,
     feelerLen: cl((plan.hornLength / Math.max(1e-6, plan.scale)) * 1.5 + 0.15, 0.1, 0.9),
-    mouth: plan.jaw > 0.5 ? 'jaw' : plan.diet > 0.6 ? 'cone' : 'none',
+    mouth: mouthBite(plan) > JAW_MIN ? 'jaw' : 'none', // never the ink 'cone' ring: it read as an O stuck on the face (owner)
     crest: Math.round(plan.crest * 6),
   };
   // glow from darkness: a lateral line once it is clearly expressed; a ventral photophore row on shorter bodies, and only
