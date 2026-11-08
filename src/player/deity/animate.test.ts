@@ -178,4 +178,22 @@ describe('deity animator', () => {
     for (let i = 0; i < 120; i++) step(mk());
     expect(minClear).toBeGreaterThanOrEqual(0.02 - 1e-6);
   });
+
+  it('headAttached: head rides the body, no dip, yaw limited to a glance', () => {
+    const rig = buildStandinRig();
+    rig.headAttached = true;
+    const a = createDeityAnimator(rig, { lookBackDelay: [1, 1] });
+    const restY = rig.head.position.y;
+    let maxYaw = 0, maxDip = 0;
+    const seq = [mk({ speed: 5 }), mk({ speed: 5, jumped: true, vy: 4.8, grounded: false }), mk({ landed: 1 }), mk()];
+    for (let i = 0; i < 480; i++) {
+      a.update(seq[i < 100 ? 0 : i === 100 ? 1 : i === 101 ? 2 : 3], 1 / 60);
+      maxYaw = Math.max(maxYaw, Math.abs(rig.head.rotation.y));
+      maxDip = Math.max(maxDip, Math.abs(rig.head.position.y - restY - rig.dims.bodyHeight * (rig.body.scale.y - 1)));
+      expect(Math.abs(rig.head.position.x)).toBeLessThan(1e-9);
+    }
+    expect(maxYaw).toBeLessThanOrEqual(1.25 + 1e-9);
+    expect(maxYaw).toBeGreaterThan(0.5); // it does glance
+    expect(maxDip).toBeLessThan(1e-9);
+  });
 });

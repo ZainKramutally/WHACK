@@ -42,12 +42,14 @@ export function attachPlayer(
   opts: AttachOptions = {},
 ): AttachedPlayer {
   const input = createInput(domElement, opts.callbacks, opts.input);
-  const player = createPlayer(env, opts.player);
+  // The character sets the tuning that depends on its size (explicit options still win).
+  const character = createCharacter();
+  const { dims } = character;
+  const player = createPlayer(env, { swimSurfaceOffset: dims.headRestY - 0.15, ...opts.player }); // head centre ~0.15 m above water while treading
   const follow = createFollowCamera(
     { floorAt: (x, z) => walkFloor(env.heightAt(x, z), env.seaLevel(), env.frozen()) },
-    opts.camera,
+    { targetHeight: 0.77 * dims.height, ...opts.camera },
   );
-  const character = createCharacter();
   scene.add(character.root);
 
   const s = player.state;
@@ -86,6 +88,7 @@ export function attachPlayer(
       follow.update(dt, camTarget, s.mode === 'swim');
       camera.position.set(follow.position.x, follow.position.y, follow.position.z);
       camera.lookAt(follow.lookAt.x, follow.lookAt.y, follow.lookAt.z);
+      character.setLookTarget?.(camera.position);
       character.update(s, dt);
       fovExtra = easeSprintFov(fovExtra, s.sprinting, sprintFovDeg, dt);
       const fov = baseFov + (fovExtra < 0.005 ? 0 : fovExtra);

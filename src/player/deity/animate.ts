@@ -24,8 +24,8 @@ export interface DeityAnimator {
 }
 
 /** Metres of travel per gait cycle (two skips). */
-export function strideLength(speed: number): number {
-  return clamp(0.9 + 0.3 * speed, 1.1, 3.6);
+export function strideLength(speed: number, legM = 1): number {
+  return clamp(0.9 + 0.3 * speed, 1.1, 3.6) * legM;
 }
 
 const TAU = Math.PI * 2;
@@ -65,7 +65,10 @@ function resetPose(p: Float64Array) {
 export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}): DeityAnimator {
   const d = rig.dims;
   // Variant D carries its eyes on the body: the head turn would show nothing, so skip the look-back there.
-  const lookBackOn = opts.lookBack !== false && rig.eyes[0].parent === rig.head;
+  const attached = rig.headAttached === true; // a helmet: rides the body, glances up to +-70 deg instead of looking back
+  const lookBackOn = opts.lookBack !== false && (attached || rig.eyes[0].parent === rig.head);
+  // Longer legs take longer, flatter steps (C's 0.1 m legs stay at 1).
+  const legM = clamp(rig.dims.legLength / 0.28, 1, 2.2);
   const seed = opts.seed ?? 0xde17;
   const rLook = makeRand(seed);
   const rBlink = makeRand(seed ^ 0x9e3779b9);
@@ -132,7 +135,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
 
   function gaitPose(p: Float64Array, speed: number) {
     const sk = Math.min(1, speed / 5);
-    const A = lerp(0.55, 0.9, runK) * (0.4 + 0.6 * sk);
+    const A = (lerp(0.55, 0.9, runK) * (0.4 + 0.6 * sk)) / Math.sqrt(legM);
     const s = Math.sin(TAU * gait), c4 = Math.cos(2 * TAU * gait);
     const hop = lerp(0.04, 0.07, runK) * sk; // body bob: capped, the bell cloak glides rather than hops
     p[PY] = -d.legLength * (1 - Math.cos(A)) * 0.8 + hop * (0.5 + 0.5 * c4);
@@ -228,14 +231,13 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     if (s.jumped) {
       sx[S_ST] = 0.14;
       sv[S_ST] = 0;
-      sv[S_HY] -= 2;
+      if (!attached) sv[S_HY] -= 2;
       sv[S_H0Y] -= 1.5;
       sv[S_H1Y] -= 1.5;
     }
     if (s.landed > 0) {
       sx[S_SQ] = Math.max(sx[S_SQ], 0.24 * s.landed); // body squash <= 12%
-      sx[S_HY] -= 0.06 * s.landed;
-      sv[S_HY] -= 3 * s.landed;
+      if (!attached) { sx[S_HY] -= 0.06 * s.landed; sv[S_HY] -= 3 * s.landed; }
       sv[S_H0Y] -= 2 * s.landed;
       sv[S_H1Y] -= 2 * s.landed;
     }
@@ -254,7 +256,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     runK = approach(runK, s.sprinting && grounded ? 1 : 0, 0.12, dt);
 
     // Phases: gait advances with distance travelled.
-    if (grounded && s.speed > 0.05) gait = (gait + (s.speed * dt) / strideLength(s.speed)) % 1000;
+    if (grounded && s.speed > 0.05) gait = (gait + (s.speed * dt) / strideLength(s.speed, legM)) % 1000;
     if (swim) swimPh += dt * (0.7 + s.speed * 0.45);
     treadPh += dt * 1.1;
 
@@ -296,7 +298,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
         if (target) {
           const a = Math.atan2(-(target.x - s.x), -(target.z - s.z));
           yawT = angleDelta(s.heading, a);
-        } else yawT = lbSign * Math.PI;
+        } else yawT = lbSign * (attached ? 1.2 : Math.PI);
         pitchT = 0.05;
         if (!lbBlinked && lbT >= 0.7) {
           lbBlinked = true;
@@ -369,7 +371,7 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     st[S_HZ] = acc[HZ];
     st[S_PITCH] = acc[HRX] + pitchT + 0.35 * castK;
     // Yaw spring runs on an unwrapped angle: aim at the nearest equivalent of the target.
-    st[S_YAW] = yawT;
+    st[S_YAW] = attached ? clamp(yawT, -1.2, 1.2) : yawT;
     st[S_H0X] = -(acc[H0X]) + 0.1 * castK;
     st[S_H1X] = acc[H1X] - 0.1 * castK;
     st[S_H0Y] = acc[H0Y] + 0.55 * castK;
@@ -395,7 +397,15 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     rig.legs[0].rotation.z = rLegs[0].rz + acc[L0Z] - 0.5 * squash;
     rig.legs[1].rotation.z = rLegs[1].rz + acc[L1Z] + 0.5 * squash;
     // The head floats but never dips into the body: keep its underside 2 cm above the (squashed or stretched) body top.
-    const minHeadY = d.hipHeight + d.bodyHeight * bsy + 0.02 + d.headRadius;
+    if (attached) {
+      sx[S_HX] = sx[S_HZ] = 0;
+      sx[S_HY] = d.bodyHeight * (bsy - 1);
+      sv[S_HX] = sv[S_HY] = sv[S_HZ] = 0;
+      sx[S_PITCH] = clamp(acc[HRX] * 0.5 + pitchT, -0.5, 0.5);
+      sv[S_PITCH] = 0;
+      sx[S_YAW] = clamp(sx[S_YAW], -1.25, 1.25);
+    }
+    const minHeadY = attached ? -1e9 : d.hipHeight + d.bodyHeight * bsy + 0.02 + d.headRadius;
     if (rHead.y + sx[S_HY] < minHeadY) {
       sx[S_HY] = minHeadY - rHead.y;
       if (sv[S_HY] < 0) sv[S_HY] = 0;

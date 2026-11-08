@@ -39,9 +39,9 @@ const water = new THREE.Mesh(
 water.position.set(POOL.x, SEA, POOL.z);
 app.scene.add(ground, water);
 
-const player = createPlayer(env);
+const player = createPlayer(env, { swimSurfaceOffset: 0.92 }); // as index.ts derives it for the deity (headRestY - 0.15)
 const s = player.state;
-const follow = createFollowCamera({ floorAt: (x, z) => walkFloor(heightAt(x, z), SEA, false) });
+const follow = createFollowCamera({ floorAt: (x, z) => walkFloor(heightAt(x, z), SEA, false) }, { targetHeight: 1.05 });
 const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const; // ?variant=a|b|c|d|standin
 const qv = new URLSearchParams(location.search).get('variant');
 let vi = Math.max(0, VARIANTS.findIndex((v) => v.toLowerCase() === (qv ?? '').toLowerCase()));
