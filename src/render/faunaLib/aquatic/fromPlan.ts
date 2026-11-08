@@ -52,6 +52,25 @@ export interface AppGenes { sociality?: number }
 
 const cl = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
+/**
+ * Neck (skull to front girdle) ÷ body length, render-side: longer with more spine segments, shorter with a bigger head
+ * or a wider gape, so small-headed grazers grow long necks and big-jawed hunters short ones. Pure, and monotone in each
+ * input. fauna.ts passes the species book's attract()ed plan, so a species shares its head and gape (segments are the
+ * animal's own count).
+ */
+export function neckFrac(p: Pick<AppBodyPlan, 'segmentCount' | 'headScale' | 'gapeSize' | 'scale'>): number {
+  const seg = cl((p.segmentCount - 3) / 13, 0, 1);
+  const head = cl((p.headScale - 0.75) / 1.25, 0, 1);
+  const gape = cl(p.gapeSize / Math.max(1e-6, p.scale) / 2, 0, 1);
+  return 0.06 + 0.39 * seg * (1 - 0.55 * head) * (1 - 0.45 * gape);
+}
+
+/** Tail (hind girdle or peak girth to tip) ÷ body length, from the tail kind and its segments: whips long, flukes short. */
+export function tailFrac(p: Pick<AppBodyPlan, 'tailKind' | 'tailSegments'>): number {
+  const base = p.tailKind === 'whip' ? 0.2 : p.tailKind === 'fluke' ? 0.12 : 0.14;
+  return cl(base + 0.03 * Math.max(0, p.tailSegments), 0.1, 0.4);
+}
+
 /** Axial body plan kind from the plan's form traits (first match wins). */
 export function axialKind(p: AppBodyPlan): BodyPlanKind {
   // two or more limb pairs with long limbs (or wide fins) fly underwater on four flippers
@@ -137,7 +156,8 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
   p.depth = kind === 'ribbon' ? cl(2.6 * plan.flatten, 1.5, 4) : kind === 'segmented' ? cl(0.45 * plan.flatten, 0.25, 0.7) : kind === 'disc' ? 0.5
     : cl(0.7 + 2.2 * cl((plan.flatten - 0.45) / 0.85, 0, 1) ** 1.2 + 0.4 * plan.crest, 0.6, 3.4);
   p.aspect = kind === 'disc' ? cl((2.2 * section) / Math.sqrt(p.depth), 0.3, 1.2) : cl(section / Math.sqrt(p.depth), 0.02, 0.6);
-  p.peak = cl(0.45 - 0.4 * plan.gradient, 0.2, 0.6);
+  // a longer tail moves the widest point forward, so the taper behind it (the tail stock) runs longer
+  p.peak = cl(0.45 - 0.4 * plan.gradient - 0.8 * (tailFrac(plan) - 0.2), 0.2, 0.6);
   p.undulation = cl((n - 4) / 10, 0, 1);
   // Fish-like by default (owner feedback): very small fins, all rooted on the body: a small dorsal, one small pectoral
   // pair just behind the head (none on eel ribbons), and a caudal fin from the tail kind. Heavy armour rows on small lobes.
@@ -147,6 +167,8 @@ export function swimmerParamsFromPlan(plan: AppBodyPlan, genes: AppGenes = {}): 
     p.aspect = cl(1.6 * section, 0.16, 0.3);
     p.depth = cl(0.75 * plan.flatten, 0.55, 0.95);
     p.undulation = 0.1;
+    p.neck = neckFrac(plan);
+    p.tailLen = tailFrac(plan);
     p.fins = { lateral: 2, lateralSize: cl(0.22 + 0.1 * (limbRel - 1) + 0.08 * plan.finSpan, 0.22, 0.42), dorsal: 0, ventral: 0, fringe: 0.85 };
     p.tail = 'taper';
     p.tailSize = 0;

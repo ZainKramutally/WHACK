@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { develop, type DevelopInputs } from '../../../sim/develop';
 import { makeFounders, type AnimalGenome, type BodyGenes } from '../../../sim/genome';
-import { buildSwimmer, type SwimSink } from './build';
-import { swimmerParamsFromPlan } from './fromPlan';
+import { buildSwimmer, plesioMarks, type SwimSink } from './build';
+import { neckFrac, swimmerParamsFromPlan, tailFrac } from './fromPlan';
 import { advance, armAngle, kinematics, STEP_DEG } from './motion';
 import { DEFAULT_PARAMS, mergeParams, normaliseParams } from './params';
 import type { Path, V3 } from './v3';
@@ -39,6 +39,7 @@ const SWIMMERS = {
   'carbon plated': swimmerParamsFromPlan(plan({ segments: 0.4, plates: 0.8, limbPairs: 0.5, horns: 0.5, diet: 0.8 })),
   'silicon rower': swimmerParamsFromPlan(plan({ limbPairs: 0.5, limbLen: 0.6, size: 0.4 }, true)),
   'carbon plesiosaur': swimmerParamsFromPlan(plan({ limbPairs: 0.6, limbLen: 0.8, segments: 0.4, size: 0.4 })),
+  'carbon long-neck': swimmerParamsFromPlan(plan({ limbPairs: 0.6, limbLen: 0.8, segments: 1, size: 0.4, gape: 0, eyes: 0, diet: 0.1 })),
   'silicon bell': normaliseParams(mergeParams(DEFAULT_PARAMS, { chemistry: 'silicon', plan: 'bell', radial: { chain: 3 } as never })),
 };
 
@@ -96,6 +97,27 @@ describe('aquatic swimmers (port)', () => {
     let differs = false;
     for (const t of [0, 0.2, 0.4, 0.6, 0.8].map((x) => x * k.cycle)) { const l = lift(t); if (Math.abs(l[0] - l[2]) > 0.02 * sw.L) differs = true; }
     expect(differs, 'hind pair lags the fore pair').toBe(true);
+  });
+
+  it('necks lengthen with segments and shorten with head and gape; tails lengthen with their segments (both extremes)', () => {
+    expect(neckFrac({ segmentCount: 16, headScale: 0.75, gapeSize: 0, scale: 1 })).toBeCloseTo(0.45, 9);
+    expect(neckFrac({ segmentCount: 3, headScale: 2, gapeSize: 2, scale: 1 })).toBeCloseTo(0.06, 9);
+    const base = { segmentCount: 9, headScale: 1.2, gapeSize: 0.4, scale: 1 };
+    let prev = -Infinity;
+    for (let n = 3; n <= 16; n++) { const v = neckFrac({ ...base, segmentCount: n }); expect(v).toBeGreaterThanOrEqual(prev); prev = v; }
+    prev = Infinity;
+    for (let h = 0.75; h <= 2; h += 0.125) { const v = neckFrac({ ...base, headScale: h }); expect(v).toBeLessThanOrEqual(prev); prev = v; }
+    prev = Infinity;
+    for (let g = 0; g <= 2; g += 0.25) { const v = neckFrac({ ...base, gapeSize: g }); expect(v).toBeLessThanOrEqual(prev); prev = v; }
+    // through develop(): a many-segmented small-headed grazer and a short big-jawed hunter, both on long flippers
+    const long = SWIMMERS['carbon long-neck'];
+    const short = swimmerParamsFromPlan(plan({ limbPairs: 0.6, limbLen: 0.8, segments: 0, size: 0.4, gape: 1, eyes: 1, diet: 0.9 }));
+    expect([long.plan, short.plan]).toEqual(['plesiosaur', 'plesiosaur']);
+    expect(long.neck).toBeGreaterThan(short.neck + 0.2);
+    expect(plesioMarks(long).fore - plesioMarks(short).fore).toBeGreaterThan(0.2);
+    expect(tailFrac({ tailKind: 'whip', tailSegments: 6 })).toBeGreaterThan(tailFrac({ tailKind: 'whip', tailSegments: 2 }));
+    expect(tailFrac({ tailKind: 'whip', tailSegments: 2 })).toBeGreaterThan(tailFrac({ tailKind: 'fluke', tailSegments: 1 }));
+    expect(plesioMarks({ ...long, tailLen: 0.35 }).hind).toBeLessThan(plesioMarks({ ...long, tailLen: 0.12 }).hind);
   });
 
   it('silicon rowers beat in stepped 15° strokes', () => {

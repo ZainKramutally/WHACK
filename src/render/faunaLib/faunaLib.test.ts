@@ -83,7 +83,7 @@ describe('SpeciesBook (render look attractor)', () => {
     const plans = [0, 1, 2, 3, 4, 5].map((k) => develop(jitter(grazer, k), day, water));
     let bin = -1;
     plans.forEach((p, k) => { bin = book.assign(vec(jitter(grazer, k)), 0, p); });
-    const odd = { ...plans[2], girth: plans[2].girth + 0.5, bands: 3, spots: 1 };
+    const odd = { ...plans[2], girth: plans[2].girth + 0.5, gapeSize: plans[2].gapeSize + 0.5 * plans[2].scale, bands: 3, spots: 1 };
     const l = book.lookOf(bin, look());
     const drawn = book.attract(odd, bin, l);
     for (const k of ['legPairs', 'limbKind', 'hornCount', 'hornKind', 'eyeCount', 'eyeKind', 'plateCover', 'segmentCount', 'tailKind', 'mode', 'scale'] as const) {
@@ -91,6 +91,8 @@ describe('SpeciesBook (render look attractor)', () => {
     }
     expect(drawn.girth).toBeLessThan(odd.girth);
     expect(drawn.girth).toBeGreaterThan(plans[0].girth - 0.2);
+    expect(drawn.gapeSize).toBeLessThan(odd.gapeSize); // gape is a species proportion too (it shortens a swimmer's neck)
+    expect(drawn.gapeSize).toBeGreaterThan(plans[2].gapeSize);
     expect([drawn.hue, drawn.accent, drawn.bands, drawn.spots]).toEqual([l.hue, l.accent, l.bands, l.spots]);
     expect(odd.girth).toBe(plans[2].girth + 0.5); // the input plan is untouched
   });

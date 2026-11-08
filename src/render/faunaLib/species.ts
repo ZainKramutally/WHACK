@@ -1,7 +1,7 @@
 // Species looks: the art layer's read-only look attractor (DECISIONS §G.3, G.9). No three.js, no sim writes.
 // Each animal is binned once, when first seen, in the field guide's clustering space (its 12 body genes + comp c, si;
 // join radius FORM_RADIUS, as sim/guide.ts). A bin keeps running means of its members' centroid and proportions
-// (girth, head size, crest, horn and limb length, tier height, ...), and its founder's diet and pattern.
+// (girth, head size, gape, crest, horn and limb length, tier height, ...), and its founder's diet and pattern.
 // Colour: a bin gets a colourway of its own (hue, accent, and its founder's diet for value) once it is a real population
 // (SETTLE members) clearly apart from every coloured species (centroid ≥ SEPARATE away), picked to sit as far as
 // possible from the other live colourways. Until then it wears the colourway of the nearest coloured species, so the
@@ -36,7 +36,7 @@ export interface SpeciesLook { hue: number; accent: number; diet: number; bands:
 
 /** Proportions pulled toward the species mean. `has`: only members with the feature take part (no fins grown on a walker). */
 interface Trait { get(p: BodyPlan): number; set(p: BodyPlan, v: number): void; has?(p: BodyPlan): boolean }
-const rel = (k: 'hornLength' | 'limbLength' | 'tierHeight', has: (p: BodyPlan) => boolean): Trait => ({
+const rel = (k: 'hornLength' | 'limbLength' | 'tierHeight' | 'gapeSize', has: (p: BodyPlan) => boolean): Trait => ({
   get: (p) => p[k] / Math.max(1e-6, p.scale),
   set: (p, v) => { p[k] = v * p.scale; },
   has,
@@ -49,6 +49,7 @@ export const TRAITS: Trait[] = [
   plain('crest', (p) => p.crest > 0), plain('jaw', (p) => p.jaw > 0.05),
   plain('finSpan', (p) => p.finSpan > 0.01), plain('wingSpan', (p) => p.wingSpan > 0.01),
   rel('hornLength', (p) => p.hornCount > 0), rel('limbLength', (p) => p.limbLength > 0), rel('tierHeight', (p) => p.tiers > 0),
+  rel('gapeSize', (p) => p.gapeSize > 0), // with headScale, sets a swimmer's neck (aquatic/fromPlan.ts neckFrac)
 ];
 const NT = TRAITS.length;
 
