@@ -251,3 +251,4 @@
 - ~08:40: Caden picked the astronaut. Contract dea7c42 adds optional knees, shoulder, armReach. astro-model: round edges, circular eyes, knees, arm dims. deity-anim: astronaut default in createCharacter, arm arcs (run +-55 deg), knee bend, counter-twist, critique pass. Then CLAUDE.md + push to main.
 - ~08:50: merged astronaut polish (0e685d7): pill torso, rounded pack/boots, tori rings merged in, round disc eyes, thigh+shin knees, shoulder/armReach dims, bounded 2-bone arms. Gate green.
 - 08:52 16: merged #89 camera hand-off from the Generate transition's end pose.
+- 08:38: MAIN PUSH (pre-approved): 8786d0b skinGroundShift offset fix (freeze-review: nothing open). art-fauna shutdown requested. Remaining: flora-size (hard stop 09:20) + freeze-review for its review.
