@@ -26,9 +26,17 @@
 // are free per-plant noise on top, biased by the cell's conditions. (One JND ≈ one internal pixel at the role's usual
 // viewing distance in the 360 px pixel look, or a just-visible colour step between two flat patches.)
 import { FLORA_GRID, hash01 } from '../layout';
-import { ARCHETYPE_KEYS, ARCHETYPE_META, type FloraRole } from './index';
+import { ARCHETYPE_KEYS, ARCHETYPE_META, NEUTRAL_TINT, type FloraRole } from './index';
+import { traitTint, traited, type CellEnv, type Rgb } from './traits';
+
+/** What a plant's look reads: its cell and world (traits.ts). */
+export type TraitContext = CellEnv;
+export { TRAITS, TINTS } from './traits';
+export { NEUTRAL_TINT };
 
 export interface PlantVary {
+  /** Size multiplier from the conditions (T10); place.ts keeps full-grown plants in their role band. */
+  size: number;
   /** Instance xz ÷ y scale (1: native proportions). */
   girth: number;
   /** Crown radius factor at the plant's top (1: native). */
@@ -79,55 +87,7 @@ const LEAN_DEG: Record<FloraRole, [number, number]> = { ground: [1, 8], mid: [1,
 const ROLE_INDEX: Record<FloraRole, number> = { ground: 0, mid: 1, giant: 2 };
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
-const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-
-/** What a trait can read: the plant's cell, and the world. */
-export interface TraitContext {
-  /** The cell's biomass, whether the plant stands under the sea, and its base height above sea level (m). */
-  mat: number; canopy: number; submerged: boolean; elevation: number;
-  /** World-wide: light at the surface, the heat band 0..1, air density (kg/m³) and the live stats (oxygen, nitrogen,
-   * co2 on carbon, pressure, temperature, …). */
-  light: number; heatBand: number; airDensity: number; stats: Readonly<Record<string, number>>;
-}
-export type TraitParam = 'girth' | 'crown' | 'lean' | 'bend' | 'twist' | 'droop';
-/** One condition → look rule. */
-export interface Trait {
-  id: string;
-  /** Why the condition shapes the plant, in one plain sentence (render-only: plant shapes are an illustration). */
-  why: string;
-  param: TraitParam;
-  /** 'mul' multiplies the parameter by map(driver), 'add' adds it. Rows apply in table order. */
-  op: 'mul' | 'add';
-  /** Only on this chemistry (silicon never curls, and keeps its girth and crown for the 60° rule). */
-  chem?: 'carbon' | 'silicon';
-  /** 'world': the same for every plant; 'cell': differs between neighbours, so only free parameters may use it. */
-  scope: 'world' | 'cell';
-  driver: (c: TraitContext) => number;
-  /** Monotone in the driver. */
-  map: (x: number) => number;
-}
-const total = (c: TraitContext) => c.mat + c.canopy, wet = (c: TraitContext) => (c.submerged ? 1 : 0);
-export const TRAITS: readonly Trait[] = [
-  { id: 'coldStocky', why: 'Cold favours stockier stems: less surface to lose heat from.', param: 'girth', op: 'mul', chem: 'carbon', scope: 'world', driver: (c) => c.heatBand, map: (x) => 1 + 0.06 * (0.5 - clamp01(x)) },
-  { id: 'lightWideCaps', why: 'Bright light spreads caps wide to catch it; dim light keeps them narrow.', param: 'crown', op: 'mul', chem: 'carbon', scope: 'world', driver: (c) => c.light, map: (x) => 0.96 + 0.1 * smooth(0.05, 0.4, x) },
-  { id: 'denseStraight', why: 'Plants in dense cells hold each other up, so they stand straighter.', param: 'lean', op: 'mul', scope: 'cell', driver: total, map: (x) => 1.15 - 0.3 * clamp01(x / 1.5) },
-  { id: 'waterHolds', why: 'Water buoys submerged plants upright.', param: 'lean', op: 'mul', scope: 'cell', driver: wet, map: (x) => 1 - 0.3 * x },
-  { id: 'lushCurls', why: 'Lush cells grow longer stems that curl further.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: total, map: (x) => 0.8 + 0.4 * clamp01(x / 1.2) },
-  { id: 'waterBendsLess', why: 'Water buoys submerged stems, so they bend less.', param: 'bend', op: 'mul', chem: 'carbon', scope: 'cell', driver: wet, map: (x) => 1 - 0.5 * x },
-  { id: 'lightSplays', why: 'Bright light lifts caps toward it; in dim light they hang.', param: 'droop', op: 'add', chem: 'carbon', scope: 'world', driver: (c) => c.light, map: (x) => -0.06 * smooth(0.05, 0.4, x) },
-  { id: 'lushDroops', why: 'Heavier, lusher caps droop further.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: total, map: (x) => 0.8 + 0.4 * clamp01(x / 1.2) },
-  { id: 'waterDroopsLess', why: 'Water buoys submerged caps, so they droop less.', param: 'droop', op: 'mul', chem: 'carbon', scope: 'cell', driver: wet, map: (x) => 1 - 0.5 * x },
-];
-/** Apply every trait row for a chemistry to a parameter's base value. */
-function traited(param: TraitParam, chem: 'carbon' | 'silicon', ctx: TraitContext, base: number): number {
-  let v = base;
-  for (const t of TRAITS) {
-    if (t.param !== param || (t.chem && t.chem !== chem)) continue;
-    const m = t.map(t.driver(ctx));
-    v = t.op === 'mul' ? v * m : v + m;
-  }
-  return v;
-}
+const TINT: Rgb = [1, 1, 1];
 /** A plant's seeded noise 0..1 for one of its dimensions (module scope: no closure per plant per rebuild). */
 const noise = (cell: number, slot: number, salt: number, dim: number) => hash01(cell, slot * 16 + dim, salt);
 /** A plant's seeded sign ±1 for one of its dimensions. */
@@ -142,7 +102,7 @@ const level = (lvl: number, n: number, step: number, u: number) => (lvl - (n - 1
  */
 export function varyPlant(
   arch: number, cell: number, slot: number, dark: boolean, ctx: TraitContext,
-  out: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
+  out: PlantVary = { size: 1, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 },
 ): PlantVary {
   const meta = ARCHETYPE_META[arch];
   const chem = meta.chem, role = meta.role, G = GRID[chem];
@@ -165,7 +125,12 @@ export function varyPlant(
   out.crown = traited('crown', chem, ctx, 1 + level(cl, G.crown[0], G.crown[1], noise(cell, slot, salt, 1)));
   const v = 1 + level(vl, G.value[0], G.value[1], noise(cell, slot, salt, 2));
   const h = level(hl, G.hue[0], G.hue[1], noise(cell, slot, salt, 3));
-  out.r = v * (1 + h); out.g = v; out.b = v * (1 - h);
+  // the tint: neutral × these levels × what the plant's conditions give it (traits.ts TINTS), never above 1
+  const c = traitTint(chem, ctx, TINT);
+  out.r = Math.min(1, NEUTRAL_TINT * v * (1 + h) * c[0]);
+  out.g = Math.min(1, NEUTRAL_TINT * v * c[1]);
+  out.b = Math.min(1, NEUTRAL_TINT * v * (1 - h) * c[2]);
+  out.size = traited('size', chem, ctx, 1);
 
   // free per-plant noise, shaped by the traits of the plant's own cell and world
   const [lo, hi] = LEAN_DEG[role];

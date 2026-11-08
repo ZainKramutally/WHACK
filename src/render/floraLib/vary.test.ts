@@ -5,11 +5,12 @@ import { FLORA_GRID } from '../layout';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_META, ROLE_BAND, buildFloraLibrary } from './index';
 import { makePlantList, placePlants, type PlantList } from './place';
+import { makeEnv, plantEnv } from './traits';
 import { TRAITS, VARY_JND, varyDistance, varyPlant, type PlantVary, type TraitContext } from './vary';
 
 /** A trait context: the cell's biomass and sea, the world's light and heat band. */
 const cx = (mat: number, canopy: number, submerged: boolean, light: number, heatBand: number): TraitContext =>
-  ({ mat, canopy, submerged, elevation: submerged ? -1 : 1, light, heatBand, airDensity: 1.2, stats: {} });
+  plantEnv(Object.assign(makeEnv(), { light, heatBand, co2: 0.25 }), mat, canopy, submerged ? -1 : 1, 0, 0.3, 'mid');
 import { plantMatrix, plantShape } from './instance';
 
 const PATCH = 400;
@@ -26,8 +27,8 @@ const silicon = (): Partial<VisualInputs> => {
 /** Biomass that varies from cell to cell (so neighbours differ in their conditions too), canopy over most of the patch. */
 const varied = (c: number): [number, number] => [0.4 + 0.5 * ((c * 37) % 11) / 10, ((c * 53) % 7) < 2 ? 0.05 : 0.5 + 0.5 * ((c * 29) % 5) / 4];
 const lookOf = (l: PlantList, i: number): PlantVary => ({
-  girth: 1 + l.wg[i], crown: 1 + l.wc[i], leanX: l.lx[i], leanZ: l.lz[i], twist: l.wt[i], droop: l.wd[i], bend: l.wb[i],
-  r: 1 + l.tr[i], g: 1 + l.tg[i], b: 1 + l.tb[i],
+  size: 1, girth: 1 + l.wg[i], crown: 1 + l.wc[i], leanX: l.lx[i], leanZ: l.lz[i], twist: l.wt[i], droop: l.wd[i], bend: l.wb[i],
+  r: 0.9 + l.tr[i], g: 0.9 + l.tg[i], b: 0.9 + l.tb[i],
 });
 const worlds: [string, Partial<VisualInputs>][] = [['carbon', {}], ['silicon', silicon()]];
 
@@ -55,8 +56,10 @@ describe('per-plant variation (vary.ts)', () => {
   });
 
   it('no two plants of one archetype and value step within any 3 × 3 block of cells look alike (≥ 1 JND apart)', () => {
-    for (const [name, over] of worlds) for (const fill of [varied, () => [0.6, 1] as [number, number], () => [1, 0] as [number, number]]) {
-      const l = placePlants(inputs(fill, over), PATCH, { x: 0, z: 0 }, makePlantList());
+    // rolling ground with a sea: neighbours differ in wetness, height rank and mineral too (cell-driven traits)
+    const rolling: Partial<VisualInputs> = { seaLevel: 0, terrain: { rise: 1, progress: {}, height: (x, z) => 6 * Math.sin(x / 23) * Math.cos(z / 31) + 2, patchSize: PATCH } };
+    for (const [name, over] of worlds) for (const [fill, ground] of [[varied, {}], [() => [0.6, 1] as [number, number], {}], [() => [1, 0] as [number, number], {}], [varied, rolling], [() => [0.6, 1] as [number, number], rolling]] as const) {
+      const l = placePlants(inputs(fill, { ...over, ...ground }), PATCH, { x: 0, z: 0 }, makePlantList());
       const byCell = new Map<number, number[]>();
       for (let i = 0; i < l.n; i++) { const c = l.cell[i]; if (!byCell.has(c)) byCell.set(c, []); byCell.get(c)!.push(i); }
       let pairs = 0, worst = Infinity;
@@ -91,8 +94,8 @@ describe('per-plant variation (vary.ts)', () => {
           const meta = ARCHETYPE_META[l.arch[i]], [lo, hi] = ROLE_BAND[meta.role], v = lookOf(l, i), h = l.h[i];
           if (!(h >= lo && h <= hi)) bad.push(`${meta.role} height ${h}`);
           sum[meta.role] += h; n[meta.role]++;
-          // colour stays in its palette band: a value and warm/cool shift of at most ±17% per channel
-          if (![v.r, v.g, v.b].every((ch) => ch > 0.84 && ch < 1.17)) bad.push(`tint ${v.r} ${v.g} ${v.b}`);
+          // the tint never exceeds 1 (nothing new blooms) and never blacks a plant out
+          if (![v.r, v.g, v.b].every((ch) => ch > 0.45 && ch <= 1 + 1e-6)) bad.push(`tint ${v.r} ${v.g} ${v.b}`); // (float32 storage)
           if (Math.atan(Math.hypot(v.leanX, v.leanZ)) * 180 / Math.PI >= 10) bad.push(`lean ${v.leanX} ${v.leanZ}`);
           if (meta.chem === 'silicon') {
             // no curl, and a branch built at 60° from its trunk is drawn within 3° of it at the widest crown and girth
@@ -138,12 +141,11 @@ describe('per-plant variation (vary.ts)', () => {
 });
 
 describe('condition traits (TRAITS)', () => {
-  it('each maps its driver monotonically, and only world-wide drivers move the level parameters (girth, crown)', () => {
+  it('each maps its driver monotonically, with a why, under a unique id', () => {
     const ids = new Set<string>();
     for (const t of TRAITS) {
       expect(ids.has(t.id), t.id).toBe(false); ids.add(t.id);
       expect(t.why.length, t.id).toBeGreaterThan(10);
-      if (t.param === 'girth' || t.param === 'crown') expect(t.scope, `${t.id} moves a level parameter`).toBe('world');
       let up = 0, down = 0, prev = t.map(-1);
       for (let x = -1; x <= 3; x += 0.01) { const y = t.map(x); if (y > prev + 1e-12) up++; if (y < prev - 1e-12) down++; prev = y; }
       expect(up === 0 || down === 0, `${t.id} is monotone`).toBe(true);
@@ -171,8 +173,9 @@ describe('glow per plant (paintSites + the flora material lookAttr)', () => {
         const c = ref.getAttribute('color').array as Float32Array, a = ref.getAttribute('aGlow').array as Float32Array;
         for (let v = 0; v < s.length; v++) {
           // the material: site colour toward its glow colour (by the sign) by min(1, 1.5 g), emissive |s| × g
+          // (painted ÷ 0.9 for headroom and drawn × the neutral 0.9 tint; the glow colour ÷ 0.9 to match)
           const w = Math.abs(s[v]), k = s[v] >= 0 ? G : D, t = Math.min(1, 1.5 * g) * (w > 1e-4 ? 1 : 0);
-          for (let ch = 0; ch < 3; ch++) err = Math.max(err, Math.abs(c0[v * 3 + ch] + (k[ch] - c0[v * 3 + ch]) * t - c[v * 3 + ch]));
+          for (let ch = 0; ch < 3; ch++) err = Math.max(err, Math.abs(0.9 * (c0[v * 3 + ch] + (k[ch] / 0.9 - c0[v * 3 + ch]) * t) - c[v * 3 + ch]));
           err = Math.max(err, Math.abs(w * g - a[v]));
           if (g === 1 && w > 0) { sites++; if (s[v] < 0) deep++; }
         }
@@ -180,7 +183,7 @@ describe('glow per plant (paintSites + the flora material lookAttr)', () => {
       }
       sited.dispose();
     }
-    expect(err).toBeLessThan(1e-5);
+    expect(err).toBeLessThan(0.006); // bone's red channel clamps at 1 in the headroom (0.905 → 0.9)
     expect(sites).toBeGreaterThan(0);
     expect(deep).toBeGreaterThan(0); // glowDeep sites keep their deep colour
   });

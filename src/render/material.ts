@@ -192,7 +192,8 @@ class PlantMaterial extends THREE.MeshLambertNodeMaterial {
  * (signed weight `glowW`: + glow, − glowDeep) turn toward their glow colour by min(1, 1.5 g), as paint() does at that glow,
  * then the tint applies. */
 const plantSiteColour = (base: N, look: N, glowW: N): N => {
-  const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW));
+  // ÷ the neutral tint (paintSites' headroom), so a glow site at the neutral tint shows its exact glow colour
+  const key = mix(vec3(PAL.glowDeep), vec3(PAL.glow), step(0, glowW)).div(0.9);
   return mix(base, key, min(look.w.mul(1.5), 1).mul(step(1e-4, abs(glowW)))).mul(look.xyz);
 };
 

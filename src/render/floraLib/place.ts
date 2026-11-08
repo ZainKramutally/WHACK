@@ -14,9 +14,10 @@
 import type { VisualInputs } from '../../worlds/types';
 import { FLORA_EPS, FLORA_GRID, hash01, patchToWorld } from '../layout';
 import { floraBin, formForBin, type FloraBin, type FloraForm } from '../floraForm';
-import { ARCHETYPE_INDEX, ARCHETYPE_META, pickPlant, plantHeight, type FloraRole } from './index';
+import { ARCHETYPE_INDEX, ARCHETYPE_META, NEUTRAL_TINT, ROLE_BAND, pickPlant, plantHeight, type FloraRole } from './index';
 import { AQUATIC_B, activeGates, aquaticFor, gateKey, worldEnv, type CellProbe } from './gates';
-import { varyPlant, type PlantVary, type TraitContext } from './vary';
+import { varyPlant, type PlantVary } from './vary';
+import { makeEnv, plantEnv, worldEnv as traitWorld } from './traits';
 
 export const MAX_PLANTS = 16000;
 /** Base ground-cover plants per fully grown cell, and the extra dark ones in the foreground. */
@@ -48,7 +49,7 @@ export interface PlantList {
   /** Flora cell and slot (within the cell's role; the darker foreground extras count from 0 again) of each plant. */
   cell: Uint16Array; slot: Uint8Array;
   /** Per-plant look (vary.ts), each 0 for none, so a zeroed list draws native plants: girth − 1, crown − 1, twist,
-   * droop, bend, the lean slope (already added into gx/gz) and the tint − 1 (rgb). */
+   * droop, bend, the lean slope (already added into gx/gz) and the tint − NEUTRAL_TINT (rgb). */
   wg: Float32Array; wc: Float32Array; wt: Float32Array; wd: Float32Array; wb: Float32Array;
   lx: Float32Array; lz: Float32Array;
   tr: Float32Array; tg: Float32Array; tb: Float32Array;
@@ -197,8 +198,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   };
   const cleared = (x: number, z: number, extra: number) =>
     !!clearing && Math.hypot(x - clearing.x, z - clearing.z) < clearing.r + extra;
-  const look: PlantVary = { girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
-  const traits: TraitContext = { mat: 0, canopy: 0, submerged: false, elevation: 0, light: inputs.light, heatBand: inputs.heatBand, airDensity: inputs.airDensity, stats: inputs.stats };
+  const look: PlantVary = { size: 1, girth: 1, crown: 1, leanX: 0, leanZ: 0, twist: 0, droop: 0, bend: 0, r: 1, g: 1, b: 1 };
+  // the world's stats once; each plant adds its cell, its spot and its cell's height rank (traits.ts)
+  const tenv = traitWorld(inputs, makeEnv());
   /** `topAt` (optional): size the plant so its drawn top stands at this height (aquatic mids, by the sea surface). */
   const push = (key: string | null, x: number, z: number, h: number, yaw: number, role: FloraRole, d: number, dark: boolean, glow: number, y: number, c: number, slot: number, topAt = NaN) => {
     if (!key || out.n >= cap) return;
@@ -206,8 +208,9 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     const hr = shapes ? shapes.height[ai] : 1; // drawn height per unit h
     if (topAt === topAt) h = Math.max(0.5, (topAt - y) / (hr - 0.03));
     // this plant's own look (vary.ts): its girth widens the contact ring, and its lean adds to the slope tilt below
-    traits.mat = inputs.flora[c * 2] ?? 0; traits.canopy = inputs.flora[c * 2 + 1] ?? 0; traits.submerged = y < sea; traits.elevation = y - sea;
-    const v = varyPlant(ai, c, slot, dark, traits, look);
+    plantEnv(tenv, inputs.flora[c * 2] ?? 0, inputs.flora[c * 2 + 1] ?? 0, y, sea, probe.rank(c), role);
+    const v = varyPlant(ai, c, slot, dark, tenv, look);
+    if (topAt !== topAt) h = Math.min(h * v.size, ROLE_BAND[role][1]); // T10 (etiolation), never past the role's band
     let tx = 0, tz = 0, sink = 0;
     const r = shapes ? shapes.foot[ai] * h * v.girth : 0;
     let ringed = false;
@@ -242,7 +245,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
     out.gx[i] = tx; out.gz[i] = tz; out.sink[i] = sink;
     out.cell[i] = c; out.slot[i] = slot;
     out.wg[i] = v.girth - 1; out.wc[i] = v.crown - 1; out.wt[i] = v.twist; out.wd[i] = v.droop; out.wb[i] = v.bend;
-    out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - 1; out.tg[i] = v.g - 1; out.tb[i] = v.b - 1;
+    out.lx[i] = v.leanX; out.lz[i] = v.leanZ; out.tr[i] = v.r - NEUTRAL_TINT; out.tg[i] = v.g - NEUTRAL_TINT; out.tb[i] = v.b - NEUTRAL_TINT;
   };
   // One lookup per cell: its bin (light, mix) and land form (floraForm's, for a cell above the sea). Ground cover under
   // the sea takes the cell's submerged form (seaForm), so a shore cell keeps jellyshroom domes and low crusts in the

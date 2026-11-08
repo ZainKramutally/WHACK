@@ -272,6 +272,10 @@ function linear(pal: FloraPalette): Float32Array {
   return out;
 }
 
+/** The neutral per-plant tint: paintSites paints colours ÷ this, so a tint up to 1 ÷ it can lighten (the T8 pale coat)
+ * and no drawn colour ever exceeds 1 (flora-traits.md §7). */
+export const NEUTRAL_TINT = 0.9;
+
 /**
  * Paint for glow per plant (flora.ts): colours as at glow 0, so glow sites show their tissue, and `aGlow` = each glow
  * site's weight, signed by its glow colour (+ glow, − glowDeep). The flora material (lookAttr) then lights a plant's
@@ -280,6 +284,9 @@ function linear(pal: FloraPalette): Float32Array {
  */
 export function paintSites(p: Pick<BuiltPlant, 'geometry' | 'keys' | 'glowKey' | 'site'>, pal: FloraPalette, dark = false): void {
   paint(p, pal, 0, dark);
+  // headroom: colours ÷ NEUTRAL_TINT (≤ 1), drawn × the plant's tint (NEUTRAL_TINT when nothing shifts it)
+  const c = (p.geometry as BufferGeometry).getAttribute('color').array as Float32Array;
+  for (let i = 0; i < c.length; i++) c[i] = Math.min(1, c[i] / NEUTRAL_TINT);
   const a = (p.geometry as BufferGeometry).getAttribute('aGlow').array as Float32Array;
   const deep = FLORA_KEYS.indexOf('glowDeep');
   for (let i = 0; i < p.keys.length; i++) a[i] = p.glowKey[i] ? (p.glowKey[i] === deep ? -1 : 1) * p.site[i] : 0;

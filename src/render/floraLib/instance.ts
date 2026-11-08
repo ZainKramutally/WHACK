@@ -2,7 +2,7 @@
 // from the PlantList (place.ts) and its archetype. flora.ts fills its buckets with these; anything else that draws the
 // world's plants (the producer card) can call them to draw the same plant.
 import * as THREE from 'three/webgpu';
-import type { Archetype } from './index';
+import { NEUTRAL_TINT, type Archetype } from './index';
 import type { PlantList } from './place';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -44,9 +44,9 @@ export function plantLook(list: PlantList, i: number, out: Float32Array, o: numb
 
 /** Instance colour of plant `i` (linear rgb multiplier on its painted vertex colours). */
 export function plantTint(list: PlantList, i: number, out: Float32Array, o: number): void {
-  out[o] = 1 + list.tr[i];
-  out[o + 1] = 1 + list.tg[i];
-  out[o + 2] = 1 + list.tb[i];
+  out[o] = NEUTRAL_TINT + list.tr[i];
+  out[o + 1] = NEUTRAL_TINT + list.tg[i];
+  out[o + 2] = NEUTRAL_TINT + list.tb[i];
 }
 
 /** Crown radius (m) of plant `i` as drawn: its archetype's radius at its size, widened by its girth and crown. */
