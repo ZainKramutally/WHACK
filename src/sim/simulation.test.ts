@@ -579,7 +579,8 @@ describe('WorldSimulation', () => {
       expect(new Set(forms.map((f) => f.name)).size).toBe(forms.length);
       expect(new Set(forms.map((f) => f.binId)).size).toBe(forms.length);
     };
-    it('announces each form once, not once per snapshot (carbon)', () => announcesOnce(carbon));
+    // 3.6 s with the predation economics, so it runs only with SLOW=1 like the silicon case; guide.test.ts covers the tracker's once-only rule in the default run.
+    it.skipIf(!slow)('announces each form once, not once per snapshot (carbon) (SLOW)', { timeout: 60000 }, () => announcesOnce(carbon));
     it.skipIf(!slow)('announces each form once, not once per snapshot (silicon) (SLOW)', { timeout: 60000 }, () => announcesOnce(silicon));
   });
 
