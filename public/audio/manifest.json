@@ -285,7 +285,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Soft landing thud of boots on ground with suit rustle, short."
+  "prompt": "Soft muffled landing of a person on soft earth after a small jump, low padded thump with light grit, quiet, outdoors, no echo, no hollow knock."
  },
  {
   "id": "player.rebreather",
@@ -474,7 +474,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on hard frozen ice, creak and crunch"
+  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.ice.2",
@@ -483,7 +483,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on hard frozen ice, creak and crunch"
+  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.ice.3",
@@ -492,7 +492,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on hard frozen ice, creak and crunch"
+  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.ice.4",
@@ -501,7 +501,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "single step on hard frozen ice, creak and crunch"
+  "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing."
  },
  {
   "id": "step.rock.1",
@@ -546,7 +546,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.soil.2",
@@ -555,7 +555,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.soil.3",
@@ -564,7 +564,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.soil.4",
@@ -573,7 +573,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only."
+  "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.wet.1",
@@ -582,7 +582,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only."
+  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.wet.2",
@@ -591,7 +591,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only."
+  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.wet.3",
@@ -600,7 +600,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only."
+  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
  },
  {
   "id": "step.wet.4",
@@ -609,7 +609,7 @@
   "gain": 0.8,
   "source": "elevenlabs",
   "licence": "ElevenLabs generated (commercial use per plan terms)",
-  "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only."
+  "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock."
  },
  {
   "id": "ui.card.open",

@@ -217,7 +217,7 @@
   },
   {
     "id": "step.soil",
-    "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only.",
+    "prompt": "Single soft muffled footstep of a padded boot on soft earth and grass, quiet, close, dry, outdoors, no echo, no hollow knock.",
     "duration": 0.5,
     "loop": false,
     "influence": 0.7,
@@ -241,7 +241,7 @@
   },
   {
     "id": "step.ice",
-    "prompt": "single step on hard frozen ice, creak and crunch",
+    "prompt": "Single soft muffled footstep of a padded boot on packed snow and frost, light crunch, quiet, outdoors, no echo, no hollow knock, no ringing.",
     "duration": 0.5,
     "loop": false,
     "influence": 0.7,
@@ -249,7 +249,7 @@
   },
   {
     "id": "step.wet",
-    "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only.",
+    "prompt": "Single soft footstep of a padded boot in wet sand at the water edge, gentle squelch, quiet, outdoors, no echo, no hollow knock.",
     "duration": 0.5,
     "loop": false,
     "influence": 0.7,
@@ -265,7 +265,7 @@
   },
   {
     "id": "player.land",
-    "prompt": "Soft landing thud of boots on ground with suit rustle, short.",
+    "prompt": "Soft muffled landing of a person on soft earth after a small jump, low padded thump with light grit, quiet, outdoors, no echo, no hollow knock.",
     "duration": 0.5,
     "loop": false,
     "influence": 0.6,
