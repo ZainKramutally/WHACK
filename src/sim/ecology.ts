@@ -56,6 +56,10 @@ export interface EcologyLedger {
   deepScale: number; // body length (m) a swimmer needs to feed in water deeper than the shallows (shallowMax); smaller swimmers feed only in the shallows
   meatAssim: number; // share of a kill's whole body (tissue + energy) a hunter keeps; 0 = use the plant transfer ε. Eating a whole animal is far more efficient than grazing a thin mat
   grazeReach: number; // metres of body length per extra cell of grazing radius (0 = grazers feed only in their own cell): big bodies feed over a footprint, so their intake does not saturate at one cell
+  walkFroude: number; // Froude number at the walk-to-run transition (about 0.5; Alexander 1989): caps a walker's speed at sqrt(Fr·g·leg); 0 = no cap
+  cellMetres: number; // metres per grid cell (the terrain patch ÷ 64)
+  displayCap: number; // the render's drawn-length ceiling (m) in the display rule 60·tanh(2·(size/0.15)^0.8/60)
+  displayFounder: number; // the render's drawn length (m) of a 0.15 m founder
   growRate: number; // share of its body mass a juvenile converts from energy to body per ecology second (0 = born adult). Lets a large mutant be born small and grow
   cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   aerobicRef: number; // % oxygen at which aerobic scope is 1 (Fick: sustained power ∝ O₂); 0 = off (silicon: not aerobic, so O₂ = 0 is neutral)
@@ -79,7 +83,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, cohesion: 1, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, canopyReach: 0, deepScale: 0, meatAssim: 0, grazeReach: 0, growRate: 0, walkFroude: 0, cellMetres: 6.25, displayCap: 60, displayFounder: 2, cohesion: 1, intakeExp: 0.75,
   aerobicRef: 0, aerobicFloor: 0, aerobicMax: 1.5, aerobicSpeed: 0, aerobicMove: 0, aerobicHunt: 0, thermalRefC: 15, thermalSpanC: 0, thermalK: 0, thermalSurfRef: 1, supportCost: 0, supportRef: 0, nitrogenHalf: 0, strandDrain: 0,
 };
 
@@ -717,7 +721,15 @@ export class Ecology {
       const dx = tx - this.x[i], dy = ty - this.y[i];
       const dist = Math.hypot(dx, dy);
       if (dist > 0.05) {
-        const vmax = (this.wandering[i] && act === ACT.forage ? CONSTANTS.WANDER.value * GRID : L.speed) * (1 - L.aerobicSpeed * lack);
+        let vmax = (this.wandering[i] && act === ACT.forage ? CONSTANTS.WANDER.value * GRID : L.speed) * (1 - L.aerobicSpeed * lack);
+        if (L.walkFroude > 0 && this.mode[i] === LOCOMOTION.walk) {
+          // Walk-to-run transition (Alexander 1989): a walker's speed is at most sqrt(Fr·g·leg), on the leg length of the body as drawn
+          // (the display length rule), so a walker never zips several body lengths a second. Swimmers and fliers keep their speed.
+          const drawn = L.displayCap * Math.tanh((L.displayFounder * (p.scale / 0.15) ** 0.8) / L.displayCap);
+          const leg = drawn * clamp01(p.limbLength / p.scale);
+          const ell = Math.max(leg, 0.3 * drawn);
+          vmax = Math.min(vmax, Math.sqrt(L.walkFroude * 9.81 * this.inputs.gravity * ell) / L.cellMetres);
+        }
         const step = Math.min(dist, vmax * dt * (act === ACT.flee ? 1.5 : 1));
         const nx = Math.min(GRID - 1e-6, Math.max(0, this.x[i] + (dx / dist) * step));
         const ny = Math.min(GRID - 1e-6, Math.max(0, this.y[i] + (dy / dist) * step));

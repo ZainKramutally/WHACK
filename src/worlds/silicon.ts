@@ -296,6 +296,10 @@ export const silicon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
+      walkFroude: 0.5, // assumption: true. Walk-to-run transition at Froude 0.5 (Alexander 1989, TO VERIFY): a walker's speed is capped at sqrt(Fr·g·leg), with leg taken on the body as drawn so on-screen speeds read well; owner request 2026-11-08, creatures too fast to click
+      cellMetres: 6.25, // terrain.patchSize 400 ÷ 64 cells
+      displayCap: 60, // the render's drawn-length ceiling in metres (render display rule)
+      displayFounder: 2, // the render's drawn length of a founder worm, metres
       growRate: 0.05, // assumption: true. A juvenile turns surplus energy into body at 5% of its mass per ecology second, so a large mutant is born small (never larger than its parent) and grows up
       meatAssim: 0.6, // assumption: true. A hunter keeps about 60% of a whole kill (carnivore assimilation is high); grazing a thin mat returns only the 6-18% trophic transfer (owner ruling 2026-11-08)
       grazeReach: 1, // assumption: true. A grazer feeds one extra cell out per metre of body length, up to 2 cells
