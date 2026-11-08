@@ -412,7 +412,7 @@ export const silicon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 2,
-      favour: 0.65,   // assumption: as on carbon
+      favour: 0.75,   // assumption: as on carbon
       why: 'Four rock types sorted by height; the minerals, shares and multipliers are placeholders, and the silicon feedstock is speculative.',
       sources: [],
       assumption: true,

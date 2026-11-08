@@ -385,7 +385,7 @@ export const carbon: WorldConfig = {
       ],
       patchCells: 12,
       rustOxygen: 10,
-      favour: 0.65,   // assumption: a picked rock takes about two thirds of the patch, leaving the rest visibly mixed
+      favour: 0.75,   // assumption: a picked rock takes about three quarters of the patch, leaving the rest visibly mixed
       why: 'Rock is sorted by height, with the nutrient multipliers as placeholders; the crust redistributes the base nutrient supply and adds none. Rust begins with the first oxygen (paleosols keep their iron above roughly 0.2–0.4%, rye1998), and the world is drawn fully rusted by about 10%, half of today\'s level (a declared look choice).',
       sources: ['rye1998'],
       assumption: true,
