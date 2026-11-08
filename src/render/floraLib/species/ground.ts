@@ -1,4 +1,7 @@
-// Ground cover (0.5-4 m), <= 450 tris each, smooth enough to walk right up to:
+// Ground cover (0.5-4 m), smooth enough to walk right up to. It is the most numerous carbon flora (thousands of
+// instances, always near-LOD), so it stays lean: ~200 tris each (spike crowns ~270). Every colour band and profile
+// ring of the Red World reference is kept; what thins is the ring sides (8 on domes, 6 on tubes) and the count of
+// repeated parts.
 //  0 urchin: ribbed dome bristling with radial spikes
 //  1 polyp nubs: flared, ribbed tubes with dark cupped mouths
 //  2 bristle tuft: fountain of curved crimson blades
@@ -10,7 +13,8 @@ export function groundCover(rng: Rng, variant: number) {
   const b = new MeshBuilder();
   if (variant === 0) {
     const R = rng.range(0.32, 0.4);
-    const ribs = (_j: number, th: number) => 1 + 0.06 * Math.cos(9 * th);
+    // on 8 sides, cos(3θ) gives the same 3-lobe ripple that the 9-rib term made on the reference's 12 sides
+    const ribs = (_j: number, th: number) => 1 + 0.06 * Math.cos(3 * th);
     revolve(b, [0, -0.05, 0], [0, 1, 0], [
       { r: R * 1.08, y: 0, key: 'ink', sway: 0 },
       { r: R * 1.04, y: R * 0.25, key: 'maroon', sway: 0.05, mod: ribs },
@@ -19,8 +23,9 @@ export function groundCover(rng: Rng, variant: number) {
       { r: R * 0.36, y: R * 0.98, key: 'crimson', sway: 0.2, crease: true },
       { r: R * 0.18, y: R * 1.0, key: 'glowDeep', glow: 0.6, sway: 0.2 },
       { r: 0, y: R * 0.94, key: 'glowDeep', glow: 0.6, sway: 0.2 },
-    ], 12);
-    const n = 52;
+    ], 8);
+    // 36 three-sided spikes (the reference had 52 four-sided ones), thicker so the dome keeps ~80 % of its bristle mass
+    const n = 36;
     for (let k = 0; k < n; k++) {
       const y = 0.06 + 0.94 * (k + 0.5) / n; // fibonacci hemisphere
       const a = k * 2.39996 + rng.range(-0.1, 0.1);
@@ -28,19 +33,20 @@ export function groundCover(rng: Rng, variant: number) {
       const d = norm([Math.cos(a) * rr, y, Math.sin(a) * rr]);
       const p0: V3 = add([0, R * 0.45, 0], scl(d, R * 0.72));
       const l = R * rng.range(1.4, 2.6);
-      sweep(b, [p0, add(p0, scl(d, l))], { segs: 4, radius: (s) => (s < 1 ? R * 0.065 : 0), key: () => (k % 4 ? 'crimson' : 'blush'), sway: (s) => 0.2 + 0.5 * s * y });
+      sweep(b, [p0, add(p0, scl(d, l))], { segs: 3, radius: (s) => (s < 1 ? R * 0.08 : 0), key: () => (k % 4 ? 'crimson' : 'blush'), sway: (s) => 0.2 + 0.5 * s * y });
     }
   } else if (variant === 1) {
-    const n = 5;
+    // four tubes (the reference had five), 10 % fatter: one central, three spread evenly round it
+    const n = 4;
     for (let k = 0; k < n; k++) {
-      const a = (k / n) * Math.PI * 2 + rng.range(-0.3, 0.3);
+      const a = (k / (n - 1)) * Math.PI * 2 + rng.range(-0.3, 0.3);
       const rad = k === 0 ? 0 : rng.range(0.25, 0.55);
       const h = rng.range(0.5, 1.3) * (k === 0 ? 1.2 : 1);
-      const r = rng.range(0.09, 0.14);
+      const r = rng.range(0.1, 0.155);
       const o: V3 = [Math.cos(a) * rad, -0.05, Math.sin(a) * rad];
       const ax = norm([Math.cos(a) * rad * 0.6, 1, Math.sin(a) * rad * 0.6]);
       const sw = (y: number) => clamp01((y / 1.6) * 0.8);
-      const ribs = (_j: number, th: number) => 1 + 0.07 * Math.cos(5 * th);
+      const ribs = (_j: number, th: number) => 1 + 0.07 * Math.cos(3 * th); // alternating on 6 sides, as 5 ribs on 10
       revolve(b, o, ax, [
         { r: r * 1.6, y: 0, key: 'ink', sway: 0 },
         { r: r * 0.85, y: h * 0.5, key: 'maroon', sway: sw(h * 0.5), mod: ribs },
@@ -48,10 +54,12 @@ export function groundCover(rng: Rng, variant: number) {
         { r: r * 1.75, y: h, key: 'blush', sway: sw(h), crease: true },
         { r: r * 1.2, y: h * 1.02, key: 'maroon', sway: sw(h) },
         { r: 0, y: h * 0.8, key: 'maroon', sway: sw(h) },
-      ], 10, rng.range(0, 1));
+      ], 6, rng.range(0, 1));
     }
   } else if (variant === 2) {
-    const n = 18;
+    // 13 blades of three segments (the reference had 18 of four), a little wider so the fountain keeps its mass. Bands
+    // go by ring (maroon base, crimson middle, blush tip), so every blade keeps all three whatever its curve.
+    const n = 13;
     const H = rng.range(2.2, 2.8);
     for (let k = 0; k < n; k++) {
       const a = k * 2.39996;
@@ -60,11 +68,10 @@ export function groundCover(rng: Rng, variant: number) {
       const h = H * (1.05 - 0.5 * lean) * rng.range(0.85, 1.05);
       const out = H * 0.55 * lean;
       const pts: V3[] = [];
-      for (let i = 0; i <= 4; i++) {
-        const s = i / 4;
+      for (const s of [0, 0.3, 0.7, 1]) {
         pts.push(add(scl(d, 0.05 + out * s * s), [0, h * Math.sin(s * Math.PI * 0.5) - 0.05, 0]));
       }
-      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : 0.05 * (1 - 0.7 * s)), key: (s) => (s < 0.3 ? 'maroon' : s < 0.66 ? 'crimson' : 'blush'), sway: (s) => s });
+      sweep(b, pts, { segs: 3, radius: (s) => (s >= 1 ? 0 : 0.062 * (1 - 0.7 * s)), key: (_s, i) => (i === 0 ? 'maroon' : i === 1 ? 'crimson' : 'blush'), sway: (s) => s });
     }
   } else {
     // spike crowns: 2-3 tall stalks, each a thistle crown of radiating bristles around a dark knob
@@ -77,12 +84,14 @@ export function groundCover(rng: Rng, variant: number) {
       const top: V3 = [Math.cos(a) * h * lean, h, Math.sin(a) * h * lean];
       const base: V3 = [Math.cos(a) * 0.08, -0.05, Math.sin(a) * 0.08];
       const pts: V3[] = [];
-      for (let i = 0; i <= 5; i++) {
-        const s = i / 5;
+      // rings at the band edges only: ink foot 40 %, maroon stalk 40 %, crimson neck 20 %, as the reference drew (its
+      // 0.2 ring sat just under its ink threshold). Bands go by ring, so no ring can flip colour on an edge; the sag is
+      // a few cm, so chords hold it.
+      for (const s of [0, 0.4, 0.8, 1]) {
         pts.push(add(scl(base, 1 - s), scl(add(top, [0, -0.15 * h * s * (1 - s), 0]), s)));
       }
       const sw = (y: number) => clamp01(Math.pow(Math.max(0, y) / H, 1.4));
-      sweep(b, pts, { segs: 5, radius: (s) => 0.05 * (1.4 - 0.7 * s), key: (s) => (s < 0.2 ? 'ink' : s < 0.7 ? 'maroon' : 'crimson'), sway: (_s, p) => sw(p[1]) });
+      sweep(b, pts, { segs: 4, radius: (s) => 0.05 * (1.4 - 0.7 * s), key: (_s, i) => (i === 0 ? 'ink' : i === 1 ? 'maroon' : 'crimson'), sway: (_s, p) => sw(p[1]) });
       // knob
       const R = 0.12 + 0.04 * (k === 0 ? 1 : 0);
       revolve(b, add(top, [0, -R * 0.6, 0]), [0, 1, 0], [
@@ -90,9 +99,9 @@ export function groundCover(rng: Rng, variant: number) {
         { r: R, y: R * 0.6, key: 'maroon', sway: sw(h) },
         { r: R * 0.8, y: R * 1.3, key: 'crimson', sway: sw(h) },
         { r: 0, y: R * 1.6, key: 'crimson', sway: sw(h) },
-      ], 6);
-      // bristle crown: long spikes radiating up/out, short ones drooping below (thistle)
-      const m = 22;
+      ], 5);
+      // bristle crown: long spikes radiating up/out, short ones drooping below (thistle); 15, thicker (the reference had 22)
+      const m = 15;
       for (let q = 0; q < m; q++) {
         const yy = -0.35 + 1.3 * (q + 0.5) / m;
         const az = q * 2.39996 + k;
@@ -100,7 +109,7 @@ export function groundCover(rng: Rng, variant: number) {
         const dir = norm([Math.cos(az) * rr, yy, Math.sin(az) * rr]);
         const l = (yy > 0 ? 0.55 : 0.3) * rng.range(0.7, 1.2) * (k === 0 ? 1.2 : 1);
         const p0 = add(top, scl(dir, R * 0.8));
-        sweep(b, [p0, add(p0, scl(dir, l))], { segs: 3, radius: (s) => (s < 1 ? 0.022 : 0), key: () => (q % 3 ? 'crimson' : 'blush'), sway: (s) => clamp01(sw(h) + 0.2 * s) });
+        sweep(b, [p0, add(p0, scl(dir, l))], { segs: 3, radius: (s) => (s < 1 ? 0.027 : 0), key: () => (q % 3 ? 'crimson' : 'blush'), sway: (s) => clamp01(sw(h) + 0.2 * s) });
       }
     }
   }
