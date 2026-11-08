@@ -104,7 +104,7 @@ export function createSky(app: App): SkyPart {
       return underwater;
     },
     update(dt, inputs, patch) {
-      const st = skyStyle(inputs.world.starType, inputs.light, inputs.stats.pressure ?? 1, inputs.stats.temperature ?? 15);
+      const st = skyStyle(inputs.world.starType, inputs.light, inputs.stats.pressure ?? 1, inputs.stats.temperature ?? 15, undefined, inputs.stats.gravity ?? 1);
       const hasSea = (inputs.stats.seaCover ?? 1) > 0.005;
       underwater = camera.position.y < inputs.seaLevel && hasSea;
       sunDir.copy(LOOK.lightDir.value).normalize();

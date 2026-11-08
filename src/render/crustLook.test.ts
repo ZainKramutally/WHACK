@@ -50,6 +50,21 @@ describe('floraPigment', () => {
   });
 });
 
+describe('reducedLava family', () => {
+  it('has a fresh and a rusted look, colour and non-purple air', () => {
+    expect(MINERAL_LOOK.reducedLava).toHaveLength(2);
+    expect(MINERAL_COLOURS.reducedLava).toBeDefined();
+    const fresh = mineralFamily('reducedLava', true, 0), rusted = mineralFamily('reducedLava', true, 1);
+    expect(fresh.red).not.toBe(rusted.red);
+    const lum = (h: number) => 0.2126 * ((h >> 16) & 255) + 0.7152 * ((h >> 8) & 255) + 0.0722 * (h & 255);
+    expect(lum(rusted.red)).toBeGreaterThan(lum(fresh.red) + 60);   // slate → pale silica
+    for (const f of [fresh, rusted]) for (const k of ['haze', 'horizon', 'shadow', 'floraCrimson'] as const) {
+      const [, a, b] = hexToLab(f[k]), h = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
+      expect(Math.hypot(a, b) < 0.03 || h < 280 || h > 330, k).toBe(true);
+    }
+  });
+});
+
 describe('mineralColour', () => {
   it('covers every mineral of both worlds and rusts only oxidising ones', () => {
     for (const w of [carbon, silicon]) for (const m of w.terrain.crust!.minerals) {

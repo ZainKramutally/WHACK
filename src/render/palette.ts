@@ -39,16 +39,31 @@ export interface SkyStyle {
 /** Air colours from the rock under the world (crustLook.crustRock): replaces the fixed per-world haze and horizon. */
 export interface AirTint { haze: number; horizon: number }
 
-export function skyStyle(starType: string, light: number, pressureBar: number, temperatureC: number, air?: AirTint): SkyStyle {
+/**
+ * Clear-sky zenith from Rayleigh scattering, which goes as λ⁻⁴: blue scatters about 5× more than red. The Sun's output
+ * and our eyes are both weak in violet, so a clear sky reads BLUE, not violet (OKLab hue ≈ 250°). The scattering depth
+ * follows the air column, which is mass per area = pressure ÷ gravity (`columnBar` = P/g, in Earth-bar-equivalents):
+ * more air saturates the blue and deepens it; thin air washes out toward grey. Starlight dimming is applied by the caller.
+ * No methane haze: Titan's orange sky comes from methane-made tholins, and neither of our worlds has that chemistry.
+ */
+export function rayleighZenith(columnBar: number): number {
+  const tau = Math.max(0.05, columnBar);
+  const L = Math.min(0.85, Math.max(0.4, 0.72 - 0.16 * Math.log10(tau)));
+  const C = 0.15 * (1 - Math.exp(-2 * tau));
+  const h = (248 * Math.PI) / 180;
+  return labToHex(L, C * Math.cos(h), C * Math.sin(h));
+}
+
+export function skyStyle(starType: string, light: number, pressureBar: number, temperatureC: number, air?: AirTint, gravityG = 1): SkyStyle {
   const L = Math.max(1e-4, light);
   const brightness = clamp01(Math.pow(L, 0.22));
   const cold = clamp01((15 - temperatureC) / 180);
-  // Red World white sky, turning to the silicon violet-lilac as the world gets colder.
+  // Zenith is Rayleigh blue from the air column; the horizon whitens with thick air (below) and takes mineral dust from `air`.
   const C = LOOK_PALETTES.carbon, S = LOOK_PALETTES.silicon;
-  const zenith0 = mixHex(C.skyZenith, S.skyZenith, cold);
+  const zenith0 = rayleighZenith(pressureBar / Math.max(0.1, gravityG));
   const zenith = air ? labMix(zenith0, air.haze, 0.12) : zenith0;   // physical sky, only breathed on by the haze
   const horizon = air ? air.horizon : mixHex(C.skyHorizon, S.skyHorizon, cold);
-  // Thicker air hazes the horizon toward the lilac haze (log scale around 1 bar).
+  // Thicker air hazes the horizon toward the haze (log scale around 1 bar).
   const haze = clamp01(Math.log10(Math.max(0.05, pressureBar)) * 0.6);
   const horizonHazed = mixHex(horizon, air ? air.haze : mixHex(C.haze, S.haze, cold), haze * 0.5);
   const dim = 0.12 + 0.88 * brightness;
@@ -111,7 +126,7 @@ export function seaStyle(solventName: string, frozen: boolean, solidSinks: boole
   return { colour: shallows ?? WATER.cyan, opacity: 0.62, roughness: 0.08, underwater: scaleHex(waterBody(nudge), 0.8), underwaterFar: 35, metalness: 0 };
 }
 
-/** Ground colour (Red World base ground): red on carbon, pale violet stone on silicon. Life is the plants' colour, so
+/** Ground colour (Red World base ground): red on carbon, cool grey stone on silicon. Life is the plants' colour, so
  *  lifeBlend only deepens the ground slightly toward its shadow family (0..1). */
 export function groundColour(comp: { c: number; si: number; o: number }, lifeBlend: number): number {
   const p = LOOK_PALETTES[comp.si > 0.5 ? 'silicon' : 'carbon'];
@@ -148,10 +163,11 @@ export function shiftHue(hex: number, deg: number, dl = 0): number {
 //     passes pure red (it would vanish into the red ground) or the cyan glow hue (reserved for bioluminescence).
 //     Grazers sit lighter than the red ground (OKLab L ≈ 0.61) and darker than the white sky; hunters sit darker than
 //     the ground.
-//   silicon ring: glassy blue → cobalt → indigo → violet → plum, all dark against the pale-lilac ground (L ≈ 0.84);
+//   silicon ring: bronze-gold → olive → steel-teal → glassy blue → cobalt → slate, all dark (L ≤ 0.5) against the light cool-grey
+//     ground (L ≈ 0.78). No purple. Creature colour is SPECULATIVE (no one has seen silicon life): chosen for readability;
 //     the fauna material adds a pale fresnel rim, and the dot eyes are the cyan glow.
 // One accent per species, picked by `accent`: carbon a deep tone of the body (flips light on dark bodies), pale bone (Red
-// World maroon on light bodies), or a contrasting ring hue; silicon a pale ice (white, ice blue or lilac). It colours the pattern (bands or spots), fins,
+// World maroon on light bodies), or a contrasting ring hue; silicon a pale ice (white, ice blue or pale gold). It colours the pattern (bands or spots), fins,
 // crests and horns. Inputs come from the plan (or the species look attractor), never from a world id.
 export type Lab = [number, number, number];
 const toLin = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
@@ -193,7 +209,7 @@ const RING: Record<'carbon' | 'silicon', Lab[]> = {
     [0.76, 0.1, 345], [0.67, 0.12, 305], [0.69, 0.1, 275], [0.67, 0.07, 248], [0.7, 0.03, 205],
     [0.73, 0.1, 148], [0.76, 0.125, 128], [0.8, 0.13, 96], [0.75, 0.14, 72], [0.71, 0.15, 56],
   ],
-  silicon: [[0.58, 0.1, 235], [0.55, 0.12, 255], [0.51, 0.14, 275], [0.5, 0.15, 295], [0.52, 0.14, 318], [0.55, 0.12, 340]],
+  silicon: [[0.5, 0.12, 80], [0.5, 0.12, 140], [0.48, 0.11, 185], [0.46, 0.13, 225], [0.43, 0.15, 258], [0.45, 0.11, 240]],
 };
 const RING_LAB: Record<'carbon' | 'silicon', Lab[]> = {
   carbon: RING.carbon.map(lchToLab), silicon: RING.silicon.map(lchToLab),
@@ -207,7 +223,7 @@ function ringAt(kind: 'carbon' | 'silicon', p: number): Lab {
   return [lerp(a[i][0], a[i + 1][0], t), lerp(a[i][1], a[i + 1][1], t), lerp(a[i][2], a[i + 1][2], t)];
 }
 const smooth01 = (e0: number, e1: number, x: number) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
-const SI_ICE: Lab[] = [0xf6f8ff, 0xb9dcf6, 0xdccbff].map(hexToLab); // silicon accents: ice white, ice blue, pale lilac
+const SI_ICE: Lab[] = [0xf6f8ff, 0xb9dcf6, 0xf2e6b8].map(hexToLab); // silicon accents: ice white, ice blue, pale gold
 
 /** A species' place (0..1) on its chemistry's colour ring: hue spreads species, diet slides it (grazers → hunters). */
 export function creatureRing(silicon: boolean, diet: number, hue: number): number {
@@ -285,17 +301,17 @@ export type LookColours = Record<LookKey, number>;
 export const LOOK_PALETTES: Record<'carbon' | 'silicon', LookColours> = {
   // Red World exactly (mockups/red-world/src/contracts.ts PALETTE, lilac haze pick).
   carbon: {
-    skyZenith: 0xeef0f4, skyHorizon: 0xf3eef8, haze: 0xe4daef,
+    skyZenith: rayleighZenith(1), skyHorizon: 0xf3eef8, haze: 0xe4daef,   // zenith: Rayleigh blue at 1 bar (the Red World's near-white sky is gone)
     redLight: 0xff5a36, red: 0xe8331f, crimson: 0xa8122a, maroon: 0x5c0a1e, ink: 0x22060f,
     bone: 0xf4e6dc, blush: 0xf2a2a0, shadow: 0x5a1040, glow: 0x3ff5e0, glowDeep: 0x0f8f9a,
   },
-  // Silicon: the same two-family structure turned cold, with the value order inverted so it reads apart at thumbnail
-  // size: pale bone-lilac stone ground under a deeper violet-lilac sky (thick nitrogen air, distant star), indigo-ink
-  // darks, ice-blue highlights, indigo shadow, and an ice-cyan accent (glow from darkness).
+  // Silicon: the same two-family structure turned cold and neutral. No violet: the sky is Rayleigh blue (deeper and dimmer
+  // under 3.6 bar of nitrogen and 1% starlight), shadows are lit only by that blue sky so they read skylight blue, and the
+  // rock ramp fallbacks are cool greys. Bone and blush are ice-white and pale blue; glow from darkness is the one accent.
   silicon: {
-    skyZenith: 0x6450b0, skyHorizon: 0xbca8ea, haze: 0xab98e2,
-    redLight: 0xf4eefa, red: 0xd8c8ee, crimson: 0x7c5cc8, maroon: 0x3a2478, ink: 0x100828,
-    bone: 0xf6f8ff, blush: 0x9fcff2, shadow: 0x2a2272, glow: 0x6ff4ff, glowDeep: 0x2f7fe0,
+    skyZenith: rayleighZenith(3.6), skyHorizon: 0xa9bdd6, haze: 0x9db2cb,
+    redLight: 0xdde5ee, red: 0xb0bcc8, crimson: 0x6c7886, maroon: 0x363f4c, ink: 0x0e141e,
+    bone: 0xf2f6fc, blush: 0xa8d0ee, shadow: 0x2c4c88, glow: 0x6ff4ff, glowDeep: 0x2f7fe0,
   },
 };
 
@@ -347,10 +363,12 @@ export function lookPalette(i: Pick<VisualInputs, 'world' | 'light' | 'stats'>, 
   const kind = lookKind(i.world.composition);
   const fixed = LOOK_PALETTES[kind];
   // With a crust look the rock-and-air roles follow the minerals; ink, bone, blush and the glows stay the world's own.
+  // The zenith is the Rayleigh blue of this world's air column (P/g), breathed on 12% by the dust haze when there is a crust.
+  const zen = rayleighZenith((i.stats.pressure ?? 1) / Math.max(0.1, i.stats.gravity ?? 1));
   const base: LookColours = rock
-    ? { ...fixed, ...rock, skyZenith: labMix(fixed.skyZenith, rock.haze, 0.12) }
-    : fixed;
-  const st = skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, i.stats.temperature ?? 15);
+    ? { ...fixed, ...rock, skyZenith: labMix(zen, rock.haze, 0.12) }
+    : { ...fixed, skyZenith: zen };
+  const st = skyStyle(i.world.starType, i.light, i.stats.pressure ?? 1, i.stats.temperature ?? 15, undefined, i.stats.gravity ?? 1);
   const dim = 0.12 + 0.88 * st.brightness;
   const starTint = ratioHex(st.starColour, STAR_COLOUR.G);
   const k = Math.pow(dim, 1 / 2.2);   // dim is linear light (as the material applies it); hexes are sRGB

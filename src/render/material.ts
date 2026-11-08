@@ -379,7 +379,7 @@ export function updateLook(inputs: VisualInputs, camera: THREE.Camera, dt: numbe
   if (p.crust) {   // foreground multiplier toward the rock's deep tone
     const m = p.base.maroon, ch = (s: number) => 0.08 + 0.7 * (((m >> s) & 255) / 255);
     LOOK.fgTint.value.set(ch(16), ch(8), ch(0));
-  } else LOOK.fgTint.value.set(...(p.kind === 'silicon' ? [0.16, 0.14, 0.34] : [0.32, 0.12, 0.2]) as [number, number, number]);
+  } else LOOK.fgTint.value.set(...(p.kind === 'silicon' ? [0.2, 0.24, 0.3] : [0.32, 0.12, 0.2]) as [number, number, number]);
 
   // patch-relative air. Reference: clear midground, fog from ~0.1 world, ranges at the world edge ~90% white.
   // Here the patch (400 m) is the world and the far plane (1000 m) closes it: fog starts at 0.12 patch,

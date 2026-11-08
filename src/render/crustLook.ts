@@ -2,7 +2,7 @@
 // pigment blend (purple → green). Pure; the art layer feeds it the oxygen stat and reads colours back. Decoration only.
 import type { FloraPalette } from './floraLib';
 import type { VisualInputs } from '../worlds/types';
-import { LOOK_PALETTES, hexToLab, labToHex, labMix, mixHex, type RockLook } from './palette';
+import { hexToLab, labToHex, labMix, mixHex, type RockLook } from './palette';
 
 /** [fresh, rusted] ground colour per mineral id; minerals that don't oxidise have the same colour twice. */
 export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
@@ -12,6 +12,7 @@ export const MINERAL_COLOURS: Record<string, readonly [number, number]> = {
   silicide: [0x3a3e4c, 0x9a9488],   // dark metallic → pale silica
   nitride: [0xf0e6cc, 0xf0e6cc],    // pale cream
   waterIce: [0xdcecf8, 0xdcecf8],   // white-blue
+  reducedLava: [0x30363e, 0xb8bcc2], // dark slate (metallic flecks are a look detail) → pale grey silica
 };
 /** Ironstone's hematite band colour (mixed in by height, subtly): maroon, in the red family. */
 export const BAND_DARK = 0x5c0a1e;
@@ -66,10 +67,10 @@ const cache = new Map<string, FloraPalette>();
 /** Carbon flora palette at ratchet `r` (0 purple … 1 green-end `tint`, default chlorophyll green). Silicon passes through unless a crust `tint` is given. Cached per step. */
 export function floraPigment(base: FloraPalette, silicon: boolean, r: number, tint?: FloraTint): FloraPalette {
   if (silicon) {
-    if (!tint) return base;   // silicon flora takes the crust tint (blue-black on silicide, cream on nitride), keeping some violet
+    if (!tint) return base;   // silicon flora takes the crust tint whole (blue-black on silicide, steel-blue on reduced lava, cream on nitride)
     const key = `si-${base.ink}-${tint.crimson}`;
     let q = cache.get(key);
-    if (!q) { q = { ...base, maroon: labMix(base.maroon, tint.maroon, 0.8), crimson: labMix(base.crimson, tint.crimson, 0.8), blush: labMix(base.blush, tint.blush, 0.8) }; cache.set(key, q); }
+    if (!q) { q = { ...base, maroon: tint.maroon, crimson: tint.crimson, blush: tint.blush }; cache.set(key, q); }
     return q;
   }
   const step = Math.round(Math.min(1, Math.max(0, r)) * STEPS);
@@ -123,11 +124,17 @@ export const MINERAL_LOOK: Record<string, readonly [Family] | readonly [Family, 
   granite: [fam(0xf2e6e0, 0xd8bcb8, 0xa4828a, 0x5c4450, 0x6a4a60, 0xf2e6da, 0xf8eee0, 0x3ab8b0, [0x2a3a18, 0x6a7a2e, 0xc8c88a])],
   // dark steel and gunmetal, steel-blue haze, blue-black crystal crust, dark shallows. Rusted: pale silica.
   silicide: [
-    fam(0x8a97ab, 0x4c566a, 0x2e3648, 0x161c2c, 0x161e3c, 0x8fa4c8, 0xa9bcdc, 0x1a2640, [0x080c1c, 0x1c2c5a, 0x6a8ad0]),
-    fam(0xe8e4dc, 0xb4aea4, 0x7a7678, 0x3a3a46, 0x2a2a46, 0xb8b8c8, 0xd0d0dc, 0x3a4260, [0x080c1c, 0x1c2c5a, 0x6a8ad0]),
+    fam(0x8a97ab, 0x4c566a, 0x2e3648, 0x161c2c, 0x1a2a4c, 0x8fa4c8, 0xa9bcdc, 0x1a2640, [0x080c1c, 0x1c2c5a, 0x6a8ad0]),
+    fam(0xe8e4dc, 0xb4aea4, 0x7a7678, 0x3a3e48, 0x2a3a5c, 0xb8bfcc, 0xd0d0dc, 0x3a4260, [0x080c1c, 0x1c2c5a, 0x6a8ad0]),
   ],
   // cream and pale gold, pale cream haze, cream-white crystal flora, pale shallows
-  nitride: [fam(0xfff8e4, 0xf0e0b8, 0xc8aa6a, 0x7a6030, 0x5a4a60, 0xeeeadc, 0xf6f2e4, 0xcfd8d0, [0x6a5a30, 0xe6d8a8, 0xfffaf0])],
+  nitride: [fam(0xfff8e4, 0xf0e0b8, 0xc8aa6a, 0x7a6030, 0x44587a, 0xeeeadc, 0xf6f2e4, 0xcfd8d0, [0x6a5a30, 0xe6d8a8, 0xfffaf0])],
+  // Reduced lava (silicon's volcanic rock, no oxygen): dark slate grey with metallic flecks, grey-blue haze, steel-blue crystal
+  // flora, dark clear shallows. Rusted = silica: pale grey. Look decision, speculative like the world.
+  reducedLava: [
+    fam(0x7a838e, 0x424a54, 0x2a3139, 0x151a20, 0x1a2c4a, 0x8c9db0, 0xa4b4c6, 0x16202e, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
+    fam(0xe4e6e8, 0xb8bcc0, 0x7c8086, 0x3c4046, 0x2a3a58, 0xb4bfcc, 0xcfd7e0, 0x34404e, [0x0a1220, 0x2a4a6e, 0x7fa6c8]),
+  ],
   // white and pale blue, frost-white haze, nothing grows, white-blue shallows
   waterIce: [fam(0xffffff, 0xdcecf8, 0x9cc0e0, 0x4a6a96, 0x32467a, 0xe8f2fa, 0xf2f8fd, 0xe0f0fa, [0x4a6a96, 0x9cc0e0, 0xffffff], 0)],
 };
@@ -208,7 +215,7 @@ export function crustSeaStain(inputs: Pick<VisualInputs, 'world' | 'stats' | 'bu
 // bright, basalt dark, iron-rich water greener (dissolved iron feeds plankton: the iron hypothesis, Martin 1990, Nature 345:156).
 // Not rusted: rust colours the shallows only.
 const WATER_NUDGE: Record<string, number> = {
-  granite: 0x58d0ec, basalt: 0x08183c, ironstone: 0x2c9c88, silicide: 0x0a1c48, nitride: 0x4cc0d8, waterIce: 0x70c8e8,
+  granite: 0x58d0ec, basalt: 0x08183c, ironstone: 0x2c9c88, silicide: 0x0a1c48, nitride: 0x4cc0d8, waterIce: 0x70c8e8, reducedLava: 0x0a1830,
 };
 /** The crust-derived hue the open sea's body leans towards (sea-weighted over the seabed rocks); undefined without a crust. */
 export function crustWaterNudge(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number | undefined {
@@ -248,8 +255,8 @@ function sampleAround(inputs: Pick<VisualInputs, 'terrain'>, x: number, z: numbe
 
 /**
  * The rock-and-air roles for this frame (palette.lookPalette's `rock`): the family blend by crust shares, with haze and
- * horizon leaning 60% towards the rock around the camera (eased). Silicon stays in its cold family: haze, horizon and
- * shadow keep half their violet. Null without a crust (fixed palette).
+ * horizon leaning 60% towards the rock around the camera (eased). Silicon has no extra retained tint: its rock
+ * families are already cold, and its sky is Rayleigh blue (palette.rayleighZenith). Null without a crust (fixed palette).
  */
 export function crustRock(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress' | 'terrain'>, camX: number, camZ: number, dt: number): RockLook | null {
   const g = crustGlobal(inputs);
@@ -263,13 +270,10 @@ export function crustRock(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildP
     haze = labMix(haze, lf.haze, LOCAL_SHARE);
     horizon = labMix(horizon, lf.horizon, LOCAL_SHARE);
   }
-  const f = g.family, S = LOOK_PALETTES.silicon;
-  const si = inputs.world.composition.si > 0.5;
+  const f = g.family;
   return {
     redLight: f.redLight, red: f.red, crimson: f.crimson, maroon: f.maroon,
-    shadow: si ? labMix(f.shadow, S.shadow, 0.4) : f.shadow,
-    haze: si ? labMix(haze, S.haze, 0.5) : haze,
-    skyHorizon: si ? labMix(horizon, S.skyHorizon, 0.5) : horizon,
+    shadow: f.shadow, haze, skyHorizon: horizon,
   };
 }
 export function resetCrustLook() { local.reset(); memo.value = null; }

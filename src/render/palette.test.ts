@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOK_PALETTES, lookPalette, type LookKey } from './palette';
+import { LOOK_PALETTES, hexToLab, lookPalette, rayleighZenith, skyStyle, type LookKey } from './palette';
 
 const inputs = (si: number, light: number, starType = 'G-type', pressure = 1, temperature = 15) => ({
   world: { composition: { c: 1 - si, si, o: 0 }, starType } as never,
@@ -22,7 +22,7 @@ describe('lookPalette', () => {
   it('picks the palette from body chemistry and the two read apart (value order inverted)', () => {
     const c = LOOK_PALETTES.carbon, s = LOOK_PALETTES.silicon;
     expect(lookPalette(inputs(0.9, 1)).kind).toBe('silicon');
-    // carbon: dark red ground under a near-white sky; silicon: pale ground under a darker violet sky
+    // carbon: dark red ground under a blue sky; silicon: pale cool-grey ground under a deeper blue sky
     expect(lum(c.red)).toBeLessThan(lum(c.skyZenith));
     expect(lum(s.red)).toBeGreaterThan(lum(s.skyZenith));
     expect(Math.abs(lum(c.red) - lum(s.red))).toBeGreaterThan(60);
@@ -49,8 +49,52 @@ describe('lookPalette', () => {
   });
 });
 
+/** OKLab hue in degrees and chroma. */
+const hueOf = (hex: number) => { const [, a, b] = hexToLab(hex); return { h: (Math.atan2(b, a) * 180 / Math.PI + 360) % 360, C: Math.hypot(a, b) }; };
+const PURPLE = (h: number) => h >= 280 && h <= 330;
+
+describe('Rayleigh sky (blue, never violet)', () => {
+  it('silicon zenith is blue-hued, not violet, and deeper than carbon\'s', () => {
+    const s = hueOf(skyStyle('G-type', 1, 3.6, -183).zenith), c = hueOf(skyStyle('G-type', 1, 1, 15).zenith);
+    expect(s.h).toBeGreaterThan(220); expect(s.h).toBeLessThan(270);
+    expect(PURPLE(s.h)).toBe(false);
+    expect(s.C).toBeGreaterThan(c.C);   // more air saturates the blue
+    expect(hexToLab(rayleighZenith(3.6))[0]).toBeLessThan(hexToLab(rayleighZenith(1))[0]);
+    const si = lookPalette(inputs(0.9, 0.01, 'G-type', 3.6, -183));
+    expect(hueOf(si.skyZenith).h).toBeGreaterThan(220); expect(hueOf(si.skyZenith).h).toBeLessThan(270);
+  });
+  it('carbon zenith is a clear blue, not near-white; thicker air whitens the horizon', () => {
+    const z = skyStyle('G-type', 1, 1, 15).zenith, { h, C } = hueOf(z);
+    expect(h).toBeGreaterThan(220); expect(h).toBeLessThan(270);
+    expect(C).toBeGreaterThan(0.08);
+    expect(lookPalette(inputs(0, 1)).skyZenith).toBe(LOOK_PALETTES.carbon.skyZenith);
+    const thin = hexToLab(skyStyle('G-type', 1, 0.5, 15).horizon), thick = hexToLab(skyStyle('G-type', 1, 4, 15).horizon);
+    expect(Math.hypot(thick[1], thick[2])).toBeLessThanOrEqual(Math.hypot(thin[1], thin[2]) + 0.02);
+  });
+  it('more gravity at the same pressure means a thinner column and a paler zenith', () => {
+    expect(hexToLab(skyStyle('G-type', 1, 1, 15, undefined, 2).zenith)[0]).toBeGreaterThan(hexToLab(skyStyle('G-type', 1, 1, 15, undefined, 0.5).zenith)[0]);
+  });
+});
+
+describe('silicon look has no purple', () => {
+  it('LOOK roles are neutral or cold, never in the violet band', () => {
+    const s = LOOK_PALETTES.silicon;
+    for (const k of KEYS) {
+      const { h, C } = hueOf(s[k]);
+      if (C > 0.03) expect(PURPLE(h), `${k} hue ${h.toFixed(0)}`).toBe(false);
+    }
+  });
+  it('the creature ring and accents avoid the purple band', async () => {
+    const { creatureColour } = await import('./palette');
+    for (let i = 0; i <= 20; i++) for (const diet of [0.05, 0.5, 0.95]) for (const tone of [0, 2, 3, 5] as const) {
+      const { h, C } = hueOf(creatureColour(true, diet, tone, i / 20, i / 20));
+      if (C > 0.03) expect(PURPLE(h), `tone ${tone} hue ${h.toFixed(0)}`).toBe(false);
+    }
+  });
+});
+
 describe('creatureColour (silicon, #50)', () => {
-  it('silicon bodies are deep violet against the pale ground, hunters darker, rims pale, eyes glow', async () => {
+  it('silicon bodies are dark against the pale ground, hunters darker, rims pale, eyes glow', async () => {
     const { creatureColour } = await import('./palette');
     const s = LOOK_PALETTES.silicon;
     const grazer = creatureColour(true, 0, 0), hunter = creatureColour(true, 1, 0);
@@ -84,13 +128,13 @@ describe('creatureColour (#57: colour is a strong species axis)', () => {
       let span = 0;
       for (const a of hs) for (const b of hs) span = Math.max(span, arc(a, b));
       expect(span).toBeGreaterThan(si ? 70 : 150);
-      for (const h of hues) expect(ok(creatureColour(si, 0.1, 0, h)).C).toBeGreaterThan(si ? 0.08 : 0.03); // carbon's slate–sage pewter is muted on purpose
+      for (const h of hues) expect(ok(creatureColour(si, 0.1, 0, h)).C).toBeGreaterThan(si ? 0.065 : 0.03); // carbon's slate–sage pewter and silicon's steel-teal are muted on purpose (teal is gamut-limited at this value)
     }
   });
 
-  it('carbon bodies hold value against the red ground and the white sky, and are never ground red or glow cyan', async () => {
+  it('carbon bodies hold value against the red ground and the pale horizon, and are never ground red or glow cyan', async () => {
     const { creatureColour } = await import('./palette');
-    const c = LOOK_PALETTES.carbon, ground = ok(c.red), sky = ok(c.skyZenith), glow = ok(c.glow);
+    const c = LOOK_PALETTES.carbon, ground = ok(c.red), sky = ok(c.skyHorizon), glow = ok(c.glow);
     for (const h of hues) {
       const grazer = ok(creatureColour(false, 0.05, 0, h)), hunter = ok(creatureColour(false, 0.95, 0, h));
       expect(grazer.L).toBeGreaterThan(ground.L + 0.06);
@@ -103,7 +147,7 @@ describe('creatureColour (#57: colour is a strong species axis)', () => {
     }
   });
 
-  it('silicon bodies sit dark against the pale-lilac ground; eyes are ink on carbon and the cyan glow on silicon', async () => {
+  it('silicon bodies sit dark against the pale cool-grey ground; eyes are ink on carbon and the cyan glow on silicon', async () => {
     const { creatureColour } = await import('./palette');
     const s = LOOK_PALETTES.silicon;
     for (const h of hues) for (const diet of [0.05, 0.5, 0.95]) expect(ok(creatureColour(true, diet, 0, h)).L).toBeLessThan(ok(s.red).L - 0.25);
