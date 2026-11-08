@@ -10,6 +10,7 @@ import type { LandmarkSet } from './gen/landmarks';
 import { pillarCandidates, type PillarSet } from './gen/pillars';
 import { createLru } from './lruCache';
 import { attachPlayer } from './player';
+import { mountAudio, type AudioApi } from './audio';
 import { createApp } from './render/app';
 import { createGenerate, type LaunchHandle } from './render/generate';
 import { createScanHover } from './render/scanHover';
@@ -161,6 +162,8 @@ async function featuresIdle(worldId: WorldId, crust: CrustPickId | undefined, st
   return f;
 }
 
+let audio: AudioApi | null = null;
+
 // ---- boot ----
 
 /** World-agnostic setup, done while the selection screen is up: renderer, scene and every world's materials compile here. */
@@ -309,6 +312,14 @@ async function start(
   let appear = 1;   // the character grows in over APPEAR_SEC after it spawns (smoothstep), instead of popping
   const APPEAR_SEC = 0.35;
   bus.on('world:selected', () => { spawned = false; player.setVisible(false); });
+  const audioUpdate = audio?.attachWorld({
+    world, camera: app.camera, playerState: () => player.state, spawned: () => spawned, heightAt: groundHeight, patchSize: 'relics' in terrain ? terrain.patchSize : 256,
+    mineralAt: 'relics' in terrain ? (x, z) => {
+      const ms = world.terrain.crust.minerals; const w = terrain.crustWeights(x, z);
+      let b = 0; for (let i = 1; i < w.length; i++) if (w[i] > w[b]) b = i;
+      return ms[b]?.id ?? null;
+    } : undefined,
+  });
   app.registerFrameHook((dt) => {
     if (!spawned) {
       if (!latest || latest.timeSec < world.build.spawnSec) return;
@@ -337,6 +348,7 @@ async function start(
     }
     view.setFocus(player.state.x, player.state.y + 1, player.state.z);
   });
+  if (audioUpdate) app.registerFrameHook((dt) => audioUpdate(dt));
 
 
   // Console handles for debugging and headless smoke tests, behind ?debug (like the fps readout).
@@ -348,6 +360,7 @@ async function start(
 }
 
 async function boot() {
+  audio = mountAudio();
   const link = new URLSearchParams(location.search).get('world');
   const prepared = prepare();
   if (link === 'carbon' || link === 'silicon') {

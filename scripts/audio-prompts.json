@@ -1,0 +1,378 @@
+[
+  {
+    "id": "amb.select",
+    "prompt": "Quiet laboratory room tone, faint HVAC hum, very soft granular fizz of tiny particles, a sparse airy synth pad, hopeful. No voice, no melody.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.carbon.land",
+    "prompt": "Warm breeze through broadleaf foliage, layered distant alien bird-like trills and chirps, soft insects, calm lush meadow, wide stereo. No voice, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.carbon.barren",
+    "prompt": "Steady wind over bare rock plateau, faint sand grit hissing, empty and lonely, no animals, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.carbon.shore",
+    "prompt": "Calm ocean waves rolling onto a wide sandy beach heard from twenty metres away: slow deep swells breaking softly with long pauses between waves, gentle receding wash over sand, open air, warm and peaceful. No gurgling, no draining, no splashing near the microphone, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.carbon.under",
+    "prompt": "Underwater ambience, muffled deep water, slow occasional bubbles, a distant whale-like song far away, calm and spacious, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.silicon.land",
+    "prompt": "Very deep slow heavy wind in dense thick air, faint glassy crystalline tinkling, distant cryogenic creaks and groans, cold alien desolation, sub-bass presence, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "amb.silicon.shore",
+    "prompt": "Thin cold liquid lapping slowly on rock with soft boiling fizz and hissing vapour, like liquid nitrogen spilled on a floor, sparse, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.silicon.under",
+    "prompt": "Crystal-clear cold underwater depth, sparse glassy pings, low resonant hum, vast and still, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.frozen",
+    "prompt": "Large ice sheet creaking and groaning, far-off low booming cracks, wind whisper, cold, no music.",
+    "duration": 30,
+    "loop": true,
+    "influence": 0.5,
+    "variants": 1
+  },
+  {
+    "id": "amb.build.rise",
+    "prompt": "Epic cinematic sub-bass tectonic swell: a vast deep earthquake rumble slowly building over 18 seconds, massive low booms of continents rising, dark and dramatic, low frequencies only, no hiss, no high sparkle, ending in a huge low resolving boom.",
+    "duration": 20,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "player.rebreather",
+    "prompt": "Close-microphone diving rebreather breathing, slow inhale and exhale with soft valve clicks and bubbles, steady rhythm, no voice.",
+    "duration": 8,
+    "loop": true,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.element",
+    "prompt": "Satisfying element selection chime, small glassy blip with soft atomic shimmer, short scientific interface sound.",
+    "duration": 1,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.slider.blocked",
+    "prompt": "Soft low thud with a short muted buzz, denied or blocked interface feedback, gentle not harsh.",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.panel.open",
+    "prompt": "Smooth soft sci-fi panel sliding open, gentle airy whoosh with a light blip.",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.panel.close",
+    "prompt": "Smooth soft sci-fi panel sliding closed, gentle airy whoosh with a light low blip.",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.generate",
+    "prompt": "Big satisfying ignition: low bass swell, spark crackle, rising whoosh and bright bloom",
+    "duration": 3,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.scan.lock",
+    "prompt": "Single clean sonar ping with short echo, submarine scanner",
+    "duration": 1.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.scan.filed",
+    "prompt": "Gentle two-note databank-entry chime, warm digital bell, positive confirmation",
+    "duration": 2,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.card.open",
+    "prompt": "Short crisp paper card flick followed by a bright digital scanner blip, close microphone",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "ui.extinct",
+    "prompt": "Soft low sombre tone fading away, a gentle sad descending note, short, ambient.",
+    "duration": 2.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.push",
+    "prompt": "Deep heavy cinematic whoosh rushing forward, low sub-bass air movement, dramatic, no high hiss.",
+    "duration": 1.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.multiply",
+    "prompt": "Low rising cinematic swell of countless tiny particles multiplying, a deep growing hum and soft warm granular rumble, dramatic build-up, mellow, no high-pitched sparkle, no hiss.",
+    "duration": 3.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.land",
+    "prompt": "Soft deep impact and bloom as particles settle into ground, gentle low thud with a warm resonance and grit.",
+    "duration": 2,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.seas",
+    "prompt": "A new ocean forming: slow, deep, heavy ocean swells rolling in from far away, low booming surf on a vast shore, cinematic and dramatic. No gurgling, no draining, no pouring, no splashing near the microphone.",
+    "duration": 5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.seas.silicon",
+    "prompt": "Deep cold sea of liquid rising: slow massive low surge with a dark muffled rumbling vapour roar, ominous and cinematic, low pitched, no hiss, no splashing.",
+    "duration": 4,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.life",
+    "prompt": "Bioluminescent sparkle bloom, glassy tiny chimes cascading upward",
+    "duration": 3,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "build.complete",
+    "prompt": "Warm resolving swell, a soft major-key pad rising and settling, peaceful accomplished feeling.",
+    "duration": 4,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "step.soil",
+    "prompt": "Single footstep on soft soil and grass, muffled thud with light rustle, one step only.",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.7,
+    "variants": 4
+  },
+  {
+    "id": "step.rock",
+    "prompt": "Single footstep on hard rock, dry stony tap with tiny grit scrape, one step only.",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.7,
+    "variants": 4
+  },
+  {
+    "id": "step.crystal",
+    "prompt": "single step on brittle glassy crystal shards, high tinkle",
+    "duration": 0.6,
+    "loop": false,
+    "influence": 0.7,
+    "variants": 4
+  },
+  {
+    "id": "step.ice",
+    "prompt": "single step on hard frozen ice, creak and crunch",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.7,
+    "variants": 4
+  },
+  {
+    "id": "step.wet",
+    "prompt": "Single footstep in shallow wet sand and water, squelchy splash, one step only.",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.7,
+    "variants": 4
+  },
+  {
+    "id": "player.jump",
+    "prompt": "Short athletic jump take-off: quick cloth whoosh and a soft boot scuff on dirt, close microphone",
+    "duration": 0.6,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "player.land",
+    "prompt": "Soft landing thud of boots on ground with suit rustle, short.",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "player.splash.in",
+    "prompt": "Body entering water, medium splash plunge with bubbles.",
+    "duration": 1.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "player.splash.out",
+    "prompt": "Body emerging from water, dripping splash and gurgle.",
+    "duration": 1.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 1
+  },
+  {
+    "id": "player.swim",
+    "prompt": "Single swimming stroke underwater, soft muffled water push and swirl.",
+    "duration": 1,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "c.call.small",
+    "prompt": "Small alien creature chirp, a short bright trill, bird-like but strange, one call.",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "c.call.herd",
+    "prompt": "Medium herd animal lowing call, warm mellow bellow, alien grazer, one call.",
+    "duration": 1.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "c.call.apex",
+    "prompt": "Deep guttural predator growl-roar, large animal, slow, slight echo",
+    "duration": 3,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 2
+  },
+  {
+    "id": "c.call.swim",
+    "prompt": "Underwater creature call, muffled bubbly whale-like croon, one call.",
+    "duration": 2,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "c.wing",
+    "prompt": "Large wings flapping, a few slow powerful flaps, membranous whoosh.",
+    "duration": 1.2,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 2
+  },
+  {
+    "id": "si.call.small",
+    "prompt": "Small crystalline creature chime, a short glassy ringing trill, alien, one call.",
+    "duration": 0.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "si.call.bell",
+    "prompt": "Slow deep glass bell tone with long shimmering decay",
+    "duration": 3,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 2
+  },
+  {
+    "id": "si.clack",
+    "prompt": "Hard ceramic clack, two stony glass pieces knocking together, short.",
+    "duration": 0.5,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 3
+  },
+  {
+    "id": "si.call.walker",
+    "prompt": "Low armoured scrape and grinding groan of stone plates",
+    "duration": 1.8,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 2
+  },
+  {
+    "id": "ui.scan.flash",
+    "prompt": "Camera taking a photo: crisp mechanical shutter click with a soft punchy flash pop, close microphone, dry, no electronic whine, no beep.",
+    "duration": 1,
+    "loop": false,
+    "influence": 0.6,
+    "variants": 2
+  }
+]
