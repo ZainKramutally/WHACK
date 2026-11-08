@@ -119,3 +119,9 @@ export class Bestiary {
 }
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** How a bestiary tile reads: every announced kind shows its name and sprite; `new` kinds carry the scanner's NEW SPECIES stamp. */
+export type TileState = 'extinct' | 'new' | 'scanned';
+export function tileState(e: Pick<BestiaryEntry, 'extinct' | 'found'>): TileState {
+  return e.extinct ? 'extinct' : e.found ? 'scanned' : 'new';
+}

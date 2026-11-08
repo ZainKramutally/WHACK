@@ -1,5 +1,5 @@
-// Bestiary tab (replaces the field guide): living kinds the player has found (and "?" tiles for those still out
-// there), then kinds that died out, filed automatically. Clicking a found or extinct tile opens its specimen page, a
+// Bestiary tab (replaces the field guide): every announced living kind with its name and sprite (a NEW SPECIES stamp until
+// the player scans one by clicking it), then kinds that died out, filed automatically. Clicking any tile opens its specimen page, a
 // paper card beside the drawer. State lives in the life registry (ui/bestiary.ts); this module only draws it.
 // The page shows the kind in 3D: a transparent window whose rect and the specimen's plan go to the render layer on
 // bestiary:window (render/counterpart.ts draws it turning slowly from the plan, so extinct kinds work too).
@@ -7,7 +7,7 @@ import { el } from './dom';
 import { planRows } from './lifeText';
 import { listen, type UiBus } from './uiBus';
 import { drawSprite } from '../render/sprite';
-import type { BestiaryEntry } from './bestiary';
+import { tileState, type BestiaryEntry } from './bestiary';
 import type { BodyPlan } from '../sim/develop';
 import type { LifeRegistry } from './lifeRegistry';
 import type { WorldConfig } from '../worlds/types';
@@ -29,7 +29,7 @@ export function mountBestiary(
   const drawer = el('aside', 'wu-drawer wu-bestiary');
   drawer.setAttribute('aria-label', 'Bestiary');
   drawer.append(el('h2', 'wu-h', 'Bestiary'));
-  drawer.append(el('p', 'wu-note', 'Walk up to a living creature and click it to add its kind. Kinds that die out are filed here on their own.'));
+  drawer.append(el('p', 'wu-note', 'Every kind that evolves is listed here. Click a living creature in the world to scan its kind; kinds that die out are filed on their own.'));
   const livingHead = el('h3', 'wu-h3 wu-bt-head');
   const livingCount = el('span', 'wu-bt-count');
   livingHead.append(el('span', undefined, 'Living'), livingCount);
@@ -80,20 +80,17 @@ export function mountBestiary(
   }
 
   function tile(e: BestiaryEntry): HTMLElement {
-    const known = e.found || e.extinct;
-    const b = el('button', `wu-bt ${e.extinct ? 'wu-bt-extinct' : e.found ? 'wu-bt-found' : 'wu-bt-locked'}`);
+    const st = tileState(e);
+    const b = el('button', `wu-bt ${st === 'extinct' ? 'wu-bt-extinct' : st === 'scanned' ? 'wu-bt-found' : 'wu-bt-new'}`);
     b.type = 'button';
-    if (known) {
-      b.append(spriteCanvas(e.plan), el('span', 'wu-bt-name', e.name));
-      if (e.extinct) b.append(el('span', 'wu-bt-stamp', 'Extinct'));
-      if (e.name === pageName) b.classList.add('wu-bt-sel');
-      b.addEventListener('click', () => showPage(e.name));
-      b.setAttribute('aria-label', `${e.name}${e.extinct ? ', extinct' : ''}`);
-    } else {
-      b.append(el('span', 'wu-bt-q', '?'), el('span', 'wu-bt-alive', `${e.alive} alive`));
-      b.title = 'Not found yet: find one alive and click it';
-      b.setAttribute('aria-label', `Unknown kind, ${e.alive} alive, not found yet`);
-    }
+    // Every announced kind shows its real name and sprite; only the stamp says whether the player has scanned it.
+    b.append(spriteCanvas(e.plan), el('span', 'wu-bt-name', e.name));
+    if (st === 'extinct') b.append(el('span', 'wu-bt-stamp', 'Extinct'));
+    else if (st === 'new') b.append(el('span', 'wu-bt-stamp wu-bt-stamp-new', 'New species'));
+    else b.append(el('span', 'wu-bt-check', 'Scanned'));
+    if (e.name === pageName) b.classList.add('wu-bt-sel');
+    b.addEventListener('click', () => showPage(e.name));
+    b.setAttribute('aria-label', `${e.name}${st === 'extinct' ? ', extinct' : st === 'new' ? ', new species, not scanned yet' : ', scanned'}`);
     return b;
   }
 
@@ -105,7 +102,7 @@ export function mountBestiary(
     const living = best.living();
     const dead = best.extinct();
     const livingFound = living.filter((e) => e.found).length;
-    livingCount.textContent = living.length ? `${livingFound} of ${living.length} found` : '';
+    livingCount.textContent = living.length ? `${livingFound} of ${living.length} scanned` : '';
     deadCount.textContent = dead.length ? String(dead.length) : '';
     livingEmpty.hidden = living.length > 0;
     livingGrid.replaceChildren(...living.map(tile));
@@ -124,7 +121,7 @@ export function mountBestiary(
     page.classList.toggle('wu-specimen-extinct', e.extinct);
     pageFrame.classList.toggle('wu-bt-no-model', !e.plan);
     const rows: [string, string][] = [
-      ['Found', e.found ? `${clock(e.foundAtSec ?? 0)} after Generate` : 'Never found alive'],
+      ['Found', e.found ? `${clock(e.foundAtSec ?? 0)} after Generate` : 'Not scanned yet'],
       ['First recorded', `${clock(e.firstSeenSec)} after Generate`],
       ['Most alive at once', String(e.peak)],
     ];
@@ -136,8 +133,8 @@ export function mountBestiary(
       return li;
     }));
     pageNote.textContent = e.found
-      ? 'The model is the specimen you found.'
-      : 'Filed when the last one died. The model is a typical member.';
+      ? 'The model is the specimen you scanned.'
+      : e.extinct ? 'Filed when the last one died. The model is a typical member.' : 'Not scanned yet: click one alive in the world to scan it. The model is a typical member.';
     if (pageName !== lastPageName || e.plan !== lastPagePlan) {
       lastPageName = pageName;
       lastPagePlan = e.plan;

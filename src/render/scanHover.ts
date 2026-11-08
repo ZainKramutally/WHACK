@@ -5,12 +5,14 @@ import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { Bus } from '../bus';
 import type { InspectTarget } from '../worlds/types';
+import { inLock } from './lockHit';
 import type { PickBounds, PickResult } from './pick';
 
 const RESOLVE_EVERY = 1 / 15; // s
 const MIN_SIZE = 28;          // px: a tiny plant still gets a visible lock
 const GRACE = 0.25;           // s a creature lock survives with no hit
 const STICKY_MARGIN = 12;     // px around the creature's rect in which the pointer keeps the lock
+const CLICK_MARGIN = 16;      // px around a locked creature in which a click opens it even if the ray misses
 const PAD = 4;                // px
 
 type Life = Extract<InspectTarget, { kind: 'organism' | 'producer' }>;
@@ -19,6 +21,8 @@ type HoverPayload = { target: Life; rect: { x: number; y: number; width: number;
 export interface ScanHover {
   /** Which device drives the lock: the mouse position, or the screen centre. */
   setInputKind(kind: 'keyboard' | 'gamepad'): void;
+  /** The locked creature if this click (client pixels, or 'reticle') lands inside its lock rect plus a margin, else null. */
+  lockedCreatureAt(at: { x: number; y: number } | 'reticle'): { target: InspectTarget; at: { x: number; y: number } } | null;
   dispose(): void;
 }
 
@@ -65,9 +69,6 @@ export function createScanHover(
     return true;
   }
 
-  const insideRect = (x: number, y: number, r: HoverPayload['rect']) =>
-    x >= r.x - STICKY_MARGIN && x <= r.x + r.width + STICKY_MARGIN && y >= r.y - STICKY_MARGIN && y <= r.y + r.height + STICKY_MARGIN;
-
   const onMove = (e: PointerEvent) => {
     px = e.clientX; py = e.clientY; pointerIn = true;
     dragging = e.buttons !== 0;
@@ -99,7 +100,7 @@ export function createScanHover(
         }
         bounds = r.bounds;
         grace = 0;
-      } else if (payload && payload.target.kind === 'organism' && insideRect(kind === 'gamepad' ? cr.left + cr.width / 2 : px, kind === 'gamepad' ? cr.top + cr.height / 2 : py, payload.rect)) {
+      } else if (payload && payload.target.kind === 'organism' && inLock(kind === 'gamepad' ? cr.left + cr.width / 2 : px, kind === 'gamepad' ? cr.top + cr.height / 2 : py, payload.rect, STICKY_MARGIN)) {
         grace = 0; // still on the creature's rect: a missed resolve on a small or moving body must not drop the lock
       } else if (payload && payload.target.kind === 'organism' && (grace += RESOLVE_EVERY) < GRACE) {
         // within the grace window: keep the lock
@@ -117,6 +118,11 @@ export function createScanHover(
   });
 
   return {
+    lockedCreatureAt(at) {
+      if (!payload || payload.target.kind !== 'organism') return null;
+      const x = at === 'reticle' ? cr.left + cr.width / 2 : at.x, y = at === 'reticle' ? cr.top + cr.height / 2 : at.y;
+      return inLock(x, y, payload.rect, CLICK_MARGIN) ? { target: payload.target, at: { x, y } } : null;
+    },
     setInputKind(k) { kind = k; if (k === 'gamepad') acc = RESOLVE_EVERY; clear(); },
     dispose() {
       off();

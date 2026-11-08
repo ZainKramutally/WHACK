@@ -177,7 +177,10 @@
 }
 .wu-root .wu-bt-found { background: var(--bone4); color: var(--ink); border: 2px solid var(--bone3); }
 .wu-root .wu-bt-found:hover, .wu-root .wu-bt-sel { background: var(--bone3); border-color: var(--wu-accent); }
-.wu-root .wu-bt-locked { background: #1d1630; color: var(--bone1); border: 2px dashed var(--bone1); cursor: help; }
+.wu-root .wu-bt-new { background: var(--bone4); color: var(--ink); border: 2px solid #FFC83D; }
+.wu-root .wu-bt-new:hover, .wu-root .wu-bt-new.wu-bt-sel { background: var(--bone3); }
+.wu-bt-stamp-new { top: 4px; border-color: var(--ink); color: #FFC83D; background: var(--ink); transform: translateX(-50%); font-size: 14px; white-space: nowrap; }
+.wu-bt-check { position: absolute; top: 4px; right: 4px; padding: 0 3px; font-family: var(--wu-mono); font-size: 13px; line-height: 1.1; text-transform: uppercase; color: var(--bone4); background: #2f7d4a; }
 .wu-root .wu-bt-extinct { background: var(--bone2); color: #4d4250; border: 2px solid var(--bone1); }
 .wu-root .wu-bt-extinct:hover { border-color: var(--bone3); }
 .wu-bt-extinct .wu-bt-sprite { filter: grayscale(1) contrast(.8) opacity(.6); }

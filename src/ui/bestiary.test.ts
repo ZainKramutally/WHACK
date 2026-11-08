@@ -81,3 +81,13 @@ describe('Bestiary', () => {
     expect(b.extinct().map((e) => e.name)).toEqual(['E', 'D']);
   });
 });
+
+describe('tileState', () => {
+  it('maps found, unfound and extinct entries', async () => {
+    const { tileState } = await import('./bestiary');
+    expect(tileState({ extinct: false, found: false })).toBe('new');
+    expect(tileState({ extinct: false, found: true })).toBe('scanned');
+    expect(tileState({ extinct: true, found: false })).toBe('extinct');
+    expect(tileState({ extinct: true, found: true })).toBe('extinct');
+  });
+});
