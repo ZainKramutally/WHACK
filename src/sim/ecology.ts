@@ -51,6 +51,7 @@ export interface EcologyLedger {
   sizeRef: number; // body length (m) that counts as size 1 for the oxygen cap
   hungerTime: number; // seconds of standing flora counted as one second of supply
   founders: number; // seeded capsule worms when life appears (≥ 24)
+  cohesion: number; // share of the distance to the kin centroid (cells) an animal closes per decision, times its sociality gene: herds and packs form; low-sociality hunters stay solitary
   intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
 
@@ -58,7 +59,7 @@ export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24, intakeExp: 0.75,
+  hungerTime: 10, founders: 24, cohesion: 1, intakeExp: 0.75,
 };
 
 export interface EcologyOptions {
@@ -464,6 +465,7 @@ export class Ecology {
 
     // one pass over the 3×3 neighbourhood: kin, threats, prey
     let nKin = 0;
+    let kinDx = 0, kinDy = 0, kinN = 0;   // offset to the centroid of kin in the 3×3 block (herd cohesion)
     let fleeV = 0, fleeJ = -1, huntV = 0, huntJ = -1;
     let afraid = 0;
     const x0 = Math.max(0, cx - 1), x1 = Math.min(GRID - 1, cx + 1);
@@ -480,6 +482,7 @@ export class Ecology {
           const dx = this.x[j] - px;
           const dy = this.y[j] - py;
           const d2 = dx * dx + dy * dy;
+          if (this.genome[j].lineage === this.genome[i].lineage) { kinDx += dx; kinDy += dy; kinN++; }
           if (d2 > sense2) continue;
           const d = Math.sqrt(d2);
           const pj = this.plan[j];
@@ -560,6 +563,7 @@ export class Ecology {
         this.ty[i] = py + 2 * Math.sin(h);
         this.wandering[i] = 1;
       } else { this.tx[i] = fx; this.ty[i] = fy; }
+      if (kinN > 0) { const pull = (L.cohesion * soc) / kinN; this.tx[i] += pull * kinDx; this.ty[i] += pull * kinDy; }   // herd cohesion: drift toward kin
     }
     else if (a === ACT.hunt) { this.tgt[i] = huntJ; this.tgtId[i] = this.id[huntJ]; }
     else if (a === ACT.flee) { this.tgt[i] = fleeJ; this.tgtId[i] = this.id[fleeJ]; }
