@@ -286,3 +286,4 @@
 - 09:48 Pushed fly-clear (big fliers clear terrain) + flora ranged upload to main aecc56f (owner OK).
 - 10:15 16: merged landing-page Cinematic toggle.
 - 10:21 16: merged #97 P screenshot / V video capture.
+- 10:21 owner: time-speed chip emoji replaced by a pixel fast-forward icon (cardIcons fastForwardIcon, 9x9, .wu-ico). Owner OK'd main.
