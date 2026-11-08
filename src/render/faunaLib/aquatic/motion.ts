@@ -99,21 +99,24 @@ export function advance(k: Kinematics, t: number, phase = 0, bells = 1): number 
 }
 
 /** Arm angle off the forward axis (degrees) through a row cycle, snapped into 15° beats with a quick 0.08-cycle ease
- *  between beats; recovery folds the arm forward in fewer, bigger snaps. */
-export function armAngle(k: Kinematics, phi: number): { deg: number; fold: number } {
-  const [a0, a1] = k.sweep;
+ *  between beats; recovery folds the arm forward in fewer, bigger snaps. `out` (optional) is filled and returned, so
+ *  the per-frame pose allocates nothing. */
+export function armAngle(k: Kinematics, phi: number, out: { deg: number; fold: number } = { deg: 0, fold: 0 }): { deg: number; fold: number } {
+  const a0 = k.sweep[0], a1 = k.sweep[1];
   if (phi < 0.5) {
     const cont = a0 + (a1 - a0) * (phi / 0.5);
     const beats = (cont - a0) / STEP_DEG;
     const i = Math.floor(beats), f = beats - i;
     const deg = a0 + STEP_DEG * (i + ss((f - 0.72) / 0.28));
-    return { deg: Math.min(a1, deg), fold: 0 };
+    out.deg = Math.min(a1, deg); out.fold = 0;
+    return out;
   }
   const x = (phi - 0.5) / 0.5;
   const steps = (a1 - a0) / (2 * STEP_DEG); // recovery: double-width beats
   const beats = x * steps, i = Math.floor(beats), f = beats - i;
   const deg = a1 - 2 * STEP_DEG * (i + ss((f - 0.6) / 0.4));
-  return { deg: Math.max(a0, deg), fold: Math.sin(Math.PI * x) };
+  out.deg = Math.max(a0, deg); out.fold = Math.sin(Math.PI * x);
+  return out;
 }
 
 /** Bell rim radius factor through a pulse: quick contraction to 0.72, slow refill. */

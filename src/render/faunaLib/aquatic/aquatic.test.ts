@@ -28,7 +28,8 @@ function record(sw: ReturnType<typeof buildSwimmer>, t: number) {
   const sink: SwimSink = {
     tube: (_i, c, _U, _R, rw, rh) => { tubes++; nums.push(...c.flat(), ...rw, ...rh); },
     sheet: (_i, a, b) => { nums.push(...a.flat(), ...b.flat()); },
-    part: (type, o, x, y, z) => { nums.push(...o, ...x, ...y, ...z); parts.push({ type, x, y, z }); },
+    // the pose reuses its vectors between calls (build.ts): keep copies, as fauna.ts's sink does
+    part: (type, o, x, y, z) => { nums.push(...o, ...x, ...y, ...z); parts.push({ type, x: [...x], y: [...y], z: [...z] }); },
   };
   sw.pose(t, line, INST, sink);
   return { nums, parts, tubes };
