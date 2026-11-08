@@ -1000,6 +1000,8 @@ export function createFauna(app: App): FaunaPart {
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
+  // batch counts before a swimmer pose, so one that throws is rolled back (no allocation per frame)
+  const saveL = new Int32Array(LOFTS.length), saveP = new Int32Array(parts.length);
   const P0 = { x: 0, z: 0, h: 0 }, P1 = { x: 0, z: 0, h: 0 }; // interpPose inputs, reused
   let fHeight: (x: number, z: number) => number = () => 0;
 
@@ -1044,7 +1046,16 @@ export function createFauna(app: App): FaunaPart {
         if (sw) {
           S = s; EX = e.x; EY = y0 + lay.centreY * s; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
           SW_S = (drawnLength(e.scale, e.g) / drawnLength(e.scale, 1)) * alpha * fBoost;
-          if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; e.swOn = true; return; }
+          for (let i = 0; i < LOFTS.length; i++) saveL[i] = LOFTS[i].n;
+          for (let i = 0; i < parts.length; i++) saveP[i] = parts[i].n;
+          try {
+            if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; e.swOn = true; return; }
+          } catch {
+            // a pose that throws never stops the frame: undo what it wrote, and this creature keeps the bead loft
+            for (let i = 0; i < LOFTS.length; i++) LOFTS[i].n = saveL[i];
+            for (let i = 0; i < parts.length; i++) parts[i].n = saveP[i];
+            e.sw = null; // swTried stays set: never rebuilt
+          }
         }
       }
       if (e.desc) {
