@@ -36,7 +36,6 @@ describe('gravity: square-cube support (McMahon 1973)', () => {
     const a = develop(walker(0.6), day, none(0.5)), b = develop(walker(0.6), day, none(2));
     expect(a.modeCosts).toEqual(b.modeCosts);
   });
-  it.todo('#80: swimmers recover after the sea returns (niche capture at the cap)');
 });
 
 describe('heat balance: skin area', () => {
@@ -50,7 +49,6 @@ describe('heat balance: skin area', () => {
     const big = { ...walker(0.5), body: { ...walker(0.5).body, size: 0.6 } };
     expect(skin(big)).toBeLessThan(skin(walker(0.5)));
   });
-  it.todo('#80: swimmers recover after the sea returns (niche capture at the cap)');
 });
 
 describe('oxygen: aerobic scope extends the one size cap', () => {
@@ -70,7 +68,6 @@ describe('oxygen: aerobic scope extends the one size cap', () => {
     expect(run(0)).toEqual(run(21));
     expect(run(0)[0]).toBeGreaterThan(0);
   });
-  it.todo('#80: swimmers recover after the sea returns (niche capture at the cap)');
 });
 
 describe('nitrogen: a nutrient for producers (carbon)', () => {
@@ -84,7 +81,6 @@ describe('nitrogen: a nutrient for producers (carbon)', () => {
     };
     expect(flora(0.1)).toBeLessThan(flora(1));
   });
-  it.todo('#80: swimmers recover after the sea returns (niche capture at the cap)');
 });
 
 describe('GitHub #55: silicon swimmers follow the sea', () => {
