@@ -829,11 +829,12 @@ export function createFauna(app: App): FaunaPart {
   }
 
   /** One hub ring at fraction f up tier rod i, radius × k. Returns the next ring index. */
+  let HX = 0, HY = 0, HZ = 1; // hub ring up hint (drawRadialNear)
   function hubRing(rods: Float32Array, nr: number, i: number, f: number, k: number, Tx: number, Ty: number, Tz: number, slot: number): number {
     const o = i * ROD_STRIDE;
     toW(rods[o] + (rods[o + 3] - rods[o]) * f, rods[o + 1] + (rods[o + 4] - rods[o + 1]) * f, rods[o + 2] + (rods[o + 5] - rods[o + 2]) * f);
     const r = rods[o + 6] * S * k;
-    setRing(ringBuf, nr, W[0], W[1], W[2], Tx, Ty, Tz, CH, 0, SH, r, r, slot);
+    setRing(ringBuf, nr, W[0], W[1], W[2], Tx, Ty, Tz, HX, HY, HZ, r, r, slot);
     return nr + 1;
   }
   const slotOfRod = (e: Entry, i: number) => (e.rodTone[i] === 5 ? SLOT.accent : SLOT.body);
@@ -847,13 +848,16 @@ export function createFauna(app: App): FaunaPart {
     toW(rods[oT + 3], rods[oT + 4], rods[oT + 5]);
     let Tx = W[0] - ax, Ty = W[1] - ay, Tz = W[2] - az;
     const tl = len3(Tx, Ty, Tz) || 1; Tx /= tl; Ty /= tl; Tz /= tl;
-    const h = (rods[4] - rods[1]) * S; // one tier's height
+    // one tier's height, along the hub axis whichever way it points (a swimmer's hub lies along its travel axis)
+    const h = len3(rods[3] - rods[0], rods[4] - rods[1], rods[5] - rods[2]) * S;
+    // the rings' up hint: forward for a standing hub; world up for a laid one (forward would be its own axis)
+    if (Math.abs(Ty) < 0.7) { HX = 0; HY = 1; HZ = 0; } else { HX = CH; HY = 0; HZ = SH; }
     let nr = 0;
     // underside: apex, shoulder
     toW(rods[o0], rods[o0 + 1], rods[o0 + 2]);
     const r0 = rods[6] * S;
-    setRing(ringBuf, nr++, W[0] - Tx * h * 0.22, W[1] - Ty * h * 0.22, W[2] - Tz * h * 0.22, Tx, Ty, Tz, CH, 0, SH, r0 * 0.06, r0 * 0.06, slotOfRod(e, 0));
-    setRing(ringBuf, nr++, W[0] - Tx * h * 0.12, W[1] - Ty * h * 0.12, W[2] - Tz * h * 0.12, Tx, Ty, Tz, CH, 0, SH, r0 * 0.55, r0 * 0.55, slotOfRod(e, 0));
+    setRing(ringBuf, nr++, W[0] - Tx * h * 0.22, W[1] - Ty * h * 0.22, W[2] - Tz * h * 0.22, Tx, Ty, Tz, HX, HY, HZ, r0 * 0.06, r0 * 0.06, slotOfRod(e, 0));
+    setRing(ringBuf, nr++, W[0] - Tx * h * 0.12, W[1] - Ty * h * 0.12, W[2] - Tz * h * 0.12, Tx, Ty, Tz, HX, HY, HZ, r0 * 0.55, r0 * 0.55, slotOfRod(e, 0));
     for (let i = 0; i < R.nTiers; i++) {
       nr = hubRing(rods, nr, i, 0, 0.8, Tx, Ty, Tz, slotOfRod(e, i));
       nr = hubRing(rods, nr, i, 0.2, 1, Tx, Ty, Tz, slotOfRod(e, i));
@@ -863,8 +867,8 @@ export function createFauna(app: App): FaunaPart {
     // crown: shoulder and apex
     toW(rods[oT + 3], rods[oT + 4], rods[oT + 5]);
     const rt = rods[oT + 6] * S;
-    setRing(ringBuf, nr++, W[0] + Tx * h * 0.14, W[1] + Ty * h * 0.14, W[2] + Tz * h * 0.14, Tx, Ty, Tz, CH, 0, SH, rt * 0.5, rt * 0.5, slotOfRod(e, R.nTiers - 1));
-    setRing(ringBuf, nr++, W[0] + Tx * h * 0.22, W[1] + Ty * h * 0.22, W[2] + Tz * h * 0.22, Tx, Ty, Tz, CH, 0, SH, rt * 0.06, rt * 0.06, slotOfRod(e, R.nTiers - 1));
+    setRing(ringBuf, nr++, W[0] + Tx * h * 0.14, W[1] + Ty * h * 0.14, W[2] + Tz * h * 0.14, Tx, Ty, Tz, HX, HY, HZ, rt * 0.5, rt * 0.5, slotOfRod(e, R.nTiers - 1));
+    setRing(ringBuf, nr++, W[0] + Tx * h * 0.22, W[1] + Ty * h * 0.22, W[2] + Tz * h * 0.22, Tx, Ty, Tz, HX, HY, HZ, rt * 0.06, rt * 0.06, slotOfRod(e, R.nTiers - 1));
     writeRings(ringBuf, nr, RAD_RINGS, hubSection(d.sides), hubLoft.pos, hubLoft.nor, hubLoft.col, hubLoft.glow, hubLoft.n * hubLoft.per, e.slotRgb, e.slotGlow);
     hubLoft.n++;
 

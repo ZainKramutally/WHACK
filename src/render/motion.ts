@@ -184,7 +184,11 @@ export function rollAngle(distance: number, radius: number): number {
 export function layAlongTravel(
   rods: Float32Array, nRods: number, rodStride: number, eyes: Float32Array, nEyes: number, eyeStride: number, pivotY: number,
 ): void {
-  const rot = (a: Float32Array, i: number) => { const x = a[i], y = a[i + 1] - pivotY; a[i] = y; a[i + 1] = pivotY - x; };
-  for (let r = 0; r < nRods; r++) { rot(rods, r * rodStride); rot(rods, r * rodStride + 3); }
-  for (let k = 0; k < nEyes; k++) rot(eyes, k * eyeStride);
+  for (let r = 0; r < nRods; r++) { layPoint(rods, r * rodStride, pivotY); layPoint(rods, r * rodStride + 3, pivotY); }
+  for (let k = 0; k < nEyes; k++) layPoint(eyes, k * eyeStride, pivotY);
+}
+/** One point (x, y at a[i], a[i+1]) of layAlongTravel's quarter turn about the lateral axis at height pivotY. */
+function layPoint(a: Float32Array, i: number, pivotY: number): void {
+  const x = a[i], y = a[i + 1] - pivotY;
+  a[i] = y; a[i + 1] = pivotY - x;
 }

@@ -190,9 +190,15 @@ describe('fauna adapter', () => {
     R.rods.forEach((r, i) => rods.set([r.ax, r.ay, r.az, r.bx, r.by, r.bz, r.r], i * ROD_STRIDE));
     const span = (o: number) => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < R.rods.length; i++) for (const k of [0, 3]) { const v = rods[i * ROD_STRIDE + k + o]; lo = Math.min(lo, v); hi = Math.max(hi, v); } return hi - lo; };
     const towerUp = span(1), towerAlong = span(0);
+    // a tier's height as drawRadialNear measures it (along its own axis), before and after laying it down
+    const tierH = (i: number) => Math.hypot(rods[i * ROD_STRIDE + 3] - rods[i * ROD_STRIDE], rods[i * ROD_STRIDE + 4] - rods[i * ROD_STRIDE + 1], rods[i * ROD_STRIDE + 5] - rods[i * ROD_STRIDE + 2]);
+    const h0 = tierH(0);
+    expect(h0).toBeGreaterThan(0);
     layAlongTravel(rods, R.rods.length, ROD_STRIDE, new Float32Array(0), 0, 5, R.pivotY);
     expect(span(0)).toBeCloseTo(towerUp, 6);    // the hub's height now runs along the travel axis
     expect(span(1)).toBeCloseTo(towerAlong, 6); // and its old footprint is its height
+    expect(tierH(0)).toBeCloseTo(h0, 6); // the laid hub keeps its tier height (its ends stay pointed, not flat)
+    expect(Math.abs(rods[4] - rods[1])).toBeLessThan(1e-6); // while its upright-only height (y extent) is gone
     for (let i = 0; i < R.nTiers; i++) {        // hub tiers sit on the axis through the hub centre
       expect(rods[i * ROD_STRIDE + 1]).toBeCloseTo(R.pivotY, 6); expect(rods[i * ROD_STRIDE + 4]).toBeCloseTo(R.pivotY, 6);
     }
