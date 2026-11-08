@@ -277,6 +277,24 @@ const list: Source[] = [
     doi: '10.1017/S1473550418000423',
     note: 'Abstract read: retinal pigments absorb green light (568 nm) where chlorophyll is weak, and may have come before chlorophyll ("Purple Earth" hypothesis).',
   },
+  {
+    id: 'goehring2009',
+    citation: 'Goehring L, Mahadevan L, Morris SW (2009). Nonequilibrium scale selection mechanism for columnar jointing. PNAS 106:387-392.',
+    doi: '10.1073/pnas.0805132106',
+    note: 'Abstract read: cooling lava cracks into columns, matched by drying-starch cracks (M7 basalt columns).',
+  },
+  {
+    id: 'bekker2010',
+    citation: 'Bekker A, Slack JF, Planavsky N, Krapez B, Hofmann A, Konhauser KO, Rouxel OJ (2010). Iron formation: the sedimentary product of a complex interplay among mantle, tectonic, oceanic, and biospheric processes. Economic Geology 105:467-508.',
+    doi: '10.2113/gsecongeo.105.3.467',
+    note: 'Abstract not read (ironstone banding).',
+  },
+  {
+    id: 'linton1955',
+    citation: 'Linton DL (1955). The problem of tors. The Geographical Journal 121:470.',
+    doi: '10.2307/1791756',
+    note: 'Abstract not read (M8 granite tors).',
+  },
 ];
 
 export const sources: Record<string, Source> = Object.fromEntries(list.map((s) => [s.id, s]));

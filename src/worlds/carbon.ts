@@ -367,7 +367,7 @@ export const carbon: WorldConfig = {
       { id: 'M8', rate: 0.01, minerals: ['granite'], params: { domeHeight: 18, domeFreq: 0.02, threshold: 0.55, uplandMin: 0.2, stackStep: 3, stackSharp: 0.6, stackShare: 0.5 } },   // granite domes and stacked-boulder tors on highlands (stylised sizes)
     ],
     why: 'About 30 m of relief on a 400 m patch reads as coastal hills and shallows like a rocky coast on Earth; every value is a tuned-by-eye placeholder. Basalt columns (M7), granite domes and tors (M8) and ironstone strata are stylised, declared illustration: columns are 8 m wide because the terrain mesh is about 2 m per vertex.',
-    sources: [],
+    sources: ['goehring2009', 'bekker2010', 'linton1955'],
     assumption: true,
     crust: {
       minerals: [
