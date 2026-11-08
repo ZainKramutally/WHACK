@@ -28,11 +28,11 @@ Agents may not survive the restart. For each one:
 |---|---|---|---|
 | art-flora | `.sandboxes/art-flora` `feature/art-flora` | Merged: library, clearing, test-bin fix (a018ddb), all on session. Dirty WIP. | (1) **code fix**: worst-case mid < 1600. (2) **Silicon draw calls**: 93 vs main's 14 (~25 crystalGround L0 buckets), giving silicon −6.5 fps. Collapse the buckets and lower the tri count. (3) Pass `cutout:false` on far/ground buckets once art-look's focus cut-out merges. |
 | art-look | `.sandboxes/art-look` `feature/art-look` | **Ready, NOT merged: 650e295** (was bcd964b). It has the silicon creatureColour inversion, the `rim` option, LOOK.focus/focusR flora dither cut-out (`cutout` opt), view.setFocus/setSpawn, and the 2 main.ts calls. | Merge it after art-flora's cut-out opt-outs, because the cut-out costs ~4 fps on silicon through the discard. Then stand by. |
-| art-world | `.sandboxes/art-world` `feature/art-world` | WP3 merged. WIP: sea worley-crack gating, frozen path only. | Commit it, I merge it, it stands by. |
-| art-post | `.sandboxes/art-post` `feature/art-post` | Done and merged: post, setPixelScale, sea mask, ink fade. | Stand by. It can shut down. |
+| art-world | `.sandboxes/art-world` `feature/art-world` | Done. Sea gate merged to session. | Can shut down. |
+| art-post | (shut down) | Done and merged. | none |
 | art-fauna | `.sandboxes/art-fauna` `feature/art-fauna` | WP5 creature reskin in progress, no commits yet. Dirty. | Continue. Its brief is in its spawn prompt; see art-layer.md WP5 and §3 below. |
 | rw-fish | `.sandboxes/rw-fish` `feature/rw-fish` | Aquatic procedural fish lab in mockups/red-world (5 variants, `swimmerParamsFromPlan`, `?view=aquatic`, docs/features/aquatic-life.md). In progress. | Continue, then report. |
-| rw-envs | `.sandboxes/rw-envs` `feature/rw-envs` | **Done, merged** (265b234): environmentFrom(soup), 7 environments, docs/features/environments.md. | Shut down. Caden needs to pick the cryo accent (gold vs cyan). |
+| rw-envs | `.sandboxes/rw-envs` `feature/rw-envs` | **Done, merged** (265b234), shut down. | none. Caden needs to pick the cryo accent (gold vs cyan). |
 
 ## 2. Decisions waiting on Caden
 1. Cryo/silicon glow accent: gold (rw-envs) or ice-cyan (the app's LOOK_PALETTES.silicon)?
