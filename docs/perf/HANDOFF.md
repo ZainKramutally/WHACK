@@ -49,3 +49,8 @@ These perf findings sit in files other agents were actively editing, so session/
 14. **`view.ready` compiles every material in one go** (`counterpart.ready → app.compile()`), plus Generate's prime compile, while the player is already on the selection screen. Node building is synchronous, so the particle box may hitch in the first seconds.
    - Check first: watch the box for 3 s after load.
    - If it hitches, compile top-level groups one at a time with a frame yield between them.
+
+## Regression found by the main watch (2026-11-08 ~05:10): owner art layer
+15. **floraLib/place.ts `mineralIx` (1c63df8) caches per placePlants call** (`MIN_AT[c] !== call`), so every flora rebuild (up to 4×/s) re-samples `crust.weights` plus the argmax for every planted cell. Measured: 1.4–1.5 ms per 4,096-cell pass.
+   - Fix: key CELL_MIN on the `crust` (or `crust.weights`) identity.
+   - Optionally, visualInputs.ts hands out one crust object per sampler (WeakMap), so the identity is stable during the build too.
