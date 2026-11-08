@@ -90,7 +90,7 @@ export function mountInspectCard(
       } else dead = true;
       if (lastForm?.recognised && lastForm.name) name = lastForm.name;
       if (lastRec) {
-        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', chemTrait: world.life.rules.chemTrait, form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
+        rows.push(...organismRows(lastRec, lastPlan, { chemistry: world.id === 'silicon' ? 'silicon' : 'carbon', chemTrait: world.life.rules.chemTrait, ledger: world.life.ledger, form: lastForm, alive: !dead, flight: { stats: s.stats, params: flightParamsFor(world.life.inputs), tissueRhoC: world.life.inputs.tissueDensity.C } }));
       }
     } else if (t.kind === 'producer') {
       const mat = s.flora[t.cell * 2] ?? 0;

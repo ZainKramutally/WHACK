@@ -145,6 +145,13 @@ describe('livingRange and minOxygen', () => {
     const o2 = minOxygen(0, 2, 1, ct)!;
     expect(maxBodySize(ct, o2, 1)).toBeCloseTo(2, 9);
   });
+  it('hunters also need the oxygen where aerobic scope reaches 1 (ledger aerobicRef)', () => {
+    const led = { aerobicRef: 21, aerobicHunt: 1 };
+    expect(minOxygen(0.5, 0.2, 0.9, ct, led)).toBe(21);
+    expect(minOxygen(0.5, 0.2, 0.1, ct, led)).toBe(8);           // grazer: unaffected
+    expect(minOxygen(0.5, 0.2, 0.9, ct, { aerobicRef: 21, aerobicHunt: 0 })).toBe(8);
+    expect(minOxygen(0.5, 0.2, 0.9, ct, { aerobicRef: 0, aerobicHunt: 1 })).toBe(8);   // silicon-style: off
+  });
   it('reads the real world configs: carbon has a threshold, silicon none', () => {
     expect(minOxygen(0.5, 0.2, 0, carbon.life.rules.chemTrait)).toBeGreaterThan(0);
     expect(minOxygen(0.5, 0.2, 0, silicon.life.rules.chemTrait)).toBeNull();

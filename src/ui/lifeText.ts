@@ -86,6 +86,8 @@ export interface OrganismContext {
   chemistry: 'carbon' | 'silicon';
   /** The world's chemistry trait (world.life.rules.chemTrait): every coefficient for the living-conditions rows comes from here. */
   chemTrait: ChemTrait;
+  /** world.life.ledger: aerobicRef / aerobicHunt feed the hunter's oxygen threshold. */
+  ledger?: Record<string, number>;
   /** Species this animal belongs to (the sim's announced name), and whether the player has found it. No name: it matches no announced species. */
   form?: { name?: string; recognised: boolean };
   /** Include live-only rows (energy). */
@@ -111,16 +113,19 @@ export function livingRangeText(lo: number, hi: number): string {
 }
 
 /**
- * Least oxygen (%) the animal can live on, the larger of the sim's two oxygen rules (ecology.ts, step):
- * - aerobic gain: food use is 1 − chem + chem·(1 + aerobicBonus)·O₂/(O₂ + halfSaturation), which beats the no-oxygen baseline from O₂ = halfSaturation / aerobicBonus (only when chem > 0);
- * - size cap: stress appears when size > maxBodySize(O₂, diet) = (baseMaxSize + maxSizePerPercent·O₂) / (1 + huntPenalty·diet), i.e. below O₂ = ((1 + huntPenalty·diet)·size − baseMaxSize) / maxSizePerPercent.
- * Null on a world with no oxygen trait (silicon).
+ * Least oxygen (%) below which the animal starts paying an oxygen penalty in the sim: the largest of
+ * - aerobic gain (ecology.ts ~702): food use 1 − chem + chem·(1 + aerobicBonus)·O₂/(O₂ + halfSaturation) beats its O₂-free value (1 − chem) from O₂ = halfSaturation / aerobicBonus, when chem > 0;
+ * - size cap (ecology.ts ~703, population.ts maxBodySize): stress appears when size > (baseMaxSize + maxSizePerPercent·O₂) / (1 + huntPenalty·diet), i.e. below O₂ = ((1 + huntPenalty·diet)·size − baseMaxSize) / maxSizePerPercent;
+ * - hunters only (ecology.ts ~709, ~770): catch rate ∝ scope^aerobicHunt, and scope = aerobicFloor + (1 − aerobicFloor)·O₂/aerobicRef reaches 1 at O₂ = aerobicRef.
+ * Not counted: the soft speed and movement-cost loss every mover pays below aerobicRef (it would put every animal at ~21%).
+ * Null on a world with no oxygen trait (silicon). All coefficients come from world config.
  */
-export function minOxygen(chem: number, size: number, diet: number, ct: ChemTrait): number | null {
+export function minOxygen(chem: number, size: number, diet: number, ct: ChemTrait, ledger: Record<string, number> = {}): number | null {
   if (ct.kind !== 'oxygenNeed') return null;
   const aerobic = chem > 0 && ct.aerobicBonus > 0 ? ct.halfSaturation / ct.aerobicBonus : 0;
   const cap = ct.maxSizePerPercent > 0 ? ((1 + (ct.huntPenalty ?? 0) * diet) * size - ct.baseMaxSize) / ct.maxSizePerPercent : 0;
-  return Math.max(0, aerobic, cap);
+  const hunt = roleOf(diet) === 'hunter' && (ledger.aerobicRef ?? 0) > 0 && (ledger.aerobicHunt ?? 0) > 0 ? ledger.aerobicRef : 0;
+  return Math.max(0, aerobic, cap, hunt);
 }
 
 /** The icon chips' data: diet role and habitat. */
@@ -133,7 +138,7 @@ export function organismRows(rec: OrganismRecord, plan: BodyPlan | undefined, ct
   if (ctx.form) rows.push(['Form', ctx.form.name === undefined ? '(not yet a recognised species)' : ctx.form.recognised ? ctx.form.name : `${ctx.form.name} (not yet a common form)`]);
   const [lo, hi] = livingRange(rec.prefTemp, rec.tolerance, rec.chem, ctx.chemTrait);
   rows.push(['Lives at', livingRangeText(lo, hi)]);
-  const o2 = minOxygen(rec.chem, rec.size, plan ? plan.diet : rec.body.diet, ctx.chemTrait);
+  const o2 = minOxygen(rec.chem, rec.size, plan ? plan.diet : rec.body.diet, ctx.chemTrait, ctx.ledger);
   if (o2 !== null) rows.push(['Needs', `≥ ${o2.toFixed(1)}% oxygen${rec.chem > 0 ? ` (${pct(rec.chem)} of its energy from oxygen)` : ''}`]);
   if (plan) rows.push(['Length', lengthWords(plan.scale)]);
   if (plan && ctx.flight && plan.mode === 2 && (plan.liftSpan ?? 0) > 0) {
