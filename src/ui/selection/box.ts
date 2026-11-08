@@ -87,11 +87,12 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   const hexRgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgbHex = (c: number[]) => (0xff000000 | (Math.round(c[2]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[0])) >>> 0;
   /** Which bed entry owns draw value u, by cumulative share in the order given. */
-  function pickBed(st: BoxState, u: number) {
+  function pickBedIdx(st: BoxState, u: number) {
     let acc = 0;
-    for (const b of st.bed) { acc += b.share; if (u < acc) return b; }
-    return st.bed[st.bed.length - 1];
+    for (let i = 0; i < st.bed.length; i++) { acc += st.bed[i].share; if (u < acc) return i; }
+    return st.bed.length - 1;
   }
+  const pickBed = (st: BoxState, u: number) => st.bed[pickBedIdx(st, u)];
   const floorY = S - 12 - BED_U;
 
   // Chain ids and sizes, computed in one pass per step (and patched on each new bond) instead of a BFS per pair.
@@ -101,7 +102,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     for (let i = 0; i < N_ATOMS; i++) {
       if (comp[i] >= 0) continue;
       let sp = 0, size = 0; stack[sp++] = i; comp[i] = i;
-      while (sp) { const a = stack[--sp]; size++; for (const n of atoms[a].b) if (comp[n] < 0) { comp[n] = i; stack[sp++] = n; } }
+      while (sp) { const a = stack[--sp]; size++; const ab = atoms[a].b; for (let q = 0; q < ab.length; q++) { const n = ab[q]; if (comp[n] < 0) { comp[n] = i; stack[sp++] = n; } } }
       compSize[i] = size;
     }
   }
@@ -116,13 +117,6 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     head.fill(-1);
     for (let i = N_ATOMS - 1; i >= 0; i--) { const c = cellOf(atoms[i].y) * GRID + cellOf(atoms[i].x); nextIn[i] = head[c]; head[c] = i; }
   }
-  /** Calls fn(j) for every atom in the 3x3 cells around atom i (including i itself). */
-  function near(i: number, fn: (j: number) => boolean | void) {
-    const cx = cellOf(atoms[i].x), cy = cellOf(atoms[i].y);
-    for (let gy = Math.max(0, cy - 1); gy <= Math.min(GRID - 1, cy + 1); gy++)
-      for (let gx = Math.max(0, cx - 1); gx <= Math.min(GRID - 1, cx + 1); gx++)
-        for (let j = head[gy * GRID + gx]; j >= 0; j = nextIn[j]) if (fn(j)) return;
-  }
   /** Elastic-ish bounce between unbonded atoms: push apart, and swap the approaching share of velocity. */
   function collide(i: number, j: number) {
     const a = atoms[i], o = atoms[j];
@@ -136,22 +130,52 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     const vn = (a.vx - o.vx) * nx + (a.vy - o.vy) * ny;   // > 0 when approaching
     if (vn > 0) { const jn = vn * 0.95; a.vx -= nx * jn; a.vy -= ny * jn; o.vx += nx * jn; o.vy += ny * jn; }
   }
-  const unbond = (i: number, j: number) => { atoms[i].b = atoms[i].b.filter((x) => x !== j); atoms[j].b = atoms[j].b.filter((x) => x !== i); };
+  const dropFrom = (arr: number[], v: number) => { const k = arr.indexOf(v); if (k >= 0) arr.splice(k, 1); };
+  const unbond = (i: number, j: number) => { dropFrom(atoms[i].b, j); dropFrom(atoms[j].b, i); };
+  // Per-step values shared with the hoisted helpers below (the closures used to be rebuilt every frame).
+  let speed = 0;
+  const kick = () => (rnd() - 0.5) * speed * 2.2;
+  const doneChain = new Uint8Array(N_ATOMS);
+  /** Living branch: a chain of 6+ may split in two (same rnd order as before). */
+  function trySplit(i: number) {
+    const ci = comp[i];
+    if (compSize[ci] >= 6 && rnd() < 0.005) {
+      const ends: number[] = [];
+      for (let k = 0; k < N_ATOMS; k++) if (comp[k] === ci && atoms[k].b.length === 1) ends.push(k);
+      if (!ends.length) return;
+      let prev = -1, cur = ends[0];
+      for (let s = 0; s < 2; s++) { const next = atoms[cur].b.find((n) => n !== prev); if (next === undefined) return; prev = cur; cur = next; }
+      const nxt = atoms[cur].b.find((n) => n !== prev);
+      if (nxt === undefined) return;
+      unbond(cur, nxt);
+      flashes.push({ x: (atoms[cur].x + atoms[nxt].x) / 2, y: (atoms[cur].y + atoms[nxt].y) / 2, t: 0 });
+    }
+  }
+  let yPoolNow = 0;
+  function gasMove(g: Gas) {
+    g.x += g.vx * (0.6 + speed); g.y += g.vy * (0.6 + speed); g.a += 0.03 * speed;
+    const bottom = poolNow > 0.03 ? yPoolNow - 8 : S - 8;
+    if (g.x < 8 || g.x > S - 8) g.vx *= -1;
+    if (g.y < 8) { g.y = 8; g.vy = Math.abs(g.vy); }
+    if (g.y > bottom) { g.y = bottom; g.vy = -Math.abs(g.vy); }
+    g.x = clamp(g.x, 8, S - 8);
+  }
 
   function step(st: BoxState, dt: number, isSi: boolean) {
     poolNow += (st.pool - poolNow) * Math.min(1, dt * 1.6);
     const yPool = S * (1 - poolNow);
+    yPoolNow = yPool;
     const frozenFx = st.effect === 'freeze';
-    const speed = frozenFx ? 0.04 : 0.3 + 1.1 * st.heat;
-    const kick = () => (rnd() - 0.5) * speed * 2.2;
+    speed = frozenFx ? 0.04 : 0.3 + 1.1 * st.heat;
     const nFrozen = Math.round(st.frozen * solvent.length);
     const cols = 30, sp = S / cols;
-    solvent.forEach((p, k) => {
+    for (let k = 0; k < solvent.length; k++) {
+      const p = solvent[k];
       if (k < nFrozen && st.phase !== 'gas') {
         const row = Math.floor(k / cols), col = k % cols;
         const ty = st.iceFloats ? yPool + 10 + row * sp * 0.8 : S - 10 - BED_U - row * sp * 0.8;
         p.x += (col * sp + sp / 2 - p.x) * 0.08; p.y += (ty - p.y) * 0.08; p.vx = p.vy = 0;
-        return;
+        continue;
       }
       p.vx = (p.vx + kick()) * 0.86; p.vy = (p.vy + kick()) * 0.86;
       p.x += p.vx; p.y += p.vy;
@@ -159,15 +183,7 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       if (p.x < 3) { p.x = 3; p.vx *= -1; } if (p.x > S - 3) { p.x = S - 3; p.vx *= -1; }
       if (p.y < top) { p.y = top + (st.phase === 'gas' ? 0 : (top - p.y) * 0.2); p.vy = Math.abs(p.vy); }
       if (p.y > S - 3 - BED_U) { p.y = S - 3 - BED_U; p.vy *= -1; }
-    });
-    const gasMove = (g: Gas) => {
-      g.x += g.vx * (0.6 + speed); g.y += g.vy * (0.6 + speed); g.a += 0.03 * speed;
-      const bottom = poolNow > 0.03 ? yPool - 8 : S - 8;
-      if (g.x < 8 || g.x > S - 8) g.vx *= -1;
-      if (g.y < 8) { g.y = 8; g.vy = Math.abs(g.vy); }
-      if (g.y > bottom) { g.y = bottom; g.vy = -Math.abs(g.vy); }
-      g.x = clamp(g.x, 8, S - 8);
-    };
+    }
     for (let i = 0; i < st.n2Gas; i++) gasMove(gasN2[i]);
     for (let i = 0; i < st.o2Gas; i++) gasMove(gasO2[i]);
     const living = st.ok;
@@ -175,22 +191,23 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     const pBreak = living ? 0.0015 : st.effect === 'starve' ? 0.06 : st.effect === 'shakeApart' ? 0.25 : st.effect === 'dryUp' || st.effect === 'rust' ? 0.01 : 0;
     const maxLen = st.effect === 'starve' ? 2 : 6;
     const dry = st.phase === 'gas' || poolNow < 0.05;
-    atoms.forEach((a, i) => {
+    for (let i = 0; i < N_ATOMS; i++) {
+      const a = atoms[i];
       if (a.rock) {
         a.vy += 0.25; a.vx *= 0.9; a.x += a.vx; a.y += a.vy;
         if (a.y > floorY) { a.y = floorY; a.vy = 0; }
         if (st.effect !== 'rust' && rnd() < 0.004) a.rock = 0;
-        return;
+        continue;
       }
-      if (frozenFx) { a.vx = a.vy = 0; return; }
+      if (frozenFx) { a.vx = a.vy = 0; continue; }
       if (dry) {
         a.vy += 0.3; a.vx = (a.vx + kick() * 0.8) * 0.9;
         a.x += a.vx; a.y += a.vy;
         if (a.y > floorY) { a.y = floorY; a.vy = -Math.abs(a.vy) * 0.35 - rnd() * speed * 1.4; }
       } else {
         a.vx = (a.vx + kick()) * 0.9; a.vy = (a.vy + kick()) * 0.9;
-        for (const n of a.b) {
-          const o = atoms[n], dx = o.x - a.x, dy = o.y - a.y, d = Math.hypot(dx, dy) || 1;
+        for (let q = 0; q < a.b.length; q++) {
+          const o = atoms[a.b[q]], dx = o.x - a.x, dy = o.y - a.y, d = Math.hypot(dx, dy) || 1;
           const f = (d - (isSi ? 28 : 24)) * 0.03;
           a.vx += (dx / d) * f; a.vy += (dy / d) * f;
         }
@@ -203,13 +220,14 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       if (st.effect === 'rust') {
         for (let k = 0; k < st.o2Gas; k++) {
           const g = gasO2[k];
-          if (Math.abs(g.x - a.x) < 40 && Math.abs(g.y - a.y) < 60 && rnd() < 0.02) { a.rock = 1; [...a.b].forEach((n) => unbond(i, n)); break; }
+          if (Math.abs(g.x - a.x) < 40 && Math.abs(g.y - a.y) < 60 && rnd() < 0.02) { a.rock = 1; while (a.b.length) { const n = a.b.pop()!; dropFrom(atoms[n].b, i); } break; }
         }
       }
-    });
+    }
     // The rock feeds life: now and then a feeding grain gives an atom up into the liquid. An existing free atom is
     // moved there, so the atom budget never grows. boxState.feeds is already 0 when frozen, dry or not living.
-    const feed = st.bed.reduce((m, b) => Math.max(m, b.feeds), 0);
+    let feed = 0;
+    for (let i = 0; i < st.bed.length; i++) feed = Math.max(feed, st.bed[i].feeds);
     if (feed > 0 && rnd() < feed * dt * 1.2) {
       const src = atoms.filter((a) => !a.rock && a.b.length === 0);
       const donors = grains.filter((g) => pickBed(st, g.u).feeds > 0 && g.h < 0.5);
@@ -221,43 +239,53 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       }
     }
     buildGrid();
-    if (!frozenFx) for (let i = 0; i < N_ATOMS; i++) near(i, (j) => { if (j > i) collide(i, j); });
-    if (pBreak) atoms.forEach((a, i) => { [...a.b].forEach((n) => { if (n > i && rnd() < pBreak * dt * 60 * 0.2) unbond(i, n); }); });
+    if (!frozenFx) {
+      for (let i = 0; i < N_ATOMS; i++) {
+        const cx = cellOf(atoms[i].x), cy = cellOf(atoms[i].y);
+        for (let gy = Math.max(0, cy - 1); gy <= Math.min(GRID - 1, cy + 1); gy++)
+          for (let gx = Math.max(0, cx - 1); gx <= Math.min(GRID - 1, cx + 1); gx++)
+            for (let j = head[gy * GRID + gx]; j >= 0; j = nextIn[j]) if (j > i) collide(i, j);
+      }
+    }
+    if (pBreak) {
+      for (let i = 0; i < N_ATOMS; i++) {
+        const ab = atoms[i].b;
+        // Same visit order and rnd() calls as iterating a copy: only the visited bond is ever removed.
+        for (let q = 0; q < ab.length;) {
+          const n = ab[q];
+          if (n > i && rnd() < pBreak * dt * 60 * 0.2) { unbond(i, n); } else q++;
+        }
+      }
+    }
     labelChains();
     if (pForm && !dry && !frozenFx) {
       for (let i = 0; i < N_ATOMS; i++) {
         const a = atoms[i];
         if (a.rock || a.b.length >= 2) continue;
-        near(i, (j) => {
-          const o = atoms[j];
-          if (j <= i || o.rock || o.b.length >= 2 || a.b.includes(j)) return;
-          if (Math.abs(o.x - a.x) > 32 || Math.abs(o.y - a.y) > 32) return;
-          if (rnd() > pForm) return;
-          const ci = comp[i], cj = comp[j];
-          if (ci === cj || compSize[ci] + compSize[cj] > maxLen) return;
-          a.b.push(j); o.b.push(i);
-          mergeChains(ci, cj);
-          return true;
-        });
+        const cx = cellOf(a.x), cy = cellOf(a.y);
+        search:
+        for (let gy = Math.max(0, cy - 1); gy <= Math.min(GRID - 1, cy + 1); gy++)
+          for (let gx = Math.max(0, cx - 1); gx <= Math.min(GRID - 1, cx + 1); gx++)
+            for (let j = head[gy * GRID + gx]; j >= 0; j = nextIn[j]) {
+              const o = atoms[j];
+              if (j <= i || o.rock || o.b.length >= 2 || a.b.includes(j)) continue;
+              if (Math.abs(o.x - a.x) > 32 || Math.abs(o.y - a.y) > 32) continue;
+              if (rnd() > pForm) continue;
+              const ci = comp[i], cj = comp[j];
+              if (ci === cj || compSize[ci] + compSize[cj] > maxLen) continue;
+              a.b.push(j); o.b.push(i);
+              mergeChains(ci, cj);
+              break search;
+            }
       }
     }
     if (living) {
-      const done = new Set<number>();
-      atoms.forEach((a, i) => {
-        if (a.rock || done.has(comp[i])) return;
-        done.add(comp[i]);
-        if (compSize[comp[i]] >= 6 && rnd() < 0.005) {
-          const ends: number[] = [];
-          for (let k = 0; k < N_ATOMS; k++) if (comp[k] === comp[i] && atoms[k].b.length === 1) ends.push(k);
-          if (!ends.length) return;
-          let prev = -1, cur = ends[0];
-          for (let s = 0; s < 2; s++) { const next = atoms[cur].b.find((n) => n !== prev); if (next === undefined) return; prev = cur; cur = next; }
-          const nxt = atoms[cur].b.find((n) => n !== prev);
-          if (nxt === undefined) return;
-          unbond(cur, nxt);
-          flashes.push({ x: (atoms[cur].x + atoms[nxt].x) / 2, y: (atoms[cur].y + atoms[nxt].y) / 2, t: 0 });
-        }
-      });
+      doneChain.fill(0);
+      for (let i = 0; i < N_ATOMS; i++) {
+        if (atoms[i].rock || doneChain[comp[i]]) continue;
+        doneChain[comp[i]] = 1;
+        trySplit(i);
+      }
     }
     return yPool;
   }
@@ -294,6 +322,11 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
   }
 
   let lastDt = 0.016;
+  const bedPal: number[][][] = [], grainCols = [0, 0, 0];
+  const ROCK_COLS: Record<string, string> = { 0: BOX_PAL.bone[0], 1: BOX_PAL.bone[1], 2: BOX_PAL.bone[2], 3: BOX_PAL.bone[3] };
+  const SILICON_COLS: Record<string, string> = { 0: BOX_PAL.silicon[0], 1: BOX_PAL.silicon[1], 2: BOX_PAL.silicon[2], w: '#FFFFFF' };
+  const CARBON_COLS: Record<string, string> = { 0: BOX_PAL.carbon[0], 1: BOX_PAL.carbon[1], 2: BOX_PAL.carbon[2], 3: BOX_PAL.carbon[3] };
+  function pair(g: Gas, col: string) { const dx = Math.round(Math.cos(g.a) * 1.4), dy = Math.round(Math.sin(g.a) * 1.4); const x = px(g.x), y = px(g.y); dot(x - dx, y - dy, col); dot(x + dx, y + dy, col); }
   function draw(st: BoxState, yPoolS: number, now: number, world: WorldConfig) {
     const isSi = world.id === 'silicon';
     const F = seaRamp(world);
@@ -312,43 +345,52 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
     }
     const nFrozen = Math.round(st.frozen * solvent.length);
     const gasPhase = st.phase === 'gas' || poolNow < 0.03;
-    solvent.forEach((p, k) => {
+    for (let k = 0; k < solvent.length; k++) {
+      const p = solvent[k];
       const x = px(p.x), y = px(p.y);
-      if (k < nFrozen && st.phase !== 'gas') { dot(x - 1, y - 1, F[5], 2, 2); dot(x + 1, y, F[3]); return; }
+      if (k < nFrozen && st.phase !== 'gas') { dot(x - 1, y - 1, F[5], 2, 2); dot(x + 1, y, F[3]); continue; }
       dot(x, y, gasPhase ? F[1] : F[5]);
-    });
+    }
     // Crust bed: packed grains along the bottom rows, coloured by mineral and eased towards their target each frame.
     if (st.bed.length) {
-      const palOf = (b: { id: string; rust: number }) => {
+      // One palette per bed entry per frame (it used to be rebuilt for every grain).
+      for (let i = 0; i < st.bed.length; i++) {
+        const b = st.bed[i];
         const base = BOX_PAL.crust[b.id] ?? BOX_PAL.crust.rock, rusted = BOX_PAL.crustRust[b.id] ?? BOX_PAL.crustRust.rock;
-        return base.map((h, i) => { const a = hexRgb(h), z = hexRgb(rusted[i]); return a.map((v, k) => v + (z[k] - v) * b.rust); });
-      };
+        bedPal[i] = base.map((h, q) => { const a = hexRgb(h), z = hexRgb(rusted[q]); return a.map((v, k) => v + (z[k] - v) * b.rust); });
+      }
       const ease = 1 - Math.exp(-lastDt * 6);
-      grains.forEach((g, gi) => {
+      for (let gi = 0; gi < grains.length; gi++) {
+        const g = grains[gi];
         const col = gi % BED_COLS, row = Math.floor(gi / BED_COLS);
-        const b = pickBed(st, g.u), tgt = palOf(b);
+        const tgt = bedPal[pickBedIdx(st, g.u)];
         if (!g.cur) g.cur = tgt.map((c) => [...c]);
-        else g.cur.forEach((c, i) => { for (let k = 0; k < 3; k++) c[k] += (tgt[i][k] - c[k]) * ease; });
+        else for (let i = 0; i < g.cur.length; i++) { const c = g.cur[i]; for (let k = 0; k < 3; k++) c[k] += (tgt[i][k] - c[k]) * ease; }
         const x0 = col * GRAIN, y0 = LO - BED_PX + row * GRAIN;
-        const sp = GRAIN_SPRITES[g.v], cols = g.cur.map(rgbHex);
-        for (let r = 0; r < GRAIN; r++) for (let c = 0; c < GRAIN; c++) dot(x0 + c, y0 + r, cols[+sp[r][c]]);
-      });
+        const sp = GRAIN_SPRITES[g.v];
+        for (let i = 0; i < 3; i++) grainCols[i] = rgbHex(g.cur[i]);
+        for (let r = 0; r < GRAIN; r++) for (let c = 0; c < GRAIN; c++) dot(x0 + c, y0 + r, grainCols[+sp[r][c]]);
+      }
     }
-    const pair = (g: Gas, col: string) => { const dx = Math.round(Math.cos(g.a) * 1.4), dy = Math.round(Math.sin(g.a) * 1.4); const x = px(g.x), y = px(g.y); dot(x - dx, y - dy, col); dot(x + dx, y + dy, col); };
     for (let i = 0; i < st.n2Gas; i++) pair(gasN2[i], F[1]);
     for (let i = 0; i < st.o2Gas; i++) pair(gasO2[i], BOX_PAL.oxygen[2]);
-    atoms.forEach((a, i) => a.b.forEach((n) => {
-      if (n < i) return;
-      const o = atoms[n];
-      if (isSi) line(px(a.x), px(a.y), px(o.x), px(o.y), BOX_PAL.silicon[2], 1);
-      else line(px(a.x) - 1, px(a.y) - 1, px(o.x) - 1, px(o.y) - 1, BOX_PAL.carbon[1], 2);
-    }));
-    atoms.forEach((a) => {
+    for (let i = 0; i < N_ATOMS; i++) {
+      const a = atoms[i];
+      for (let q = 0; q < a.b.length; q++) {
+        const n = a.b[q];
+        if (n < i) continue;
+        const o = atoms[n];
+        if (isSi) line(px(a.x), px(a.y), px(o.x), px(o.y), BOX_PAL.silicon[2], 1);
+        else line(px(a.x) - 1, px(a.y) - 1, px(o.x) - 1, px(o.y) - 1, BOX_PAL.carbon[1], 2);
+      }
+    }
+    for (let i = 0; i < N_ATOMS; i++) {
+      const a = atoms[i];
       const x = px(a.x), y = px(a.y);
-      if (a.rock) { sprite(x, y, ROCK_SPRITE, { 0: BOX_PAL.bone[0], 1: BOX_PAL.bone[1], 2: BOX_PAL.bone[2], 3: BOX_PAL.bone[3] }); return; }
-      if (isSi) sprite(x, y, SILICON_SPRITE, { 0: BOX_PAL.silicon[0], 1: BOX_PAL.silicon[1], 2: BOX_PAL.silicon[2], w: '#FFFFFF' });
-      else sprite(x + (Math.sin(now * 0.004 + a.j * 3) > 0.7 ? 1 : 0), y, CARBON_SPRITE, { 0: BOX_PAL.carbon[0], 1: BOX_PAL.carbon[1], 2: BOX_PAL.carbon[2], 3: BOX_PAL.carbon[3] });
-    });
+      if (a.rock) { sprite(x, y, ROCK_SPRITE, ROCK_COLS); continue; }
+      if (isSi) sprite(x, y, SILICON_SPRITE, SILICON_COLS);
+      else sprite(x + (Math.sin(now * 0.004 + a.j * 3) > 0.7 ? 1 : 0), y, CARBON_SPRITE, CARBON_COLS);
+    }
     for (let k = flashes.length - 1; k >= 0; k--) {
       const f = flashes[k];
       f.t += 0.03;
@@ -366,9 +408,12 @@ export function createBox(canvas: HTMLCanvasElement, seed = 20261107): Box {
       : null;
   }
 
+  let stWorld: WorldConfig | null = null, stCond: Conditions | null = null, stMemo: BoxState | null = null;
   return {
     frame(now, dt, world, cond) {
-      const st = boxState(world, cond);
+      // boxState is pure and the screen's conditions object is immutable per state, so reuse it until either changes.
+      if (world !== stWorld || cond !== stCond) { stWorld = world; stCond = cond; stMemo = boxState(world, cond); }
+      const st = stMemo!;
       lastDt = dt;
       const yPool = step(st, dt, world.solvent.solidSinks);
       draw(st, yPool, now, world);

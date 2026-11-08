@@ -13,7 +13,7 @@ import { group14 } from './elements';
 import { elementIcon } from './icons';
 import {
   bandsFor, generatePayload, initialSelection, plannedMoves, redReason, selectElement, setCondition, toggleCrust, viability,
-  type SelectionState,
+  type SelectionState, type Viability,
 } from './state';
 
 /** What the Generate transition (render/generate.ts) needs from the screen: the sheet, the live box and a way to remove it. */
@@ -223,7 +223,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   // selectable element selected (the box always shows a selectable element).
   const track = r('track');
   const pips = r('pips');
-  const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id'] }[] = [];
+  const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id']; via?: HTMLElement }[] = [];
   for (const e of group14) {
     const el = document.createElement('div');
     el.id = `ec-${e.z}`;
@@ -251,7 +251,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       }
     });
     track.append(el);
-    cards.push({ el, z: e.z, worldId: e.worldId });
+    cards.push({ el, z: e.z, worldId: e.worldId, via: e.worldId ? el.querySelector<HTMLElement>('.via')! : undefined });
     pips.append(document.createElement('span'));
   }
 
@@ -363,6 +363,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   // ---- Figure 1: axes ----
   const axes = new Map<ControlId, HTMLElement>();
+  const axRefs = new Map<ControlId, { low: HTMLElement; high: HTMLElement; bandEl: HTMLElement; earthEl: HTMLElement; marker: HTMLElement; reasonEl: HTMLElement; outEl: HTMLElement }>();
   for (const def of controlList) {
     const id = def.id;
     const wrap = document.createElement('div');
@@ -377,6 +378,13 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     r('controls').append(wrap);
     const ax = wrap.querySelector<HTMLElement>('.axis')!;
     axes.set(id, ax);
+    axRefs.set(id, {
+      low: ax.querySelector<HTMLElement>('.zone.low')!, high: ax.querySelector<HTMLElement>('.zone.high')!, bandEl: ax.querySelector<HTMLElement>('.band')!,
+      earthEl: ax.querySelector<HTMLElement>('.earth')!, marker: ax.querySelector<HTMLElement>('.marker')!,
+      reasonEl: wrap.querySelector<HTMLElement>(`[data-re="${id}"]`)!, outEl: wrap.querySelector<HTMLElement>(`[data-o="${id}"]`)!,
+    });
+    ax.setAttribute('aria-valuemin', String(def.min));
+    ax.setAttribute('aria-valuemax', String(def.max));
     const setFromX = (x: number) => { const b = ax.getBoundingClientRect(); change(id, fracToValue((x - b.left) / b.width, def)); };
     ax.addEventListener('pointerdown', (e) => { if (busy) return; ax.setPointerCapture(e.pointerId); setFromX(e.clientX); });
     ax.addEventListener('pointermove', (e) => { if (ax.hasPointerCapture(e.pointerId)) setFromX(e.clientX); });
@@ -403,73 +411,104 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   // ---- Particle box ----
   const boxCanvas = r('box') as HTMLCanvasElement;
   const box = createBox(boxCanvas);
+  const eqNote = r('eqNote'), noticeEl = r('notice'), boxFail = r('boxFail');
 
   // ---- Render ----
+  // Per-element last-written values: a DOM write happens only when the value changed.
+  const memo = new WeakMap<Element, Map<string, string>>();
+  const put = (el: Element, key: string, val: string, apply: () => void) => {
+    let m = memo.get(el);
+    if (!m) { m = new Map(); memo.set(el, m); }
+    if (m.get(key) === val) return;
+    m.set(key, val);
+    apply();
+  };
+  const putHtml = (el: HTMLElement, v: string) => put(el, 'h', v, () => { el.innerHTML = v; });
+  const putText = (el: HTMLElement, v: string) => put(el, 't', v, () => { el.textContent = v; });
+  const putStyle = (el: HTMLElement, prop: 'left' | 'width', v: string) => put(el, prop, v, () => { el.style[prop] = v; });
+  const putAttr = (el: Element, name: string, v: string) => put(el, `a:${name}`, v, () => el.setAttribute(name, v));
+  const putClass = (el: Element, name: string, on: boolean) => put(el, `c:${name}`, on ? '1' : '0', () => el.classList.toggle(name, on));
+
+  // World-only strings are built once.
+  const specWorld = Object.values(worlds).find((w) => w.status === 'speculative');
+  const abstractFor = (w: WorldConfig, activeId: string) => `<b${w.id === activeId ? ' id="absTitle"' : ''}>Abstract.</b> Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(w.displayName.toLowerCase())}, is <i>${w.status}</i>: ${w.status === 'known' ? `life as we know it, in ${esc(w.solvent.name.toLowerCase())}.` : `a world of ${esc(w.solvent.name.toLowerCase())} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
+  const abstractBy = Object.fromEntries(worldIds.map((a) => [a, Object.fromEntries(worldIds.map((id) => [id, abstractFor(worlds[id], a)]))]));
+  const captionHtml = Object.fromEntries(worldIds.map((id) => {
+    const w = worlds[id];
+    return [id, `<b>Figure 2:</b> ${esc(w.displayName)} atoms in ${esc(w.solvent.name.toLowerCase())}${w.status === 'speculative' ? '<span class="dagger">†</span>' : ''}. Illustration, not to scale.`];
+  }));
+  const footFor = (w: WorldConfig) => w.status === 'speculative'
+    ? `<span class="dagger">†</span> Speculative. ${esc(w.caveat ?? '')} See <button type="button" class="linkbtn">Appendix A</button>.`
+    : specWorld ? `<span class="dagger">†</span> ${esc(specWorld.displayName)} is speculative; select it in Table 1 for the reasoning and its caveat (<button type="button" class="linkbtn">Appendix A</button>).` : '';
+  const footHtml = Object.fromEntries(worldIds.map((id) => [id, footFor(worlds[id])]));
+  // Eq. (1) text per (world, failing limit): depends only on which limit fails.
+  const eqCache = new Map<string, string>();
+  const eqFor = (id: WorldConfig['id'], fid: string | undefined) => {
+    const k = `${id}|${fid ?? ''}`;
+    let s = eqCache.get(k);
+    if (s === undefined) { const w = worlds[id]; s = w.limits.map((l) => boundHTML(w, l, l.id === fid)).join(',&nbsp; '); eqCache.set(k, s); }
+    return s;
+  };
+
   function render() {
     const world = worldFor(state.worldId);
     const cond = state.conditions;
-    const live = viability(world, cond);
-    root.dataset.world = world.id;
+    const via = {} as Record<WorldConfig['id'], Viability>;
+    for (const id of worldIds) via[id] = viability(worldFor(id), cond);
+    const live = via[world.id];
+    putAttr(root, 'data-world', world.id);
     showSlot();
 
-    const specWorld = Object.values(worlds).find((w) => w.status === 'speculative');
-    const abstractFor = (w: WorldConfig) => `<b${w.id === world.id ? ' id="absTitle"' : ''}>Abstract.</b> Every living thing on Earth is built on carbon. Carbon has siblings. We let the reader choose one, set a young planet’s starting conditions, and generate a world that evolves from them. The chemistry selected here, ${esc(w.displayName.toLowerCase())}, is <i>${w.status}</i>: ${w.status === 'known' ? `life as we know it, in ${esc(w.solvent.name.toLowerCase())}.` : `a world of ${esc(w.solvent.name.toLowerCase())} seas, which most chemists doubt.<span class="dagger">†</span>`}`;
-    stacks.abstract(Object.fromEntries(worldIds.map((id) => [id, abstractFor(worlds[id])])), world.id);
+    stacks.abstract(abstractBy[world.id], world.id);
 
     for (const c of cards) {
-      if (!c.worldId) continue;
+      if (!c.worldId || !c.via) continue;
       const sel = c.worldId === world.id;
-      c.el.classList.toggle('sel', sel);
-      c.el.setAttribute('aria-selected', String(sel));
-      const v = viability(worldFor(c.worldId), cond);
-      const via = c.el.querySelector<HTMLElement>('.via')!;
-      via.className = `via ${v.ok ? 'ok' : 'no'}`;
-      via.innerHTML = `<span class="sw"></span>${v.ok ? 'Life can persist' : esc(v.reason)}`;
+      putClass(c.el, 'sel', sel);
+      putAttr(c.el, 'aria-selected', String(sel));
+      const v = via[c.worldId];
+      putAttr(c.via, 'class', `via ${v.ok ? 'ok' : 'no'}`);
+      putHtml(c.via, `<span class="sw"></span>${v.ok ? 'Life can persist' : esc(v.reason)}`);
     }
 
     const bands = bandsFor(state);
     for (const def of controlList) {
       const id = def.id;
       const ax = axes.get(id)!;
+      const { low, high, bandEl, earthEl, marker, reasonEl, outEl } = axRefs.get(id)!;
       const band = bands[id];
-      const low = ax.querySelector<HTMLElement>('.zone.low')!;
-      const high = ax.querySelector<HTMLElement>('.zone.high')!;
-      const bandEl = ax.querySelector<HTMLElement>('.band')!;
-      low.style.width = high.style.width = bandEl.style.width = '0%';
-      const segs = redSegments(band, def);
-      if (band.empty) { low.style.left = '0%'; low.style.width = '100%'; }
+      let lowL: string | null = null, lowW = '0%', highL: string | null = null, highW = '0%', bandL: string | null = null, bandW = '0%';
+      if (band.empty) { lowL = '0%'; lowW = '100%'; }
       else {
         const lo = valueToFrac(band.low, def), hi = valueToFrac(band.high, def);
-        bandEl.style.left = `${lo * 100}%`; bandEl.style.width = `${Math.max(0.8, (hi - lo) * 100)}%`;
-        for (const sg of segs) {
-          const el = sg.side === 'low' ? low : high;
-          el.style.left = `${sg.from * 100}%`; el.style.width = `${(sg.to - sg.from) * 100}%`;
+        bandL = `${lo * 100}%`; bandW = `${Math.max(0.8, (hi - lo) * 100)}%`;
+        for (const sg of redSegments(band, def)) {
+          if (sg.side === 'low') { lowL = `${sg.from * 100}%`; lowW = `${(sg.to - sg.from) * 100}%`; }
+          else { highL = `${sg.from * 100}%`; highW = `${(sg.to - sg.from) * 100}%`; }
         }
       }
+      if (lowL !== null) putStyle(low, 'left', lowL);
+      if (highL !== null) putStyle(high, 'left', highL);
+      if (bandL !== null) putStyle(bandEl, 'left', bandL);
+      putStyle(low, 'width', lowW); putStyle(high, 'width', highW); putStyle(bandEl, 'width', bandW);
       const earth = world.stats.find((s) => s.id === id)?.earthValue;
-      const earthEl = ax.querySelector<HTMLElement>('.earth')!;
-      earthEl.hidden = earth === undefined;
-      if (earth !== undefined) earthEl.style.left = `${valueToFrac(earth, def) * 100}%`;
-      ax.querySelector<HTMLElement>('.marker')!.style.left = `${valueToFrac(cond[id], def) * 100}%`;
+      put(earthEl, 'hid', String(earth === undefined), () => { earthEl.hidden = earth === undefined; });
+      if (earth !== undefined) putStyle(earthEl, 'left', `${valueToFrac(earth, def) * 100}%`);
+      putStyle(marker, 'left', `${valueToFrac(cond[id], def) * 100}%`);
       const why = redReason(world, band, cond[id]);
-      ax.classList.toggle('in-red', !!why);
-      const reasonEl = root.querySelector<HTMLElement>(`[data-re="${id}"]`)!;
-      reasonEl.textContent = why ? `${why}.` : '';
-      reasonEl.title = why ? `${why}.` : '';
-      root.querySelector<HTMLElement>(`[data-o="${id}"]`)!.innerHTML = `${SYM[id]} = ${fmt(id, cond[id])}`;
-      ax.setAttribute('aria-valuemin', String(def.min));
-      ax.setAttribute('aria-valuemax', String(def.max));
-      ax.setAttribute('aria-valuenow', String(Math.round(cond[id] * 100) / 100));
-      ax.setAttribute('aria-valuetext', `${fmt(id, cond[id])}, ${why ? `in a lethal interval: ${why}` : `inside ${world.displayName.toLowerCase()}’s living band`}`);
+      putClass(ax, 'in-red', !!why);
+      const reasonText = why ? `${why}.` : '';
+      putText(reasonEl, reasonText);
+      put(reasonEl, 'title', reasonText, () => { reasonEl.title = reasonText; });
+      putHtml(outEl, `${SYM[id]} = ${fmt(id, cond[id])}`);
+      putAttr(ax, 'aria-valuenow', String(Math.round(cond[id] * 100) / 100));
+      putAttr(ax, 'aria-valuetext', `${fmt(id, cond[id])}, ${why ? `in a lethal interval: ${why}` : `inside ${world.displayName.toLowerCase()}’s living band`}`);
     }
 
     // Eq. (1): the selected world's limit list, as bounds.
-    const failId = live.ok ? undefined : live.limitId;
     stacks.eqBody(Object.fromEntries(worldIds.map((id) => {
-      const w = worlds[id];
-      const v = id === world.id ? live : viability(w, cond);
-      const fid = v.ok ? undefined : v.limitId;
-      return [id, w.limits.map((l) => boundHTML(w, l, l.id === fid)).join(',&nbsp; ')];
+      const v = via[id];
+      return [id, eqFor(id, v.ok ? undefined : v.limitId)];
     })), world.id);
     let note = live.ok ? 'At present every bound holds.' : `At present a bound fails: ${esc(live.reason.toLowerCase())}.`;
     if (world.limits.some((l) => l.model === 'seasEmpty')) {
@@ -478,23 +517,17 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
         ? `At ${fmt('temperature', cond.temperature)} no nitrogen inventory gives a sea: ${esc((world.limits.find((l) => l.id === nb.blockingLimitId)?.reason ?? '').toLowerCase())}.`
         : `At ${fmt('temperature', cond.temperature)} the seas need N ≥ ${fmt('nitrogen', nb.low)}; the planet has ${fmt('nitrogen', cond.nitrogen)}. ${note}`;
     }
-    r('eqNote').innerHTML = note;
+    putHtml(eqNote, note);
 
     const { moves } = plannedMoves(state);
-    r('notice').innerHTML = moves.length
+    putHtml(noticeEl, moves.length
       ? `Note: ${esc(world.displayName)} life cannot persist here yet. Generating will set ${moves.map((m) => `${SYM[m.controlId]} to ${fmt(m.controlId, m.to)}`).join(' and ')}.`
-      : '';
+      : '');
 
-    stacks.boxCaption(Object.fromEntries(worldIds.map((id) => {
-      const w = worlds[id];
-      return [id, `<b>Figure 2:</b> ${esc(w.displayName)} atoms in ${esc(w.solvent.name.toLowerCase())}${w.status === 'speculative' ? '<span class="dagger">†</span>' : ''}. Illustration, not to scale.`];
-    })), world.id);
-    r('boxFail').textContent = live.ok ? '' : `Life cannot persist: ${live.reason.toLowerCase()}.`;
+    stacks.boxCaption(captionHtml, world.id);
+    putText(boxFail, live.ok ? '' : `Life cannot persist: ${live.reason.toLowerCase()}.`);
 
-    const footFor = (w: WorldConfig) => w.status === 'speculative'
-      ? `<span class="dagger">†</span> Speculative. ${esc(w.caveat ?? '')} See <button type="button" class="linkbtn">Appendix A</button>.`
-      : specWorld ? `<span class="dagger">†</span> ${esc(specWorld.displayName)} is speculative; select it in Table 1 for the reasoning and its caveat (<button type="button" class="linkbtn">Appendix A</button>).` : '';
-    stacks.footnote(Object.fromEntries(worldIds.map((id) => [id, footFor(worlds[id])])), world.id);
+    stacks.footnote(footHtml, world.id);
 
     renderRefs(world, specWorld);
     renderRock(world);
