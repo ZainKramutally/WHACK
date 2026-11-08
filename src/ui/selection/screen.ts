@@ -224,8 +224,8 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
   // selectable element selected (the box always shows a selectable element).
   const track = r('track');
   const pips = r('pips');
-  let leadClicks = 0, eggArmed = new URLSearchParams(location.search).has('lead'), eggOn = false;
-  const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id']; via?: HTMLElement }[] = [];
+  let eggOn = false;   // Pb focused: carbon world with the lead easter-egg variant
+  const cards: { el: HTMLElement; z: number; worldId?: WorldConfig['id']; egg?: boolean; via?: HTMLElement }[] = [];
   for (const e of group14) {
     const el = document.createElement('div');
     el.id = `ec-${e.z}`;
@@ -238,6 +238,11 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
       el.dataset.fam = e.worldId;
       el.style.setProperty('--sw', e.worldId === 'carbon' ? 'var(--c2)' : 'var(--s3)');
       el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">${w.status === 'known' ? 'Known' : 'Speculative<span class="dagger">†</span>'}</span></div><div class="via"></div><span class="esel">Selected</span>`;
+    } else if (e.egg) {
+      el.className = 'ecard pick';
+      el.dataset.fam = 'carbon';
+      el.style.setProperty('--sw', 'var(--c2)');
+      el.innerHTML = `${icon}<div class="ehead"><span class="ename">${esc(e.name)} (${e.symbol})</span><span class="estat">Easter egg: not science</span></div><div class="via">Tardigrades only. Lead is not a life chemistry.</div><span class="esel">Selected</span>`;
     } else {
       el.className = 'ecard grey';
       el.setAttribute('aria-disabled', 'true');
@@ -246,23 +251,14 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     el.addEventListener('click', () => {
       if (suppressClick) return;
       const i = cards.findIndex((c) => c.el === el);
-      if (e.z !== 82) { eggOn = false; leadClicks = 0; }
-      if (e.z === 82 && (eggArmed || ++leadClicks >= 3)) {   // hidden easter egg: Pb after 3 clicks (or ?lead) picks the lead world
-        eggArmed = true; eggOn = true;
-        el.querySelector('.estat')!.textContent = 'Easter egg: not science';
-        el.querySelector('.via')!.textContent = 'Tardigrades only. Lead is not a life chemistry.';
-        toast('Lead world selected: an easter egg, not science. Carbon rock and sky, tardigrades only.', 3200);
-        goTo(cards.findIndex((c) => c.worldId === 'carbon'));
-        return;
-      }
       goTo(i);
-      if (!e.worldId) {
+      if (!e.worldId && !e.egg) {
         el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
         announce(`${e.name} can’t be chosen: ${e.reason}.`);
       }
     });
     track.append(el);
-    cards.push({ el, z: e.z, worldId: e.worldId, via: e.worldId ? el.querySelector<HTMLElement>('.via')! : undefined });
+    cards.push({ el, z: e.z, worldId: e.worldId, egg: !!e.egg, via: e.worldId ? el.querySelector<HTMLElement>('.via')! : undefined });
     pips.append(document.createElement('span'));
   }
 
@@ -272,7 +268,7 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     const f = group14[focusIdx];
     const slot = r('sym');
     if (slot.textContent !== f.symbol) slot.textContent = f.symbol;
-    slot.parentElement!.classList.toggle('locked', !f.worldId);
+    slot.parentElement!.classList.toggle('locked', !f.worldId && !f.egg);
   }
   let aim: number | null = null;   // set while we scroll to a card ourselves, so the scroll handler doesn't fight us
   let aimTimer = 0;
@@ -300,9 +296,14 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     (r('prev') as HTMLButtonElement).disabled = i === 0;
     (r('next') as HTMLButtonElement).disabled = i === cards.length - 1;
     const c = cards[i];
-    if (c.worldId && c.worldId !== state.worldId) choose(c.z);
+    const wasEgg = eggOn;
+    eggOn = !!c.egg;
+    if (c.egg) { if (state.worldId !== 'carbon') choose(6); }
+    else if (c.worldId && c.worldId !== state.worldId) choose(c.z);
+    if (wasEgg !== eggOn) render();
     showSlot();
-    if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
+    if (c.egg) announce('Lead: easter egg, not science. Carbon world, tardigrades only.');
+    else if (!c.worldId) announce(`${group14[i].name}: ${group14[i].reason}. Locked.`);
   }
   /** Bring card i to the centre (smoothly) and, if it can be chosen, choose it now. */
   function goTo(i: number) {
@@ -473,8 +474,9 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
     stacks.abstract(abstractBy[world.id], world.id);
 
     for (const c of cards) {
+      if (c.egg) { putClass(c.el, 'sel', eggOn); putAttr(c.el, 'aria-selected', String(eggOn)); continue; }
       if (!c.worldId || !c.via) continue;
-      const sel = c.worldId === world.id;
+      const sel = c.worldId === world.id && !eggOn;
       putClass(c.el, 'sel', sel);
       putAttr(c.el, 'aria-selected', String(sel));
       const v = via[c.worldId];
@@ -675,12 +677,12 @@ export function mountSelectionScreen(host: HTMLElement, bus: UiBus, opts: Select
 
   function generate() {
     if (busy) return;
-    const wi = cards.findIndex((c) => c.worldId === state.worldId);
+    const wi = eggOn ? cards.findIndex((c) => c.egg) : cards.findIndex((c) => c.worldId === state.worldId);
     if (focusIdx !== wi) goTo(wi);   // a locked card in focus: bring the chosen element back before launching
     const world = worldFor(state.worldId);
     const { start, moves } = plannedMoves(state);
     const payload = generatePayload(state);   // the settings at the click: the sim moves them itself and reports why
-    const begin = () => { launching = true; busy = true; root.classList.add('launching'); opts.onGenerate(eggOn && state.worldId === 'carbon' ? { ...payload, egg: 'lead' } : payload, handle); };
+    const begin = () => { launching = true; busy = true; root.classList.add('launching'); opts.onGenerate(eggOn ? { ...payload, egg: 'lead' } : payload, handle); };
     if (!moves.length) { busy = true; begin(); return; }
     const m = moves[0];
     toast(`${esc(world.displayName)} life cannot survive at ${fmt(m.controlId, m.from)}, so this world starts at ${fmt(m.controlId, m.to)}.`, 2600);

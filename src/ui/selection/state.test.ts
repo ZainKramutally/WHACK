@@ -26,6 +26,10 @@ describe('selection state', () => {
     expect(grey.every((r) => r.reason)).toBe(true);
   });
 
+  it('marks only lead as the easter-egg pick', () => {
+    expect(group14.filter((r) => r.egg).map((r) => r.symbol)).toEqual(['Pb']);
+  });
+
   it('Generate sends the chosen world and the slider values as they are', () => {
     let s = selectElement(initialSelection(), 14);
     s = setCondition(s, 'temperature', -183.4);

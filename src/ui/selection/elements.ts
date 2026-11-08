@@ -10,6 +10,8 @@ export interface ElementRow {
   name: string;
   /** Present only on selectable rows. */
   worldId?: WorldId;
+  /** Easter-egg pick: selectable, runs the carbon world with the lead variant. */
+  egg?: 'lead';
   /** Why a greyed row can't be chosen. */
   reason?: string;
   /** True when the reason is draft wording that still needs a source (see docs/features/selection-screen.md §3.2). */
@@ -23,7 +25,7 @@ export const group14: ElementRow[] = [
   { z: 14, symbol: 'Si', name: 'Silicon', worldId: 'silicon' },
   { z: 32, symbol: 'Ge', name: 'Germanium', reason: "Bonds even weaker than silicon's" },
   { z: 50, symbol: 'Sn', name: 'Tin', reason: 'A metal whose bonds to itself are weaker still', sources: ['libretextsGroup14'] },
-  { z: 82, symbol: 'Pb', name: 'Lead', reason: 'A heavy metal; its chains are the least stable', sources: ['libretextsGroup14'] },
+  { z: 82, symbol: 'Pb', name: 'Lead', egg: 'lead', reason: 'A heavy metal; its chains are the least stable', sources: ['libretextsGroup14'] },
   { z: 114, symbol: 'Fl', name: 'Flerovium', reason: 'Made in a lab; atoms last only seconds' },
 ];
 
