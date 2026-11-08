@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captureName, pickMime, recClock, stamp } from './capture';
+import { captureName, needFallbackFrame, pickMime, recClock, stamp } from './capture';
 
 describe('capture helpers', () => {
   const d = new Date(2026, 10, 8, 9, 5, 7);
@@ -17,5 +17,9 @@ describe('capture helpers', () => {
   it('formats the REC clock', () => {
     expect(recClock(12.9)).toBe('0:12');
     expect(recClock(125)).toBe('2:05');
+  });
+  it('asks for a timer frame only when the render loop has gone quiet', () => {
+    expect(needFallbackFrame(1000, 950)).toBe(false);
+    expect(needFallbackFrame(1000, 800)).toBe(true);
   });
 });

@@ -17,6 +17,10 @@ export function captureName(world: string | undefined, seed: number | undefined,
 export function pickMime(isSupported: (t: string) => boolean): string | undefined {
   return ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp8', 'video/webm'].find(isSupported);
 }
+/** True when no render frame has requested a recorder frame lately, so a timer should (selection screen, stalled loop). */
+export function needFallbackFrame(nowMs: number, lastFrameMs: number, gapMs = 100): boolean {
+  return nowMs - lastFrameMs > gapMs;
+}
 /** "0:12" */
 export function recClock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
@@ -66,7 +70,12 @@ export function mountCapture(app: App, opts: CaptureOptions = {}): CaptureApi {
   const pending: ((b: Blob) => void)[] = [];
   const grab = (resolve: (b: Blob) => void) =>
     canvas.toBlob((b) => { if (b) resolve(b); }, 'image/png');
+  // Recording frames are requested explicitly (captureStream(0) + requestFrame) right after each render: a stream that
+  // waits for canvas changes can stall on a second recording, and WebGPU presents outside the 2D "canvas changed" path.
+  let vTrack: CanvasCaptureMediaStreamTrack | null = null;
+  let lastRecFrame = 0;
   app.registerOverlay(() => {
+    if (vTrack) { vTrack.requestFrame(); lastRecFrame = performance.now(); }
     if (!pending.length) return;
     const rs = pending.splice(0);
     // toBlob snapshots the canvas when it is called, so every waiting request gets this frame
@@ -92,20 +101,27 @@ export function mountCapture(app: App, opts: CaptureOptions = {}): CaptureApi {
   // ---- video ----
   let rec: MediaRecorder | null = null;
   let chunks: Blob[] = [];
-  let t0 = 0, tick: ReturnType<typeof setInterval> | undefined;
+  let t0 = 0, tick: ReturnType<typeof setInterval> | undefined, fallback: ReturnType<typeof setInterval> | undefined;
+  let owned: MediaStreamTrack[] = [];   // tracks made for this recording only; stopped when it ends
   let finishing: ((b: Blob | null) => void)[] = [];
 
   function startRecording() {
     if (rec || typeof MediaRecorder === 'undefined') { if (typeof MediaRecorder === 'undefined') say('Video recording is not supported in this browser'); return; }
-    const video = canvas.captureStream(60);
+    // A fresh stream and fresh tracks per recording. The audio tap is shared, so its tracks are cloned (stopping a clone leaves the tap alive).
+    const video = canvas.captureStream(0);
+    vTrack = video.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack;
     const audio = opts.audioStream?.() ?? null;
-    const stream = new MediaStream([...video.getVideoTracks(), ...(audio ? audio.getAudioTracks() : [])]);
+    const aTracks = audio ? audio.getAudioTracks().map((t) => t.clone()) : [];
+    owned = [vTrack, ...aTracks];
+    const stream = new MediaStream(owned);
     const mimeType = pickMime((t) => MediaRecorder.isTypeSupported(t));
     chunks = [];
     const r = new MediaRecorder(stream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 20_000_000 });
     r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     r.onstop = () => {
-      clearInterval(tick); chip.hidden = true;
+      clearInterval(tick); clearInterval(fallback); chip.hidden = true;
+      for (const t of owned) t.stop();
+      owned = []; vTrack = null;
       const blob = chunks.length ? new Blob(chunks, { type: r.mimeType || 'video/webm' }) : null;
       rec = null;
       if (blob) { const name = captureName(world, seed, new Date(), 'webm'); download(blob, name); say(`Saved video: ${name}`); }
@@ -115,6 +131,8 @@ export function mountCapture(app: App, opts: CaptureOptions = {}): CaptureApi {
     r.start(1000);
     rec = r;
     t0 = performance.now();
+    vTrack.requestFrame(); lastRecFrame = performance.now();
+    fallback = setInterval(() => { if (vTrack && needFallbackFrame(performance.now(), lastRecFrame)) { vTrack.requestFrame(); lastRecFrame = performance.now(); } }, 33);
     chip.hidden = false; chip.textContent = '● REC 0:00';
     tick = setInterval(() => { chip.textContent = `● REC ${recClock((performance.now() - t0) / 1000)}`; }, 500);
   }
