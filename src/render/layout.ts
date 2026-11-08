@@ -85,7 +85,7 @@ export function marchRay(o: Vec3, d: Vec3, opt: MarchOptions): { target: Inspect
         const f = floraAt(opt.flora, cell);
         if (f.mat + f.canopy > FLORA_EPS) return { target: { kind: 'producer', cell }, dist: hi };
       }
-      return { target: { kind: 'ground' }, dist: hi };
+      return { target: { kind: 'ground', point: { x: hx, z: hz } }, dist: hi };
     }
     prevT = t; prevAbove = g; prevSea = s;
   }

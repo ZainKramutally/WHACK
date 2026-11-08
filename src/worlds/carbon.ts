@@ -70,6 +70,7 @@ export const carbon: WorldConfig = {
     { id: 'pace', label: 'Pace of chemistry', unit: '× Earth', earthValue: 1, why: 'Earth is the reference: reactions run at their normal speed in this warm water.', sources: [] , assumption: true },
   ],
   facts: [
+    { id: 'plantColour', label: 'Plant colour', value: 'Purple, then green', earthValue: 'Green', why: 'Under a Sun-like star, photosynthesis is expected to be Earth-like and green; early life may have used purple pigments before chlorophyll.', sources: [], assumption: true },
     { id: 'mainGas', label: 'Main gas', value: 'Nitrogen', earthValue: 'Nitrogen', why: 'An unreactive bulk gas that persists for billions of years.', sources: [], assumption: true },
     { id: 'solvent', label: 'Solvent', value: 'Water', earthValue: 'Water', why: 'Liquid over a wide temperature range and dissolves many carbon compounds.', sources: ['pace2001'] },
     { id: 'star', label: 'Star', value: 'Sun-like', earthValue: 'The Sun', why: 'The reference star, at a distance the Temperature slider adjusts.', sources: [], assumption: true },

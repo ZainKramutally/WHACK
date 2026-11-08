@@ -8,6 +8,7 @@ import { ORGANISM_STRIDE, OrganismField as F, readOrganism, type OrganismRecord 
 import type { BodyPlan } from '../sim/develop';
 import { floraBin, formForBin } from '../render/floraForm';
 import { heatBand } from '../render/visualInputs';
+import { crustMap, mineralAt, type CrustMap } from '../gen/crust';
 import { organismRows, producerRows, speciesName } from './lifeText';
 import type { LifeRegistry } from './lifeRegistry';
 import type { InspectTarget, SimSnapshot, WorldConfig } from '../worlds/types';
@@ -33,7 +34,7 @@ export function indexOfOrganism(buf: Float32Array, id: number): number {
 
 export function mountInspectCard(
   root: HTMLElement, bus: UiBus, world: WorldConfig, other: WorldConfig | undefined,
-  registry: LifeRegistry, floraSubmerged?: (cell: number) => boolean,
+  registry: LifeRegistry, floraSubmerged?: (cell: number) => boolean, seed = world.demoSeed,
 ) {
   const card = el('aside', 'wu-card wu-inspect');
   card.hidden = true;
@@ -62,12 +63,15 @@ export function mountInspectCard(
   let lastRect = '';
   let lastSig = '';
 
+  let crust: CrustMap | undefined; // crustMap isn't free: built once per (world, seed), on the first ground click
+
   const otherName = other ? `A ${other.id} world` : '';
   const otherStart = other ? statsAtStart(other) : undefined;
 
-  function describe(t: InspectTarget, s: SimSnapshot): { rows: Rows; dead: boolean; name: string } {
+  function describe(t: InspectTarget, s: SimSnapshot): { rows: Rows; dead: boolean; name: string; why?: string; blurb?: string } {
     const feat = world.features[t.kind];
     let name = feat.name;
+    let why: string | undefined, blurb: string | undefined;
     let dead = false;
     const rows: Rows = [];
     const st = s.stats;
@@ -93,6 +97,10 @@ export function mountInspectCard(
       } as Parameters<typeof floraBin>[2], floraSubmerged?.(t.cell) ?? false));
       if (form) name = speciesName(form.species);
       rows.push(...producerRows(mat, canopy, form));
+    } else if (t.kind === 'ground' && t.point && world.terrain.crust) {
+      crust ??= crustMap(world, seed);
+      const m = mineralAt(world, crust, t.point.x, t.point.z);
+      name = m.label; blurb = m.description; why = m.why;
     } else if (t.kind === 'sea') {
       const temp = st.temperature;
       if (temp !== undefined) {
@@ -106,7 +114,7 @@ export function mountInspectCard(
       const gas = world.facts.find((f) => f.id === 'mainGas');
       if (gas) rows.push(['Main gas', gas.value]);
     }
-    return { rows, dead, name };
+    return { rows, dead, name, why, blurb };
   }
 
   function compareRows(t: InspectTarget, s: SimSnapshot): string[][] {
@@ -136,14 +144,14 @@ export function mountInspectCard(
   function render() {
     if (!target || !last) return;
     const feat = world.features[target.kind];
-    const { rows, dead, name } = describe(target, last);
+    const { rows, dead, name, why, blurb } = describe(target, last);
     // Snapshots arrive at 20 Hz but the formatted text rarely changes: skip the DOM rebuild and layout when it is identical.
     const cmp = compareRows(target, last);
-    const sig = [name, feat.description, dead ? 'D' : '', feat.why, target.kind, rows.join('|'), cmp.join('|')].join('\n');
+    const sig = [name, blurb ?? feat.description, dead ? 'D' : '', why ?? feat.why, target.kind, rows.join('|'), cmp.join('|')].join('\n');
     if (sig === lastSig) return;
     lastSig = sig;
     title.textContent = name;
-    kind.textContent = feat.description;
+    kind.textContent = blurb ?? feat.description;
     status.textContent = dead
       ? target.kind === 'organism' ? 'This one has died.' : 'Nothing is growing here now.'
       : '';
@@ -154,7 +162,7 @@ export function mountInspectCard(
       return li;
     }));
     const flags = feat.assumption ? ' (assumption)' : '';
-    whyP.textContent = `Why: ${feat.why}${flags}`;
+    whyP.textContent = why ? `Why: ${why} (assumption)` : `Why: ${feat.why}${flags}`;
 
     cmpTitle.textContent = 'Compared';
     const head = el('tr');

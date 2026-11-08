@@ -58,7 +58,7 @@ export function mountWorldUI(root: HTMLElement, bus: UiBus, world: WorldConfig, 
     bestiaryBadge.textContent = `${found}/${total}`;
     bestiaryBadge.hidden = total === 0;
   }, () => summary.close());
-  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged);
+  const inspect = mountInspectCard(host, bus, world, opts.otherWorld, registry, opts.floraSubmerged, opts.seed);
   const scanLock = mountScanLock(host, bus, world, registry);
   const offInspect = listen(bus, 'inspect:open', () => summary.close());
   const offFind = registry.onDiscover((name) => captions.show(`New entry: ${name}`));

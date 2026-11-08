@@ -206,7 +206,7 @@ export interface BusEvents {
 
 /** Read-only inputs the art layer consumes each frame (CLAUDE.md "Logic → art interface"). */
 export interface VisualInputs {
-  world: Pick<WorldConfig, 'id' | 'status' | 'starType' | 'solvent'> & { composition: WorldConfig['life']['composition'] };
+  world: Pick<WorldConfig, 'id' | 'status' | 'starType' | 'solvent'> & { composition: WorldConfig['life']['composition']; /** terrain.crust.rustOxygen: oxygen % at which oxidising rock is fully rusted (art layer only) */ rustOxygen?: number };
   stats: Record<string, number>;
   seaLevel: number;
   frozen: boolean;

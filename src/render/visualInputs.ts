@@ -159,6 +159,7 @@ export function buildVisualInputs(
       status: world.status,
       starType: world.starType,
       solvent: world.solvent,
+      rustOxygen: world.terrain.crust?.rustOxygen,
       composition: world.life.composition,
     },
     stats,
