@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { makeStubVisualInputs } from '../visualInputs';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_INDEX, ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, type FloraLibrary } from './index';
-import { AIR_EARTH, GATES, MARGIN_BAND, SHORE_BAND, activeGates, aquaticFor, supplySi, worldEnv } from './gates';
+import { AIR_EARTH, GATES, MARGIN_BAND, SHORE_BAND, activeGates, aquaticFor, gateShare, supplySi, worldEnv } from './gates';
 import { makePlantList, placePlants, type PlantShapes } from './place';
 import { countDraws } from './buckets';
 import { createTerrain, seaLevelForCover, spawnPoint } from '../../gen/terrain';
@@ -323,6 +323,16 @@ describe('gated archetypes', () => {
     seen.clear();
     placed({ ...inp, terrain: { ...inp.terrain, crust: mk() } });   // another world's map: recomputed
     expect(calls()).toBeGreaterThan(0);
+  });
+
+  it('gateShare is the one share rule: 0 off, ramp × share on; every niche gate is 0 at defaults', () => {
+    const e = worldEnv(shore({ temperature: 15, nitrogen: 1, oxygen: 21 }));
+    for (const g of GATES.filter((g) => g.ramp)) expect(gateShare(g, e), g.id).toBe(0);
+    const hot = worldEnv(shore({ temperature: 40 }));
+    const barrel = GATES.find((g) => g.id === 'barrel')!;
+    expect(gateShare(barrel, hot)).toBeCloseTo(0.5, 5);
+    expect(gateShare(GATES.find((g) => g.id === 'lantern')!, worldEnv(siShore()))).toBe(0.5);
+    expect(gateShare(GATES.find((g) => g.id === 'mangrove')!, e)).toBe(1);
   });
 
   it('§2c: at defaults (15 °C, N 1, O₂ 21, the natural rock mix) the carbon flora is unchanged: no niche kind anywhere', () => {

@@ -173,14 +173,21 @@ export const GATES: readonly GateSpec[] = [
   { id: 'reeds', chem: 'carbon', role: 'ground', replaces: /^groundCover#[12]$/, by: 'ironReeds#0', world: () => true, ramp: (e) => ramp(0.42, 0.7, e.shares.ironstone ?? 0), land: true, cell: (c, p) => p.mineral(c) === 'ironstone' },
 ];
 
+/** A gate's target share of its matching plants in this world, 0..1: 0 when its world half fails, else
+ * ramp(e) × share (each defaults to 1). The one rule for every consumer (activeGates here, succession easing in flora). */
+export function gateShare(g: GateSpec, e: WorldEnv): number {
+  if (!g.world(e)) return 0;
+  return (g.ramp ? g.ramp(e) : 1) * (g.share ?? 1);
+}
+
 /** The gates whose world-wide half holds now, by role (once per rebuild). */
 export function activeGates(e: WorldEnv): Record<GateSpec['role'], GateSpec[]> {
   const out: Record<GateSpec['role'], GateSpec[]> = { ground: [], mid: [], giant: [] };
   const chem = e.carbon ? 'carbon' : 'silicon';
   for (const g of GATES) {
-    if (g.chem !== chem || !g.world(e)) continue;
-    if (!g.ramp) { out[g.role].push(g); continue; }
-    const s = g.ramp(e) * (g.share ?? 1);
+    if (g.chem !== chem) continue;
+    if (!g.ramp) { if (g.world(e)) out[g.role].push(g); continue; }
+    const s = gateShare(g, e);
     if (s > 0) out[g.role].push({ ...g, share: s });
   }
   return out;
