@@ -51,6 +51,6 @@ These perf findings sit in files other agents were actively editing, so session/
    - If it hitches, compile top-level groups one at a time with a frame yield between them.
 
 ## Regression found by the main watch (2026-11-08 ~05:10): owner art layer
-15. **floraLib/place.ts `mineralIx` (1c63df8) caches per placePlants call** (`MIN_AT[c] !== call`), so every flora rebuild (up to 4×/s) re-samples `crust.weights` plus the argmax for every planted cell. Measured: 1.4–1.5 ms per 4,096-cell pass.
+15. **FIXED by the art layer on integrate/stage d1cc845 (crust object stable per sampler + place.ts keyed on it).** Original: **floraLib/place.ts `mineralIx` (1c63df8) cached per placePlants call** (`MIN_AT[c] !== call`), so every flora rebuild (up to 4×/s) re-samples `crust.weights` plus the argmax for every planted cell. Measured: 1.4–1.5 ms per 4,096-cell pass.
    - Fix: key CELL_MIN on the `crust` (or `crust.weights`) identity.
    - Optionally, visualInputs.ts hands out one crust object per sampler (WeakMap), so the identity is stable during the build too.
