@@ -51,13 +51,14 @@ export interface EcologyLedger {
   sizeRef: number; // body length (m) that counts as size 1 for the oxygen cap
   hungerTime: number; // seconds of standing flora counted as one second of supply
   founders: number; // seeded capsule worms when life appears (≥ 24)
+  intakeExp: number; // body-mass exponent of the food an animal can take in (upkeep scales as KLEIBER = 0.75); above it big bodies out-eat their upkeep
 }
 
 export const DEFAULT_LEDGER: EcologyLedger = {
   massUnit: 1, floraLightGain: 1, upkeepScale: 0.02, cellMass: 40, shadeK: 1.2, waterAttn: 0.3, canopyRate: 0.3, floraDecay: 0.02, spread: 0.5,
   seedMat: 0.3, shallowMax: 2, deepLiquid: 6, wadeDepth: 0.5, intake: 1.5, speed: 1.5, moveCost: 0.01,
   catchRate: 1, buildRate: 0.05, senseBase: 0.7, senseGain: 0.8, lureWeight: 0.5, glowCost: 0.3, sizeRef: 1,
-  hungerTime: 10, founders: 24,
+  hungerTime: 10, founders: 24, intakeExp: 0.75,
 };
 
 export interface EcologyOptions {
@@ -395,7 +396,7 @@ export class Ecology {
           }
         }
       }
-      demand += this.L.intake * this.struct[i] ** 0.75 * p.plantGain;
+      demand += this.L.intake * this.struct[i] ** this.L.intakeExp * p.plantGain;
     }
     for (let i = 0; i < CELLS; i++) g.risk[i] = 1 - Math.exp(-g.risk[i]);
     let standing = 0;
@@ -621,7 +622,7 @@ export class Ecology {
     const eps = Math.min(1, CONSTANTS.EPS0.value * (1 + 2 * this.hunger) * efficiency);
     if (act === ACT.forage && p.plantGain > 0 && this.energy[i] < 3 * m) {
       const avail = g.mat[here] + ((p.legPairs > 0 || p.mode === LOCOMOTION.hover) ? g.canopy[here] : 0);
-      const bite = Math.min(avail * rules.consumer.grazeShare, (L.intake * mm * p.plantGain * match * dt) / L.cellMass);
+      const bite = Math.min(avail * rules.consumer.grazeShare, (L.intake * m ** L.intakeExp * p.plantGain * match * dt) / L.cellMass);
       if (bite > 0) {
         const fromMat = Math.min(bite, g.mat[here]);
         g.mat[here] -= fromMat;
