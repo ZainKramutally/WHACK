@@ -137,7 +137,9 @@ export type Tone = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Bead tone → the tone the world draws it in (fauna.ts): plates and limbs wear the body colour, horns and spots the
  *  accent, so every view of a creature shows the world's one body colour + one accent. */
-export const WORLD_TONE: readonly Tone[] = [0, 1, 0, 0, 5, 5, 5];
+// Plates and horns (and jaws, tone 4) share the hard tone 2: the world's mineral armour (creatureHard) when the species
+// has one stamped, else the body a little deeper (docs/features/fauna-colour.md §2.2).
+export const WORLD_TONE: readonly Tone[] = [0, 1, 2, 0, 2, 5, 5];
 
 /** Rotates a hex colour's hue by `deg` degrees (and shifts its lightness by `dl`), keeping saturation. */
 export function shiftHue(hex: number, deg: number, dl = 0): number {
@@ -248,9 +250,10 @@ function creatureBody(silicon: boolean, diet: number, hue: number): { lab: Lab; 
  * accent (bands, fins, crests), spot. Plates and limbs are the body a little deeper; horns and spots wear the accent.
  * Carbon eyes are ink; silicon's dot eyes are the cyan glow.
  */
-export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5): number {
+export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue = 0.5, accent = 0.5, hard?: number): number {
   const pal = LOOK_PALETTES[silicon ? 'silicon' : 'carbon'];
   if (tone === 1) return silicon ? pal.glow : pal.ink;
+  if ((tone === 2 || tone === 4) && hard !== undefined && Number.isFinite(hard)) return hard; // mineral armour, as stamped
   const { lab: [L, A, B], p } = creatureBody(silicon, diet, hue);
   if (tone === 0) return labToHex(L, A, B);
   if (tone === 2) return labToHex(L - 0.08, A * 1.05, B * 1.05);
@@ -274,6 +277,30 @@ export function creatureColour(silicon: boolean, diet: number, tone: Tone, hue =
   const [cl, ca, cb] = ringAt('carbon', (p + 0.5) % 1);
   void cl;
   return labToHex(L >= 0.6 ? L - 0.2 : L + 0.22, ca, cb);
+}
+
+/** Lightness gap the hard parts keep from the body (fauna-colour §6 test 1), and the glow band hard parts stay out of. */
+export const HARD_GAP = 0.15, GLOW_BAND: readonly [number, number] = [165, 200];
+/**
+ * A species' hard parts (plates, horns, teeth, ceramic tiles): the world's mineral armour `worldHard` (crustLook
+ * crustHard), with a quarter of the species accent so two species' armour stays apart, held HARD_GAP off the body's
+ * lightness and out of the glow's cyan band. Stamped once per species when it gets its colourway (species.ts).
+ */
+export function creatureHard(silicon: boolean, diet: number, hue: number, accent: number, worldHard: number): number {
+  const body = hexToLab(creatureColour(silicon, diet, 0, hue, accent)), acc = hexToLab(creatureColour(silicon, diet, 5, hue, accent));
+  const w = hexToLab(worldHard);
+  let L = lerp(w[0], acc[0], 0.25), A = lerp(w[1], acc[1], 0.25), B = lerp(w[2], acc[2], 0.25);
+  if (Math.abs(L - body[0]) < HARD_GAP) { // on the side the mineral already sits, flipped near the ends of the scale
+    L = L >= body[0] ? body[0] + HARD_GAP : body[0] - HARD_GAP;
+    if (L > 0.95) L = body[0] - HARD_GAP;
+    if (L < 0.12) L = body[0] + HARD_GAP;
+  }
+  const C = Math.hypot(A, B), h = ((Math.atan2(B, A) * 180) / Math.PI + 360) % 360;
+  if (C >= 0.04 && h > GLOW_BAND[0] && h < GLOW_BAND[1]) {
+    const e = (h - GLOW_BAND[0] < GLOW_BAND[1] - h ? GLOW_BAND[0] - 1 : GLOW_BAND[1] + 1) * Math.PI / 180;
+    A = C * Math.cos(e); B = C * Math.sin(e);
+  }
+  return labToHex(L, A, B);
 }
 
 /** Plant value inverts with height (ART_DIRECTION rule 4): dark stems, pale tips that read against the white sky. */

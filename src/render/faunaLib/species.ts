@@ -14,7 +14,7 @@
 // Members of a species look alike; species look apart (CLAUDE.md "The intended experience of life").
 import type { BodyPlan } from '../../sim/develop';
 import { FORM_RADIUS } from '../../sim/guide';
-import { creatureRing } from '../palette';
+import { creatureHard, creatureRing } from '../palette';
 
 /** Floats per animal in the classifier: the 12 body genes in BODY_GENES order, then comp c and si (OrganismField 12..25). */
 export const SPECIES_DIM = 14;
@@ -32,7 +32,9 @@ const ACCENTS_SI = [0.5, 0.15, 0.85];
 const ACCENTS_C = [0.15, 0.5, 0.85];
 const ACCENT_W = 0.12; // a different accent family is worth at most ~0.08 of ring distance
 
-export interface SpeciesLook { hue: number; accent: number; diet: number; bands: number; spots: number }
+/** `hard`: the species' mineral armour hex (creatureHard), stamped once with its colourway; absent before the world's
+ *  mineral tint is known (the hard tone then falls back to the body a little deeper). */
+export interface SpeciesLook { hue: number; accent: number; diet: number; bands: number; spots: number; hard?: number }
 
 /** Proportions pulled toward the species mean. `has`: only members with the feature take part (no fins grown on a walker). */
 interface Trait { get(p: BodyPlan): number; set(p: BodyPlan, v: number): void; has?(p: BodyPlan): boolean }
@@ -60,6 +62,9 @@ export class SpeciesBook {
   private hue: Float32Array; private accent: Float32Array; private diet: Float32Array; private bands: Float32Array; private spots: Float32Array;
   private tm: Float32Array; private tn: Int32Array;
   private readonly v = new Float32Array(SPECIES_DIM);
+  // mineral armour per bin (hex, −1 none) and the world's current tint (fauna sets it from crustHard each frame)
+  private hard: Float64Array;
+  private worldHardHex = -1;
 
   constructor(max = 96) {
     this.max = max;
@@ -69,11 +74,16 @@ export class SpeciesBook {
     this.hue = new Float32Array(max); this.accent = new Float32Array(max); this.diet = new Float32Array(max);
     this.bands = new Float32Array(max); this.spots = new Float32Array(max);
     this.tm = new Float32Array(max * NT); this.tn = new Int32Array(max * NT);
+    this.hard = new Float64Array(max).fill(-1);
   }
 
   reset(): void {
-    this.used.fill(0); this.live.fill(0); this.coloured.fill(0); this.wears.fill(-1);
+    this.used.fill(0); this.live.fill(0); this.coloured.fill(0); this.wears.fill(-1); this.hard.fill(-1); this.worldHardHex = -1;
   }
+
+  /** The world's mineral armour tint right now (crustHard at the ratchet's armour step), or undefined without a crust.
+   *  Species stamp it when they take their colourway, and keep it: old lineages keep black iron after the oxygen rise. */
+  setWorldHard(hex: number | undefined): void { this.worldHardHex = hex === undefined ? -1 : hex; }
 
   /** Bins in use with live members, and how many of them show a colourway of their own (tests and debugging). */
   liveBins(): number {
@@ -127,9 +137,12 @@ export class SpeciesBook {
   /** The colourway and pattern a member of bin `b` wears right now: its own if coloured, else its nearest coloured species'. */
   lookOf(b: number, out: SpeciesLook): SpeciesLook {
     const d = b >= 0 ? this.worn(b) : -1;
-    if (d < 0) { out.hue = 0.5; out.accent = 0.55; out.diet = 0; out.bands = 0; out.spots = 0; return out; }
+    if (d < 0) { out.hue = 0.5; out.accent = 0.55; out.diet = 0; out.bands = 0; out.spots = 0; out.hard = undefined; return out; }
     out.hue = this.hue[d]; out.accent = this.accent[d]; out.diet = this.diet[d];
     out.bands = this.bands[d]; out.spots = this.spots[d];
+    // a species coloured before the world's tint was known takes it at its first look, then keeps it
+    if (this.hard[d] < 0 && this.worldHardHex >= 0) this.stampHard(d);
+    out.hard = this.hard[d] >= 0 ? this.hard[d] : undefined;
     return out;
   }
 
@@ -228,6 +241,13 @@ export class SpeciesBook {
       }
     }
     this.hue[b] = bestH; this.accent[b] = bestA; this.coloured[b] = 1; this.wears[b] = b;
+    this.hard[b] = -1;
+    if (this.worldHardHex >= 0) this.stampHard(b);
+  }
+
+  /** Stamp bin b's mineral armour from the world's tint now (fauna-colour §2.2: the species keeps its founding era). */
+  private stampHard(b: number): void {
+    this.hard[b] = creatureHard(this.silicon[b] === 1, this.diet[b], this.hue[b], this.accent[b], this.worldHardHex);
   }
 }
 
@@ -236,7 +256,7 @@ export class SpeciesBook {
 // numbers. The UI unpacks the same births buffer, so its copy of the plan has the same key and finds the same look.
 // A fixed ring of SEEN_MAX records (oldest out); records are float arrays, so recording allocates nothing.
 const SEEN_MAX = 16384;
-const SEEN_STRIDE = 5 + NT; // hue, accent, colour diet, bands, spots, then every TRAIT as drawn
+const SEEN_STRIDE = 6 + NT; // hue, accent, colour diet, bands, spots, hard (hex as float32, exact below 2^24; −1 none), then every TRAIT as drawn
 const seenVals = new Float32Array(SEEN_MAX * SEEN_STRIDE);
 const seenKeys = new Float64Array(SEEN_MAX).fill(-1);
 const seenAt = new Map<number, number>();
@@ -269,14 +289,15 @@ export function rememberLook(raw: BodyPlan, drawn: BodyPlan, look: SpeciesLook):
   }
   const o = slot * SEEN_STRIDE, v = seenVals;
   v[o] = look.hue; v[o + 1] = look.accent; v[o + 2] = look.diet; v[o + 3] = drawn.bands; v[o + 4] = drawn.spots;
-  for (let t = 0; t < NT; t++) v[o + 5 + t] = TRAITS[t].get(drawn);
+  v[o + 5] = look.hard ?? -1;
+  for (let t = 0; t < NT; t++) v[o + 6 + t] = TRAITS[t].get(drawn);
 }
 
 export interface FaunaLook {
   /** The plan as the world draws it: the species' pattern and proportions (counts and kinds are the animal's own). */
   plan: BodyPlan;
-  /** The species colourway, for creatureColour. */
-  hue: number; accent: number; diet: number;
+  /** The species colourway, for creatureColour; `hard` its mineral armour (undefined: none stamped). */
+  hue: number; accent: number; diet: number; hard?: number;
 }
 
 /**
@@ -292,6 +313,6 @@ export function faunaLook(raw: BodyPlan): FaunaLook {
     limbJointAngles: raw.limbJointAngles.slice(), modeCosts: { ...raw.modeCosts },
     hue: v[o], accent: v[o + 1], bands: v[o + 3], spots: v[o + 4],
   };
-  for (let t = 0; t < NT; t++) TRAITS[t].set(plan, v[o + 5 + t]);
-  return { plan, hue: v[o], accent: v[o + 1], diet: v[o + 2] };
+  for (let t = 0; t < NT; t++) TRAITS[t].set(plan, v[o + 6 + t]);
+  return { plan, hue: v[o], accent: v[o + 1], diet: v[o + 2], hard: v[o + 5] >= 0 ? v[o + 5] : undefined };
 }

@@ -40,7 +40,7 @@ export interface CounterpartDeps {
   getInputs: () => VisualInputs;
   /** Bead layout of a creature as it lives in this world (from its BodyPlan), for the default 'self' view. */
   layoutOf?: (id: number) => {
-    layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number; hue: number; accent: number;
+    layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number; hue: number; accent: number; hard?: number;
     /** The creature as the world's near LOD draws it (loft and parts) at rest pose; the live view prefers this. */
     bake?: () => BakedCreature | null;
   } | null;
@@ -164,7 +164,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   /** One InstancedMesh for all beads of a layout, framed so the whole body fills a window of this aspect. */
-  function beadsContent(lay: ReturnType<typeof beadLayout>, silicon: boolean, diet: number, aspect: number, hue = 0.5, accent = 0.5) {
+  function beadsContent(lay: ReturnType<typeof beadLayout>, silicon: boolean, diet: number, aspect: number, hue = 0.5, accent = 0.5, hard?: number) {
     const mesh = new THREE.InstancedMesh(silicon ? beadGeo.faceted : beadGeo.round, silicon ? beadMat.faceted : beadMat.round, lay.beads.length);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lay.beads.length * 3), 3);
     // Bounds: horizontal reach (turntable spins around y) and height.
@@ -191,7 +191,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       q0.setFromAxisAngle(yAxis, -(b.yaw ?? 0));
       m4.compose(pos0.set(b.x * k, (b.y - cy) * k, b.z * k), q0, sc0.set(b.r * (b.sx ?? 1) * k, b.r * (b.sy ?? 1) * k, b.r * (b.sz ?? 1) * k));
       mesh.setMatrixAt(i, m4);
-      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, WORLD_TONE[b.tone], hue, accent)));
+      mesh.setColorAt(i, c.setHex(creatureColour(silicon, diet, WORLD_TONE[b.tone], hue, accent, hard)));
     });
     mesh.frustumCulled = false;
     mesh.position.y = 0.6; // a little above the look-at height so hanging limbs stay in frame
@@ -216,7 +216,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
         const target = i < R.nTiers ? hub : hex;
         const idx = i < R.nTiers ? i : i - R.nTiers;
         target.setMatrixAt(idx, m4);
-        target.setColorAt(idx, c.setHex(creatureColour(true, diet, WORLD_TONE[r.tone], hue, accent)));
+        target.setColorAt(idx, c.setHex(creatureColour(true, diet, WORLD_TONE[r.tone], hue, accent, hard)));
       });
       for (const m of [hub, hex]) { m.frustumCulled = false; m.position.y = 0.6; turntable.add(m); }
     }
@@ -316,7 +316,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     const aspect = rect ? rect.width / rect.height : 2;
     const baked = own?.bake?.() ?? null;
     if (baked && loftContent(baked, aspect)) return;
-    if (own) beadsContent(own.layout, own.silicon, own.diet, aspect, own.hue, own.accent);
+    if (own) beadsContent(own.layout, own.silicon, own.diet, aspect, own.hue, own.accent, own.hard);
     else notScannedContent();
   }
 

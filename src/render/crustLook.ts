@@ -183,6 +183,52 @@ export function blendFamilies(crust: CrustMix, weights: number[], rust: number):
   return { family, weights: w, seaWeights: sw };
 }
 
+// ---- Hard parts (docs/features/fauna-colour.md §2.2): biominerals from the world's crust --------------------------------
+// [fresh, oxidised] per mineral: reduced iron biominerals are black (iron-sulphide sclerites, Warén 2003; magnetite chiton
+// teeth, Lowenstam 1962), oxidised ones ochre or brown (goethite limpet teeth, Barber 2015). Ochre, not hematite red, so
+// rusted armour never melts into the red ground. Pale silica and ceramics on granite and the silicon rocks (speculative).
+// Ice holds no silicon and builds nothing (weight 0, as its floraWeight).
+export const MINERAL_HARD: Record<string, readonly [number, number]> = {
+  basalt: [0x2c3634, 0x5c3c2c], ironstone: [0x1e1c22, 0xb27c2c], granite: [0xe6ddcc, 0xe6ddcc],
+  silicide: [0x5c6678, 0xd6d2ca], nitride: [0xd2d7dc, 0xd2d7dc], reducedLava: [0xc2bdb4, 0xe8e6e0],
+};
+/** The ratchet's rust level quantised to {0, 0.5, 1}: the armour's oxidation steps (a species keeps the step it was stamped at). */
+export const hardRustStep = (rust: number): number => Math.round(Math.min(1, Math.max(0, rust)) * 2) / 2;
+/**
+ * The world's hard-part tint at rust step `rust`: the minerals' [fresh → oxidised] armour, weighted by (share ×
+ * floraWeight)², so the dominant rock sets it and ice adds nothing (falling back to share² if every weight is 0).
+ * Undefined without a crust (the hard tone then stays the body a little deeper). Pure.
+ */
+export function worldHard(crust: CrustMix | undefined, rust: number): number | undefined {
+  if (!crust || crust.ids.length === 0) return undefined;
+  const items: { hex: number; w: number }[] = [];
+  let tot = 0;
+  crust.ids.forEach((id, i) => {
+    const h = MINERAL_HARD[id], f = MINERAL_LOOK[id]?.[0];
+    if (!h) return;
+    const w = ((crust.shares[i] ?? 0) * (f ? f.floraWeight : 1)) ** 2;
+    items.push({ hex: labMix(h[0], h[1], crust.oxidises[i] ? rust : 0), w }); tot += w;
+  });
+  if (items.length === 0) return undefined;
+  if (tot <= 0) { // every rock that builds armour has weight 0 here: fall back to the rock shares
+    items.length = 0;
+    crust.ids.forEach((id, i) => { const h = MINERAL_HARD[id]; if (h) { const w = (crust.shares[i] ?? 0) ** 2; items.push({ hex: labMix(h[0], h[1], crust.oxidises[i] ? rust : 0), w }); tot += w; } });
+    if (tot <= 0) return undefined;
+  }
+  for (const it of items) it.w /= tot;
+  return labMean(items);
+}
+const hardMemo = { key: '', value: undefined as number | undefined };
+/** worldHard for the run's crust at the ratchet's current armour step (memoised per crust and step). */
+export function crustHard(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): number | undefined {
+  const c = inputs.world.crust;
+  if (!c) return undefined;
+  const step = hardRustStep(crustRatchet.update(inputs.world, inputs.stats.oxygen ?? 0, inputs.buildProgress));
+  const key = c.ids.join() + c.shares.join() + c.oxidises.join() + step;
+  if (hardMemo.key !== key) { hardMemo.key = key; hardMemo.value = worldHard(c, step); }
+  return hardMemo.value;
+}
+
 const memo = { key: '', rust: -1, value: null as null | ReturnType<typeof blendFamilies> };
 /** The global (whole-patch) blend at the ratchet's rust level: shares as weights. Memoised per crust and rust step. */
 export function crustGlobal(inputs: Pick<VisualInputs, 'world' | 'stats' | 'buildProgress'>): { family: Family; rust: number } | null {

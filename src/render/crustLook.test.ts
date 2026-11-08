@@ -3,7 +3,8 @@ import { rust } from '../gen/crust';
 import { carbon } from '../worlds/carbon';
 import { silicon } from '../worlds/silicon';
 import { LOOK_PALETTES } from './palette';
-import { MINERAL_COLOURS, RED_WORLD_GROUND_IDS, redWorldRamp, RustRatchet, floraPigment, mineralColour } from './crustLook';
+import { MINERAL_COLOURS, MINERAL_HARD, RED_WORLD_GROUND_IDS, hardRustStep, redWorldRamp, RustRatchet, floraPigment, mineralColour, worldHard } from './crustLook';
+import { GLOW_BAND, HARD_GAP, creatureColour, creatureHard } from './palette';
 
 const cw = { id: 'carbon', rustOxygen: carbon.terrain.crust!.rustOxygen };
 const sw = { id: 'silicon', rustOxygen: silicon.terrain.crust!.rustOxygen };
@@ -202,5 +203,49 @@ describe('ironstone Red World ground', () => {
     const lum = (h: number) => 0.3 * (h >> 16) + 0.5 * ((h >> 8) & 255) + 0.2 * (h & 255);
     expect(lum(f)).toBeLessThan(lum(r));
     expect(f >> 16).toBeLessThan(r >> 16);
+  });
+});
+
+describe('hard parts wear the world\'s minerals (fauna-colour §2.2, §6)', () => {
+  const mix = (w: typeof carbon) => {
+    const ms = w.terrain.crust!.minerals;
+    return { ids: ms.map((m) => m.id), oxidises: ms.map((m) => m.oxidises), shares: ms.map((m) => (m.share[0] + m.share[1]) / 2), elevation: ms.map((m) => m.elevation) };
+  };
+  const only = (w: typeof carbon, id: string) => { const c = mix(w); return { ...c, shares: c.ids.map((x) => (x === id ? 1 : 0)) }; };
+  const L = (hex: number) => hexToLab(hex)[0];
+
+  it('rock chips change the armour, not the skins; Iron-rich armour is far darker than Continental before oxygen', () => {
+    const iron = worldHard(only(carbon, 'ironstone'), 0)!, granite = worldHard(only(carbon, 'granite'), 0)!;
+    expect(L(granite) - L(iron)).toBeGreaterThanOrEqual(0.4);
+    const skin = creatureColour(false, 0.3, 0, 0.4, 0.5);
+    expect(creatureHard(false, 0.3, 0.4, 0.5, iron)).not.toBe(creatureHard(false, 0.3, 0.4, 0.5, granite));
+    expect(creatureColour(false, 0.3, 0, 0.4, 0.5)).toBe(skin); // skins never read the crust
+    expect(creatureColour(false, 0.3, 2, 0.4, 0.5, iron)).toBe(iron); // the hard tone is the stamped armour
+  });
+
+  it('iron armour oxidises black → ochre in three steps; ice builds no armour; it is deterministic', () => {
+    expect(hardRustStep(0.2)).toBe(0); expect(hardRustStep(0.3)).toBe(0.5); expect(hardRustStep(0.9)).toBe(1);
+    expect(L(worldHard(only(carbon, 'ironstone'), 1)!)).toBeGreaterThan(L(worldHard(only(carbon, 'ironstone'), 0)!) + 0.2);
+    expect(worldHard(only(carbon, 'granite'), 1)).toBe(worldHard(only(carbon, 'granite'), 0)); // granite does not oxidise
+    const ice = { ids: ['waterIce'], oxidises: [false], shares: [1], elevation: [0] };
+    expect(worldHard(ice, 0)).toBeUndefined();
+    expect(worldHard(mix(carbon), 0.5)).toBe(worldHard(mix(carbon), 0.5));
+    expect(MINERAL_HARD.waterIce).toBeUndefined();
+  });
+
+  it('armour reads against its body and stays out of the glow band (every hue, diet, accent, mineral, rust step)', () => {
+    const hues = Array.from({ length: 9 }, (_, i) => i / 8);
+    const arc = (a: number, b: number) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+    for (const [w, si] of [[carbon, false], [silicon, true]] as const) {
+      const glowLab = hexToLab(si ? 0x6ff4ff : 0x3ff5e0), glowH = (Math.atan2(glowLab[2], glowLab[1]) * 180 / Math.PI + 360) % 360;
+      const tints = [0, 0.5, 1].flatMap((r) => [worldHard(mix(w), r), ...mix(w).ids.map((id) => worldHard(only(w, id), r))]).filter((x): x is number => x !== undefined);
+      for (const t of tints) for (const h of hues) for (const diet of [0.05, 0.5, 0.95]) for (const a of [0.15, 0.5, 0.85]) {
+        const hard = creatureHard(si, diet, h, a, t), body = hexToLab(creatureColour(si, diet, 0, h, a)), lab = hexToLab(hard);
+        expect(Math.abs(lab[0] - body[0]), 'lightness gap').toBeGreaterThanOrEqual(HARD_GAP - 0.01);
+        const C = Math.hypot(lab[1], lab[2]), hh = (Math.atan2(lab[2], lab[1]) * 180 / Math.PI + 360) % 360;
+        expect(C < 0.06 || arc(hh, glowH) > 15, `hard ${hard.toString(16)} at ${hh.toFixed(0)}°`).toBe(true);
+      }
+    }
+    void GLOW_BAND;
   });
 });

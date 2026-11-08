@@ -98,6 +98,29 @@ describe('SpeciesBook (render look attractor)', () => {
     expect(odd.girth).toBe(plans[2].girth + 0.5); // the input plan is untouched
   });
 
+  it('stamps one mineral armour per species at its colourway and keeps it; wearers show the worn species\' (fauna-colour §6.4–5)', () => {
+    const book = new SpeciesBook();
+    book.setWorldHard(0x1e1c22); // magnetite black: before the oxygen rise
+    const a = book.assign(vec(grazer), 0, develop(grazer, day, water)); // a world's first species is coloured at once
+    const hardA = book.lookOf(a, look()).hard;
+    expect(hardA).toBeDefined();
+    const a2 = book.assign(vec(jitter(grazer, 1)), 0, develop(jitter(grazer, 1), day, water));
+    expect(a2).toBe(a);
+    expect(book.lookOf(a2, look()).hard).toBe(hardA); // members alike, wherever they stand
+    book.setWorldHard(0xb27c2c); // goethite ochre: after
+    expect(book.lookOf(a, look()).hard).toBe(hardA); // an old lineage keeps its black iron
+    const h = book.assign(vec(hunter), 0, develop(hunter, day, water));
+    expect(book.lookOf(h, look()).hard).toBe(hardA); // a lone mutant wears its neighbour's colourway, armour included
+    for (let k = 0; k < SETTLE + 1; k++) book.assign(vec(jitter(hunter, k)), 0, develop(jitter(hunter, k), day, water));
+    const settled = book.lookOf(h, look());
+    expect(settled.hard).toBeDefined();
+    expect(settled.hard).not.toBe(hardA); // coloured after the rise: ochre-based armour
+    // the bestiary sprite reads the same armour back
+    const raw = develop(hunter, day, water);
+    rememberLook(raw, raw, settled);
+    expect(faunaLook(raw).hard).toBe(settled.hard);
+  });
+
   it('gives every species exactly one pattern, bands or spots, in its accent', () => {
     for (const g of [grazer, hunter]) {
       for (const [bands, spots] of [[0, 0], [2, 0.8], [3, 0.1], [0, 0.2]] as const) {

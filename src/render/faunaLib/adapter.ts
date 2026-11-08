@@ -18,8 +18,9 @@ export type PartType = (typeof PART_TYPES)[number];
 export const PART = Object.fromEntries(PART_TYPES.map((t, i) => [t, i])) as Record<PartType, number>;
 
 /** Colour slots per creature: body + accent (from creatureColour), eye (ink on carbon, cyan on silicon), bone, glow. */
-export const SLOT = { body: 0, accent: 1, eye: 2, bone: 3, glow: 4 } as const;
-export const SLOTS = 5;
+/** `hard`: plates, horns, teeth and ceramic tiles, coloured by the world's minerals (fauna-colour §2.2; creatureHard). */
+export const SLOT = { body: 0, accent: 1, eye: 2, bone: 3, glow: 4, hard: 5 } as const;
+export const SLOTS = 6;
 
 /** Loft caps. Axial: rings along the spine (10 sides). Radial: rings up the hub axis (24 sides, so 3-, 4-, 6-, 8-fold
  *  divide; at most 2 + 3·5 + 1 + 2 = 20 rings for 5 tiers). Gas bells: 12 rings of 16 sides. */
@@ -112,7 +113,7 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   // fluke: an upright two-lobed caudal fin of fin parts rooted on the tail tip and swept back, as the near LOD's lunate
   // tail (no flat pad). Chord back, span up or down, thickness flipped to keep each basis right-handed.
   if (plan.tailKind === 'fluke') for (const up of [1, -1]) parts.push(part({ type: PART.fin, a: 0, slot: SLOT.accent, ox: 0.35, sx: -1.1, sy: 1.0 * up, sz: -0.4 * up }));
-  if (plan.tailKind === 'club') parts.push(part({ type: KNOB, a: 0, slot: SLOT.accent, sx: 1.05, sy: 0.95, sz: 1.05 }));
+  if (plan.tailKind === 'club') parts.push(part({ type: KNOB, a: 0, slot: SLOT.hard, sx: 1.05, sy: 0.95, sz: 1.05 })); // a bony club
   const mids = 2 * spine.length - 1 + 6 <= AX_RINGS ? 1 : 0;
 
   // Extras, in the order axialLayout emits them; classified by tone and shape.
@@ -123,8 +124,8 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
     const b = beads[i];
     if (b.tone === BEAD_PLATE) {
       // shield: a domed plate shingled over the back (silicon: a flat hexagonal ceramic shell tile)
-      if (si) parts.push(part({ type: PART.plateSi, a: i, sx: 1.0 * (b.sx ?? 1), sy: 0.42 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1), oy: -0.25 }));
-      else parts.push(part({ type: PART.plateC, a: i, sx: 0.95 * (b.sx ?? 1), sy: 0.55 * (b.sy ?? 1), sz: 0.95 * (b.sz ?? 1), oy: -0.3 }));
+      if (si) parts.push(part({ type: PART.plateSi, a: i, slot: SLOT.hard, sx: 1.0 * (b.sx ?? 1), sy: 0.42 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1), oy: -0.25 }));
+      else parts.push(part({ type: PART.plateC, a: i, slot: SLOT.hard, sx: 0.95 * (b.sx ?? 1), sy: 0.55 * (b.sy ?? 1), sz: 0.95 * (b.sz ?? 1), oy: -0.3 }));
     } else if (b.tone === BEAD_SPOT) {
       parts.push(part({ type: KNOB, a: i, slot: glowing ? SLOT.glow : SLOT.accent, glow: glowing ? plan.glow : 0, sx: 0.9, sy: 0.9, sz: 0.5 }));
     } else if (b.tone === BEAD_ACCENT && (b.flap ?? 0) > 0) {
@@ -151,7 +152,7 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
       parts.push(part({ type: PART.knob, a: i, slot: SLOT.bone, ox: 0.35, oy: 0.45, oz: side * 0.6, sx: 0.3, sy: 0.3, sz: 0.3 }));
     } else if (b.tone === BEAD_HORN && b.sx !== undefined) {
       // jaw: a flattened plate under the snout
-      parts.push(part({ type: PLATE, a: i, sx: 1.3 * b.sx, sy: 1.1 * (b.sy ?? 1), sz: (b.sz ?? 1) }));
+      parts.push(part({ type: PLATE, a: i, slot: SLOT.hard, sx: 1.3 * b.sx, sy: 1.1 * (b.sy ?? 1), sz: (b.sz ?? 1) }));
     } else if (b.tone === BEAD_HORN) {
       horns.push(i);
     }
@@ -167,8 +168,8 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   while (horns.length) take(per);
   for (const c of chains) {
     const a = c[0], z = c[c.length - 1];
-    if (c.length === 1) parts.push(part({ type: HORN, slot: SLOT.accent, a: head, b: a, t0: 0.55, t1: 1.25, r: 1.2, rRef: a }));
-    else parts.push(part({ type: HORN, slot: SLOT.accent, a, b: z, t0: -0.45, t1: 1.15, r: 1.35, rRef: a }));
+    if (c.length === 1) parts.push(part({ type: HORN, slot: SLOT.hard, a: head, b: a, t0: 0.55, t1: 1.25, r: 1.2, rRef: a }));
+    else parts.push(part({ type: HORN, slot: SLOT.hard, a, b: z, t0: -0.45, t1: 1.15, r: 1.35, rRef: a }));
   }
   // Glow from darkness: photophores along the flanks when the plan glows and has no spots to carry it.
   if (glowing && !parts.some((p) => p.slot === SLOT.glow)) {
@@ -196,11 +197,11 @@ function radialDesc(plan: BodyPlan, lay: BeadLayout): RadialDesc {
   for (let i = R.nTiers; i < R.nHubRods; i++) {
     const rd = R.rods[i];
     if (rd.tone === BEAD_HORN) {
-      parts.push(part({ type: PART.hornSi, rod: true, a: i, b: i + 1, t0: 0, t1: 1, r: 1.25, rRef: i, slot: SLOT.accent }));
+      parts.push(part({ type: PART.hornSi, rod: true, a: i, b: i + 1, t0: 0, t1: 1, r: 1.25, rRef: i, slot: SLOT.hard }));
       i++; // the tip rod is part of the same spire
     } else {
       const spike = plan.tileLength > 0.5;
-      parts.push(part({ type: spike ? PART.hornSi : PART.plateSi, rod: true, a: i, b: i, t0: spike ? 0 : -0.15, t1: spike ? 1.2 : 0.5, r: spike ? 1.1 : 1.15, rRef: i, slot: rd.tone === BEAD_SPOT ? SLOT.accent : SLOT.body }));
+      parts.push(part({ type: spike ? PART.hornSi : PART.plateSi, rod: true, a: i, b: i, t0: spike ? 0 : -0.15, t1: spike ? 1.2 : 0.5, r: spike ? 1.1 : 1.15, rRef: i, slot: rd.tone === BEAD_SPOT ? SLOT.accent : SLOT.hard }));
     }
   }
   const eyes = lay.beads.map((_, i) => i);
