@@ -1,0 +1,226 @@
+// Species looks: the art layer's read-only look attractor (DECISIONS §G.3, G.9). No three.js, no sim writes.
+// Each animal is binned once, when first seen, in the field guide's clustering space (its 12 body genes + comp c, si;
+// join radius FORM_RADIUS, as sim/guide.ts). A bin keeps running means of its members' centroid and proportions
+// (girth, head size, crest, horn and limb length, tier height, ...), and its founder's diet and pattern.
+// Colour: a bin gets a colourway of its own (hue, accent, and its founder's diet for value) once it is a real population
+// (SETTLE members) clearly apart from every coloured species (centroid ≥ SEPARATE away), picked to sit as far as
+// possible from the other live colourways. Until then it wears the colourway of the nearest coloured species, so the
+// periphery of a species' gene cloud (mutation steps ~0.26 per generation, about the join radius) and lone mutants
+// never show colours of their own. The render-only pattern (bands, spots, which develop() derives with frac() and so
+// flickers between siblings) travels with the colourway.
+// A member is drawn from attract(plan): the colourway and pattern, and its own proportions pulled KAPPA of the way to its
+// bin's means (or, for a bin too small to have means, to the species it wears). Counts and kinds (legs, plates, horns,
+// eyes, tail, arms, tiers) stay the animal's own, so the inspect card's words always match the body.
+// Members of a species look alike; species look apart (CLAUDE.md "The intended experience of life").
+import type { BodyPlan } from '../../sim/develop';
+import { FORM_RADIUS } from '../../sim/guide';
+
+/** Floats per animal in the classifier: the 12 body genes in BODY_GENES order, then comp c and si (OrganismField 12..25). */
+export const SPECIES_DIM = 14;
+/** Members before a bin has means of its own, and may take a colourway of its own. */
+export const SETTLE = 6;
+/** A bin takes its own colourway only this far (gene space) from every coloured species; closer ones share the colour. */
+export const SEPARATE = 2 * FORM_RADIUS;
+/** Pull of a member's proportions toward its species' mean (0 = own, 1 = the mean). */
+export const KAPPA = 0.75;
+const TRACK = 32;   // centroid and means follow roughly the last TRACK members (capped running mean), so slow drift is kept
+const HUES = 9;     // hue candidates across creatureColour's band (0..1)
+// Accent candidates. Silicon's accent is a pale ice rim (bone ↔ ice blue); carbon's turns the body hue by 25 + 55·accent
+// degrees on top of the hue's own ±35°, so carbon keeps the sum ≤ ACCENT_TURN_C (the accent stays in the warm Red World
+// family, never lime). The first candidate is always allowed.
+const ACCENTS_SI = [0.55, 0.15, 0.95];
+const ACCENTS_C = [0, 0.3, 0.6];
+const ACCENT_TURN_C = 35;
+const accentOk = (silicon: boolean, h: number, a: number) => silicon || a === 0 || 70 * (h - 0.5) + 55 * a <= ACCENT_TURN_C;
+
+export interface SpeciesLook { hue: number; accent: number; diet: number; bands: number; spots: number }
+
+/** Proportions pulled toward the species mean. `has`: only members with the feature take part (no fins grown on a walker). */
+interface Trait { get(p: BodyPlan): number; set(p: BodyPlan, v: number): void; has?(p: BodyPlan): boolean }
+const rel = (k: 'hornLength' | 'limbLength' | 'tierHeight', has: (p: BodyPlan) => boolean): Trait => ({
+  get: (p) => p[k] / Math.max(1e-6, p.scale),
+  set: (p, v) => { p[k] = v * p.scale; },
+  has,
+});
+const plain = (k: 'girth' | 'flatten' | 'headScale' | 'gradient' | 'carapace' | 'curl' | 'tileLength' | 'crest' | 'jaw' | 'finSpan' | 'wingSpan', has?: (p: BodyPlan) => boolean): Trait => ({
+  get: (p) => p[k], set: (p, v) => { p[k] = v; }, has,
+});
+export const TRAITS: Trait[] = [
+  plain('girth'), plain('flatten'), plain('headScale'), plain('gradient'), plain('carapace'), plain('curl'), plain('tileLength'),
+  plain('crest', (p) => p.crest > 0), plain('jaw', (p) => p.jaw > 0.05),
+  plain('finSpan', (p) => p.finSpan > 0.01), plain('wingSpan', (p) => p.wingSpan > 0.01),
+  rel('hornLength', (p) => p.hornCount > 0), rel('limbLength', (p) => p.limbLength > 0), rel('tierHeight', (p) => p.tiers > 0),
+];
+const NT = TRAITS.length;
+
+export class SpeciesBook {
+  readonly max: number;
+  private cen: Float32Array; private n: Int32Array; private live: Int32Array; private used: Uint8Array;
+  private coloured: Uint8Array; private silicon: Uint8Array; private wears: Int32Array; private stamp: Int32Array;
+  private hue: Float32Array; private accent: Float32Array; private diet: Float32Array; private bands: Float32Array; private spots: Float32Array;
+  private tm: Float32Array; private tn: Int32Array;
+  private readonly v = new Float32Array(SPECIES_DIM);
+
+  constructor(max = 96) {
+    this.max = max;
+    this.cen = new Float32Array(max * SPECIES_DIM);
+    this.n = new Int32Array(max); this.live = new Int32Array(max); this.used = new Uint8Array(max);
+    this.coloured = new Uint8Array(max); this.silicon = new Uint8Array(max); this.wears = new Int32Array(max).fill(-1); this.stamp = new Int32Array(max);
+    this.hue = new Float32Array(max); this.accent = new Float32Array(max); this.diet = new Float32Array(max);
+    this.bands = new Float32Array(max); this.spots = new Float32Array(max);
+    this.tm = new Float32Array(max * NT); this.tn = new Int32Array(max * NT);
+  }
+
+  reset(): void {
+    this.used.fill(0); this.live.fill(0); this.coloured.fill(0); this.wears.fill(-1);
+  }
+
+  /** Bins in use with live members, and how many of them show a colourway of their own (tests and debugging). */
+  liveBins(): number {
+    let k = 0;
+    for (let b = 0; b < this.max; b++) if (this.used[b] && this.live[b] > 0) k++;
+    return k;
+  }
+  colourways(): number {
+    let k = 0;
+    for (let b = 0; b < this.max; b++) if (this.used[b] && this.live[b] > 0 && this.coloured[b]) k++;
+    return k;
+  }
+
+  /**
+   * Bin a newly seen animal. `src[off .. off + SPECIES_DIM)` holds its 12 body genes and comp c, si (in the organism
+   * buffer: off = record + 12). Returns the bin; the caller keeps it with `stampOf(bin)` for release().
+   */
+  assign(src: ArrayLike<number>, off: number, plan: BodyPlan): number {
+    const v = this.v;
+    for (let i = 0; i < SPECIES_DIM; i++) v[i] = src[off + i];
+    const si = plan.chemistry === 'silicon' ? 1 : 0;
+    let b = this.nearest(v, si, FORM_RADIUS, false);
+    if (b < 0) {
+      b = this.create(v, si, plan);
+      if (b < 0) b = this.nearest(v, si, Infinity, false); // every bin busy: join the nearest
+      if (b < 0) return -1;
+    }
+    // Join: running means of the centroid and the proportions.
+    const w = 1 / Math.min(++this.n[b], TRACK);
+    const c = b * SPECIES_DIM;
+    for (let i = 0; i < SPECIES_DIM; i++) this.cen[c + i] += (v[i] - this.cen[c + i]) * w;
+    for (let t = 0; t < NT; t++) {
+      const tr = TRAITS[t];
+      if (tr.has && !tr.has(plan)) continue;
+      const k = b * NT + t, x = tr.get(plan);
+      this.tm[k] += (x - this.tm[k]) / Math.min(++this.tn[k], TRACK);
+    }
+    this.live[b]++;
+    if (!this.coloured[b] && this.live[b] >= SETTLE && this.nearestColoured(b, SEPARATE) < 0) this.colour(b);
+    return b;
+  }
+
+  /** Recycle stamp of a bin (bins are reused once empty). */
+  stampOf(b: number): number { return b < 0 ? 0 : this.stamp[b]; }
+
+  /** A member died or was forgotten. Stale stamps (the bin was recycled meanwhile) are ignored. */
+  release(b: number, stamp: number): void {
+    if (b >= 0 && this.used[b] && this.stamp[b] === stamp && this.live[b] > 0) this.live[b]--;
+  }
+
+  /** The colourway and pattern a member of bin `b` wears right now: its own if coloured, else its nearest coloured species'. */
+  lookOf(b: number, out: SpeciesLook): SpeciesLook {
+    const d = b >= 0 ? this.worn(b) : -1;
+    if (d < 0) { out.hue = 0.5; out.accent = 0.55; out.diet = 0; out.bands = 0; out.spots = 0; return out; }
+    out.hue = this.hue[d]; out.accent = this.accent[d]; out.diet = this.diet[d];
+    out.bands = this.bands[d]; out.spots = this.spots[d];
+    return out;
+  }
+
+  /** The member's plan as drawn: species colourway and pattern, proportions pulled toward the species mean. New object. */
+  attract(plan: BodyPlan, b: number, look: SpeciesLook, kappa = KAPPA): BodyPlan {
+    const p: BodyPlan = {
+      ...plan, tierRadii: plan.tierRadii.slice(), arms: plan.arms.map((a) => ({ ...a })),
+      limbJointAngles: plan.limbJointAngles.slice(), modeCosts: { ...plan.modeCosts },
+    };
+    p.hue = look.hue; p.accent = look.accent; p.bands = look.bands; p.spots = look.spots;
+    if (b < 0) return p;
+    // Means: the bin's own once it has SETTLE members, else those of the species it wears.
+    let m = b;
+    if (this.n[b] < SETTLE) { const w = this.worn(b); if (w >= 0) m = w; }
+    for (let t = 0; t < NT; t++) {
+      const tr = TRAITS[t], k = m * NT + t;
+      if (this.tn[k] === 0 || (tr.has && !tr.has(plan))) continue;
+      const own = tr.get(plan);
+      tr.set(p, own + (this.tm[k] - own) * kappa);
+    }
+    return p;
+  }
+
+  /** Bin whose colourway `b` wears: itself if coloured, else the coloured species it was born near (re-found if gone). */
+  private worn(b: number): number {
+    if (this.coloured[b]) return b;
+    const w = this.wears[b];
+    if (w >= 0 && this.used[w] && this.coloured[w] && this.silicon[w] === this.silicon[b]) return w;
+    const c = this.nearestColoured(b, Infinity);
+    this.wears[b] = c;
+    return c;
+  }
+
+  /** Nearest coloured bin with live members, of b's chemistry, within r of b's centroid (−1 if none). */
+  private nearestColoured(b: number, r: number): number {
+    let best = -1, bestD = r * r;
+    const cb = b * SPECIES_DIM;
+    for (let o = 0; o < this.max; o++) {
+      if (o === b || !this.used[o] || !this.coloured[o] || this.live[o] === 0 || this.silicon[o] !== this.silicon[b]) continue;
+      const c = o * SPECIES_DIM;
+      let d = 0;
+      for (let i = 0; i < SPECIES_DIM; i++) { const x = this.cen[cb + i] - this.cen[c + i]; d += x * x; }
+      if (d < bestD) { best = o; bestD = d; }
+    }
+    return best;
+  }
+
+  private nearest(v: Float32Array, si: number, r: number, colouredOnly: boolean): number {
+    let best = -1, bestD = r * r;
+    for (let b = 0; b < this.max; b++) {
+      if (!this.used[b] || this.silicon[b] !== si || (colouredOnly && (!this.coloured[b] || this.live[b] === 0))) continue;
+      const c = b * SPECIES_DIM;
+      let d = 0;
+      for (let i = 0; i < SPECIES_DIM; i++) { const x = v[i] - this.cen[c + i]; d += x * x; }
+      if (d <= bestD) { best = b; bestD = d; }
+    }
+    return best;
+  }
+
+  private create(v: Float32Array, si: number, plan: BodyPlan): number {
+    let b = -1;
+    for (let i = 0; i < this.max && b < 0; i++) if (!this.used[i]) b = i;
+    if (b < 0) for (let i = 0; i < this.max && b < 0; i++) if (this.live[i] === 0) b = i; // recycle an empty bin
+    if (b < 0) return -1;
+    this.used[b] = 1; this.stamp[b]++; this.n[b] = 0; this.live[b] = 0; this.coloured[b] = 0; this.silicon[b] = si;
+    this.cen.set(v, b * SPECIES_DIM);
+    this.tm.fill(0, b * NT, (b + 1) * NT); this.tn.fill(0, b * NT, (b + 1) * NT);
+    this.diet[b] = plan.diet; this.bands[b] = plan.bands; this.spots[b] = plan.spots;
+    this.wears[b] = this.nearest(v, si, Infinity, true);
+    if (this.wears[b] < 0) this.colour(b); // the first species of a world shows its own colourway at once
+    return b;
+  }
+
+  /** Give b its own colourway: the one farthest from every other live, coloured species of the same chemistry. */
+  private colour(b: number): void {
+    const si = this.silicon[b] === 1, accents = si ? ACCENTS_SI : ACCENTS_C;
+    let bestH = 0.5, bestA = accents[0], bestS = -1;
+    for (let hi = 0; hi < HUES; hi++) {
+      // centre first, then outward: 0.5, 0.375, 0.625, ... so ties keep the palette's reference colour
+      const h = 0.5 + (hi % 2 === 1 ? -1 : 1) * Math.ceil(hi / 2) / (HUES - 1);
+      for (const a of accents) {
+        if (!accentOk(si, h, a)) continue;
+        let s = Infinity;
+        for (let o = 0; o < this.max; o++) {
+          if (o === b || !this.used[o] || !this.coloured[o] || this.live[o] === 0 || this.silicon[o] !== this.silicon[b]) continue;
+          const dh = h - this.hue[o], da = 0.35 * (a - this.accent[o]);
+          s = Math.min(s, dh * dh + da * da);
+        }
+        if (s > bestS + 1e-9) { bestS = s; bestH = h; bestA = a; }
+      }
+    }
+    this.hue[b] = bestH; this.accent[b] = bestA; this.coloured[b] = 1; this.wears[b] = b;
+  }
+}
