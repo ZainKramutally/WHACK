@@ -1095,7 +1095,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
-  let fGravity = 1, fDt = 1 / 60;
+  let fGravity = 1, fDt = 1 / 60, warnedNear = false;
   let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
   // Ground cache: about 1k height samples a frame (one per creature, plus posed feet) became a resample only after a
@@ -1197,7 +1197,18 @@ export function createFauna(app: App): FaunaPart {
       }
       if (e.desc) {
         S = s; EX = e.x; EY = y0; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
-        const ok = e.desc.kind === 'radial' ? drawRadialNear(e, e.desc, ft, mode) : drawAxialNear(e, e.desc, ft, mode);
+        for (let i = 0; i < LOFTS.length; i++) saveL[i] = LOFTS[i].n;
+        for (let i = 0; i < parts.length; i++) saveP[i] = parts[i].n;
+        let ok = false;
+        try {
+          ok = e.desc.kind === 'radial' ? drawRadialNear(e, e.desc, ft, mode) : drawAxialNear(e, e.desc, ft, mode);
+        } catch (err) {
+          // a near draw that throws never stops the frame: undo what it wrote; this creature stays a posed proxy for good
+          for (let i = 0; i < LOFTS.length; i++) LOFTS[i].n = saveL[i];
+          for (let i = 0; i < parts.length; i++) parts[i].n = saveP[i];
+          e.desc = null; e.plan = null; e.sw = null; e.swTried = true;
+          if (!warnedNear) { warnedNear = true; console.warn('fauna: near-LOD draw failed; that creature stays a proxy', err); }
+        }
         if (ok) {
           e.tier = 2;
           if (live && e.bell && e.bellS) {
