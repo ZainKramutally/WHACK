@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EXTRAPOLATE_CAP, IDLE_BL, WALK_EASE, gaitStep, halfStride, slewAngle, turnRateMax, armPhase, armStance, bellPulse, fadeScale, gaitFoot, interpPose, lerpAngle, limbPhaseOffset, rollAngle, snapDeg, solveTwoBone,
-  STANCE, swayOffset, swimWave,
+  STANCE, swayOffset, swimWave, swimY, SWIM_MARGIN, SWIM_EMBED,
 } from './motion';
 
 describe('interpolation', () => {
@@ -123,5 +123,42 @@ describe('walking gait (distance-integrated)', () => {
     expect(slewAngle(3, -3, 0.1)).toBeCloseTo(3.1, 9); // across ±π, the short way
     expect(slewAngle(0, 0.05, 0.1)).toBeCloseTo(0.05, 9);
     expect(turnRateMax(20)).toBeLessThan(turnRateMax(5));
+  });
+});
+
+describe('swimY: swimmers stay in the water', () => {
+  // a body 1 m tall resting on y0 (lo 0, hi 1)
+  it('deep water: unchanged, 35% of the way up from the seabed', () => {
+    const r = swimY(-20, 0, 0, 1);
+    expect(r.beached).toBe(false);
+    expect(r.y0).toBeCloseTo(-20 + 20 * 0.35);
+  });
+  it('shallow water: the top stays a margin under the surface', () => {
+    const r = swimY(-1.5, 0, 0, 1);
+    expect(r.beached).toBe(false);
+    expect(r.y0 + 1).toBeLessThanOrEqual(-SWIM_MARGIN + 1e-9);
+    expect(r.y0).toBeGreaterThanOrEqual(-1.5); // and not into the seabed while there is room
+  });
+  it('very shallow water: sinks into the seabed, at most 40% of its height', () => {
+    const r = swimY(-0.9, 0, 0, 1);
+    expect(r.beached).toBe(false);
+    expect(r.y0 + 1).toBeLessThanOrEqual(-SWIM_MARGIN + 1e-9);
+    expect(-0.9 - r.y0).toBeGreaterThan(0);
+    expect(-0.9 - r.y0).toBeLessThanOrEqual(SWIM_EMBED + 1e-9);
+  });
+  it('water too shallow even with the embed: beached on the seabed at the embed limit', () => {
+    const r = swimY(-0.3, 0, 0, 1);
+    expect(r.beached).toBe(true);
+    expect(r.y0).toBeCloseTo(-0.3 - SWIM_EMBED);
+  });
+  it('dry cell or no sea: beached, lying on the ground', () => {
+    expect(swimY(2, 0, 0, 1)).toEqual({ y0: 2, beached: true });
+    expect(swimY(-5, -Infinity, 0, 1)).toEqual({ y0: -5, beached: true });
+  });
+  it('a body centred below its y0 (lo < 0) rests its bottom on the ground and never sinks past the embed', () => {
+    expect(swimY(1, 0, -0.5, 0.5).y0).toBeCloseTo(1.5);
+    const r = swimY(-3, 0, -2, 2); // 4 m tall in 3 m of water
+    expect(r.y0 + 2).toBeLessThanOrEqual(-SWIM_MARGIN + 1e-9);
+    expect(-3 - (r.y0 - 2)).toBeLessThanOrEqual(SWIM_EMBED * 4 + 1e-9);
   });
 });

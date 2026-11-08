@@ -192,3 +192,23 @@ function layPoint(a: Float32Array, i: number, pivotY: number): void {
   const x = a[i], y = a[i + 1] - pivotY;
   a[i] = y; a[i + 1] = pivotY - x;
 }
+
+// --- swimmer depth ----------------------------------------------------------------------------------------
+export const SWIM_MARGIN = 0.15; // m (drawn): a swimmer's top stays at least this far under the surface
+export const SWIM_EMBED = 0.4;   // a swimmer in water shallower than its body may sink at most this share of its height into the seabed
+
+/**
+ * Where a swimmer is drawn. lo and hi are the drawn body's bottom and top above y0 (metres). In water it sits 35% of the
+ * way up from the seabed, then is clamped so its top stays SWIM_MARGIN under the surface, sinking at most SWIM_EMBED of
+ * its height into the seabed. A swimmer with no water over it (sea ≤ ground, or no sea: pass -Infinity) is beached,
+ * lying on the ground; one in water too shallow even with the embed lies on the seabed at the embed limit, beached too.
+ * Beached swimmers are drawn with their stroke frozen, so a fish is never drawn swimming in the air.
+ */
+export function swimY(ground: number, sea: number, lo: number, hi: number, margin = SWIM_MARGIN): { y0: number; beached: boolean } {
+  const rest = ground - lo; // body bottom on the ground
+  if (!(sea > ground)) return { y0: rest, beached: true };
+  const floor = rest - SWIM_EMBED * Math.max(0, hi - lo);
+  const cap = sea - margin - hi;
+  if (cap < floor) return { y0: floor, beached: true };
+  return { y0: Math.max(floor, Math.min(cap, ground + (sea - ground) * 0.35)), beached: false };
+}

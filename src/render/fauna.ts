@@ -32,7 +32,7 @@ import {
   armRods, beadLayout, capsuleLayout, limbJoints, raySphere, raySphereEntry, patchToWorld, type BeadLayout, type Vec3,
 } from './layout';
 import {
-  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave,
+  armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY,
   turnRateMax,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
@@ -109,6 +109,8 @@ interface Entry {
   sw: Swimmer | null; swTried: boolean; swPhase: number; soc: number;
   /** Swimmer LOD: ranked camera distance (sticky while it is drawn as a swimmer) and whether it was last frame. */
   swRank: number; swOn: boolean;
+  /** A swimmer with no water to swim in (a dry cell, or too shallow): drawn lying still, its stroke frozen at beachT. */
+  beached: boolean; beachT: number;
   /** Ground under it when last drawn (the view test's sphere height). */
   yDrawn: number;
   /** Cached ground: the last sample (height, slope, where, terrain stamp); resampled after 0.25 m or a terrain change. */
@@ -407,7 +409,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
-      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false, beached: false, beachT: 0, yDrawn: 0, gH: 0, gSx: 0, gSz: 0, gX: 0, gZ: 0, gStamp: -1,
       lastSeen: frame, glow, silicon, scale, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, walkW: 0, hW: 0, turn: 0, curl: plan?.curl ?? 0,
@@ -1190,7 +1192,18 @@ export function createFauna(app: App): FaunaPart {
       y0 = Math.max(ground, 0.5 * (e.gHead + e.gTail) - 0.02 * (hx - tx));
     } else if (e.pitch !== 0) e.pitch += (0 - e.pitch) * Math.min(1, fDt / PITCH_EASE);
     if (mode === LOCOMOTION.hover) y0 = ground + (ALT_MAX_M * Math.tanh((e.alt ?? 0) / ALT_H0_M) + drawnLength(e.scale, e.g) * fBoost * Math.min(1, (e.alt ?? 0) / (3 * e.scale)) * (0.9 + 0.25 * Math.sin(ft * 1.3 + e.id))) * alpha;
-    else if (mode === LOCOMOTION.swim && fSeaThere && ground < fSea) y0 = ground + (fSea - ground) * 0.35;
+    else if (mode === LOCOMOTION.swim) {
+      // Keep the whole drawn body under the surface (and at most 40% into the seabed); with no water, beach it. The body
+      // spans the bead layout (y0 … y0 + 2·centreY·s) or, once it has one, the aquatic body around y0 + centreY·s: the
+      // union of both, so every tier (and a fallback between them) sits at the same height.
+      const c = e.layout.centreY * s, hS = e.sw ? swimHalfH(e.sw) * swimScale(e, alpha) : 0;
+      const sy = swimY(ground, fSeaThere ? fSea : -Infinity, Math.min(0, c - hS), Math.max(2 * c, c + hS));
+      y0 = sy.y0;
+      if (sy.beached && !e.beached) e.beachT = ft;
+      e.beached = sy.beached;
+    }
+    if (mode !== LOCOMOTION.swim) e.beached = false;
+    const tA = e.beached ? e.beachT : ft; // a beached swimmer's pose time: its stroke stops
 
     const lay = e.layout;
     const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
@@ -1213,8 +1226,8 @@ export function createFauna(app: App): FaunaPart {
     const s0 = fBoost * drawnFactor(e.scale, e.g);
     PL_H = e.gH; PL_SX = e.gSx; PL_SZ = e.gSz; PL_X = e.gX; PL_Z = e.gZ;
     const feetOn = tier === 2 ? fHeight : planeAt;
-    if (lay.radial) animateRadial(e, ft, s0, mode, feetOn, y0, cosH, sinH);
-    else animate(e, ft, s0, mode, feetOn, y0, cosH, sinH);
+    if (lay.radial) animateRadial(e, tA, s0, mode, feetOn, y0, cosH, sinH);
+    else animate(e, tA, s0, mode, feetOn, y0, cosH, sinH);
     if (tier === 2) {
       if (!e.desc && e.plan) {
         try {
@@ -1227,7 +1240,7 @@ export function createFauna(app: App): FaunaPart {
         const sw = swimmerOf(e);
         if (sw) {
           S = s; EX = e.x; EY = y0 + lay.centreY * s; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
-          SW_S = (drawnLength(e.scale, e.g) / drawnLength(e.scale, 1)) * alpha * fBoost;
+          SW_S = swimScale(e, alpha);
           for (let i = 0; i < LOFTS.length; i++) saveL[i] = LOFTS[i].n;
           for (let i = 0; i < parts.length; i++) saveP[i] = parts[i].n;
           try {
@@ -1246,7 +1259,7 @@ export function createFauna(app: App): FaunaPart {
         for (let i = 0; i < parts.length; i++) saveP[i] = parts[i].n;
         let ok = false;
         try {
-          ok = e.desc.kind === 'radial' ? drawRadialNear(e, e.desc, ft, mode) : drawAxialNear(e, e.desc, ft, mode);
+          ok = e.desc.kind === 'radial' ? drawRadialNear(e, e.desc, tA, mode) : drawAxialNear(e, e.desc, tA, mode);
         } catch (err) {
           // a near draw that throws never stops the frame: undo what it wrote; this creature stays a posed proxy for good
           for (let i = 0; i < LOFTS.length; i++) LOFTS[i].n = saveL[i];
@@ -1266,6 +1279,19 @@ export function createFauna(app: App): FaunaPart {
       }
     }
     drawFar(e, s, y0, cosH, sinH, scratch, rodScratch);
+  }
+
+  /** The aquatic body's drawn scale (it is built at adult drawn length; growth, fade and the boost scale it). */
+  function swimScale(e: Entry, alpha: number): number {
+    return (drawnLength(e.scale, e.g) / drawnLength(e.scale, 1)) * alpha * fBoost;
+  }
+
+  /** Half the aquatic body's height around its centre, in its build metres (fins and sails included; bells use frameR). */
+  function swimHalfH(sw: Swimmer): number {
+    const p = sw.params;
+    if (p.plan === 'bell') return sw.frameR;
+    if (p.chemistry === 'silicon') return sw.L * (0.5 * p.aspect + 0.1); // a rower's hub, arms level
+    return sw.L * (0.5 * p.aspect * p.depth + Math.max(p.fins.dorsal, p.fins.ventral, 0.5 * p.tailSize));
   }
 
   /** Proxies: ellipsoid beads (and round limb bones), or prisms for radial bodies, from rest or posed arrays. */
@@ -1398,7 +1424,7 @@ export function createFauna(app: App): FaunaPart {
         e.alt = e.alt === undefined ? altNow : e.alt + (altNow - e.alt) * 0.1;
         const gNow = growthLength(buf[o + OrganismField.grown]);
         e.g = e.born === t ? gNow : e.g + (gNow - e.g) * 0.1;
-        if (mode === LOCOMOTION.swim && e.sw) {
+        if (mode === LOCOMOTION.swim && e.sw && !e.beached) { // a beached swimmer's stroke stays frozen
           // stroke rate from the sim's speed: a cycle carries the body slip·λ·L (wave) or one stroke (row, jet)
           const k = e.sw.kin, r = drawnLength(e.scale, e.g) / drawnLength(e.scale, 1);
           const perCycle = (k.kind === 'wave' ? k.slip * k.lambda * e.sw.L : k.stroke) * r * boost;
