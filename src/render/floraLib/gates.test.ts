@@ -409,3 +409,28 @@ function demoWorld(world0: WorldConfig, light: number, air: number, heatBand: nu
   const sp = spawnPoint(terrain, st, sea);
   return Object.assign(placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, null, shapesOf()), { inp, terrain, sea });
 }
+
+describe('A5 kelp forests', () => {
+  const deep = (d: number, over: Partial<VisualInputs> = {}) => shore({}, { terrain: { rise: 1, progress: {}, height: () => -d, patchSize: PATCH }, ...over });
+  const kelp = (inp: VisualInputs) => {
+    const l = placed(inp, shapesOf()), out: { cell: number; top: number; y: number }[] = [];
+    for (let i = 0; i < l.n; i++) {
+      if (keyOf(l, i) !== 'bladderKelp#0') continue;
+      const a = lib.archetypes[l.arch[i]];
+      out.push({ cell: l.cell[i], y: l.y[i], top: l.y[i] - 0.03 * l.h[i] - l.sink[i] + (a.height / a.size) * l.h[i] });
+    }
+    return out;
+  };
+  it('deep submerged cells hold several stalks whose tops reach the surface, down to 45 m', () => {
+    const k = kelp(deep(30));
+    expect(k.length).toBeGreaterThan(0);
+    const per = new Map<number, number>();
+    for (const s of k) { per.set(s.cell, (per.get(s.cell) ?? 0) + 1); expect(Math.abs(s.top)).toBeLessThan(0.6); }
+    expect(Math.max(...per.values())).toBeGreaterThan(1);
+  });
+  it('grows nothing past the light limit, with no biomass, or in frozen seas', () => {
+    expect(kelp(deep(60))).toHaveLength(0);
+    expect(kelp(deep(30, { flora: new Float32Array(64 * 64 * 2) }))).toHaveLength(0);
+    expect(kelp(deep(30, { stats: { ...makeStubVisualInputs().stats, temperature: -5 }, frozen: true }))).toHaveLength(0);
+  });
+});

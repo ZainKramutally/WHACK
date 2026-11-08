@@ -61,17 +61,22 @@ export function mineralByRank(carbon: boolean, rank: number): string {
 export const AIR_FLOAT = 5;
 /** The aquatic mid slot (A5 water, A8): at most one per cell with biomass B ≥ AQUATIC_B, inside a depth window. */
 export const AQUATIC_B = 0.3;
+/** Giant kelp (Macrocystis) reaches ~45 m; deeper water is too dark for the canopy to be fed from the seabed
+ * [sci rule of thumb, drawn as a hard threshold: art, assumption]. */
+export const KELP_MAX_DEPTH = 45;
 export interface Aquatic {
   key: string; depth: readonly [number, number]; /** drawn top relative to the sea (m) */ top: number;
   /** A second species for deeper water (its own window), when the plant's depth is past this one's. */
   deep?: Aquatic;
+  /** Water deeper than this (m) grows a forest: up to `stalks` plants per cell, clumped by the grove field [art]. */
+  forest?: { fromDepth: number; stalks: number };
 }
 /** This world's aquatic mid, or null (frozen seas grow none). Kelp tops float at the surface; reefs and glass kelp stay
  * under it. Silicon: whisker reefs in the shallows, S4 glass kelp in deeper water (the clear liquid nitrogen lets light
  * down, so tall crystal blades can reach up [speculative]). */
 export function aquaticFor(e: WorldEnv): Aquatic | null {
   if (e.frozen) return null;
-  if (e.carbon) return e.water ? { key: 'bladderKelp#0', depth: [2, 15], top: 0.3 } : null;
+  if (e.carbon) return e.water ? { key: 'bladderKelp#0', depth: [2, KELP_MAX_DEPTH], top: 0.3, forest: { fromDepth: 15, stalks: 4 } } : null;
   return { key: 'whiskerReef#0', depth: [1, 4], top: -0.5, deep: { key: 'glassKelp#0', depth: [4, 12], top: -0.5 } };
 }
 

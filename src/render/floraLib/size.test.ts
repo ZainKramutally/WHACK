@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { makeStubVisualInputs } from '../visualInputs';
 import type { CrustPickId, VisualInputs, WorldConfig } from '../../worlds/types';
-import { ARCHETYPE_META, buildFloraLibrary, type FloraLibrary, type FloraRole } from './index';
+import { ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, type FloraLibrary, type FloraRole } from './index';
 import { makePlantList, placePlants, type PlantList, type PlantShapes } from './place';
 import { createTerrain, seaLevelForCover, spawnPoint } from '../../gen/terrain';
 import { crustMap, withCrustChoice } from '../../gen/crust';
@@ -40,9 +40,11 @@ function demoWorld(world0: WorldConfig, light: number, air: number, heatBand: nu
   return { list: placePlants(inp, PATCH, { x: sp.x, z: sp.z }, makePlantList(), undefined, clear, shapesOf()), sp, clear };
 }
 
+// carbon kelp forests stand as tall as the water is deep (up to 45 m), so the size-class checks leave them out
+const AQUATIC = new Set(['bladderKelp#0']);
 const meanBy = (l: PlantList) => {
   const s: Record<FloraRole, number> = { ground: 0, mid: 0, giant: 0 }, n: Record<FloraRole, number> = { ground: 0, mid: 0, giant: 0 };
-  for (let i = 0; i < l.n; i++) { const r = ARCHETYPE_META[l.arch[i]].role; s[r] += l.h[i]; n[r]++; }
+  for (let i = 0; i < l.n; i++) { if (AQUATIC.has(ARCHETYPE_KEYS[l.arch[i]])) continue; const r = ARCHETYPE_META[l.arch[i]].role; s[r] += l.h[i]; n[r]++; }
   return { mean: Object.fromEntries((['ground', 'mid', 'giant'] as const).map((r) => [r, n[r] ? s[r] / n[r] : 0])) as Record<FloraRole, number>, n };
 };
 
@@ -93,6 +95,7 @@ describe('plant size levels (§2d)', () => {
     expect(Array.from(a.h.subarray(0, a.n))).toEqual(Array.from(b.h.subarray(0, b.n)));
     for (const l of [a, SILICON_DEF().list]) for (let i = 0; i < l.n; i++) {
       const r = ARCHETYPE_META[l.arch[i]].role;
+      if (AQUATIC.has(ARCHETYPE_KEYS[l.arch[i]])) continue; // aquatic mids are sized to the water depth, not a size class
       expect(l.h[i]).toBeLessThanOrEqual(SIZE_BAND[r][1] + 1e-4);
       expect(l.h[i]).toBeGreaterThan(0);
     }

@@ -37,6 +37,8 @@ const SUPER = 5;
 export const GIANT_CANOPY = 0.2, MID_CANOPY = 0.04;
 /** Mid plants thin from MID_THIN_START to 30% at MID_THIN_END metres from the camera. */
 const MID_THIN_START = 70, MID_THIN_END = 200;
+/** Kelp-forest stalks per LOD stay under the mid bucket's capacity (buckets.ts BUCKET_CAP.mid = 1024), leaving room for the first stalks. */
+const KELP_BUDGET = 700;
 /** Near-LOD radius per role (m). At 30 m the pixel look (360 px internal height) gives ~10 px per metre, so ground cover
  * beyond it draws its far LOD; the dark foreground step (≤ 30 m) is always near. */
 export const LOD_NEAR: Record<FloraRole, number> = { ground: 30, mid: 40, giant: 90 };
@@ -354,6 +356,7 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
   };
   // Giants first (fewest, most important to the silhouette), then mid groves, then ground cover, so a full list drops
   // ground cover rather than the landmarks.
+  const kelpN = [0, 0]; // aquatic mids placed per LOD this rebuild (one draw bucket each)
   for (let pass = 0; pass < 3; pass++) {
     if (pass === 1) placeEmergents();
     for (let c = 0; c < cells; c++) {
@@ -402,13 +405,26 @@ export function placePlants(inputs: VisualInputs, patch: number, cam: { x: numbe
       } else if (pass === 1) {
         // the aquatic mid slot (A5 kelp, A8 whisker reef): one per lush submerged cell in the grove field, inside its
         // depth window and sized to the water; before land life too (life starts in the shallows)
-        if (aquatic && total >= AQUATIC_B && hash01(c, 7, 40) < smooth(AQUATIC_B, 0.9, total) * groveAt(col, row)) {
-          const x = ccx + (hash01(c, 7, 41) - 0.5) * cell, z = ccz + (hash01(c, 7, 42) - 0.5) * cell;
-          const d = Math.hypot(x - cam.x, z - cam.z);
-          if (!cleared(x, z, 0) && hash01(c, 7, 46) < 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) {
+        if (aquatic && total >= AQUATIC_B) {
+          const grove = groveAt(col, row), lush = smooth(AQUATIC_B, 0.9, total);
+          // deep cells (a kelp forest) hold several stalks, thickest in the grove field; shallows keep one
+          const deepCell = aquatic.forest && sea - yAt(ccx, ccz) > aquatic.forest.fromDepth;
+          const stalks = deepCell ? aquatic.forest!.stalks : 1;
+          for (let k = 0; k < stalks; k++) {
+            if (k === 0 ? hash01(c, 7, 40) >= lush * (deepCell ? 0.35 + 0.65 * grove : grove) : hash01(c, 7 + k, 40) >= lush * grove * (1 - 0.15 * k)) continue;
+            const x = ccx + (hash01(c, 7 + k, 41) - 0.5) * cell, z = ccz + (hash01(c, 7 + k, 42) - 0.5) * cell;
+            const d = Math.hypot(x - cam.x, z - cam.z);
+            // extra stalks of a forest thin out with distance (30 to 130 m) and stop at the mid bucket's capacity
+            const lod = d < LOD_NEAR.mid ? 0 : 1;
+            if (k > 0 && (hash01(c, 7 + k, 47) < smooth(30, 130, d) || kelpN[lod] >= KELP_BUDGET)) continue;
+            if (cleared(x, z, 0) || hash01(c, 7 + k, 46) >= 1 - 0.7 * smooth(MID_THIN_START, MID_THIN_END, d)) continue;
             const y = yAt(x, z), depth = sea - y;
             const aq = depth <= aquatic.depth[1] || !aquatic.deep ? aquatic : aquatic.deep;
-            if (depth >= aq.depth[0] && depth <= aq.depth[1]) push(aq.key, x, z, depth, hash01(c, 7, 45) * 6.283, 'mid', d, false, seaForm(c).glow, y, c, GROUND_SLOT - MID_SLOT, sea + aq.top);
+            if (depth >= aq.depth[0] && depth <= aq.depth[1]) {
+              const before = out.n;
+              push(aq.key, x, z, depth, hash01(c, 7 + k, 45) * 6.283, 'mid', d, false, seaForm(c).glow, y, c, GROUND_SLOT - MID_SLOT + k, sea + aq.top);
+              if (out.n > before) kelpN[lod]++;
+            }
           }
         }
         if (canopy < MID_CANOPY || !inputs.lifeOnLand) continue;

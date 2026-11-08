@@ -100,7 +100,7 @@ Exclusions keep at most two gated mids and one gated giant alive on carbon at on
 | A2 `woollyRosette` | carbon, giant, 20–30 m | land, `T < 8 °C`, `rank > 0.7`, `L ≥ 0.4`, canopy ≥ `GIANT_CANOPY` | `parasolTitan`/`coilSpire` in that cell | A3 (temperature gates don't overlap: < 8 vs ≥ 10 °C) |
 | A3 `stiltMangrove` | carbon, mid, 6–12 m | row: `T ≥ 10 °C` (frost limit), `N ≥ 0.3×`, canopy ≥ `MID_CANOPY`, cell touches the shore. Plant: own ground 0.2–3 m above the sea | `weeper#3`/`ribFan` in shore cells | A1, A2 |
 | A4 `cushionMound` | carbon, ground, 0.3–1.2 m | `T < 0 °C` (world-wide) | `groundCover#2` in every carbon ground list | none (net 0 draws) |
-| A5 `bladderKelp` | carbon, mid, height = water depth + 0.5 m (5–15 m) | water niche: submerged, water solvent, not frozen, depth 2–15 m, `B ≥ 0.3`. Air niche: land, `airDensity ≥ 5 ×` Earth's | water: a new aquatic mid slot (1 per cell max); air: `weeper` entries | none |
+| A5 `bladderKelp` | carbon, mid, height = water depth + 0.5 m (2–45 m) | water niche: submerged, water solvent, not frozen, depth 2–45 m, `B ≥ 0.3`. Air niche: land, `airDensity ≥ 5 ×` Earth's | water: a new aquatic mid slot (1 per cell max in water shallower than 15 m; up to 4 stalks per cell deeper, a kelp forest); air: `weeper` entries | none |
 | A6 `airKelpFloat` | silicon, giant, 20–35 m | row: `airDensity ≥ 5 ×` Earth's (silicon default ≈ 11 ×), canopy ≥ `GIANT_CANOPY`. Plant: the giant checks in place.ts, plus the mid/giant sink rule for its tether foot | `prismTitan#2` (candelabra), patch-wide because the gate is world-wide: net 0 draws | none |
 | A7 `frostFern` | silicon, ground, 0.4–1.5 m | `supply(si) × B > 1.2` (silicide margins, lush) | `crystalGround#2` (needle tuft) in that cell | none |
 | A8 `whiskerReef` | silicon, mid, height = depth − 0.5 m (3–10 m) | submerged, not frozen, depth 1–12 m, `B ≥ 0.3` | a new aquatic mid slot (1 per cell max) | none |
@@ -161,6 +161,7 @@ counts never change:
 - **Silhouette.** A curling stipe with round bladders at blade bases, top bladder largest. **In water its height is the
   water depth + 0.5 m, so the top floats sit on the surface**: from the shore, a bead mat on the sea that reads at mid
   distance and tracks sea level. In air: swaying vertical bead strings. **Cost:** near ≈ 300, far ≈ 110.
+- **Forests (ocean worlds, [art], `assumption`).** Cells deeper than 15 m hold up to 4 stalks, clumped by the grove field and thinned with distance (extras fade between 30 and 130 m; 700 per LOD at most, inside the mid bucket). Stalks reach the surface, so a 40 m column of water draws a 40 m kelp. Deeper than 45 m (Macrocystis's real maximum; darkness is the [sci] rule of thumb, the hard cut-off is art) nothing grows. Still biomass-driven, water only, none under ice.
 
 ### A6 Air-kelp float (silicon): "thick nitrogen air holds crystal floats aloft"
 - **Why:** 3.6 bar of N₂ at −183 °C is ≈ 13.5 kg/m³ (P·M/RT), ≈ 11 × Earth's air, so a gas float gives ≈ 11 × the lift
