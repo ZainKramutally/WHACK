@@ -181,6 +181,20 @@ describe('loft writer', () => {
 });
 
 describe('fauna adapter', () => {
+  it('swimmers carry no pads on any tier: no flapping beads, an upright fluke drawn as two rooted fin lobes', () => {
+    const plan = { ...develop(grazer, day, water), finSpan: 0.8, tailKind: 'fluke' as const, tailSegments: 1 };
+    const lay = beadLayout(plan); // the far proxies, the bestiary sprite and the card's bead fallback all draw these beads
+    expect(lay.beads.filter((b) => (b.flap ?? 0) > 0)).toEqual([]);
+    expect(lay.beads[0].sy ?? 1).toBeGreaterThan(lay.beads[0].sz ?? 1); // the caudal fin stands upright, thin across
+    const d = describeFauna(plan, lay);
+    if (d.kind !== 'axial') throw new Error('axial expected');
+    const tail = d.parts.filter((q) => q.a === 0 && q.b < 0);
+    expect(tail.map((q) => q.type)).toEqual([PART.fin, PART.fin]);
+    for (const q of tail) expect(q.sx * q.sy * q.sz).toBeGreaterThan(0); // right-handed: the fin is not drawn inside out
+    expect(Math.sign(tail[0].sy)).toBe(-Math.sign(tail[1].sy)); // one lobe up, one down
+    expect(beadLayout({ ...plan, wingSpan: 1, finSpan: 0 }).beads.some((b) => (b.flap ?? 0) >= 0.9)).toBe(true); // hoverers keep wings
+  });
+
   it('carbon: a spine loft and parts anchored to real beads, legs on the layout’s rigs, ring eyes', () => {
     const plan = develop(hunter, day, water);
     const lay = beadLayout(plan);

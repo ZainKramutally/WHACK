@@ -102,7 +102,9 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
   const skipTip = plan.tailKind === 'fluke' || plan.tailKind === 'club';
   const spine: LoftRing[] = [];
   for (let j = skipTip ? 1 : 0; j < N; j++) spine.push({ bead: j, slot: beads[j].tone === BEAD_ACCENT ? SLOT.accent : SLOT.body });
-  if (plan.tailKind === 'fluke') parts.push(part({ type: PART.plateC, a: 0, slot: SLOT.accent, sx: 0.5, sy: 0.12, sz: 2.2 }));
+  // fluke: an upright two-lobed caudal fin of fin parts rooted on the tail tip and swept back, as the near LOD's lunate
+  // tail (no flat pad). Chord back, span up or down, thickness flipped to keep each basis right-handed.
+  if (plan.tailKind === 'fluke') for (const up of [1, -1]) parts.push(part({ type: PART.fin, a: 0, slot: SLOT.accent, ox: 0.35, sx: -1.1, sy: 1.6 * up, sz: -0.4 * up }));
   if (plan.tailKind === 'club') parts.push(part({ type: PART.knob, a: 0, slot: SLOT.accent, sx: 1.05, sy: 0.95, sz: 1.05 }));
   const mids = 2 * spine.length - 1 + 6 <= AX_RINGS ? 1 : 0;
 
@@ -118,8 +120,8 @@ function axialDesc(plan: BodyPlan, lay: BeadLayout): AxialDesc {
     } else if (b.tone === BEAD_SPOT) {
       parts.push(part({ type: PART.knob, a: i, slot: glowing ? SLOT.glow : SLOT.accent, glow: glowing ? plan.glow : 0, sx: 0.9, sy: 0.9, sz: 0.5 }));
     } else if (b.tone === BEAD_ACCENT && (b.flap ?? 0) > 0) {
-      // membrane wings (flap 1): thin discs, accent. Swimmers' paddle fins (flap 0.6) are not drawn as discs (they read
-      // as detached pads): near swimmers get real fins from faunaLib/aquatic, and the bead fallback stays finless.
+      // membrane wings on hoverers (flap 1): thin discs, accent. Swimmers have no flapping beads (creatureLayout: their
+      // fins are the near LOD's, faunaLib/aquatic), so no pad is ever drawn on a swimmer.
       if ((b.flap ?? 0) >= 0.9) parts.push(part({ type: PART.plateC, a: i, slot: SLOT.accent, sx: 0.95 * (b.sx ?? 1), sy: 0.9 * (b.sy ?? 1), sz: 1.0 * (b.sz ?? 1) }));
     } else if (b.tone === BEAD_ACCENT) {
       // dorsal crest blade → a scalloped frill standing on the back (x backward along the body, y up)

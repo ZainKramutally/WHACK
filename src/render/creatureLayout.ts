@@ -156,7 +156,8 @@ function axialLayout(plan: BodyPlan): BeadLayout {
       tailBeads.push({ r: rTail * (0.12 + 0.5 * f * f), sx: 1.8, sy: 1, sz: 1, tone: BEAD_BODY });
     }
   } else if (plan.tailKind === 'fluke') {
-    tailBeads.push({ r: rTail * 1.35, sx: 0.45, sy: 0.22, sz: 2.4, tone: BEAD_ACCENT });
+    // an upright caudal fin (thin across, tall), as the near LOD's lunate tail (faunaLib/aquatic), not a flat pad
+    tailBeads.push({ r: rTail * 1.35, sx: 0.45, sy: 2.4, sz: 0.22, tone: BEAD_ACCENT });
     for (let k = 1; k < tail; k++) tailBeads.push({ r: rTail * 0.55, sx: 1, sy: 1, sz: 1, tone: BEAD_BODY });
   } else if (plan.tailKind === 'club') {
     tailBeads.push({ r: rTail * 1.35, sx: 1, sy: 1, sz: 1, tone: BEAD_PLATE });
@@ -270,14 +271,8 @@ function axialLayout(plan: BodyPlan): BeadLayout {
     }
   }
 
-  // Paddle fins on swimmers: a pair of flat blades amidships (and a tail fin from the tail kind).
-  if (plan.finSpan > 0.01) {
-    const p = spine[t0 + Math.floor(0.6 * (n - 1))];
-    const fr = p.r * (0.9 + 1.4 * plan.finSpan);
-    for (const side of [1, -1]) {
-      extras.push({ x: p.x, y: p.y - p.r * p.sy * 0.15, z: p.z + side * (p.r * 0.9 + fr * 0.8), r: fr, tone: BEAD_ACCENT, sx: 0.9, sy: 0.16, sz: 1.0, yaw: p.yaw, flap: 0.6 });
-    }
-  }
+  // Swimmers carry no paddle beads (owner feedback: flat pads read as round and detached). Their fins are drawn only by
+  // the near LOD (faunaLib/aquatic: small rooted fins, or a plesiosaur's flippers); the tail fin comes from the tail kind.
   // Membrane wings on hoverers: two broad flat sails per side that flap.
   if (plan.wingSpan > 0.01) {
     const p = spine[t0 + Math.floor(0.7 * (n - 1))];
