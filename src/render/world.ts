@@ -133,6 +133,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const counterpart = createCounterpart({
     // the producer card draws exactly the plants the world drew in the clicked cell (after the clearing and thinning)
     app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id), plantsIn: (cell) => flora.plantsIn(cell),
+    bakePlan: (plan) => fauna.bakePlan(plan), // the bestiary specimen view (no live organism)
   });
   const picker = createPicker({ app, bus, fauna, flora, getInputs: () => latest, getPatch: () => patch });
 

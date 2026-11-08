@@ -9,7 +9,8 @@ import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { Bus } from '../bus';
 import type { BusEvents, InspectTarget, VisualInputs, WorldConfig, WorldId } from '../worlds/types';
-import type { DevelopInputs } from '../sim/develop';
+import type { BodyPlan, DevelopInputs } from '../sim/develop';
+import { spritePixels } from './sprite';
 import { gasDensity } from '../sim/models';
 import { beadLayout, cellCentre } from './layout';
 import { floraForm } from './floraForm';
@@ -23,8 +24,6 @@ import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
 import { partGeometries } from './faunaLib/parts';
-import { faunaLook } from './faunaLib/species';
-import type { BodyPlan } from '../sim/develop';
 
 export interface CounterpartPart {
   /** Resolves when the swatch materials are compiled (never rejects). */
@@ -48,6 +47,8 @@ export interface CounterpartDeps {
   /** The plants the world drew in a flora cell at its last rebuild (FloraPart.plantsIn): the producer view draws exactly
    * these, so it matches the world after the spawn clearing, cliff skips and distance thinning. */
   plantsIn?: (cell: number) => PlacedPlant[];
+  /** A body plan as the near LOD draws it, with no live organism (fauna.bakePlan): the bestiary specimen view. */
+  bakePlan?: (plan: BodyPlan) => BakedCreature | null;
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -80,8 +81,11 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   let rect: { x: number; y: number; width: number; height: number } | null = null;
   let target: InspectTarget | null = null;
-  let bestiaryRect: { x: number; y: number; width: number; height: number } | null = null;
-  let bestiaryPlan: BodyPlan | null = null;
+  // The bestiary specimen page's view: its window and plan. The page and the inspect card are never open together
+  // (each closes the other), and whichever opened last owns the one view, so they never fight over the scene.
+  let specRect: { x: number; y: number; width: number; height: number } | null = null;
+  let specimen: BodyPlan | null = null, builtSpecimen: BodyPlan | null = null;
+  const viewRect = () => (specimen ? specRect : target ? rect : null);
   let builtFor = '';
   const disposables: { dispose(): void }[] = [];
 
@@ -279,6 +283,33 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     return true;
   }
 
+  /** A plan's sprite on a camera-facing plate: the specimen view's fallback when its plan can't be built in 3D. */
+  function spriteContent(plan: BodyPlan) {
+    const W2 = 80, H2 = 52, c = document.createElement('canvas');
+    c.width = W2; c.height = H2;
+    const g = c.getContext('2d');
+    if (g) { const img = g.createImageData(W2, H2); img.data.set(spritePixels(plan, W2, H2)); g.putImageData(img, 0, 0); }
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.MeshBasicNodeMaterial({ map: tex, transparent: true, fog: false });
+    const plate = new THREE.Mesh(geo(new THREE.PlaneGeometry(2.6, 1.7)), m);
+    disposables.push(tex, m);
+    plate.position.y = 0.6;
+    spritePlate = plate;
+    turntable.add(plate);
+  }
+  let spritePlate: THREE.Mesh | null = null;
+
+  /** The bestiary specimen: its plan as the world's near LOD draws it, else its bead layout, else its sprite. */
+  function specimenContent(plan: BodyPlan) {
+    const aspect = specRect ? specRect.width / specRect.height : 1.5;
+    const baked = deps.bakePlan?.(plan) ?? null;
+    if (baked && loftContent(baked, aspect)) return;
+    try {
+      beadsContent(beadLayout(plan), plan.chemistry === 'silicon', plan.diet, aspect, plan.hue, plan.accent);
+    } catch { clearContent(); spriteContent(plan); }
+  }
+
   /** The clicked creature itself, in its own chemistry: as the world draws it near (loft), else its bead layout. */
   function organismContent(id: number) {
     const own = deps.layoutOf?.(id);
@@ -404,19 +435,19 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function build(inputs: VisualInputs) {
-    if (bestiaryRect && bestiaryPlan) {
-      const key2 = `bestiary|${inputs.world.id}|${bestiaryPlan.scale}|${bestiaryPlan.hue}|${bestiaryPlan.accent}|${bestiaryPlan.girth}|${bestiaryPlan.segmentCount}|${bestiaryPlan.tiers}|${bestiaryPlan.symmetry}`;
-      if (key2 === builtFor) return;
-      builtFor = key2;
-      clearContent();
+    const other = deps.worldFor(inputs.world.id); // the view always shows this world's own thing
+    if (specimen) {
+      if (specimen === builtSpecimen) return;
+      builtSpecimen = specimen; builtFor = '';
+      clearContent(); spritePlate = null;
       cam.position.set(0, 1.1, 3.4);
       cam.lookAt(0, 0.45, 0);
-      const own = faunaLook(bestiaryPlan);
-      beadsContent(beadLayout(own.plan), own.plan.chemistry === 'silicon', own.diet, bestiaryRect.width / bestiaryRect.height, own.hue, own.accent);
+      setBackdrop(other);
+      specimenContent(specimen);
       r.compileAsync(scene, cam).catch(console.error);
       return;
     }
-    const other = deps.worldFor(inputs.world.id); // the view always shows this world's own thing
+    builtSpecimen = null;
     // A producer is always this world's own cell (no other-world view, owner ruling), and follows its live form: the view
     // rebuilds if the sea rises over it or its biomass mix shifts.
     const form = target?.kind === 'producer' ? floraForm(target.cell, inputs) : null;
@@ -476,33 +507,27 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     rect = w;
     if (!w) { builtFor = ''; clearContent(); }
   };
-  const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
-  const onClose = () => { rect = null; target = null; builtFor = ''; clearContent(); };
-  const onBestiaryWindow = (w: { x: number; y: number; width: number; height: number } | null) => {
-    bestiaryRect = w;
-    if (!w) { builtFor = ''; clearContent(); }
+  const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; specimen = null; specRect = null; builtSpecimen = null; };
+  const onClose = () => { rect = null; target = null; builtFor = ''; if (!specimen) clearContent(); };
+  const onSpecimen = (w: BusEvents['bestiary:window']) => {
+    if (w) { specimen = w.plan; specRect = w.rect; target = null; rect = null; return; } // the page takes the view
+    if (specimen) { specimen = null; specRect = null; builtSpecimen = null; builtFor = ''; clearContent(); }
   };
-  const onBestiarySpecimen = (e: { plan: BodyPlan } | null) => {
-    bestiaryPlan = e?.plan ?? null;
-    builtFor = '';
-    if (!e) clearContent();
-  };
+  bus.on('bestiary:window', onSpecimen);
   bus.on('inspect:window', onWindow);
   bus.on('inspect:open', onOpen);
   bus.on('inspect:close', onClose);
-  bus.on('bestiary:window', onBestiaryWindow);
-  bus.on('bestiary:specimen', onBestiarySpecimen);
 
   // Draw after the main frame: a second pass on the same canvas, scissored to the card's window.
   const unregisterOverlay = app.registerOverlay(() => {
-    const viewport = bestiaryRect && bestiaryPlan ? bestiaryRect : rect && target ? rect : null;
-    if (!viewport || viewport.width < 4 || viewport.height < 4) return;
+    const vr = viewRect();
+    if (!vr || vr.width < 4 || vr.height < 4) return;
     const prevAuto = r.autoClear;
     r.autoClear = false;
     r.setScissorTest(true);
-    r.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
-    r.setScissor(viewport.x, viewport.y, viewport.width, viewport.height);
-    cam.aspect = viewport.width / viewport.height;
+    r.setViewport(vr.x, vr.y, vr.width, vr.height);
+    r.setScissor(vr.x, vr.y, vr.width, vr.height);
+    cam.aspect = vr.width / vr.height;
     cam.updateProjectionMatrix();
     r.clearDepth(); // the swatch must not be tested against whatever depth the canvas holds
     r.render(scene, cam);
@@ -514,17 +539,17 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   return {
     ready,
     update(dt, _t, inputs) {
-      if ((!rect || !target) && (!bestiaryRect || !bestiaryPlan)) return;
+      if (!viewRect()) return;
       build(inputs);
       turntable.rotation.y += dt * 0.6;
+      if (spritePlate && spritePlate.parent === turntable) spritePlate.rotation.y = -turntable.rotation.y; // a flat sprite faces us
       if (notScanned && notScanned.parent === turntable) notScanned.rotation.y = -turntable.rotation.y; // keep the label facing us
     },
     dispose() {
       bus.off('inspect:window', onWindow);
       bus.off('inspect:open', onOpen);
       bus.off('inspect:close', onClose);
-      bus.off('bestiary:window', onBestiaryWindow);
-      bus.off('bestiary:specimen', onBestiarySpecimen);
+      bus.off('bestiary:window', onSpecimen);
       unregisterOverlay();
       clearContent();
       for (const m of matCache.values()) m.dispose();

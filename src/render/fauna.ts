@@ -44,7 +44,7 @@ import {
 } from './faunaLib/adapter';
 import { RING_STRIDE, circleSection, gridIndex, ngonSection, setRing, writeRings, type Section } from './faunaLib/loft';
 import { PartBatch, partBatches } from './faunaLib/parts';
-import { SpeciesBook, rememberLook, type SpeciesLook } from './faunaLib/species';
+import { SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './faunaLib/species';
 import { drawnFactor, drawnLength, growthLength } from './faunaLib/growth';
 import { buildSwimmer, type SwimPart, type SwimSink, type Swimmer } from './faunaLib/aquatic/build';
 import { swimmerParamsFromPlan } from './faunaLib/aquatic/fromPlan';
@@ -222,6 +222,13 @@ export interface FaunaPart {
     /** The creature as the near LOD draws it (loft and parts), at rest pose in body space, for the inspect live view. */
     bake?: () => BakedCreature | null;
   } | null;
+  /**
+   * A body plan as the near LOD draws it (loft and parts, rest pose, body space), with no live organism: the bestiary's
+   * specimen view, so extinct kinds work too. Drawn in the plan's species look (faunaLook); swimmers through the aquatic
+   * builder on a straight path, silicon walkers faceted. Null if it can't be built. Cached per plan object once it is
+   * in the species look.
+   */
+  bakePlan(plan: BodyPlan): BakedCreature | null;
   /** World position and bounding radius of an organism by id, if drawn. */
   locate(id: number): { x: number; y: number; z: number; radius: number } | null;
   /** Extra multiplier on top of the display-scale rule in layout.ts (default 1). Render-only illustration. */
@@ -1292,6 +1299,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
 
+  const planBakes = new WeakMap<BodyPlan, BakedCreature | null>(); // bakePlan, per plan object
   const part: FaunaPart = {
     scaleBoost: 1,
     count: 0,
@@ -1508,6 +1516,23 @@ export function createFauna(app: App): FaunaPart {
       // diet, hue and accent are the species colourway (what creatureColour needs to draw it as it looks in the world)
       const e = entries.get(id);
       return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet, hue: e.hue, accent: e.accent, bake: () => bakeNear(e) } : null;
+    },
+    bakePlan(raw) {
+      if (planBakes.has(raw)) return planBakes.get(raw) ?? null;
+      let out: BakedCreature | null = null, fromBook = false;
+      try {
+        // a stand-alone entry (never added to `entries`): the species look's colours and proportions, adult, at rest
+        const look = faunaLook(raw), drawn = look.plan;
+        fromBook = drawn !== raw; // faunaLook hands back the raw plan itself when the world hasn't drawn this one
+        const lk: SpeciesLook = { hue: look.hue, accent: look.accent, diet: look.diet, bands: drawn.bands, spots: drawn.spots };
+        const e = makeEntry(beadLayout(drawn), drawn, drawn.chemistry === 'silicon', drawn.glow, drawn.scale, -1, lk, true);
+        e.mode = drawn.mode; e.legged = drawn.legPairs > 0;
+        out = bakeNear(e);
+      } catch { out = null; }
+      // cache only a bake in the species look: one in the plan's own fallback colours is redone on the next open, so
+      // the view picks up the species colourway once the world has drawn the kind
+      if (fromBook) planBakes.set(raw, out);
+      return out;
     },
     locate(id) {
       for (let i = 0; i < pn; i++) if (pid[i] === id) return { x: px[i], y: py[i], z: pz[i], radius: pr[i] };

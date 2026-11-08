@@ -196,8 +196,9 @@ export interface BusEvents {
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };
   'inspect:window': { x: number; y: number; width: number; height: number } | null;
   'inspect:close': Record<string, never>;
-  'bestiary:specimen': { plan: BodyPlan } | null;
-  'bestiary:window': { x: number; y: number; width: number; height: number } | null;
+  /** UI → render: the bestiary specimen page's 3D window (CSS pixels) and the specimen's body plan, or null when the
+   *  page closes. One live view at a time: the page and the inspect card never show together. */
+  'bestiary:window': { rect: { x: number; y: number; width: number; height: number }; plan: BodyPlan } | null;
   /** Render → UI: the living thing under the pointer or gamepad reticle (a scanner lock), or null. Never sea, ground or sky.
    *  `rect` is its screen bounds in CSS pixels. While the same target stays locked, the render layer re-emits the SAME
    *  payload object each frame with `rect` updated in place, so the lock follows a moving target without allocating. */
