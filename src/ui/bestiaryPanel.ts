@@ -11,7 +11,6 @@ import type { LifeRegistry } from './lifeRegistry';
 import type { WorldConfig } from '../worlds/types';
 
 const TILE_W = 48, TILE_H = 34;   // sprite pixels on a tile (drawn 2× in CSS)
-const PAGE_W = 80, PAGE_H = 52;   // sprite pixels on the specimen page (drawn 3× in CSS)
 
 /** "1:05" for 65 s: time since Generate, on the snapshot clock. */
 export function clock(sec: number): string {
@@ -50,9 +49,8 @@ export function mountBestiary(
   const pageType = el('p', 'wu-sub');
   const pageStatus = el('p', 'wu-bt-status');
   const pageFrame = el('div', 'wu-bt-frame');
-  const pageCanvas = el('canvas', 'wu-bt-sprite');
-  pageCanvas.width = PAGE_W; pageCanvas.height = PAGE_H;
-  pageFrame.append(pageCanvas);
+  const pageViewport = el('div', 'wu-bt-viewport');
+  pageFrame.append(pageViewport);
   const pageRows = el('ul', 'wu-details');
   const pageNote = el('p', 'wu-why-line');
   page.append(pageTitle, pageX, pageType, pageStatus, pageFrame, pageRows, pageNote);
@@ -61,8 +59,10 @@ export function mountBestiary(
 
   let open = false;
   let pageName: string | null = null;
-  let drawnPlan: BodyPlan | undefined;
   const sprites = new WeakMap<BodyPlan, ImageData>();
+  let lastWindow = '';
+  let lastPageName: string | null = null;
+  let lastPagePlan: BodyPlan | undefined;
 
   function spriteCanvas(plan: BodyPlan | undefined): HTMLCanvasElement {
     const c = el('canvas', 'wu-bt-sprite');
@@ -120,11 +120,7 @@ export function mountBestiary(
     pageStatus.textContent = e.extinct ? `Extinct since ${clock(e.lastAliveSec)}` : `${e.alive} alive now`;
     pageStatus.classList.toggle('wu-bt-dead', e.extinct);
     page.classList.toggle('wu-specimen-extinct', e.extinct);
-    if (e.plan !== drawnPlan) {
-      drawnPlan = e.plan;
-      pageCanvas.getContext('2d')?.clearRect(0, 0, PAGE_W, PAGE_H);
-      if (e.plan) drawSprite(pageCanvas, e.plan);
-    }
+    pageFrame.classList.toggle('wu-bt-no-model', !e.plan);
     const rows: [string, string][] = [
       ['Found', e.found ? `${clock(e.foundAtSec ?? 0)} after Generate` : 'Never found alive'],
       ['First recorded', `${clock(e.firstSeenSec)} after Generate`],
@@ -138,8 +134,51 @@ export function mountBestiary(
       return li;
     }));
     pageNote.textContent = e.found
-      ? 'The picture is the specimen you found.'
-      : 'Filed when the last one died. The picture is a typical member.';
+      ? 'The model is the specimen you found.'
+      : 'Filed when the last one died. The model is a typical member.';
+    if (pageName !== lastPageName || e.plan !== lastPagePlan) {
+      lastPageName = pageName;
+      lastPagePlan = e.plan;
+      bus.emit('bestiary:specimen', e.plan ? { plan: e.plan } : null);
+    }
+    reportWindow();
+  }
+
+  /** Show the shared 3D renderer through the frame, clipping it to the visible part of this scrollable card. */
+  function reportWindow() {
+    const e = pageName ? registry.bestiary().get(pageName) : undefined;
+    if (page.hidden || !e?.plan) {
+      page.style.maskImage = '';
+      page.style.removeProperty('-webkit-mask-image');
+      if (lastWindow !== 'hidden') { lastWindow = 'hidden'; bus.emit('bestiary:window', null); }
+      return;
+    }
+    const frame = pageViewport.getBoundingClientRect(), clip = page.getBoundingClientRect();
+    const left = Math.max(frame.left, clip.left, 0), top = Math.max(frame.top, clip.top, 0);
+    const right = Math.min(frame.right, clip.right, window.innerWidth), bottom = Math.min(frame.bottom, clip.bottom, window.innerHeight);
+    const visible = right - left >= 4 && bottom - top >= 4;
+    const key = visible ? [left, top, right - left, bottom - top].map(Math.round).join(',') : 'hidden';
+    if (visible) {
+      const card = page.getBoundingClientRect();
+      const x = Math.round(left - card.left) + 1, y = Math.round(top - card.top) + 1;
+      const size = `100% 100%, ${Math.max(0, Math.round(right - left) - 2)}px ${Math.max(0, Math.round(bottom - top) - 2)}px`;
+      const pos = `0 0, ${x}px ${y}px`, solid = 'linear-gradient(#000, #000)';
+      const style = page.style as CSSStyleDeclaration & Record<string, string>;
+      for (const k of ['mask', 'webkitMask']) {
+        style[`${k}Image`] = `${solid}, ${solid}`;
+        style[`${k}Size`] = size;
+        style[`${k}Position`] = pos;
+        style[`${k}Repeat`] = 'no-repeat';
+      }
+      page.style.maskComposite = 'exclude';
+      page.style.webkitMaskComposite = 'xor';
+    } else {
+      page.style.maskImage = '';
+      page.style.removeProperty('-webkit-mask-image');
+    }
+    if (key === lastWindow) return;
+    lastWindow = key;
+    bus.emit('bestiary:window', visible ? { x: left, y: top, width: right - left, height: bottom - top } : null);
   }
 
   function showPage(name: string) {
@@ -147,7 +186,6 @@ export function mountBestiary(
     bus.emit('inspect:close', {}); // one card at a time
     onPageOpen?.();
     pageName = name;
-    drawnPlan = undefined;
     page.hidden = false;
     renderPage();
     render();
@@ -156,13 +194,24 @@ export function mountBestiary(
     if (page.hidden) return;
     page.hidden = true;
     pageName = null;
+    lastPageName = null;
+    lastPagePlan = undefined;
+    page.style.maskImage = '';
+    page.style.removeProperty('-webkit-mask-image');
+    lastWindow = '';
+    bus.emit('bestiary:window', null);
+    bus.emit('bestiary:specimen', null);
     render();
   }
   pageX.addEventListener('click', closePage);
+  page.addEventListener('scroll', reportWindow);
+  const onResize = () => reportWindow();
+  window.addEventListener('resize', onResize);
 
   const offs = [
     registry.onChange(render),
     listen(bus, 'inspect:open', () => closePage()), // an inspect card replaces the specimen page
+    () => window.removeEventListener('resize', onResize),
   ];
   render();
 
@@ -171,6 +220,6 @@ export function mountBestiary(
     setOpen(o: boolean) { open = o; if (o) render(); else closePage(); },
     pageOpen: () => !page.hidden,
     closePage,
-    dispose() { offs.forEach((f) => f()); drawer.remove(); page.remove(); },
+    dispose() { closePage(); offs.forEach((f) => f()); drawer.remove(); page.remove(); },
   };
 }

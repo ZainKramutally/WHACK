@@ -191,8 +191,8 @@
 .wu-bt-status { margin: 0 0 6px; font-family: var(--wu-mono); font-size: 18px; }
 .wu-bt-status.wu-bt-dead { color: var(--lethal); }
 .wu-bt-frame { display: flex; justify-content: center; padding: 6px 0; margin: 4px 0 8px; border: 2px dashed var(--ink); background: var(--bone3); }
-.wu-bt-frame .wu-bt-sprite { width: 240px; height: 156px; }
-.wu-specimen-extinct .wu-bt-frame .wu-bt-sprite { filter: grayscale(1) contrast(.85); }
+.wu-bt-viewport { width: 240px; height: 156px; }
+.wu-bt-no-model .wu-bt-viewport { background: var(--bone3); }
 @media (max-width: 760px) { .wu-specimen { right: auto; left: 12px; } }
 
 /* Scanner hover lock (inspect:hover): pixel corner brackets around the living thing under the pointer.

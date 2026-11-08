@@ -22,6 +22,8 @@ import type { BakedCreature } from './fauna';
 import { PART_TYPES } from './faunaLib/adapter';
 import { gridIndex } from './faunaLib/loft';
 import { partGeometries } from './faunaLib/parts';
+import { faunaLook } from './faunaLib/species';
+import type { BodyPlan } from '../sim/develop';
 
 export interface CounterpartPart {
   /** Resolves when the swatch materials are compiled (never rejects). */
@@ -77,6 +79,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
 
   let rect: { x: number; y: number; width: number; height: number } | null = null;
   let target: InspectTarget | null = null;
+  let bestiaryRect: { x: number; y: number; width: number; height: number } | null = null;
+  let bestiaryPlan: BodyPlan | null = null;
   let builtFor = '';
   const disposables: { dispose(): void }[] = [];
 
@@ -398,6 +402,18 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   }
 
   function build(inputs: VisualInputs) {
+    if (bestiaryRect && bestiaryPlan) {
+      const key2 = `bestiary|${inputs.world.id}|${bestiaryPlan.scale}|${bestiaryPlan.hue}|${bestiaryPlan.accent}|${bestiaryPlan.girth}|${bestiaryPlan.segmentCount}|${bestiaryPlan.tiers}|${bestiaryPlan.symmetry}`;
+      if (key2 === builtFor) return;
+      builtFor = key2;
+      clearContent();
+      cam.position.set(0, 1.1, 3.4);
+      cam.lookAt(0, 0.45, 0);
+      const own = faunaLook(bestiaryPlan);
+      beadsContent(beadLayout(own.plan), own.plan.chemistry === 'silicon', own.diet, bestiaryRect.width / bestiaryRect.height, own.hue, own.accent);
+      r.compileAsync(scene, cam).catch(console.error);
+      return;
+    }
     const other = deps.worldFor(inputs.world.id); // the view always shows this world's own thing
     // A producer is always this world's own cell (no other-world view, owner ruling), and follows its live form: the view
     // rebuilds if the sea rises over it or its biomass mix shifts.
@@ -460,19 +476,31 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   };
   const onOpen = (e: { target: InspectTarget }) => { target = e.target; builtFor = ''; };
   const onClose = () => { rect = null; target = null; builtFor = ''; clearContent(); };
+  const onBestiaryWindow = (w: { x: number; y: number; width: number; height: number } | null) => {
+    bestiaryRect = w;
+    if (!w) { builtFor = ''; clearContent(); }
+  };
+  const onBestiarySpecimen = (e: { plan: BodyPlan } | null) => {
+    bestiaryPlan = e?.plan ?? null;
+    builtFor = '';
+    if (!e) clearContent();
+  };
   bus.on('inspect:window', onWindow);
   bus.on('inspect:open', onOpen);
   bus.on('inspect:close', onClose);
+  bus.on('bestiary:window', onBestiaryWindow);
+  bus.on('bestiary:specimen', onBestiarySpecimen);
 
   // Draw after the main frame: a second pass on the same canvas, scissored to the card's window.
   const unregisterOverlay = app.registerOverlay(() => {
-    if (!rect || !target || rect.width < 4 || rect.height < 4) return;
+    const viewport = bestiaryRect && bestiaryPlan ? bestiaryRect : rect && target ? rect : null;
+    if (!viewport || viewport.width < 4 || viewport.height < 4) return;
     const prevAuto = r.autoClear;
     r.autoClear = false;
     r.setScissorTest(true);
-    r.setViewport(rect.x, rect.y, rect.width, rect.height);
-    r.setScissor(rect.x, rect.y, rect.width, rect.height);
-    cam.aspect = rect.width / rect.height;
+    r.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
+    r.setScissor(viewport.x, viewport.y, viewport.width, viewport.height);
+    cam.aspect = viewport.width / viewport.height;
     cam.updateProjectionMatrix();
     r.clearDepth(); // the swatch must not be tested against whatever depth the canvas holds
     r.render(scene, cam);
@@ -484,7 +512,7 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   return {
     ready,
     update(dt, _t, inputs) {
-      if (!rect || !target) return;
+      if ((!rect || !target) && (!bestiaryRect || !bestiaryPlan)) return;
       build(inputs);
       turntable.rotation.y += dt * 0.6;
       if (notScanned && notScanned.parent === turntable) notScanned.rotation.y = -turntable.rotation.y; // keep the label facing us
@@ -493,6 +521,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       bus.off('inspect:window', onWindow);
       bus.off('inspect:open', onOpen);
       bus.off('inspect:close', onClose);
+      bus.off('bestiary:window', onBestiaryWindow);
+      bus.off('bestiary:specimen', onBestiarySpecimen);
       unregisterOverlay();
       clearContent();
       for (const m of matCache.values()) m.dispose();
