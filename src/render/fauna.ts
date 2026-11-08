@@ -98,6 +98,8 @@ interface Entry {
   /** Aquatic body (faunaLib/aquatic, built once at adult drawn length when it first swims near), the stroke phase
    *  integrated from its sim speed (cycles), and its sociality gene (school size, swimmerParamsFromPlan). */
   sw: Swimmer | null; swTried: boolean; swPhase: number; soc: number;
+  /** Swimmer LOD: ranked camera distance (sticky while it is drawn as a swimmer) and whether it was last frame. */
+  swRank: number; swOn: boolean;
   layout: BeadLayout;
   /** The plan as drawn (after the species attractor), kept so the loft description is built only once it's needed. */
   plan: BodyPlan | null;
@@ -369,7 +371,7 @@ export function createFauna(app: App): FaunaPart {
   function makeEntry(layout: BeadLayout, plan: BodyPlan | null, silicon: boolean, glow: number, scale: number, id: number, lk: SpeciesLook, planned = false): Entry {
     return {
       layout, plan, desc: null, bin: -1, binStamp: 0, rank: Infinity, tier: 0, bellS: null, bell: false, g: 1,
-      sw: null, swTried: false, swPhase: 0, soc: 0.2,
+      sw: null, swTried: false, swPhase: 0, soc: 0.2, swRank: Infinity, swOn: false,
       lastSeen: frame, glow, silicon, scale, roll: 0, ...bake(layout, silicon, lk, glow),
       init: false, px: 0, pz: 0, ph: 0, cx: 0, cz: 0, ch: 0, snapT: 0, dtSnap: 0.05, x: 0, z: 0, h: 0,
       speed: 0, gait: 0, planned, legged: false, seen: false, stamp: 0, born: 0, dieT: -1, mode: 0, id, diet: lk.diet,
@@ -997,7 +999,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
-  let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0;
+  let ft = 0, fBoost = 1, fSea = 0, fSeaThere = false, fPosed = 0, fSwim = 0, fSwimCut = Infinity;
   const P0 = { x: 0, z: 0, h: 0 }, P1 = { x: 0, z: 0, h: 0 }; // interpPose inputs, reused
   let fHeight: (x: number, z: number) => number = () => 0;
 
@@ -1007,6 +1009,8 @@ export function createFauna(app: App): FaunaPart {
    */
   function draw(e: Entry, alpha: number, mode: number, live: boolean, tier: number) {
     e.tier = 0; e.bell = false;
+    const wasSwim = e.swOn;
+    e.swOn = false;
     const ground = fHeight(e.x, e.z);
     const s = fBoost * drawnFactor(e.scale, e.g) * alpha;
     if (s <= 0) return;
@@ -1034,12 +1038,13 @@ export function createFauna(app: App): FaunaPart {
           e.bellS = e.desc.kind === 'axial' ? bellSphere(e.desc, lay) : null;
         } catch { e.plan = null; } // never retried: it stays a posed proxy
       }
-      if (mode === LOCOMOTION.swim && fSwim < SWIM_MAX) {
+      // the nearest SWIM_MAX lofted swimmers (update's swim cut; a dying one keeps the look it had)
+      if (mode === LOCOMOTION.swim && fSwim < SWIM_MAX && (live ? e.swRank <= fSwimCut : wasSwim)) {
         const sw = swimmerOf(e);
         if (sw) {
           S = s; EX = e.x; EY = y0 + lay.centreY * s; EZ = e.z; CH = cosH; SH = sinH; ENT = e;
           SW_S = (drawnLength(e.scale, e.g) / drawnLength(e.scale, 1)) * alpha * fBoost;
-          if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; return; }
+          if (drawSwimmerNear(e, sw)) { fSwim++; e.tier = 2; e.swOn = true; return; }
         }
       }
       if (e.desc) {
@@ -1204,12 +1209,21 @@ export function createFauna(app: App): FaunaPart {
         }
         const ddx = camPos.x - e.x, ddz = camPos.z - e.z, d2 = ddx * ddx + ddz * ddz;
         e.rank = d2 < R2 ? d2 * (e.tier === 2 ? LOFT_STICK : 1) : Infinity;
+        e.swRank = d2 < R2 ? d2 * (e.swOn ? LOFT_STICK : 1) : Infinity;
         liveE[nLive++] = e;
       }
       // The two cuts: the LOFT_MAX nearest planned creatures get the loft, the ANIM_MAX nearest are posed.
       let nc = 0;
       for (let i = 0; i < nLive; i++) if (liveE[i].plan && liveE[i].rank < Infinity) sel[nc++] = liveE[i].rank;
       const loftCut = nc <= LOFT_MAX ? Infinity : kth(sel, nc, LOFT_MAX - 1);
+      // Of those, the SWIM_MAX nearest swimmers pose as real swimmers, sticky like the loft (not buffer order: births
+      // and deaths reorder it, and the fish in front of the camera must not be the finless one).
+      nc = 0;
+      for (let i = 0; i < nLive; i++) {
+        const e = liveE[i];
+        if (e.plan && e.mode === LOCOMOTION.swim && e.rank < Infinity && e.rank <= loftCut) sel[nc++] = e.swRank;
+      }
+      fSwimCut = nc <= SWIM_MAX ? Infinity : kth(sel, nc, SWIM_MAX - 1);
       nc = 0;
       for (let i = 0; i < nLive; i++) if (liveE[i].rank < Infinity) sel[nc++] = liveE[i].rank;
       const animCut = nc <= ANIM_MAX ? Infinity : kth(sel, nc, ANIM_MAX - 1);
