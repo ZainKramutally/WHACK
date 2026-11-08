@@ -247,7 +247,7 @@ export interface VisualInputs {
   organisms: Float32Array;
   births: SimSnapshot['births'];
   /** Predation kills from every snapshot since the last VisualInputs (render-only: the hunt and kill animations). */
-  kills?: SimSnapshot['kills'];
+  readonly kills: readonly SimSnapshot['kills'][number][];
   flora: Float32Array;
   lifeOnLand: boolean;
 }

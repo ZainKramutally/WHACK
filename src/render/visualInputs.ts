@@ -185,7 +185,7 @@ export function buildVisualInputs(
   world: WorldConfig,
   terrain: TerrainSampler,
   births: SimSnapshot['births'] = snapshot.births,
-  kills: SimSnapshot['kills'] = snapshot.kills ?? [],
+  kills: SimSnapshot['kills'] = snapshot.kills,
 ): VisualInputs {
   const stats = snapshot.stats;
   const state = terrainState(snapshot, world);
@@ -239,6 +239,7 @@ export function makeStubVisualInputs(): VisualInputs {
     terrain: { rise: 1, progress: {}, height: () => 0 },
     organisms: new Float32Array(0),
     births: [],
+    kills: [],
     flora: new Float32Array(0),
     lifeOnLand: false,
   };

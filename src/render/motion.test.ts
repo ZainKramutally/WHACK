@@ -197,17 +197,17 @@ describe('nudgeToWater: shoreline swimmers are drawn over deep enough water', ()
   });
 });
 
-import { HUNTER_DIET, INTENT, JAW_OPEN_RAD, KILL_SEC, STRIKE_SEC, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse } from './motion';
+import { INTENT } from '../sim/organismLayout';
+import { JAW_OPEN_RAD, KILL_SEC, STRIKE_SEC, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse } from './motion';
 
 describe('hunting animation', () => {
-  it('opens a fast hunter, never a grazer, and intent overrides the stand-in', () => {
-    expect(attackTarget(0.2, 3)).toBe(0);
-    expect(attackTarget(HUNTER_DIET, 0)).toBe(0);
-    expect(attackTarget(0.9, 3)).toBeGreaterThan(0.5);
-    expect(attackTarget(0.9, 3, INTENT.forage)).toBe(0);
-    expect(attackTarget(0.1, 0, INTENT.hunt)).toBe(1);
-    expect(attackTarget(0.9, 0, INTENT.hunt, 1)).toBeCloseTo(1);
-    expect(attackTarget(0.9, 0, INTENT.hunt, 10)).toBeCloseTo(0.35);
+  it('opens only while hunting, wider as the hunter closes in', () => {
+    expect(attackTarget(INTENT.forage, INTENT.hunt)).toBe(0);
+    expect(attackTarget(INTENT.flee, INTENT.hunt, 1)).toBe(0);
+    expect(attackTarget(INTENT.hunt, INTENT.hunt)).toBe(1);
+    expect(attackTarget(INTENT.hunt, INTENT.hunt, 1)).toBeCloseTo(1);
+    expect(attackTarget(INTENT.hunt, INTENT.hunt, 10)).toBeCloseTo(0.35);
+    expect(attackTarget(INTENT.hunt, INTENT.hunt, 3)).toBeGreaterThan(attackTarget(INTENT.hunt, INTENT.hunt, 4));
   });
   it('eases toward the target, opening faster than closing, independent of steps', () => {
     let a = 0;

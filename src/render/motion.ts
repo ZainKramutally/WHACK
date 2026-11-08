@@ -254,25 +254,16 @@ export function nudgeToWater(
 }
 
 // --- hunting: attack pose, strike and the kill animation (render-only illustration) ----------------------------
-/** Diet at which an animal reads as a hunter for the attack pose (the creatureLayout jaw ramps in from 0.35 to 0.75). */
-export const HUNTER_DIET = 0.6;
-/** Intent codes in the organism buffer (layout v4): what the utility loop chose this tick. */
-export const INTENT = { forage: 0, hunt: 1, flee: 2, home: 3, rest: 4, bud: 5 } as const;
-
 const smooth01 = (x: number) => { const k = x <= 0 ? 0 : x >= 1 ? 1 : x; return k * k * (3 - 2 * k); };
 
 /**
- * How open a creature's attack pose wants to be, 0..1. With the sim's intent (−1 when the buffer has none): hunting
- * opens fully, scaled by closeness to the target when known (`targetBL`, distance in body lengths; Infinity unknown).
- * Without intent, a stand-in: a hunter (diet ≥ HUNTER_DIET) opens with speed (`speedBL`, body lengths per second).
+ * How open a creature's attack pose wants to be, 0..1, from the sim's intent (sim/organismLayout INTENT; `hunt` is
+ * passed in so this file stays free of sim imports): hunting opens, more as the hunter closes on its target
+ * (`targetBL`, distance in body lengths; Infinity when unknown). Anything else stays closed.
  */
-export function attackTarget(diet: number, speedBL: number, intent = -1, targetBL = Infinity): number {
-  if (intent >= 0) {
-    if (intent !== INTENT.hunt) return 0;
-    return Number.isFinite(targetBL) ? 0.35 + 0.65 * smooth01((5 - targetBL) / 4) : 1;
-  }
-  if (diet < HUNTER_DIET) return 0;
-  return 0.6 * smooth01((speedBL - 0.25) / 0.75);
+export function attackTarget(intent: number, hunt: number, targetBL = Infinity): number {
+  if (intent !== hunt) return 0;
+  return Number.isFinite(targetBL) ? 0.35 + 0.65 * smooth01((5 - targetBL) / 4) : 1;
 }
 
 /** Ease `cur` toward `target`: quick to open (0.12 s), slower to close (0.35 s), frame-rate independent. */

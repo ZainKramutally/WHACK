@@ -27,7 +27,7 @@ import { tardigradePlan } from './tardigrade';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
-import { ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim/organismLayout';
+import { INTENT, ORGANISM_STRIDE, OrganismField, geneField, organismCount } from '../sim/organismLayout';
 import { unpackBodyPlan } from '../sim/plan';
 import { LOCOMOTION, type BodyPlan } from '../sim/develop';
 import {
@@ -35,7 +35,7 @@ import {
 } from './layout';
 import {
   armStance, bellPulse, fadeScale, gaitFoot, gaitStep, interpPose, layAlongTravel, limbPhaseOffset, slewAngle, swayOffset, swimWave, swimY, swimNeed, nudgeToWater,
-  turnRateMax, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse, INTENT, JAW_OPEN_RAD, type KillFrame,
+  turnRateMax, attackTarget, easeAttack, fleeWobble, jawTip, killFrame, strikePulse, JAW_OPEN_RAD, type KillFrame,
 } from './motion';
 import { LOOK_PALETTES, creatureColour } from './palette';
 import { BEAD_HORN, MAX_BEADS_PER_ORGANISM, MAX_RODS_PER_ORGANISM, ROD_STRIDE, TONES } from './creatureLayout';
@@ -95,10 +95,7 @@ const NUDGE_EASE = 0.4; // s: a shoreline swimmer's drawn nudge eases in and out
 const VIEW_PAD = 2; // m added to a creature's bounding sphere for the view test, so it is lofted before it enters
 const SI_SIDES = 12; // silicon walker loft: a hexagon sampled twice per face
 const SPW = new Float32Array(64 * 5); // posed spine in world space, per frame per creature
-// Hunting (render-only): the sim's intent and target fields (organism layout v4), read only when the layout has them,
-// and its kills ({ hunterId, preyId, x, z }) on the snapshot, if present.
-const F_INTENT = ((OrganismField as Record<string, number>).intent ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).intent ?? -1) : -1;
-const F_TARGET = ((OrganismField as Record<string, number>).targetId ?? -1) < ORGANISM_STRIDE ? ((OrganismField as Record<string, number>).targetId ?? -1) : -1;
+// Hunting (render-only): the sim's intent and targetId (organism layout v4) and its kills (VisualInputs.kills).
 const KILL_MAX = 10;     // kill animations playing at once (about 10 kills/s once hunters establish); the rest get the plain fade
 const INTENT_HOLD = 0.3; // s an intent is latched (the sim refreshes it every 4th tick, and it can flicker)
 const BURST_N = 8; // fragments a killed prey breaks into (knob parts in the existing batch)
@@ -1616,19 +1613,19 @@ export function createFauna(app: App): FaunaPart {
         e.h = slewAngle(oh, pose.h, turnRateMax(Lw) * dt);
         const dh = Math.atan2(Math.sin(e.h - oh), Math.cos(e.h - oh));
         if (dt > 0) e.turn += (dh / dt - e.turn) * Math.min(1, dt / 0.2);
-        // Hunting: the sim's intent (when the layout carries it) or the stand-in (fast hunters), eased; a strike pulse
+        // Hunting: the sim's intent (latched), eased into the attack pose; a strike pulse
         // when a kill for this hunter lands; a darting wobble while fleeing.
         {
-          const raw = F_INTENT >= 0 ? buf[o + F_INTENT] : -1;
+          const raw = buf[o + OrganismField.intent];
           if (raw === INTENT.hunt) e.huntT = t; else if (raw === INTENT.flee) e.fleeT = t;
-          const intent = raw < 0 ? -1 : t - e.huntT < INTENT_HOLD ? INTENT.hunt : t - e.fleeT < INTENT_HOLD ? INTENT.flee : raw;
+          const intent = t - e.huntT < INTENT_HOLD ? INTENT.hunt : t - e.fleeT < INTENT_HOLD ? INTENT.flee : raw;
           let targetBL = Infinity;
-          if (F_TARGET >= 0 && intent === INTENT.hunt) {
-            const te = entries.get(buf[o + F_TARGET]);
+          if (intent === INTENT.hunt) {
+            const te = entries.get(buf[o + OrganismField.targetId]);
             if (te && te.init && te.dieT < 0) targetBL = Math.hypot(te.x - e.x, te.z - e.z) / Math.max(Lw, 1e-3);
           }
           const strike = strikePulse(t - e.strikeT);
-          const want = Math.max(attackTarget(buf[o + geneField('diet')], e.speed / Math.max(Lw, 1e-3), intent, targetBL), strike);
+          const want = Math.max(attackTarget(intent, INTENT.hunt, targetBL), strike);
           e.atk = easeAttack(e.atk, want, dt);
           e.lunge = 0.06 * e.atk + 0.22 * strike;
           e.fleeW = easeAttack(e.fleeW, intent === INTENT.flee ? 1 : 0, dt);
@@ -1695,7 +1692,7 @@ export function createFauna(app: App): FaunaPart {
             if (hu) hu.strikeT = t;
             const pr = entries.get(k.preyId);
             if (!pr || !pr.seen || pr.killT >= 0 || active >= KILL_MAX) continue;
-            const kx = camPos.x - pr.x, kz = camPos.z - pr.z;
+            const kx = camPos.x - (pr.x + pr.nx), kz = camPos.z - (pr.z + pr.nz); // drawn = sim + nudge
             if (kx * kx + kz * kz > R2k) continue; // out of view distance: the plain fade
             active++;
             if (pr.stamp === snapId) { pr.killT = -2; continue; } // still in this snapshot: the kill plays when it leaves
