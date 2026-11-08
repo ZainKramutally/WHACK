@@ -256,7 +256,7 @@ export function createFlora(app: App): FloraPart {
         plantShape(list, i, a, shape, 0);
         out.push({
           index: i, arch: list.arch[i], key: a.key, role: a.role, lod: list.lod[i] ? 1 : 0, dark: list.dark[i] === 1, glow: list.glow[i], teeth: list.teeth[i],
-          matrix: plantMatrix(list, i, a, new THREE.Matrix4()), flat: plantMatrix(list, i, a, new THREE.Matrix4(), true), x: list.x[i], z: list.z[i], ground: list.y[i],
+          matrix: plantMatrix(list, i, a, new THREE.Matrix4(), false, pres.growScale(i)), flat: plantMatrix(list, i, a, new THREE.Matrix4(), true), x: list.x[i], z: list.z[i], ground: list.y[i],
           height: (a.height / a.size) * list.h[i], radius: plantRadius(list, i, radiusPerHeight[list.arch[i]]), cell, slot: list.slot[i],
           tint: [tint[0], tint[1], tint[2]], shape: [shape[0], shape[1], shape[2], shape[3]],
         });
