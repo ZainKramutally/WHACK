@@ -2,6 +2,7 @@
 // Available only after the build; during it the row is disabled ("after the build"). Not a condition: the three-sliders rule holds.
 import { el } from './dom';
 import { listen, type UiBus } from './uiBus';
+import { fastForwardIcon } from './cardIcons';
 import { TIME_FACTORS } from '../worlds/time';
 
 /** The factor one step up or down from `cur`, clamped to the ends. */
@@ -29,6 +30,7 @@ export function mountTimeControl(bus: UiBus) {
 
   let enabled = false;
   let factor = 1;
+  let chipFactor = 0;   // factor the chip contents were built for
 
   function paint() {
     note.hidden = enabled;
@@ -37,7 +39,12 @@ export function mountTimeControl(bus: UiBus) {
       b.classList.toggle('wu-on', TIME_FACTORS[i] === factor);
     });
     chip.hidden = !(enabled && factor > 1);
-    chip.textContent = `⏩ ×${factor}`;
+    if (chipFactor !== factor) {
+      chipFactor = factor;
+      chip.title = `Time ×${factor}`;
+      chip.setAttribute('aria-label', `Time ×${factor}`);
+      chip.replaceChildren(fastForwardIcon(), el('span', undefined, `×${factor}`));
+    }
   }
   function set(f: number) {
     if (!enabled || f === factor) return;

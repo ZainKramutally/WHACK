@@ -101,6 +101,34 @@ export function bitmapPath(rows: string[]): string {
 
 const NS = 'http://www.w3.org/2000/svg';
 
+const FAST_FORWARD = [   // ▶▶
+  '.........',
+  '#....#...',
+  '##...##..',
+  '###..###.',
+  '####.####',
+  '###..###.',
+  '##...##..',
+  '#....#...',
+  '.........',
+];
+
+/** The fast-forward pixel glyph on an ink chip, for the time-speed HUD chip. */
+export function fastForwardIcon(): HTMLElement {
+  const ico = document.createElement('span');
+  ico.className = 'wu-ico';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', bitmapPath(FAST_FORWARD));
+  path.setAttribute('fill', 'currentColor');
+  svg.append(path);
+  ico.append(svg);
+  return ico;
+}
+
 /** An icon chip with a visible word beside it; `title`/aria-label carry the full text. */
 export function iconChip(kind: Role | Habitat, word: string, title: string): HTMLElement {
   const chip = document.createElement('span');

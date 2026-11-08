@@ -255,7 +255,9 @@
 .wu-root .wu-time-btn.wu-on { background: var(--wu-accent); color: var(--wu-on-accent); border-color: var(--wu-accent); }
 .wu-root .wu-time-btn:disabled { opacity: .4; cursor: not-allowed; }
 .wu-time-chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 1px 8px; font-family: var(--wu-mono); font-size: 18px;
-  color: var(--bone4); background: var(--ink); border: 2px solid var(--wu-accent); pointer-events: none !important; }
+  color: var(--bone4); background: var(--ink); border: 2px solid var(--wu-accent); pointer-events: none !important;
+  display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+.wu-time-chip .wu-ico { padding: 0; width: 16px; height: 16px; }
 
 /* Free (cinematic) camera: one body class hides the in-world UI for clean frames; the hint sits outside the UI root */
 body.wu-cinematic .wu-root { visibility: hidden !important; }
