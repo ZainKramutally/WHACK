@@ -169,3 +169,4 @@
 - 04:04: MAIN PUSH (Caden: push all): main 39c07d0 = 8bf07e5 + 12 art commits (teeth+droop+packing, slope pitch, swimmer trails, aquatic pose rewrite SWIM_MAX 24, tail pick, near-draw try, trail-slot reset). Gate tsc 0, 358/14, build OK. 16 pinged. All agents idle; stage == main.
 - 04:13: owner asks via 16: (1) more silicon plants -> flora-audit (4-5 silicon-only gated [speculative] archetypes, >=2 on default seed, 90 min); (2) GitHub #81 bestiary specimen page live 3D view (plan-only bake, bestiary:window event) -> art-fauna whole.
 - 04:19: #81 done by art-fauna (bakePlan, bestiary:window view takeover, bestiaryPanel window) -> stage 8a01cce; gate 334/14, build OK; review 12 running.
+- 04:24: review 12: #81 clashes with teammate's 8538968 on main (bead-only, different event shape). Caden: keep ours + their UI bits -> art-fauna rebasing onto main 89dd2bf (crust session merged into main too). 16 + #81 notified.
