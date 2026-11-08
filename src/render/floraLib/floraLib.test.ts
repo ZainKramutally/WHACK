@@ -20,7 +20,7 @@ beforeAll(() => { lib = buildFloraLibrary(7); });
 const bins = (silicon: boolean): FloraBin[] => {
   const out: FloraBin[] = [];
   for (const light of [0, 1, 2] as const) for (const mix of [0, 1, 2] as const) for (const water of [true, false])
-    out.push({ silicon, water, light, heat: 2, mix });
+    out.push({ silicon, water, sub: false, lush: 1, light, heat: 2, mix });
   return out;
 };
 
@@ -91,15 +91,15 @@ describe('FloraForm → archetype mapping', () => {
       for (const role of ['ground', 'mid', 'giant'] as FloraRole[])
         for (const key of archetypesFor(form, role, b.light === 2)) expect(lib.byKey.get(key)!.chem).toBe('carbon');
     }
-    expect(archetypesFor(formForBin({ silicon: false, water: true, light: 2, heat: 2, mix: 2 }), 'giant', true).some((k) => k.startsWith('parasolTitan'))).toBe(true);
-    expect(archetypesFor(formForBin({ silicon: false, water: true, light: 0, heat: 2, mix: 2 }), 'giant', false).some((k) => k.startsWith('lantern'))).toBe(true);
-    expect(archetypesFor(formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 2 }), 'giant', false)).toEqual(['prismTitan#1', 'prismTitan#2']);
+    expect(archetypesFor(formForBin({ silicon: false, water: true, sub: false, lush: 1, light: 2, heat: 2, mix: 2 }), 'giant', true).some((k) => k.startsWith('parasolTitan'))).toBe(true);
+    expect(archetypesFor(formForBin({ silicon: false, water: true, sub: false, lush: 1, light: 0, heat: 2, mix: 2 }), 'giant', false).some((k) => k.startsWith('lantern'))).toBe(true);
+    expect(archetypesFor(formForBin({ silicon: true, water: false, sub: false, lush: 1, light: 0, heat: 2, mix: 2 }), 'giant', false)).toEqual(['prismTitan#1', 'prismTitan#2']);
   });
 
   it('a submerged form picks its low ":sub" row when there is one, else the plain row', () => {
-    const crust = { ...formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 0 }), submerged: true } as ReturnType<typeof formForBin>;
+    const crust = { ...formForBin({ silicon: true, water: false, sub: false, lush: 1, light: 0, heat: 2, mix: 0 }), submerged: true } as ReturnType<typeof formForBin>;
     expect(archetypesFor(crust, 'ground', false).every((k) => k === 'crystalGround#1' || k === 'crystalGround#3')).toBe(true);
-    const spire = { ...formForBin({ silicon: true, water: false, light: 0, heat: 2, mix: 2 }), submerged: true } as ReturnType<typeof formForBin>;
+    const spire = { ...formForBin({ silicon: true, water: false, sub: false, lush: 1, light: 0, heat: 2, mix: 2 }), submerged: true } as ReturnType<typeof formForBin>;
     expect(archetypesFor(spire, 'giant', false)).toEqual(['prismTitan#1', 'prismTitan#2']);
   });
 
@@ -118,12 +118,12 @@ describe('plant size', () => {
     for (const role of ['ground', 'mid', 'giant'] as FloraRole[]) {
       const [lo, hi] = ROLE_BAND[role];
       for (const heat of [0, 1, 2, 3, 4]) for (const j of [0, 0.5, 1]) {
-        const h = plantHeight(role, formForBin({ silicon: false, water: true, light: 2, heat, mix: 2 }), 1, j);
+        const h = plantHeight(role, formForBin({ silicon: false, water: true, sub: false, lush: 1, light: 2, heat, mix: 2 }), 1, j);
         expect(h).toBeGreaterThanOrEqual(lo);
         expect(h).toBeLessThanOrEqual(hi);
       }
-      const cold = formForBin({ silicon: true, water: false, light: 0, heat: 0, mix: 2 });
-      const hot = formForBin({ silicon: true, water: false, light: 0, heat: 4, mix: 2 });
+      const cold = formForBin({ silicon: true, water: false, sub: false, lush: 1, light: 0, heat: 0, mix: 2 });
+      const hot = formForBin({ silicon: true, water: false, sub: false, lush: 1, light: 0, heat: 4, mix: 2 });
       expect(plantHeight(role, cold, 1, 0.5)).toBeGreaterThan(plantHeight(role, hot, 1, 0.5));
       expect(plantHeight(role, cold, 0.1, 0.5)).toBeLessThan(plantHeight(role, cold, 1, 0.5));
     }
