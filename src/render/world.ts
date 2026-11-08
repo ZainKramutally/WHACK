@@ -17,6 +17,8 @@ import { createFauna } from './fauna';
 import { createFlora } from './flora';
 import { createPicker } from './pick';
 import { createCounterpart } from './counterpart';
+import { createLandmarksPart } from './landmarks';
+import type { LandmarkSet } from '../gen/landmarks';
 import { groundColour } from './palette';
 import { PAL, updateLook, worldMaterial } from './material';
 import { mix, normalWorld, smoothstep, vec3 } from 'three/tsl';
@@ -43,6 +45,8 @@ export interface WorldView {
   setTerrain(mesh: THREE.Mesh, uniforms?: TerrainUniformsLike): void;
   /** Build the GPU terrain mesh for this sampler (render/terrainNode.ts) and use it. */
   setTerrainSampler(terrain: Terrain, opts?: { segments?: number }): void;
+  /** Draw these landmark structures (gen/landmarks.ts); null clears. */
+  setLandmarks(set: LandmarkSet | null): void;
   setPatchSize(metres: number): void;
   readonly patchSize: number;
   /**
@@ -58,7 +62,7 @@ export interface WorldView {
   locate(id: number): { x: number; y: number; z: number; radius: number } | null;
   readonly counts: { creatures: number; plants: number };
   /** Per-part CPU ms accumulated since creation (for profiling; reset fields to 0 to restart). */
-  readonly prof: Record<'frames' | 'total' | 'terrain' | 'sky' | 'sea' | 'fauna' | 'flora' | 'counterpart', number>;
+  readonly prof: Record<'frames' | 'total' | 'terrain' | 'sky' | 'sea' | 'fauna' | 'flora' | 'landmarks' | 'counterpart', number>;
   dispose(): void;
 }
 
@@ -118,11 +122,12 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
   const beforeFlora = new Set(app.scene.children);
   const flora = createFlora(app);
   reskin(app.scene.children.filter((c) => !beforeFlora.has(c)), 'flora');
+  const landmarks = createLandmarksPart(app);
   const counterpart = createCounterpart({ app, bus, worldFor, getInputs: () => latest, layoutOf: (id) => fauna.layoutOf(id) });
   const picker = createPicker({ app, bus, fauna, getInputs: () => latest, getPatch: () => patch });
 
   /** Accumulated ms per part (profiling aid; reset by the caller). */
-  const prof = { frames: 0, total: 0, terrain: 0, sky: 0, sea: 0, fauna: 0, flora: 0, counterpart: 0 };
+  const prof = { frames: 0, total: 0, terrain: 0, sky: 0, sea: 0, fauna: 0, flora: 0, landmarks: 0, counterpart: 0 };
   let lastMs = performance.now();
   function step(dt: number, t: number, inputs: VisualInputs) {
     const tStart = performance.now();
@@ -154,10 +159,12 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
     const t3 = performance.now();
     flora.update(dt, t, inputs, patch);
     const t4 = performance.now();
+    landmarks.update(dt, t, inputs, patch);
+    const t4b = performance.now();
     counterpart.update(dt, t, inputs);
     const t5 = performance.now();
     prof.frames++; prof.total += t5 - t0 + (t0 - tStart);
-    prof.terrain += t0 - tStart; prof.sky += t1 - t0; prof.sea += t2 - t1; prof.fauna += t3 - t2; prof.flora += t4 - t3; prof.counterpart += t5 - t4;
+    prof.terrain += t0 - tStart; prof.sky += t1 - t0; prof.sea += t2 - t1; prof.fauna += t3 - t2; prof.flora += t4 - t3; prof.landmarks += t4b - t4; prof.counterpart += t5 - t4b;
   }
 
   // Warm-up: swatches first, then the main scene (terrain/sea/creatures/flora), one compile at a time.
@@ -192,6 +199,9 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       patchOverride = t.patchSize;
       patch = t.patchSize;
     },
+    setLandmarks(s) {
+      landmarks.setSet(s);
+    },
     setPatchSize(m) {
       patchOverride = m;
       patch = m;
@@ -214,6 +224,7 @@ export function createWorldView(app: App, opts: WorldViewOptions = {}): WorldVie
       counterpart.dispose();
       fauna.dispose();
       flora.dispose();
+      landmarks.dispose();
       sea.dispose();
       sky.dispose();
       app.scene.remove(placeholder);

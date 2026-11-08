@@ -3,6 +3,7 @@
 // Order matters when starting a world: build and subscribe everything, THEN emit world:selected.
 import { bus } from './bus';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain } from './gen/terrain';
+import { createLandmarks } from './gen/landmarks';
 import { attachPlayer } from './player';
 import { createApp } from './render/app';
 import { createWorldView } from './render/world';
@@ -60,7 +61,11 @@ async function start(
   // The run's seed drives everything: terrain here, and the sim (founders, spores, terrain in the worker) via world:selected.
   const { seed } = pickSeed(location.search, world.demoSeed);
   const terrain = createTerrainSampler(world, seed);
+  const landmarks = 'relics' in terrain
+    ? createLandmarks(terrain, { chemistry: world.life.composition.si > 0.5 ? 'silicon' : 'carbon', seaCover: (world.targets.seaCover[0] + world.targets.seaCover[1]) / 200 })
+    : null;
   if ('relics' in terrain) view.setTerrainSampler(terrain);
+  view.setLandmarks(landmarks);
 
   // Latest snapshot, shared by VisualInputs and the player's samplers.
   let latest: SimSnapshot | null = null;
@@ -133,11 +138,17 @@ async function start(
       spawned = true;
     }
     player.update(dt);
+    // Structures are solid: slide the character out of any footprint (heightAt alone would lift it onto a pillar).
+    if (landmarks && latest) {
+      const s = player.state;
+      const out = landmarks.pushOut(s.x, s.z, terrainState(latest, world));
+      if (out) { s.x = out.x; s.z = out.z; }
+    }
   });
 
 
   // Console handles for debugging and headless smoke tests, behind ?debug (like the fps readout).
-  if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view, seed, bus });
+  if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { app, player, view, seed, bus, landmarks });
 
   // Everything is subscribed: start the sim, then select the world.
   startSim(bus);

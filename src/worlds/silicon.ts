@@ -344,10 +344,10 @@ export const silicon: WorldConfig = {
       { id: 'M5', rate: 0.01, params: { bandH: 4, sharpness: 0.6, strength: 0.5 } },                                              // strata terraces
     ],
     relics: [
-      { kind: 'iceArch', count: 3, params: { height: 30, radius: 5, span: 22 } },
-      { kind: 'iceSpire', count: 5, params: { height: 34, radius: 5 } },
+      { kind: 'iceArch', count: 3, params: { height: 28, radius: 5.5, span: 38 } },
+      { kind: 'iceSpire', count: 4, params: { height: 50, radius: 6 } },
     ],
-    why: 'Gentle relief (about 20 m) with 30 m relic ice towers on a 400 m patch: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye.',
+    why: 'Gentle relief (about 20 m) with 28 m relic ice arches (about 35 m to the top of the span) and 50 m spires on a 400 m patch, big enough to read from spawn: Titan seas are over 160 m deep, but a walkable patch needs far less. Placeholder values, tuned by eye.',
     sources: ['mastrogiuseppe2014'],
     assumption: true,
   },
