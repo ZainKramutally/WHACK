@@ -30,6 +30,22 @@ const newForm = (binId: number, name: string, organismId: number) => ({ binId, n
 const snap = (t: number, buf: Float32Array, births: SimSnapshot['births'] = []) => ({ timeSec: t, organisms: buf, births } as SimSnapshot);
 const click = (bus: ReturnType<typeof createBus>, id: number) => bus.emit('inspect:open', { target: { kind: 'organism', organismId: id }, at: { x: 0, y: 0 } });
 
+describe('assignSpecies and architecture', () => {
+  const siWalker = (g: AnimalGenome, axial: boolean): AnimalGenome => ({ ...g, comp: { c: 0.05, si: 0.9, o: 0.05 }, body: { ...g.body, segments: axial ? 0.8 : 0.2, limbPairs: 0.3 } });
+  it('an armoured biped does not take a radial tripod species name, and vice versa', () => {
+    const tripodG = siWalker(worms[0]!, false), bipedG = siWalker(worms[0]!, true);
+    const sp: Species[] = [
+      { ...speciesOf(1, 'Zhek Tripod', tripodG), mode: LOCOMOTION.walk, axial: false },
+      { ...speciesOf(2, 'Qox Bastion', bipedG), mode: LOCOMOTION.walk, axial: true },
+    ];
+    const a = assignSpecies(buffer([tripodG, bipedG]), sp);   // both walk (mode 0 in the helper)
+    expect(a.nameOf.get(100)).toBe('Zhek Tripod');
+    expect(a.nameOf.get(101)).toBe('Qox Bastion');
+    const only = assignSpecies(buffer([bipedG]), [sp[0]!]);
+    expect(only.nameOf.size).toBe(0);   // the only species is radial: the biped stays unnamed
+  });
+});
+
 describe('assignSpecies and locomotion', () => {
   it('an animal never takes the name of a species that moves another way (a hoverer is not a "swimmer")', () => {
     const swimmers = speciesOf(1, 'Short Mote Swimmer', worms[0]!);

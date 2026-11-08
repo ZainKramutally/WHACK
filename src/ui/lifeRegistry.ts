@@ -8,13 +8,13 @@ import {
   type FormCentroid, type FunctionalType, type GuideAnimal,
 } from '../sim/guide';
 import { Bestiary, type KindSighting } from './bestiary';
-import { LOCOMOTION, type BodyPlan, type LocomotionMode } from '../sim/develop';
+import { LOCOMOTION, isSiliconWalkerGenes, type BodyPlan, type LocomotionMode } from '../sim/develop';
 import { organismCount, readOrganism } from '../sim/organismLayout';
 import { unpackBodyPlan } from '../sim/plan';
 import { listen, type UiBus } from './uiBus';
 
 export interface FormInfo { name: string; type: FunctionalType; alive: number; repId: number }
-export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number; /** How the announcing animal moved: only animals that move the same way take the name (a hoverer is not a "swimmer"). */ mode?: LocomotionMode }
+export interface Species { binId: number; name: string; centroid: FormCentroid; organismId?: number; /** How the announcing animal moved: only animals that move the same way take the name (a hoverer is not a "swimmer"). */ mode?: LocomotionMode; /** Whether the announcing animal was bilateral (axial) rather than a radial silicon hub: a radial tripod and an armoured biped never share a name. */ axial?: boolean }
 export interface Analysis {
   /** Animal id → species name. Animals matching no announced species have no entry. */
   nameOf: Map<number, string>;
@@ -25,6 +25,9 @@ export interface Analysis {
 
 /** A live animal takes the name of the nearest announced species within this distance: a little wider than the sim's cluster radius, so the many animals in clusters too small to announce still read as a kin of a named species. */
 const MATCH_RADIUS = 1.8 * FORM_RADIUS;
+
+/** Bilateral (axial) body? Carbon always; silicon only when develop() builds it as the armoured walker. */
+const axialOf = (r: { comp: { si: number }; body: { segments: number; limbPairs: number } }): boolean => r.comp.si <= 0.5 || isSiliconWalkerGenes(r.body);
 
 export const EMPTY_ANALYSIS: Analysis = { nameOf: new Map(), forms: new Map(), dominant: null };
 
@@ -50,6 +53,7 @@ export function assignSpecies(
     for (const sp of ordered) {
       const diver = sp.name.endsWith(' Diver') && (r.mode === LOCOMOTION.swim || r.mode === LOCOMOTION.hover);   // an amphibious species takes both movers
       if (sp.mode !== undefined && sp.mode !== r.mode && !diver) continue;
+      if (sp.axial !== undefined && sp.axial !== axialOf(r)) continue;
       const d = centroidDistance(c, sp.centroid);
       if (d <= bestD && (!best || d < bestD)) { best = sp; bestD = d; }
     }
@@ -117,7 +121,7 @@ export function mountLifeRegistry(bus: UiBus) {
           if (r.id !== p.organismId) continue;
           if (!species.some((sp) => sp.binId === p.binId)) {
             const centroid = genomeCentroid({ body: r.body, climate: { prefTemp: r.prefTemp, tolerance: r.tolerance, chem: r.chem }, comp: r.comp, lineage: r.lineage });
-            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId, mode: r.mode });
+            species.push({ binId: p.binId, name: p.name, centroid, organismId: p.organismId, mode: r.mode, axial: axialOf(r) });
             const plan = plans.get(p.organismId);
             bestiary.announce(p.name, functionalType(centroid, { mode: plan?.mode }).label, now, plan);
           }
