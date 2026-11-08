@@ -159,12 +159,24 @@ function bake(layout: BeadLayout, silicon: boolean, look: SpeciesLook, glow: num
   return { flat, shape, flap, rgb, slotRgb, slotGlow, rods, rodTone, hue, accent, xmin, xspan: Math.max(1e-6, xmax - xmin), ymax };
 }
 
+/** One creature's near-LOD geometry at rest pose in body space (layout units), copied out of the live batches. */
+export interface BakedCreature {
+  /** Loft slots (body, gas bell or crystal hub): rings × sides vertices each; index with faunaLib/loft gridIndex. */
+  lofts: { pos: Float32Array; nor: Float32Array; col: Float32Array; rings: number; sides: number }[];
+  /** Sculpted parts by PART type: instance matrices (16 floats each) and linear colours (3 each). */
+  parts: { type: number; m: Float32Array; col: Float32Array; n: number }[];
+}
+
 export interface FaunaPart {
   update(dt: number, t: number, inputs: VisualInputs, patch: number): void;
   /** Nearest organism under a ray (world space, normalised direction), or null. */
   hit(origin: Vec3, dir: Vec3): { id: number; dist: number } | null;
   /** Cached bead layout, chemistry and diet of an organism by id (from its BodyPlan), if known. */
-  layoutOf(id: number): { layout: BeadLayout; silicon: boolean; diet: number; hue: number; accent: number } | null;
+  layoutOf(id: number): {
+    layout: BeadLayout; silicon: boolean; diet: number; hue: number; accent: number;
+    /** The creature as the near LOD draws it (loft and parts), at rest pose in body space, for the inspect live view. */
+    bake?: () => BakedCreature | null;
+  } | null;
   /** World position and bounding radius of an organism by id, if drawn. */
   locate(id: number): { x: number; y: number; z: number; radius: number } | null;
   /** Extra multiplier on top of the display-scale rule in layout.ts (default 1). Render-only illustration. */
@@ -282,9 +294,11 @@ export function createFauna(app: App): FaunaPart {
   const BONES = MESHES.length - 1, HEX = BONES - 1; // indexes of the bone and hex-prism meshes in MESHES
 
   // Near: lofts (carbon bodies, carbon gas bells, silicon hubs) and the shared part batches.
-  const axLoft = new LoftBatch(AX_RINGS, AX_SIDES, LOFT_MAX, loftC);
-  const bellLoft = new LoftBatch(BELL_RINGS, BELL_SIDES, LOFT_MAX, loftBell);
-  const hubLoft = new LoftBatch(RAD_RINGS, RAD_SIDES, LOFT_MAX, loftSi);
+  // One spare slot each beyond LOFT_MAX, written only by bake() (never drawn: flush() draws the first n slots).
+  const axLoft = new LoftBatch(AX_RINGS, AX_SIDES, LOFT_MAX + 1, loftC);
+  const bellLoft = new LoftBatch(BELL_RINGS, BELL_SIDES, LOFT_MAX + 1, loftBell);
+  const hubLoft = new LoftBatch(RAD_RINGS, RAD_SIDES, LOFT_MAX + 1, loftSi);
+  let loftCap = LOFT_MAX; // LOFT_MAX + 1 while baking
   const LOFTS = [axLoft, bellLoft, hubLoft];
   const parts: PartBatch[] = partBatches((t) => (t.endsWith('Si') ? partSi : matC), PART_CAPS, PART_CAP);
   app.scene.add(...MESHES, ...LOFTS.map((l) => l.mesh), ...parts.map((p) => p.mesh));
@@ -574,7 +588,7 @@ export function createFauna(app: App): FaunaPart {
   }
 
   function drawAxialNear(e: Entry, d: AxialDesc, t: number, mode: number): boolean {
-    if (axLoft.n >= LOFT_MAX) return false;
+    if (axLoft.n >= loftCap) return false;
     const beads = scratch, sh = e.shape;
     // ---- loft rings through the posed spine, tail cap → head dome ----------------------------------------------
     const sp = d.spine, ns = sp.length;
@@ -651,7 +665,7 @@ export function createFauna(app: App): FaunaPart {
     }
 
     // ---- floaters: a breathing gas bell over the body, tendrils trailing with lag, fronds at the tips ----------
-    if (mode === LOCOMOTION.hover && bellLoft.n < LOFT_MAX) {
+    if (mode === LOCOMOTION.hover && bellLoft.n < loftCap) {
       e.bell = true;
       const ob = d.bell.over * 5;
       toW(beads[ob], beads[ob + 1] + beads[ob + 3] * 0.55, beads[ob + 2]);
@@ -721,7 +735,7 @@ export function createFauna(app: App): FaunaPart {
   const slotOfRod = (e: Entry, i: number) => (e.rodTone[i] === 5 ? SLOT.accent : SLOT.body);
 
   function drawRadialNear(e: Entry, d: RadialDesc, t: number, mode: number): boolean {
-    if (hubLoft.n >= LOFT_MAX) return false;
+    if (hubLoft.n >= loftCap) return false;
     const R = e.layout.radial!, rods = rodScratch, eyes = scratch;
     // ---- hub loft: stepped tiers up the (possibly rolled) hub axis, a rounded n-gon cross-section ---------------
     const o0 = 0, oT = (R.nTiers - 1) * ROD_STRIDE;
@@ -789,6 +803,46 @@ export function createFauna(app: App): FaunaPart {
       tendrils(W[0], W[1] - h * 0.1, W[2], r0 * 0.7, (R.pivotY + h / S) * S * 2.2, t, true, r0 * 0.07);
     }
     return true;
+  }
+
+  /**
+   * The inspect live view's copy of a creature: run the same near-LOD emitters once, at rest pose (speed 0, t 0, flat
+   * ground, heading 0, scale 1), into the batches' spare slots and the parts' free tail, copy that out, then put the
+   * counts back. Called on card open, between frames; the next update() rewrites the batches from 0 anyway.
+   */
+  function bakeNear(e: Entry): BakedCreature | null {
+    if (!e.plan) return null;
+    if (!e.desc) {
+      try { e.desc = describe(e.plan, e.layout); e.bellS = e.desc.kind === 'axial' ? bellSphere(e.desc, e.layout) : null; } catch { return null; }
+    }
+    const L0 = LOFTS.map((l) => l.n), P0 = parts.map((b) => b.n);
+    const speed = e.speed, flat0 = () => 0;
+    e.speed = 0;
+    loftCap = LOFT_MAX + 1;
+    for (const l of LOFTS) l.n = Math.min(l.n, LOFT_MAX); // the spare slot
+    const L1 = LOFTS.map((l) => l.n);
+    let ok = false;
+    try {
+      S = 1; EX = 0; EY = 0; EZ = 0; CH = 1; SH = 0; ENT = e;
+      if (e.desc.kind === 'radial') { animateRadial(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawRadialNear(e, e.desc, 0, e.mode); }
+      else { animate(e, 0, 1, e.mode, flat0, 0, 1, 0); ok = drawAxialNear(e, e.desc, 0, e.mode); }
+    } catch { ok = false; }
+    const out: BakedCreature = { lofts: [], parts: [] };
+    if (ok) {
+      LOFTS.forEach((l, i) => {
+        if (l.n <= L1[i]) return;
+        const v0 = L1[i] * l.per, v1 = v0 + l.per;
+        out.lofts.push({ pos: l.pos.slice(v0 * 3, v1 * 3), nor: l.nor.slice(v0 * 3, v1 * 3), col: l.col.slice(v0 * 3, v1 * 3), rings: l.rings, sides: l.sides });
+      });
+      parts.forEach((b, i) => {
+        const n = b.n - P0[i];
+        if (n > 0) out.parts.push({ type: i, m: b.m.slice(P0[i] * 16, b.n * 16), col: b.col.slice(P0[i] * 3, b.n * 3), n });
+      });
+    }
+    LOFTS.forEach((l, i) => { l.n = L0[i]; });
+    parts.forEach((b, i) => { b.n = P0[i]; });
+    loftCap = LOFT_MAX; e.speed = speed;
+    return ok ? out : null;
   }
 
   // Per-frame draw state, set at the top of update() (draw() and drawFar() live out here so a frame allocates no closures).
@@ -1057,7 +1111,7 @@ export function createFauna(app: App): FaunaPart {
     layoutOf(id) {
       // diet, hue and accent are the species colourway (what creatureColour needs to draw it as it looks in the world)
       const e = entries.get(id);
-      return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet, hue: e.hue, accent: e.accent } : null;
+      return e && e.planned ? { layout: e.layout, silicon: e.silicon, diet: e.diet, hue: e.hue, accent: e.accent, bake: () => bakeNear(e) } : null;
     },
     locate(id) {
       for (let i = 0; i < pn; i++) if (pid[i] === id) return { x: px[i], y: py[i], z: pz[i], radius: pr[i] };

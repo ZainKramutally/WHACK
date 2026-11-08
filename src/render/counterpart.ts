@@ -12,6 +12,10 @@ import { gasDensity } from '../sim/models';
 import { FLORA_EPS, beadLayout } from './layout';
 import { DARK_BELOW, DIM_BELOW, cellSubmerged, floraBin, floraForm, formForBin, type FloraForm } from './floraForm';
 import { WORLD_TONE, creatureColour, floraColours, groundColour, mixHex, seaStyle, skyStyle } from './palette';
+import type { BakedCreature } from './fauna';
+import { PART_TYPES } from './faunaLib/adapter';
+import { gridIndex } from './faunaLib/loft';
+import { partGeometries } from './faunaLib/parts';
 
 export interface CounterpartPart {
   /** Resolves when the swatch materials are compiled (never rejects). */
@@ -27,7 +31,11 @@ export interface CounterpartDeps {
   worldFor: (id: WorldId) => WorldConfig;
   getInputs: () => VisualInputs;
   /** Bead layout of a creature as it lives in this world (from its BodyPlan), for the default 'self' view. */
-  layoutOf?: (id: number) => { layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number; hue: number; accent: number } | null;
+  layoutOf?: (id: number) => {
+    layout: ReturnType<typeof beadLayout>; silicon: boolean; diet: number; hue: number; accent: number;
+    /** The creature as the world's near LOD draws it (loft and parts) at rest pose; the live view prefers this. */
+    bake?: () => BakedCreature | null;
+  } | null;
 }
 
 const mid = (w: WorldConfig, key: string, fallback: number): number => {
@@ -96,6 +104,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
   const prism = (n: number) => { const g = new THREE.CylinderGeometry(1, 1, 1, n, 1); g.rotateY(Math.PI / 2); return g; };
   const beadGeo = { round: new THREE.SphereGeometry(1, 12, 8), faceted: new THREE.IcosahedronGeometry(1, 0), p3: prism(3), p4: prism(4), p5: prism(5), p6: prism(6), p8: prism(8) };
   const geo = <T extends THREE.BufferGeometry>(g: T): T => { disposables.push(g); return g; };
+  // The world's look for creatures: the near-LOD loft (vertex colours) and sculpted parts (instance colours), in this
+  // view's own standard materials (the world material's fog, bounce and foreground push are tuned for the world camera).
+  const loftMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 0.55 });
+  const partMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+  let partGeo: ReturnType<typeof partGeometries> | null = null;
+  const partGeoOf = (type: number) => (partGeo ??= partGeometries())[PART_TYPES[type]];
 
   const backdrops = new Map<string, THREE.Mesh>();
   function backdropFor(other: WorldConfig): THREE.Mesh {
@@ -204,10 +218,55 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
     turntable.add(notScanned);
   }
 
-  /** The clicked creature itself, in its own chemistry, from its own cached BodyPlan layout. */
+  /** The baked near-LOD creature (one loft mesh per slot, one InstancedMesh per part type), framed like the beads. */
+  function loftContent(b: BakedCreature, aspect: number) {
+    const group = new THREE.Group();
+    let reach = 0.05, minY = Infinity, maxY = -Infinity;
+    const grow = (x: number, y: number, z: number, r: number) => {
+      reach = Math.max(reach, Math.hypot(x, z) + r);
+      minY = Math.min(minY, y - r); maxY = Math.max(maxY, y + r);
+    };
+    for (const l of b.lofts) {
+      const g = geo(new THREE.BufferGeometry());
+      g.setAttribute('position', new THREE.BufferAttribute(l.pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(l.nor, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(l.col, 3));
+      g.setIndex(new THREE.BufferAttribute(gridIndex(l.rings, l.sides, 1), 1));
+      const mesh = new THREE.Mesh(g, loftMat);
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      for (let i = 0; i < l.pos.length; i += 3) grow(l.pos[i], l.pos[i + 1], l.pos[i + 2], 0);
+    }
+    for (const p of b.parts) {
+      const im = new THREE.InstancedMesh(partGeoOf(p.type), partMat, p.n);
+      (im.instanceMatrix.array as Float32Array).set(p.m);
+      im.instanceMatrix.needsUpdate = true;
+      im.instanceColor = new THREE.InstancedBufferAttribute(p.col, 3);
+      im.frustumCulled = false;
+      disposables.push(im);
+      group.add(im);
+      for (let i = 0; i < p.n; i++) {
+        const m = p.m, o = i * 16;
+        const r = Math.max(Math.hypot(m[o], m[o + 1], m[o + 2]), Math.hypot(m[o + 4], m[o + 5], m[o + 6]), Math.hypot(m[o + 8], m[o + 9], m[o + 10]));
+        grow(m[o + 12], m[o + 13], m[o + 14], r);
+      }
+    }
+    if (!Number.isFinite(minY)) return false;
+    const halfH = Math.tan((cam.fov * Math.PI) / 360) * cam.position.z;
+    const k = Math.min((halfH * aspect * 0.8) / reach, (halfH * 0.62) / Math.max(0.05, (maxY - minY) / 2), 1.4 / reach);
+    group.scale.setScalar(k);
+    group.position.y = 0.6 - ((minY + maxY) / 2) * k;
+    turntable.add(group);
+    return true;
+  }
+
+  /** The clicked creature itself, in its own chemistry: as the world draws it near (loft), else its bead layout. */
   function organismContent(id: number) {
     const own = deps.layoutOf?.(id);
-    if (own) beadsContent(own.layout, own.silicon, own.diet, rect ? rect.width / rect.height : 2, own.hue, own.accent);
+    const aspect = rect ? rect.width / rect.height : 2;
+    const baked = own?.bake?.() ?? null;
+    if (baked && loftContent(baked, aspect)) return;
+    if (own) beadsContent(own.layout, own.silicon, own.diet, aspect, own.hue, own.accent);
     else notScannedContent();
   }
 
@@ -387,6 +446,12 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       beadsContent({ beads: [{ x: 0, y: 0.2, z: 0, r: 0.2, tone: 0 }, { x: 0.4, y: 0.2, z: 0, r: 0.1, tone: 1 }], nBody: 2, limbs: [], stride: 0, radius: 0.6, centreY: 0.2 }, other.life.composition.si > 0.5, 0.5, 2);
       backdropFor(other);
     }
+    // the creature live view's loft and part pipelines (one tiny ring pair; one instance of every part geometry)
+    const ring = (y: number) => [0, y, 0.1, 0.1, y, -0.1, -0.1, y, 0];
+    loftContent({
+      lofts: [{ pos: Float32Array.from([...ring(0), ...ring(0.2)]), nor: new Float32Array(18).fill(0.577), col: new Float32Array(18).fill(0.5), rings: 2, sides: 3 }],
+      parts: PART_TYPES.map((_, type) => ({ type, m: Float32Array.from([0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 1]), col: new Float32Array(3).fill(0.5), n: 1 })),
+    }, 2);
     const all = [...backdrops.values()];
     all.forEach((b) => scene.add(b));
     return r.compileAsync(scene, cam).catch(console.error).then(() => {
@@ -443,6 +508,8 @@ export function createCounterpart(deps: CounterpartDeps): CounterpartPart {
       for (const b of backdrops.values()) { b.geometry.dispose(); (b.material as THREE.Material).dispose(); }
       for (const m of Object.values(beadMat)) m.dispose();
       for (const g of Object.values(beadGeo)) g.dispose();
+      loftMat.dispose(); partMat.dispose();
+      if (partGeo) for (const g of Object.values(partGeo)) g.dispose();
       if (notScanned) { (notScanned.material as THREE.MeshBasicNodeMaterial).map?.dispose(); (notScanned.material as THREE.Material).dispose(); notScanned.geometry.dispose(); }
     },
   };
