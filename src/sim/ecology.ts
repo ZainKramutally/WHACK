@@ -79,6 +79,7 @@ const FLORA_EVERY = 4; // implementation constant (DECISIONS §G.2 exempt): flor
 const SCAN = 12; // implementation constant (DECISIONS §G.2 exempt): an animal looks at no more than this many neighbours per cell (bounds crowded cells)
 const FLORA_SEED = 1e-3; // implementation constant (DECISIONS §G.2 exempt): mat that survives lethal stress, from which flora regrows
 const STRAND_SCAN = 6; // implementation constant (DECISIONS §G.2 exempt): cells a stranded animal looks around for ground that suits it
+const SPORE_ENERGY = 1.9; // implementation constant (DECISIONS §G.2 exempt): a germinating spore's energy as a share of its body mass (a bud needs 2)
 const SPORE_BANK = 24; // implementation constant (DECISIONS §G.2 exempt): dormant genomes kept (issue #6)
 const SPORES_PER_TICK = 8; // implementation constant (DECISIONS §G.2 exempt): at most this many germinate in one tick
 
@@ -363,7 +364,7 @@ export class Ecology {
       if (fit < CONSTANTS.SPORE_VIABILITY.value) { k++; continue; }
       const child = mutate(this.spores[k], this.rnd, this.rules, this.env.mutationSigma);
       this.spores.splice(k, 1);
-      if (this.spawn(child, (cell % GRID) + this.rnd(), Math.floor(cell / GRID) + this.rnd(), 0, null, this.env)) n++;
+      if (this.spawn(child, (cell % GRID) + this.rnd(), Math.floor(cell / GRID) + this.rnd(), 0, null, this.env, SPORE_ENERGY)) n++;   // a spore carries reserves: it can bud almost at once
     }
   }
 
@@ -703,7 +704,7 @@ export class Ecology {
   }
 
   /** Creates an animal (develop() at birth, R9). A bud pays 1.5 × the child's body from the parent; a founder is injected. */
-  private spawn(genome: AnimalGenome, px: number, py: number, gen: number, parent: number | null, env: EcologyEnv): boolean {
+  private spawn(genome: AnimalGenome, px: number, py: number, gen: number, parent: number | null, env: EcologyEnv, energyShare = 0.5): boolean {
     const slot = this.free.pop();
     if (slot === undefined) return false;
     const plan = develop(genome, { light: env.light, heatBand: env.heatBand }, this.inputs);
@@ -720,14 +721,14 @@ export class Ecology {
       if (this.energy[parent] < 1.5 * M) { this.free.push(slot); return false; }
       this.energy[parent] -= 1.5 * M;
       plan.defence += CONSTANTS.INDUCE.value * this.hunger * this.afraidSeen[parent];
-    } else this.injected += 1.5 * M;
+    } else this.injected += (1 + energyShare) * M;
     this.alive[slot] = 1;
     this.id[slot] = this.nextId++;
     this.gen[slot] = gen;
     this.x[slot] = Math.min(GRID - 1e-6, Math.max(0, px));
     this.y[slot] = Math.min(GRID - 1e-6, Math.max(0, py));
     this.struct[slot] = M;
-    this.energy[slot] = 0.5 * M;
+    this.energy[slot] = energyShare * M;
     this.age[slot] = 0;
     this.genome[slot] = genome;
     this.plan[slot] = plan;

@@ -291,7 +291,7 @@ export const silicon: WorldConfig = {
       shallowMax: 2, // liquid depth (m) that counts as shallows, where life starts
       deepLiquid: 6, // liquid depth (m) that gives full shelter
       wadeDepth: 0.5, // deepest liquid (m) a walker can cross
-      intake: 3, // assumption: raised so slow-pace silicon grazers still bud within their lifespan
+      intake: 15, // assumption: raised so slow-pace silicon grazers still bud within their lifespan, and so a collapsed population regrows visibly (about 40 s) after a heat wall
       speed: 1.5, // cells per ecology second
       moveCost: 0.01, // matter per M^0.75 per cell moved, times the locomotion mode's cost
       catchRate: 0.4, // catch attempts per ecology second when a prey is in reach; tuned so hunters persist
