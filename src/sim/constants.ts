@@ -72,6 +72,8 @@ export const CONSTANTS = deepFreeze({
   WANDER: c(0.02, 'game'),
   /** R8: mutation σ during the build's fast-forward, so variety appears fast; SIGMA applies again from build:complete on. */
   SIGMA_BUILD: c(0.02, 'game'),
+  /** R4: diet payoff exponent: plant gain (1 − diet)^p and meat gain diet^p. p = 2 made a part-carnivore worse at both (0.5² + 0.5² = 0.5 of one full diet), so hunting could not evolve gradually (owner ruling #48). */
+  DIET_EXP: c(1.15, 'game'),
 });
 
 export type ConstantName = keyof typeof CONSTANTS;

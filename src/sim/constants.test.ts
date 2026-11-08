@@ -8,6 +8,7 @@ const G2_NAMES = [
   'SPORE_VIABILITY', // owner ruling, issue #6
   'CLIMATE_FLOOR', // bar-raiser #1: life persists inside the living band
   'REACH', 'SPORE_BELOW', 'FOUNDER_CELLS', 'EDGE_ZONE', 'EDGE_POWER', 'SPAWN_SPREAD', 'WANDER', 'SIGMA_BUILD', // bar-raiser #8: tunables moved out of modules
+  'DIET_EXP', // owner ruling #48: gentler meat payoff
 ];
 
 describe('constants budget', () => {
@@ -21,7 +22,7 @@ describe('constants budget', () => {
     expect(Object.isFrozen(CONSTANTS)).toBe(true);
   });
   it('has the pinned defaults', () => {
-    expect(CONSTANTS.SIGMA.value).toBe(0.075);
+    expect(CONSTANTS.SIGMA.value).toBe(0.012);
     expect(CONSTANTS.TSR.value).toBe(0.6);
     expect(CONSTANTS.PLATE_MASS.value).toBe(0.15);
   });

@@ -1,5 +1,6 @@
 // Rule 6: relationships come from bodies (DECISIONS §3). Pure. The only inputs are a develop() BodyPlan's
 // scale, gape, defence and diet, plus lineage and sociality. No species names, no role input, no preset ids.
+import { CONSTANTS } from './constants';
 import type { BodyPlan } from './develop';
 
 export interface RelBody {
@@ -21,13 +22,13 @@ export function eatsIntensity(
   a: Pick<BodyPlan, 'gapeSize' | 'diet'>,
   b: Pick<BodyPlan, 'scale' | 'defence'>,
 ): number {
-  return a.gapeSize > b.scale * (1 + b.defence) ? a.diet * a.diet : 0;
+  return a.gapeSize > b.scale * (1 + b.defence) ? a.diet ** CONSTANTS.DIET_EXP.value : 0;
 }
 
 /** Shared plant pools: both graze, and their diets overlap. */
 export function rivalOverlap(a: Pick<BodyPlan, 'diet'>, b: Pick<BodyPlan, 'diet'>): number {
-  const pa = (1 - a.diet) ** 2;
-  const pb = (1 - b.diet) ** 2;
+  const pa = (1 - a.diet) ** CONSTANTS.DIET_EXP.value;
+  const pb = (1 - b.diet) ** CONSTANTS.DIET_EXP.value;
   return Math.min(pa, pb) * (1 - Math.abs(a.diet - b.diet));
 }
 

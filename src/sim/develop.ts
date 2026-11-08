@@ -98,8 +98,8 @@ export interface BodyPlan {
   // derived for the ecology
   defence: number; // (plates + horns)·(1 + 0.5·si) − 0.3·buoy, ≥ 0: prey edible iff 2·gape·S > S_prey·(1 + defence)
   diet: number; // 0 grazer .. 1 hunter
-  plantGain: number; // (1 − diet)²
-  meatGain: number; // diet²
+  plantGain: number; // (1 − diet)^DIET_EXP
+  meatGain: number; // diet^DIET_EXP
   mode: LocomotionMode; // cheapest of walk / swim / hover / sessile
   modeCosts: { walk: number; swim: number; hover: number; sessile: number }; // so ecology can re-pick by medium
 }
@@ -356,8 +356,8 @@ export function develop(genome: AnimalGenome, conditions: DevelopConditions, inp
     glow,
     defence,
     diet: body.diet,
-    plantGain: (1 - body.diet) ** 2,
-    meatGain: body.diet ** 2,
+    plantGain: (1 - body.diet) ** K.DIET_EXP.value,
+    meatGain: body.diet ** K.DIET_EXP.value,
     mode,
     modeCosts,
   };
