@@ -12,6 +12,8 @@ export interface Dust {
 
 const ICE = new THREE.Color(0xe6f4ff);
 const _c = new THREE.Color();
+const WHITE = new THREE.Color(0xffffff);
+const ICE_T = { r: ICE.r, g: ICE.g, b: ICE.b };
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 export function createDust(scene: THREE.Scene): Dust {
@@ -32,7 +34,8 @@ export function createDust(scene: THREE.Scene): Dust {
   scene.add(group);
 
   let visible = false;
-  let tintKey = -2, tint = { r: 0.6, g: 0.55, b: 0.47 };
+  let refresh = 0, lastWorld: unknown = null;
+  const tint = { r: 0.6, g: 0.55, b: 0.47 };
   const arr = mesh.instanceMatrix.array as Float32Array;
   const col = mesh.instanceColor!.array as Float32Array;
 
@@ -42,16 +45,16 @@ export function createDust(scene: THREE.Scene): Dust {
     update(dt, p, gravityG, inputs) {
       if (!visible) return;
       const surface = dustSurface(p);
-      let t = tint;
-      if (surface === 'ice') t = { r: ICE.r, g: ICE.g, b: ICE.b };
-      else {
-        const hex = crustGround(inputs);
-        const key = hex ?? (inputs.world.composition.si > 0.5 ? -1 : -3);
-        if (key !== tintKey) {
-          tintKey = key;
-          if (hex !== undefined) _c.set(hex).lerp(_c.clone().set(0xffffff), 0.15);
-          else _c.set(key === -1 ? 0x8f949e : 0x9a8466);
-          tint = { r: _c.r, g: _c.g, b: _c.b };
+      let t = ICE_T;
+      if (surface !== 'ice') {
+        // crustGround allocates (string joins, objects): re-read it twice a second or when the world changes.
+        refresh -= dt;
+        if (refresh <= 0 || lastWorld !== inputs.world) {
+          refresh = 0.5; lastWorld = inputs.world;
+          const hex = crustGround(inputs);
+          if (hex !== undefined) _c.set(hex).lerp(WHITE, 0.15);
+          else _c.set(inputs.world.composition.si > 0.5 ? 0x8f949e : 0x9a8466);
+          tint.r = _c.r; tint.g = _c.g; tint.b = _c.b;
         }
         t = tint;
       }
