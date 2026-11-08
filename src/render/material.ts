@@ -13,6 +13,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn, float, vec3, vec4, mix, max, min, normalWorld, positionWorld, positionLocal, attribute, uniform, cameraPosition,
   sin, cos, screenCoordinate, exp, smoothstep, floor, mod, clamp, dot, diffuseColor, abs, pow, normalize, If, Discard,
+  positionGeometry, normalGeometry, normalLocal,
 } from 'three/tsl';
 import type { VisualInputs } from '../worlds/types';
 import { LOOK_PALETTES, lookPalette, type LookKey, type LookPalette } from './palette';
@@ -41,6 +42,10 @@ export interface WorldMaterialOpts {
   cutout?: boolean;
   /** Fresnel rim toward PAL.bone, 0..1 strength (fauna). */
   rim?: number;
+  /** Per-instance vec4 attribute of shape terms (crown, twist, droop, bend; floraLib/instance.ts plantShape) that bends
+   *  each instance in its own frame before instancing (flora: every plant its own). Every geometry drawn with the
+   *  material needs it (zeros draw the native shape). */
+  plantAttr?: string | null;
 }
 
 /** Pixel mode (the default look). `?style=smooth` is the comparison view. post.ts reads the same flag. */
@@ -137,11 +142,54 @@ export const fogAt = (p: N): N => {
   return f;
 };
 
+/**
+ * The shape terms of `plantAttr`, applied to the geometry in the plant's own (native, pre-instance) frame, with y up
+ * from its base: crown scale 1 + c·y² on x/z, then a turn of t·y about the stem, a drop of d·r²·y² (r: distance from the
+ * stem) and a bend of b·y² along +X. Normals take the matching first-order correction n − (∇δ)ᵀn (the twist's shear
+ * is left out: it is zero on surfaces of revolution).
+ */
+const plantDeform = (name: string) => (): void => {
+  const P = attribute(name, 'vec4');
+  const p = positionGeometry, n = normalGeometry;
+  const c = P.x, t = P.y, d = P.z, b = P.w;
+  const y = max(p.y, 0), y2 = y.mul(y);
+  const r2 = p.x.mul(p.x).add(p.z.mul(p.z));
+  const k = c.mul(y2).add(1);
+  const a = t.mul(y), ca = cos(a), sa = sin(a);
+  const xk = p.x.mul(k), zk = p.z.mul(k);
+  positionLocal.assign(vec3(
+    xk.mul(ca).sub(zk.mul(sa)).add(b.mul(y2)),
+    p.y.sub(d.mul(r2).mul(y2)),
+    xk.mul(sa).add(zk.mul(ca)),
+  ));
+  // crown and droop in the native frame, then the turn, then the bend (it acts along +X after the turn)
+  const cy2 = c.mul(y2), dy2 = d.mul(y2).mul(2);
+  const nx = n.x.sub(cy2.mul(n.x)).add(dy2.mul(p.x).mul(n.y));
+  const ny = n.y.sub(y.mul(2).mul(c).mul(p.x.mul(n.x).add(p.z.mul(n.z)))).add(d.mul(2).mul(r2).mul(y).mul(n.y));
+  const nz = n.z.sub(cy2.mul(n.z)).add(dy2.mul(p.z).mul(n.y));
+  const rx = nx.mul(ca).sub(nz.mul(sa)), rz = nx.mul(sa).add(nz.mul(ca));
+  normalLocal.assign(normalize(vec3(rx, ny.sub(y.mul(2).mul(b).mul(rx)), rz)));
+};
+
+/** Lambert node material that runs a deformation on the geometry before three applies instancing (in r187 the
+ * positionNode runs after it, in the instanced frame), the way skinning and morphs do. */
+class PlantMaterial extends THREE.MeshLambertNodeMaterial {
+  deform: (() => void) | null = null;
+  setupPosition(builder: N): N {
+    this.deform?.();
+    return super.setupPosition(builder);
+  }
+  customProgramCacheKey(): string {
+    return 'plant:' + super.customProgramCacheKey();
+  }
+}
+
 export function worldMaterial(opts: WorldMaterialOpts): N {
   const kind = opts.kind;
   const translucent = opts.translucent ?? kind === 'flora';
   const bounce = kind !== 'sea' && kind !== 'backdrop' && kind !== 'ground';
-  const m = new THREE.MeshLambertNodeMaterial();
+  const m = opts.plantAttr ? new PlantMaterial() : new THREE.MeshLambertNodeMaterial();
+  if (opts.plantAttr && m instanceof PlantMaterial) m.deform = plantDeform(opts.plantAttr);
   m.side = (opts.side ?? THREE.FrontSide) as THREE.Side;
   m.vertexColors = opts.vertexColors === true;
   m.flatShading = opts.flat === true;

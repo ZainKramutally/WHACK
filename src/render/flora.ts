@@ -74,7 +74,7 @@ export function createFlora(app: App): FloraPart {
   // Two-sided: rib-fan webs, sieve plates and parasol discs are open sheets. Near-LOD mid and giant plants carry the
   // focus cut-out (they dither out on the camera→player line); ground cover (≤ 2 m) and far-LOD plants (beyond 40 m
   // for mids, 90 m for giants) can't hide the player, so they skip it: its discard costs early-z on every fragment.
-  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', translucent: true, side: THREE.DoubleSide } as const;
+  const FLORA_MAT = { kind: 'flora', vertexColors: true, glowAttr: 'aGlow', swayAttr: 'aSway', plantAttr: PLANT_ATTR, translucent: true, side: THREE.DoubleSide } as const;
   const material = worldMaterial({ ...FLORA_MAT, cutout: true });
   const materialNoCut = worldMaterial({ ...FLORA_MAT, cutout: false });
   const materialFor = (role: string, lod: number) => (role !== 'ground' && lod === 0 ? material : materialNoCut);
