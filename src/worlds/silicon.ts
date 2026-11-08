@@ -349,7 +349,7 @@ export const silicon: WorldConfig = {
         spanPerLength: 6,   // body lengths of wing span at full wing gene (wingSpan 1.0)
         powerFactor: 1.2,   // ε: profile and parasite power on top of ideal induced power (Pennycuick's minimum-power speed carries roughly +20% to +50%)
         muscleFrac: 0.25,   // flight-muscle share of body mass (birds 15–35%)
-        specificPower: 150,   // W per kg of flight muscle at 1 kg, full aerobic scope (mechanical output of bird flight muscle, order 100–250 W/kg)
+        specificPower: 75,   // W per kg of flight muscle at 1 kg, full aerobic scope. Set a little below the 100–250 W/kg bird range so flying is rare at defaults (owner ruling); only light, big-winged bodies in thin gravity or thick air clear the power margin
         massRef: 1,   // kg
         powerExp: 0.33,   // specific power ∝ m^−1/3: wingbeat frequency falls with size, so big bodies have less power per kilo
         o2Ref: 21,   // % O₂ where scope = 1: Earth
