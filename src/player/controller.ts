@@ -36,11 +36,11 @@ export interface PlayerTuning {
 
 export const DEFAULT_PLAYER_TUNING: PlayerTuning = {
   walkSpeed: 5,
-  swimSpeed: 3.5,
-  riseSpeed: 2.5,
+  swimSpeed: 7,
+  riseSpeed: 4,
   waterDrag: 0.35,
   walkAccelTime: 0.09,
-  swimAccelTime: 0.35,
+  swimAccelTime: 0.22,
   groundFollow: 18,
   turnRate: 9,
   swimSurfaceOffset: 1.3,
@@ -227,8 +227,10 @@ export function createPlayer(env: PlayerEnv, tuning: Partial<PlayerTuning> = {})
       integrate(dt);
       s.y += s.vy * dt;
       const gNow = env.heightAt(s.x, s.z);
-      s.y = Math.min(s.y, sea - t.swimSurfaceOffset); // can't leave the water upward
-      s.y = Math.max(s.y, gNow + t.swimClearance);    // or dig into the sea floor
+      const top = sea - t.swimSurfaceOffset;
+      const bottom = gNow + t.swimClearance;
+      if (s.y > top) { s.y = top; s.vy = Math.min(s.vy, 0); }       // can't leave the water upward
+      if (s.y < bottom) { s.y = bottom; s.vy = Math.max(s.vy, 0); } // or dig into the sea floor
       const horiz = Math.hypot(s.vx, s.vz);
       const targetPitch = clamp(Math.atan2(-s.vy, Math.max(0.5, horiz)), -1.2, 1.2) * Math.min(1, horiz + Math.abs(s.vy));
       s.swimPitch += (targetPitch - s.swimPitch) * Math.min(1, 6 * dt);
