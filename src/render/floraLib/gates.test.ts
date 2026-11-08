@@ -20,8 +20,7 @@ function shore(stats: Record<string, number>, over: Partial<VisualInputs> = {}):
   const flora = new Float32Array(64 * 64 * 2);
   for (let c = 0; c < 4096; c++) { flora[c * 2] = c % 2 ? 1 : 0.6; flora[c * 2 + 1] = c % 2 ? 0.05 : 0.8; }
   return {
-    // airDensity in VisualInputs units: Earth's air
-    ...stub, flora, seaLevel: 0, lifeOnLand: true, airDensity: AIR_EARTH, stats: { ...stub.stats, ...stats },
+    ...stub, flora, seaLevel: 0, lifeOnLand: true, stats: { ...stub.stats, ...stats },   // the stub's air is Earth's
     terrain: { rise: 1, progress: {}, height: (x) => 0.06 * x, patchSize: PATCH }, ...over,
   };
 }
