@@ -64,7 +64,10 @@ function resetPose(p: Float64Array) {
 
 export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}): DeityAnimator {
   const d = rig.dims;
-  const lookBackOn = opts.lookBack !== false;
+  // Variant D carries its eyes on the body: the head turn would show nothing, so skip the look-back there.
+  const lookBackOn = opts.lookBack !== false && rig.eyes[0].parent === rig.head;
+  // Short legs (variant C) can't carry the bounce: the body squash and hop do more of the work.
+  const squashK = 1 + clamp((0.25 - rig.dims.legLength) / 0.15, 0, 1);
   const seed = opts.seed ?? 0xde17;
   const rLook = makeRand(seed);
   const rBlink = makeRand(seed ^ 0x9e3779b9);
@@ -133,12 +136,12 @@ export function createDeityAnimator(rig: DeityRig, opts: DeityAnimOptions = {}):
     const sk = Math.min(1, speed / 5);
     const A = lerp(0.55, 0.9, runK) * (0.4 + 0.6 * sk);
     const s = Math.sin(TAU * gait), c4 = Math.cos(2 * TAU * gait);
-    const hop = lerp(0.05, 0.14, runK) * sk;
+    const hop = lerp(0.05, 0.14, runK) * sk * (1 + 0.5 * (squashK - 1));
     p[PY] = -d.legLength * (1 - Math.cos(A)) * 0.8 + hop * (0.5 + 0.5 * c4);
     p[RX] = -lerp(0.07, 0.22, runK) * sk;
     p[RZ] = 0.04 * s * (1 - runK) * sk;
-    p[BSY] = 1 + 0.06 * c4 * sk;
-    p[BSX] = 1 - 0.03 * c4 * sk;
+    p[BSY] = 1 + 0.06 * squashK * c4 * sk;
+    p[BSX] = 1 - 0.03 * squashK * c4 * sk;
     p[L0X] = A * s;
     p[L1X] = -A * s;
     p[L0Z] = -0.08;

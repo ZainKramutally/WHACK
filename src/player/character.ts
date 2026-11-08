@@ -1,8 +1,9 @@
-// The player's character: a rig (currently the primitive stand-in) driven by the procedural deity animator.
+// The player's character: a rig (the deity model, default variant C) driven by the procedural deity animator.
 // It only reads PlayerState; nothing here feeds back into movement. index.ts owns root.visible / root.scale (fade-in).
 import type * as THREE from 'three/webgpu';
 import type { PlayerState } from './controller';
 import { createDeityAnimator, type DeityAnimOptions } from './deity/animate';
+import { buildDeity, DEFAULT_VARIANT, type DeityVariantId } from './deity/model';
 import { buildStandinRig } from './deity/standin';
 
 export interface Character {
@@ -15,8 +16,9 @@ export interface Character {
   cast?(): void;
 }
 
-export function createCharacter(animOpts?: DeityAnimOptions): Character {
-  const rig = buildStandinRig();
+export function createCharacter(opts: DeityAnimOptions & { variant?: DeityVariantId | 'standin' } = {}): Character {
+  const { variant = DEFAULT_VARIANT, ...animOpts } = opts;
+  const rig = variant === 'standin' ? buildStandinRig() : buildDeity(variant);
   const anim = createDeityAnimator(rig, animOpts);
   return {
     root: rig.root,

@@ -1,5 +1,5 @@
 // Dev-only deity animation playground (not part of the game, tests or the production build):
-//   /scripts/deity/anim.html          WASD move, Shift sprint, Space jump (rise in water), mouse drag orbit, T slow motion, R reset
+//   /scripts/deity/anim.html          V cycles variant C/A/B/D/stand-in. WASD move, Shift sprint, Space jump (rise in water), mouse drag orbit, T slow motion, R reset
 //   /scripts/deity/anim.html?auto     scripted loop: idle + look-back, walk, run, two jumps, swim, tread water, swim back
 // Real controller, input and follow camera on flat stub ground with a pool, rendered through the real look.
 import * as THREE from 'three/webgpu';
@@ -42,7 +42,10 @@ app.scene.add(ground, water);
 const player = createPlayer(env);
 const s = player.state;
 const follow = createFollowCamera({ floorAt: (x, z) => walkFloor(heightAt(x, z), SEA, false) });
-const character = createCharacter(auto ? { lookBackDelay: [1.5, 1.5] } : undefined);
+const VARIANTS = ['C', 'A', 'B', 'D', 'standin'] as const;
+let vi = 0;
+const make = () => createCharacter({ variant: VARIANTS[vi], ...(auto ? { lookBackDelay: [1.5, 1.5] as [number, number] } : {}) });
+let character = make();
 app.scene.add(character.root);
 const input = createInput(app.renderer.domElement);
 const camTarget = { x: s.x, y: s.y, z: s.z };
@@ -60,7 +63,8 @@ const idleIntents: PlayerIntents = { moveX: 0, moveZ: 0, rise: 0, jump: false, s
 let slow = false;
 const hud = document.createElement('div');
 hud.style.cssText = 'position:fixed;left:8px;bottom:8px;font:12px monospace;color:#fff;background:#0009;padding:4px 8px;pointer-events:none';
-hud.textContent = auto ? 'auto loop | T slow-mo, R reset' : 'WASD move | Shift sprint | Space jump / rise | drag orbit | T slow-mo | R reset | pool ahead (-z)';
+const base = auto ? 'auto loop | T slow-mo, R reset, V variant' : 'WASD move | Shift sprint | Space jump / rise | drag orbit | T slow-mo | R reset | V variant | pool ahead (-z)';
+hud.textContent = base + ' | variant C';
 app.ui.appendChild(hud);
 function reset() {
   player.teleport(SPAWN.x, SPAWN.z);
@@ -73,6 +77,14 @@ function reset() {
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyT') slow = !slow;
   if (e.code === 'KeyR') reset();
+  if (e.code === 'KeyV') {
+    app.scene.remove(character.root);
+    character.dispose();
+    vi = (vi + 1) % VARIANTS.length;
+    character = make();
+    app.scene.add(character.root);
+    hud.textContent = base + ' | variant ' + VARIANTS[vi];
+  }
 });
 
 app.registerFrameHook((dtReal) => {
