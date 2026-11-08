@@ -12,6 +12,10 @@
 </head>
 <body>
   <div id="info"></div>
-  <script type="module" src="/src/fauna/lab.ts"></script>
+  <script type="module">
+    // ?view=aquatic… opens the underwater swimmer lab (src/fauna/aquatic/lab.ts); every other view is the land lab
+    if ((new URLSearchParams(location.search).get('view') ?? '').startsWith('aquatic')) import('/src/fauna/aquatic/lab.ts');
+    else import('/src/fauna/lab.ts');
+  </script>
 </body>
 </html>
