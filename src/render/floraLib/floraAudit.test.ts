@@ -16,6 +16,7 @@ import { createTerrainMesh, createTerrainUniforms } from '../terrainNode';
 import { floraBin, formForBin } from '../floraForm';
 import { FLORA_GRID } from '../layout';
 import { createFlora } from '../flora';
+import { GATES } from './gates';
 import type { App } from '../app';
 
 const ENV = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
@@ -356,7 +357,9 @@ describe.skipIf(!SLOW)('flora asset audit: placement and wiring (SLOW)', () => {
       ground++; if (wet) under++;
       const c = Math.floor((list.z[i] / PATCH + 0.5) * FLORA_GRID) * FLORA_GRID + Math.floor((list.x[i] / PATCH + 0.5) * FLORA_GRID);
       const bin = floraBin(inp.flora[c * 2], inp.flora[c * 2 + 1], inp, wet);
-      if (!archetypesFor(formForBin(bin), 'ground', bin.light === 2).includes(a.key)) wrong++;
+      const row = archetypesFor(formForBin(bin), 'ground', bin.light === 2);
+      // a gated archetype (gates.ts) stands in for an entry of the row it replaces
+      if (!row.includes(a.key) && !GATES.some((g) => g.by === a.key && row.some((k) => g.replaces.test(k)))) wrong++;
     }
     if (VERBOSE) console.log(`${w.world.id} ground ${ground} (${under} under the sea), off their side ${wrong}`);
     expect(under).toBeGreaterThan(0);

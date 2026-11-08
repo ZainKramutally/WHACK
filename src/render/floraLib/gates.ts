@@ -34,6 +34,15 @@ export function worldEnv(i: VisualInputs): WorldEnv {
   };
 }
 
+/**
+ * Silicon supply of a cell's crust, by height rank until session/crust's mineral map is on main (flora-traits §3.1
+ * fallback): silicide in the lowest 40% (Si supply 1.6), nitride up to 80% (1.2), water-ice bedrock above (0: it holds
+ * no silicon). Supplies from docs/features/crust.md (nierite: Lee 1995).
+ */
+export function supplySi(rank: number): number {
+  return rank < 0.4 ? 1.6 : rank < 0.8 ? 1.2 : 0;
+}
+
 /** Gas floats lift in air at least this many times Earth's density (A5 air niche, A6). */
 export const AIR_FLOAT = 5;
 /** The aquatic mid slot (A5 water, A8): at most one per cell with biomass B ≥ AQUATIC_B, inside a depth window. */
@@ -59,7 +68,7 @@ export interface CellProbe {
   total(c: number): number;
 }
 
-export type GateId = 'pitcher' | 'cushion' | 'kelpAir';
+export type GateId = 'pitcher' | 'cushion' | 'kelpAir' | 'rosette' | 'fern';
 
 export interface GateSpec {
   id: GateId;
@@ -87,6 +96,12 @@ export const GATES: readonly GateSpec[] = [
   // A5 bladder kelp, air niche: gas floats lift as well in air over ~5 × Earth's density (ρ_air − ρ_gas; DESIGN R11,
   // speculative in air). On carbon the Nitrogen slider thickens the air. A tethered float: upright, mid sink rule.
   { id: 'kelpAir', chem: 'carbon', role: 'mid', replaces: /^weeper#/, by: 'bladderKelp#0', world: (e) => e.air >= AIR_FLOAT, land: true },
+  // A2 woolly rosette: tropical-alpine giant rosettes on cold, bright heights (Smith & Young 1987). Exclusive with A3
+  // by temperature (< 8 °C here, ≥ 10 °C there).
+  { id: 'rosette', chem: 'carbon', role: 'giant', replaces: /^(parasolTitan|parasolTitanDense|coilSpire)#/, by: 'woollyRosette#0', world: (e) => e.T < 8 && e.L >= 0.4, cell: (c, p) => p.rank(c) > 0.7 },
+  // A7 frost fern: rich silicon supply × biomass (a supersaturation proxy) branches crystals into 60° dendrites
+  // (Mullins & Sekerka 1964), so ferns gather on silicide margins.
+  { id: 'fern', chem: 'silicon', role: 'ground', replaces: /^crystalGround#2$/, by: 'frostFern#0', world: () => true, cell: (c, p) => supplySi(p.rank(c)) * p.total(c) > 1.2, land: true },
   // A4 cushion mound: cold flattens ground cover into cushions (alpine growth form; Körner, Alpine Plant Life)
   { id: 'cushion', chem: 'carbon', role: 'ground', replaces: /^groundCover#2$/, by: 'groundCover#4', world: (e) => e.T < 0, land: true },
 ];

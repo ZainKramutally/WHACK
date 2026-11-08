@@ -38,7 +38,8 @@ import { weeper } from './species/weeper';
 import { ribFan } from './species/ribfan';
 import { groundCover } from './species/ground';
 import { jellyDome } from './species/dome';
-import { crystalGround, prismTitan, shardTree, whiskerReef } from './species/crystal';
+import { crystalGround, frostFern, prismTitan, shardTree, whiskerReef } from './species/crystal';
+import { woollyRosette } from './species/rosette';
 import { bladderKelp } from './species/kelp';
 import { pitcherUrn } from './species/pitcher';
 
@@ -70,6 +71,8 @@ const SPECIES: SpeciesDef[] = [
   { id: 'pitcherUrn', chem: 'carbon', role: 'mid', gen: pitcherUrn, variants: [0] },
   { id: 'bladderKelp', chem: 'carbon', role: 'mid', gen: bladderKelp, variants: [0] },
   { id: 'whiskerReef', chem: 'silicon', role: 'mid', gen: whiskerReef, variants: [0] },
+  { id: 'frostFern', chem: 'silicon', role: 'ground', gen: frostFern, variants: [0] },
+  { id: 'woollyRosette', chem: 'carbon', role: 'giant', gen: woollyRosette, variants: [0] },
 ];
 
 /** Every archetype key, in library index order (available without building geometry). */

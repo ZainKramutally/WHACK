@@ -249,3 +249,30 @@ export function whiskerReef(rng: Rng, _variant: number) {
   }
   return b.build({ flat: true });
 }
+
+/**
+ * Frost fern (silicon ground; flora-traits A7): "rich supply branches the crystals". Three vertical blades at 120°,
+ * each a spine leaning out 15° with two pairs of side branches at 60° in the blade's plane. Fast growth at high
+ * supersaturation breaks flat faces into 60° dendrites (Mullins & Sekerka 1964; Libbrecht 2005 for ice) [sci
+ * mechanism, speculative on silicon]. ~135 tris, far LOD = near.
+ */
+export function frostFern(rng: Rng, _variant: number) {
+  const b = new MeshBuilder();
+  const H = rng.range(0.9, 1.1);
+  const sw = (y: number) => STIFF * clamp01(y / H) * 0.6;
+  const az0 = rng.range(0, Math.PI * 2);
+  for (let k = 0; k < 3; k++) {
+    const az = az0 + (k * 2 * Math.PI) / 3;
+    const spine = dirAt(Math.PI / 12, az);
+    const n = norm([-Math.sin(az), 0, Math.cos(az)]); // the blade plane's normal
+    const o: V3 = [0, -0.05, 0], L = H / Math.cos(Math.PI / 12);
+    prism(b, o, add(o, scl(spine, L)), H * 0.05, 3, 'maroon', (s) => sw(s * H), H * 0.08);
+    for (const t of [0.35, 0.65]) for (const sgn of [-1, 1]) {
+      const p = add(o, scl(spine, L * t));
+      const d = rotate(spine, n, sgn * D60);
+      const bl = L * (0.45 - 0.25 * t);
+      prism(b, p, add(p, scl(d, bl)), H * 0.03, 3, 'crimson', (s) => sw(p[1] + s * bl * d[1]), H * 0.05);
+    }
+  }
+  return b.build({ flat: true });
+}

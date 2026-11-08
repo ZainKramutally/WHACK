@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { makeStubVisualInputs } from '../visualInputs';
 import type { VisualInputs } from '../../worlds/types';
 import { ARCHETYPE_INDEX, ARCHETYPE_KEYS, ARCHETYPE_META, buildFloraLibrary, type FloraLibrary } from './index';
-import { AIR_EARTH, GATES, SHORE_BAND, activeGates, aquaticFor, worldEnv } from './gates';
+import { AIR_EARTH, GATES, SHORE_BAND, activeGates, aquaticFor, supplySi, worldEnv } from './gates';
 import { makePlantList, placePlants, type PlantShapes } from './place';
 import { countDraws } from './buckets';
 
@@ -139,5 +139,32 @@ describe('gated archetypes', () => {
     expect(d.draws).toBeLessThanOrEqual(33);
     expect(d.triangles).toBeLessThan(4.5e6);
     expect(d.dropped).toBe(0);
+  });
+
+  it('A7 frost ferns replace needle tufts on land where silicon supply × biomass > 1.2, never on ice or in the sea', () => {
+    const inp = siShore({ seaLevel: -9 }), l = placed(inp);
+    let n = 0;
+    for (let i = 0; i < l.n; i++) {
+      if (keyOf(l, i) !== 'frostFern#0') continue;
+      n++;
+      expect(l.y[i]).toBeGreaterThanOrEqual(inp.seaLevel);
+      const col = Math.floor((l.x[i] / PATCH + 0.5) * 64), c = Math.floor((l.z[i] / PATCH + 0.5) * 64) * 64 + col;
+      const rank = (col + 0.5) / 64;                       // the shore climbs evenly eastwards
+      expect(supplySi(rank - 0.05) * (inp.flora[c * 2] + inp.flora[c * 2 + 1])).toBeGreaterThan(1.2);
+    }
+    expect(n).toBeGreaterThan(0);
+    const bare = placed(siShore({ seaLevel: -9, flora: new Float32Array(64 * 64 * 2).fill(0.3) }));
+    for (let i = 0; i < bare.n; i++) expect(keyOf(bare, i)).not.toBe('frostFern#0');   // B 0.6: too little biomass
+  });
+
+  it('A2 woolly rosettes take the giant slot only on the cold, bright heights', () => {
+    const cold = placed(shore({ temperature: 2 }));
+    let n = 0;
+    for (let i = 0; i < cold.n; i++) if (keyOf(cold, i) === 'woollyRosette#0') { n++; expect(cold.x[i]).toBeGreaterThan(0.7 * PATCH - PATCH / 2 - 20); }
+    expect(n).toBeGreaterThan(0);
+    for (const inp of [shore({ temperature: 15 }), shore({ temperature: 2 }, { light: 0.2 })]) {
+      const l = placed(inp);
+      for (let i = 0; i < l.n; i++) expect(keyOf(l, i)).not.toBe('woollyRosette#0');
+    }
   });
 });
