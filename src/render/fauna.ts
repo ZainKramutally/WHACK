@@ -23,7 +23,7 @@
 // tripod-step on their arms (planted feet), swimmers roll like a wheel, hoverers pulse as a bell with arms hanging and
 // trailing rod tendrils, sessile ones stay rooted as a still crystal colony with prongs raised.
 import { currentEgg } from '../worlds';
-import { tardigradePlan, createTardigrades, type TardigradeSwarm } from './tardigrade';
+import { tardigradePlan, createTardigrades, floatY, TARDI_SIZE, type TardigradeSwarm } from './tardigrade';
 import * as THREE from 'three/webgpu';
 import type { App } from './app';
 import type { VisualInputs } from '../worlds/types';
@@ -1301,12 +1301,15 @@ export function createFauna(app: App): FaunaPart {
     const lay = e.layout;
     const cosH = Math.cos(e.h), sinH = Math.sin(e.h);
     if (live) {
-      pid[pn] = e.id; px[pn] = e.x; py[pn] = y0 + lay.centreY * s; pz[pn] = e.z; pr[pn] = Math.max(lay.radius * s * 0.85, 0.3); // tight: 85% of the bead bounds, at least 30 cm
+      // lead egg: tardigrades float above ground/sea, smaller; picking and locate follow the drawn position and size
+      let sp = s, y0p = y0;
+      if (currentEgg()) { sp = s * TARDI_SIZE; const gh = fHeight(e.x, e.z); y0p = floatY(e.id, ft, fSeaThere ? Math.max(gh, fSea) : gh); }
+      pid[pn] = e.id; px[pn] = e.x; py[pn] = y0p + lay.centreY * sp; pz[pn] = e.z; pr[pn] = Math.max(lay.radius * sp * 0.85, 0.15); // tight: 85% of the bead bounds, at least 30 cm
       if (mode === LOCOMOTION.walk && !lay.radial) { // a walking body swings its head and tail off the axis
         const h = 0.5 * e.xspan;
-        pr[pn] += (Math.abs(e.curl) * h * e.walkW + 0.5 * Math.abs(turnKap(e, s)) * h * h) * s;
+        pr[pn] += (Math.abs(e.curl) * h * e.walkW + 0.5 * Math.abs(turnKap(e, s)) * h * h) * sp;
       }
-      pe[pn] = e; pS[pn] = s; pY0[pn] = y0;
+      pe[pn] = e; pS[pn] = sp; pY0[pn] = y0p;
       pn++;
     }
     if (tier === 0) {
@@ -1758,7 +1761,7 @@ export function createFauna(app: App): FaunaPart {
         tardi.begin();
         for (let i = 0; i < pn; i++) {
           const e = pe[i];
-          tardi.add(e.x + e.nx, pY0[i], e.z + e.nz, e.h, e.mode === LOCOMOTION.walk ? e.pitch : 0, drawnLength(e.scale, e.g) * fBoost, e.id, t);
+          tardi.add(e.x + e.nx, pY0[i], e.z + e.nz, e.h, 0, drawnLength(e.scale, e.g) * fBoost * TARDI_SIZE, e.id, t);
         }
         tardi.end();
       } else if (tardi) { tardi.begin(); tardi.end(); }

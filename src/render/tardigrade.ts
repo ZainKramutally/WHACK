@@ -73,6 +73,14 @@ function legPairGeometry(back: number): THREE.BufferGeometry {
 // hip positions (x, y, z-offset handled in geometry), 3 pairs under the belly + the 4th at the rear pointing back
 const HIPS = [{ x: 0.22, back: 0 }, { x: 0.02, back: 0 }, { x: -0.18, back: 0 }, { x: -0.4, back: -1.2 }];
 
+export const TARDI_SIZE = 0.25;   // drawn length factor: 2 m founders -> 0.5 m
+
+/** Feet level of a floating tardigrade: 1.5-12 m above the ground or sea surface by id hash, with a slow bob. Shared by the draw and the pick. */
+export function floatY(id: number, t: number, surface: number): number {
+  const h = Math.abs(Math.sin(id * 12.9898 + 4.1414) * 43758.5453) % 1;
+  return surface + 1.5 + h * 10.5 + 0.5 * Math.sin(t * 1.8 + id * 2.3);
+}
+
 export interface TardigradeSwarm {
   meshes: THREE.InstancedMesh[];
   begin(): void;
@@ -97,13 +105,14 @@ export function createTardigrades(mat: THREE.Material, cap: number, attachGlow: 
     begin() { n = 0; },
     add(x, y0, z, heading, pitch, len, id, t) {
       if (n >= cap) return;
-      const ph = id * 1.7, bob = 0.015 * len * Math.sin(t * 2.2 + ph);
+      const ph = id * 1.7, bob = 0.015 * len * Math.sin(t * 2.2 + ph), roll = 0.18 * Math.sin(t * 0.9 + ph);
       base.makeRotationY(-heading).setPosition(x, y0 + 0.3 * len + bob, z);
-      tmp.makeRotationZ(pitch); base.multiply(tmp);
+      tmp.makeRotationZ(pitch + 0.08 * Math.sin(t * 0.7 + ph * 1.3)); base.multiply(tmp);
+      tmp.makeRotationX(roll); base.multiply(tmp);
       tmp.makeScale(len, len, len); base.multiply(tmp);
       meshes[0].setMatrixAt(n, base);
       for (let p = 0; p < HIPS.length; p++) {
-        const ang = 0.5 * Math.sin(t * 5 + ph + (p & 1) * Math.PI + (p >> 1) * 1.3);
+        const ang = 0.55 * Math.sin(t * 3 + ph + (p & 1) * Math.PI + (p >> 1) * 1.3);
         rz.makeRotationZ(ang).setPosition(HIPS[p].x, -0.1, 0);
         leg.multiplyMatrices(base, rz);
         meshes[p + 1].setMatrixAt(n, leg);
