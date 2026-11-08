@@ -27,6 +27,15 @@ describe('rayPlants', () => {
     const l = listOf([{ x: 0, y: 0, z: -30, h: 10 }, { x: 0, y: 0, z: -10, h: 10 }]);
     expect(rayPlants(l, rph, { x: 0, y: 5, z: 0 }, dir, 100)?.index).toBe(1);
   });
+  it('follows a base sunk onto its slope and the flora stretch', () => {
+    const l = listOf([{ x: 0, y: 0, z: -10, h: 10 }]);
+    l.sink[0] = 4; // drawn from y −4.3 to 5.7 (capsule caps 1.4)
+    expect(rayPlants(l, rph, { x: 0, y: 7.5, z: 0 }, dir, 100)).toBeNull();
+    expect(rayPlants(l, rph, { x: 0, y: -3, z: 0 }, dir, 100)?.index).toBe(0);
+    l.sink[0] = 0; // drawn from −0.3 to 9.7; stretched × 1.1 to 10.67
+    expect(rayPlants(l, rph, { x: 0, y: 11.6, z: 0 }, dir, 100, 0.03, 1.1)?.index).toBe(0);
+    expect(rayPlants(l, rph, { x: 0, y: 11.6, z: 0 }, dir, 100)).toBeNull();
+  });
   it('hits the crown from above', () => {
     const l = listOf([{ x: 0, y: 0, z: -10, h: 10 }]);
     const d = { x: 0, y: -0.6, z: -0.8 };
