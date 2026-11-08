@@ -4,6 +4,7 @@
 // rate can change WHEN a state arrives but never WHAT the state is.
 import { nearestTimeFactor } from '../worlds/time';
 import type {
+  MilestoneId,
   BuildConfig, Conditions, ControlId, LivingBand, SimSnapshot, WorldConfig,
 } from '../worlds/types';
 import { controlList, controls } from '../worlds/controls';
@@ -11,6 +12,8 @@ import { CONSTANTS } from './constants';
 import { baseWorld, crustMap, withCrustChoice } from '../gen/crust';
 import { createTerrain, seaLevelForCover, spawnPoint, type Terrain, type TerrainState } from '../gen/terrain';
 import { CELLS, GRID, liquidFromHeights } from './grid';
+import { MilestoneTracker } from './milestones';
+import type { AnimalGenome } from './genome';
 import { FormTracker, type NewForm } from './guide';
 import {
   CONTROL_ORDER, applyControl, canLive, equilibriumSeaCover, livingBands, startingConditions,
@@ -31,6 +34,8 @@ export const TICK_DT = 1 / TICK_HZ;
 const ANNOUNCE_MEMBERS = 20; // implementation constant (DECISIONS §G.2 exempt): animals a cluster needs before it is announced as a species
 const BUILD_SHARE = 0.08; // implementation constant (DECISIONS §G.2 exempt): during the build a species needs this share of all animals to be announced
 const ANNOUNCE_GAP_SEC = 25; // implementation constant (DECISIONS §G.2 exempt): after the build, ecology seconds between two announcements
+const MILESTONE_GAP_TICKS = 160; // implementation constant (DECISIONS §G.2 exempt): 8 ecology seconds between two milestone captions
+const MILESTONE_EVERY = 20; // implementation constant (DECISIONS §G.2 exempt): ticks between milestone checks (once per ecology second)
 const ANNOUNCE_SEC = 20; // implementation constant (DECISIONS §G.2 exempt): ecology seconds it must hold that size
 const BAND_EVERY = 10; // implementation constant (DECISIONS §G.2 exempt): ticks between band refreshes used for edge stress (0.5 ecology s)
 const BLOCKED_REPEAT = 20; // implementation constant (DECISIONS §G.2 exempt): ticks before the same control may report "blocked" again while pinned at an edge
@@ -101,7 +106,8 @@ export type SimEvent =
   | { type: 'build:life' }
   | { type: 'build:complete' }
   | { type: 'control:blocked'; controlId: ControlId; limitId: string; start?: true }
-  | ({ type: 'guide:newForm' } & NewForm);
+  | ({ type: 'guide:newForm' } & NewForm)
+  | { type: 'life:milestone'; id: MilestoneId; caption: string; organismId?: number; speciesName?: string };
 
 export interface SimOptions {
   /** Defaults to world.demoSeed. */
@@ -145,6 +151,9 @@ export class WorldSimulation {
   private readonly life: LifeModel;
   private readonly tracker: FormTracker;
   private trackerLive = false;
+  private readonly milestones = new MilestoneTracker();
+  private milestoneQueue: { id: MilestoneId; organismId?: number; genome?: AnimalGenome }[] = [];
+  private lastMilestoneTick = -Infinity;
   private readonly terrain: Terrain | undefined;
   private seaLevelFn: ((buildProgress: number, cover: number) => number) | undefined;
   private readonly seaCache = new Map<string, number>();
@@ -386,6 +395,35 @@ export class WorldSimulation {
     // The world never enters a red zone: the same limits the sliders show are the kill conditions.
     if (!canLive(this.world, this.conditions(), this.limitsEnv).ok) this.enforceBands();
     if (this.ticks % BAND_EVERY === 0) this.tickBands = livingBands(this.world, this.conditions(), this.limitsEnv);
+    if (this.ticks % MILESTONE_EVERY === 0) this.checkMilestones();
+  }
+
+  /** Once per ecology second: look for real milestones and queue a caption for each one this world has wording for. */
+  private checkMilestones(): void {
+    const texts = this.world.build.milestones;
+    if (!texts || !this.life.milestoneAnimals) return;
+    // Captions are held until the build ends, then released one at a time, MILESTONE_GAP_TICKS apart, so a burst reads in order.
+    // The species is looked up at release, so a milestone reached before its species was announced still names it when it can.
+    if (this.complete && this.milestoneQueue.length > 0 && this.ticks - this.lastMilestoneTick >= MILESTONE_GAP_TICKS) {
+      this.lastMilestoneTick = this.ticks;
+      const q = this.milestoneQueue.shift()!;
+      const sp = q.genome ? this.tracker.speciesOf(q.genome) : undefined;
+      const t = texts[q.id]!;
+      const caption = sp && t.named ? t.named.replace('{species}', sp.name) : t.text;
+      this.events.push({ type: 'life:milestone', id: q.id, caption, ...(q.organismId !== undefined ? { organismId: q.organismId } : {}), ...(sp ? { speciesName: sp.name } : {}) });
+    }
+    const animals = this.life.milestoneAnimals();
+    if (animals.length === 0) return;
+    const guide = this.life.guideAnimals();
+    const fires = this.milestones.update({
+      sec: this.ticks / TICK_HZ, animals, speciesLive: this.tracker.liveCounts(guide),
+      seaCover: this.stats.seaCover, buildComplete: this.complete,
+    });
+    for (const f of fires) {
+      if (!texts[f.id]) continue;
+      const genome = f.organismId !== undefined ? guide.find((a) => a.id === f.organismId)?.genome : undefined;
+      this.milestoneQueue.push({ id: f.id, organismId: f.organismId, genome });
+    }
   }
 
   private clampStats(): void {

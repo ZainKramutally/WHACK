@@ -25,6 +25,8 @@ export type InspectTarget =
   | { kind: 'sea' | 'sky' };
 
 /** One fast build: Generate → living world in ~20 s, then live. */
+export type MilestoneId = 'walker' | 'flier' | 'hunter' | 'apex' | 'species5' | 'species8' | 'giant' | 'armoured' | 'extinct' | 'crash' | 'recover' | 'seasShrink';
+
 export interface BuildConfig extends Sourced {
   durationSec: number;          // ~20
   spawnSec: number;             // ~6: ground solid, character spawns
@@ -34,6 +36,8 @@ export interface BuildConfig extends Sourced {
   yearsShown: number;           // illustrative years-counter end value
   liveYearsPerEcologySec: number; // illustrative: years the counter adds per ecology-second after the build, so it keeps rising
   captions: { start: string; life: string };
+  /** Captions for real events in the living world (sim/milestones.ts). `text` is shown as is; `named` (with a `{species}` slot, filled with the common name of the animal that reached it) is used when that species is known. A milestone with no entry is not shown on this world. */
+  milestones?: Partial<Record<MilestoneId, { text: string; named?: string }>>;
 }
 
 export interface Feedback extends Sourced {  // change driven by life
@@ -199,6 +203,8 @@ export interface SimSnapshot {          // 20 Hz
  *  ("Carbopus noctiluca": Genus epithet, Greek/Latin roots for the body plan and the most distinctive trait); unique in a run too. */
 export interface NewFormEvent { binId: number; name: string; scientific: string; organismId: number }
 
+export interface LifeMilestoneEvent { id: MilestoneId; caption: string; organismId?: number; speciesName?: string }
+
 /** Typed bus events (CLAUDE.md "Bus events"). */
 export interface BusEvents {
   'selection:changed': { worldId: WorldId; conditions: Conditions; crust?: CrustPickId };   // crust: rock chip id, absent = the natural mix
@@ -211,6 +217,8 @@ export interface BusEvents {
   'time:set': { factor: number };
   'control:blocked': { controlId: ControlId; limitId: string; start?: true };   // start: moved by startingConditions at world start
   'guide:newForm': NewFormEvent;
+  /** Sim → UI: a real milestone in the living world was reached (once per id per run); `caption` is the wording from world config. */
+  'life:milestone': LifeMilestoneEvent;
   'inspect:open': { target: InspectTarget; at: { x: number; y: number } };
   'inspect:window': { x: number; y: number; width: number; height: number } | null;
   'inspect:close': Record<string, never>;

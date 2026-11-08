@@ -6,8 +6,9 @@ import { flightParamsFor } from './flight';
 import { CAP, Ecology, type EcologyLedger } from './ecology';
 import type { AnimalGenome } from './genome';
 import { cellSupply, crustMap } from '../gen/crust';
-import { CELLS, FLORA_STRIDE, createGrid } from './grid';
+import { CELLS, FLORA_STRIDE, GRID, createGrid } from './grid';
 import type { GuideAnimal } from './guide';
+import type { MilestoneAnimal } from './milestones';
 import type { Environment } from './population';
 import { packBodyPlan } from './plan';
 
@@ -49,6 +50,8 @@ export interface LifeModel {
   packOrganisms(): Float32Array;
   /** Living animals for the field guide. */
   guideAnimals(): GuideAnimal[];
+  /** What the milestone detector reads about each living animal (optional: a model without it has no milestones). */
+  milestoneAnimals?(): MilestoneAnimal[];
   /** Packed develop() plans (plan.ts) of animals born since the last call. */
   drainBirths(): { id: number; plan: Float32Array }[];
   /** Predation kills since the last call. */
@@ -154,6 +157,21 @@ export class EcologyLife implements LifeModel {
     if (!eco) return [];
     const out: GuideAnimal[] = [];
     for (let i = 0; i < CAP; i++) if (eco.alive[i]) out.push({ id: eco.id[i], genome: eco.genome[i] as AnimalGenome, mode: eco.plan[i].mode });
+    return out;
+  }
+
+  milestoneAnimals(): MilestoneAnimal[] {
+    const eco = this.eco;
+    if (!eco) return [];
+    const out: MilestoneAnimal[] = [];
+    for (let i = 0; i < CAP; i++) {
+      if (!eco.alive[i]) continue;
+      const cell = Math.floor(eco.y[i]) * GRID + Math.floor(eco.x[i]);
+      out.push({
+        id: eco.id[i], mode: eco.mode[i] as 0 | 1 | 2 | 3, diet: eco.genome[i].body.diet, scale: eco.plan[i].scale, ageSec: eco.age[i],
+        onLand: eco.grid.liquid[cell] <= 0, armoured: eco.plan[i].shellCover >= 0.3,
+      });
+    }
     return out;
   }
 

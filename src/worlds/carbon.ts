@@ -132,6 +132,18 @@ export const carbon: WorldConfig = {
     yearsShown: 4.5e9,
     liveYearsPerEcologySec: 1e6, // one million years per ecology-second after the build: the counter keeps moving (illustrative, assumption: true)
     captions: { start: 'A carbon world forms', life: 'Life stirs in the shallows' },
+    milestones: {   // captions for real events in the living world (sim/milestones.ts); {species} is the common name of the animal that reached it
+      walker: { text: 'Life hauls itself onto land' },
+      flier: { text: 'Something takes to the air' },
+      hunter: { text: 'A hunter has evolved', named: 'A hunter has evolved: the {species}' },
+      apex: { text: 'An apex predator now stalks this world', named: 'An apex predator now stalks this world: the {species}' },
+      species5: { text: 'The world teems: five species share it' },
+      species8: { text: 'Eight species now share this world' },
+      giant: { text: 'A giant has arisen', named: 'A giant has arisen: the {species}' },
+      extinct: { text: 'A species has vanished forever' },
+      crash: { text: 'Life is retreating' },
+      recover: { text: 'Life returns' },
+    },
     why: 'A fast build for the demo: the timings are showtime targets, and the years counter is illustrative.',
     sources: [],
     assumption: true,

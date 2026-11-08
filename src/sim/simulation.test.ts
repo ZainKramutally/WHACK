@@ -621,6 +621,22 @@ describe('WorldSimulation', () => {
     it.skipIf(!slow)('announces each form once, not once per snapshot (silicon) (SLOW)', { timeout: 60000 }, () => announcesOnce(silicon));
   });
 
+  describe('life milestones', () => {
+    const events = (w: WorldConfig) => {
+      const sim = new WorldSimulation({ ...w, build: { ...w.build, durationSec: 8, lifeSec: 1, seasSec: [0.5, 1], ecologySec: 400 } }, EARTH);
+      const out: { id: string; caption: string }[] = [];
+      for (let i = 0; i < 700; i++) { sim.advance(0.25); sim.snapshot(); for (const e of sim.drainEvents()) if (e.type === 'life:milestone') out.push({ id: e.id, caption: e.caption }); }
+      return out;
+    };
+    it.skipIf(!slow)('fire once per id, with the wording from config, and the same twice (SLOW)', { timeout: 60000 }, () => {
+      const a = events(carbon);
+      expect(a.length).toBeGreaterThan(0);
+      expect(new Set(a.map((e) => e.id)).size).toBe(a.length);
+      for (const e of a) expect(e.caption.length).toBeGreaterThan(5);
+      expect(events(carbon)).toEqual(a);
+    });
+  });
+
   describe('founders are adapted to the starting temperature', () => {
     // A judge can drag Temperature to either end of the living band and click Generate: life must still start (owner bug, 2026-11-08).
     const alive = (w: WorldConfig, temperature: number) => {

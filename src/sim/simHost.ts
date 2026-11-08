@@ -107,6 +107,8 @@ function toWorkerEvent(e: SimEvent, worldId: 'carbon' | 'silicon'): WorkerEvent 
       return { name: e.type, payload: { worldId } };
     case 'control:blocked':
       return { name: e.type, payload: e.start ? { controlId: e.controlId, limitId: e.limitId, start: true } : { controlId: e.controlId, limitId: e.limitId } };
+    case 'life:milestone':
+      return { name: e.type, payload: { id: e.id, caption: e.caption, ...(e.organismId !== undefined ? { organismId: e.organismId } : {}), ...(e.speciesName !== undefined ? { speciesName: e.speciesName } : {}) } };
     case 'guide:newForm':
       return { name: e.type, payload: { binId: e.binId, name: e.name, scientific: e.scientific, organismId: e.organismId } };
   }

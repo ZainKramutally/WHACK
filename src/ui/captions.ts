@@ -59,6 +59,7 @@ export function mountCaptions(root: HTMLElement, bus: UiBus, world: WorldConfig,
     // Mounted after Generate? The first build snapshot is the fallback trigger.
     listen(bus, 'sim:snapshot', (s: SimSnapshot) => { if (s.buildProgress < 1) showStart(); }),
     listen(bus, 'build:life', () => show(world.build.captions.life)),
+    listen(bus, 'life:milestone', (m) => show(m.caption)),
     listen(bus, 'control:blocked', ({ controlId, limitId, start: isStart }) => {
       const r = limitReason(limitId);
       if (!r) return;

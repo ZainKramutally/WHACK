@@ -1,6 +1,6 @@
 // Messages between the main thread and the sim worker. Every message is discriminated by `type`.
 // Main → worker: init, selectWorld, controlSet, dispose. Worker → main: ready, snapshot, event, error.
-import type { Conditions, ControlId, CrustPickId, NewFormEvent, SimSnapshot, WorldId } from '../worlds/types';
+import type { Conditions, ControlId, CrustPickId, LifeMilestoneEvent, NewFormEvent, SimSnapshot, WorldId } from '../worlds/types';
 
 export type ToWorker =
   | { type: 'init' }
@@ -14,7 +14,8 @@ export type WorkerEvent =
   | { name: 'build:life'; payload: { worldId: WorldId } }
   | { name: 'build:complete'; payload: { worldId: WorldId } }
   | { name: 'control:blocked'; payload: { controlId: ControlId; limitId: string; start?: true } }
-  | { name: 'guide:newForm'; payload: NewFormEvent };
+  | { name: 'guide:newForm'; payload: NewFormEvent }
+  | { name: 'life:milestone'; payload: LifeMilestoneEvent };
 
 export type FromWorker =
   | { type: 'ready' }

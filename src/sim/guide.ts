@@ -306,7 +306,7 @@ function seededPick(seed: number, key: number, n: number): number {
 
 // ---- Tracker ----
 
-interface Bin { id: number; centroid: Float64Array }
+interface Bin { id: number; centroid: Float64Array; name?: string }
 
 /**
  * Remembers which forms have already been announced. Call update() with the live animals each tick (or each
@@ -375,6 +375,7 @@ export class FormTracker {
       const mode: LocomotionMode = cl.hint.mode ?? modeFromGenes(cl.centroid.body);
       const { name, scientific } = this.nameSpecies(bin.id, cl.centroid, chem, mode, base);
       this.used.add(name);
+      bin.name = name;
       this.usedSci.add(scientific);
       out.push({ binId: bin.id, name, scientific, organismId: representative(cl, v, byId) });
     }
@@ -423,6 +424,22 @@ export class FormTracker {
       if (!this.used.has(n)) return n;
     }
     for (let k = 2; ; k++) if (!this.used.has(`${base} ${k}`)) return `${base} ${k}`;
+  }
+
+  /** The announced species nearest a genome, within 1.8 × FORM_RADIUS (the same reach the UI uses to name an animal), if any. */
+  speciesOf(g: AnimalGenome): { binId: number; name: string } | undefined {
+    const v = vectorOf(g);
+    let best: Bin | undefined;
+    let bestD = 1.8 * FORM_RADIUS;
+    for (const b of this.bins) { const d = dist(v, b.centroid); if (d <= bestD) { best = b; bestD = d; } }
+    return best && best.name ? { binId: best.id, name: best.name } : undefined;
+  }
+
+  /** For every announced species: how many of these animals are nearest to it (within 1.8 × FORM_RADIUS). */
+  liveCounts(animals: readonly GuideAnimal[]): { id: number; live: number }[] {
+    const live = new Map<number, number>(this.bins.map((b) => [b.id, 0]));
+    for (const a of animals) { const s = this.speciesOf(a.genome); if (s) live.set(s.binId, (live.get(s.binId) ?? 0) + 1); }
+    return this.bins.map((b) => ({ id: b.id, live: live.get(b.id) ?? 0 }));
   }
 
   /** Number of forms announced so far. */
