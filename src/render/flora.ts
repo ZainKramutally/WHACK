@@ -153,6 +153,10 @@ export function createFlora(app: App): FloraPart {
     },
     update(_dt, t, inputs, patch) {
       const cam = app.camera.position;
+      // Between rebuilds the terrain keeps rising (height = rise × h): stretch the flora vertically with it so every base
+      // stays on the ground. Plant heights stretch by the same ≤ 3% while everything grows; a rebuild resets it to 1.
+      const rise = inputs.terrain.rise;
+      group.scale.y = lastRise > 1e-3 && rise > 1e-3 ? Math.min(2, Math.max(0.5, rise / lastRise)) : 1;
       if (inputs.world.id !== lastWorld && !clearingSet) clearing = null;
       if (!clearing && inputs.buildProgress >= LATCH_AT_PROGRESS && inputs.buildProgress < 1) {
         app.camera.getWorldDirection(fwd);
@@ -169,6 +173,7 @@ export function createFlora(app: App): FloraPart {
       const t0 = performance.now();
       if (inputs.world.id !== lastWorld || patch !== lastPatch) resetHeightCache(heights);
       lastBuf = inputs.flora; lastRise = inputs.terrain.rise; lastWorld = inputs.world.id; lastAt = t; lastPatch = patch;
+      group.scale.y = 1;
       clearingDirty = false;
       lastCam = { x: cam.x, z: cam.z }; lastLand = inputs.lifeOnLand; lastSea = inputs.seaLevel;
 
