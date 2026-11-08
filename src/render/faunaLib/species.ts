@@ -229,3 +229,68 @@ export class SpeciesBook {
     this.hue[b] = bestH; this.accent[b] = bestA; this.coloured[b] = 1; this.wears[b] = b;
   }
 }
+
+// ---- what the world drew, for other views of the same animal (the bestiary sprite) ----------------------------------
+// fauna.ts records each animal's species look (colourway, pattern, proportions) under a key made from its birth plan's
+// numbers. The UI unpacks the same births buffer, so its copy of the plan has the same key and finds the same look.
+// A fixed ring of SEEN_MAX records (oldest out); records are float arrays, so recording allocates nothing.
+const SEEN_MAX = 16384;
+const SEEN_STRIDE = 5 + NT; // hue, accent, colour diet, bands, spots, then every TRAIT as drawn
+const seenVals = new Float32Array(SEEN_MAX * SEEN_STRIDE);
+const seenKeys = new Float64Array(SEEN_MAX).fill(-1);
+const seenAt = new Map<number, number>();
+let seenNext = 0;
+const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
+let h1 = 0, h2 = 0;
+function mixHash(v: number): void {
+  f32[0] = v;
+  const x = u32[0];
+  h1 = Math.imul(h1 ^ x, 0x01000193) >>> 0;
+  h2 = Math.imul(h2 ^ ((x >>> 16) | (x << 16)), 0x0100019d) >>> 0;
+}
+
+/** 52-bit identity of a plan from the float32 bits of its numbers (two FNV-1a lanes). */
+function planHash(p: BodyPlan): number {
+  h1 = 0x811c9dc5; h2 = 0x5ad19cd4;
+  for (const v of [p.scale, p.mass, p.bodyDensity, p.hue, p.accent, p.diet, p.girth, p.flatten, p.headScale, p.limbLength,
+    p.hornLength, p.plateCover, p.eyeArea, p.defence, p.segmentCount, p.tiers, p.symmetry]) mixHash(v);
+  return (h1 & 0xfffff) * 0x100000000 + h2;
+}
+
+/** fauna.ts: remember how the world draws the animal whose birth plan is `raw` (`drawn` = attract(raw), `look` its colourway). */
+export function rememberLook(raw: BodyPlan, drawn: BodyPlan, look: SpeciesLook): void {
+  const key = planHash(raw);
+  let slot = seenAt.get(key);
+  if (slot === undefined) {
+    slot = seenNext; seenNext = (seenNext + 1) % SEEN_MAX;
+    if (seenKeys[slot] >= 0) seenAt.delete(seenKeys[slot]);
+    seenKeys[slot] = key; seenAt.set(key, slot);
+  }
+  const o = slot * SEEN_STRIDE, v = seenVals;
+  v[o] = look.hue; v[o + 1] = look.accent; v[o + 2] = look.diet; v[o + 3] = drawn.bands; v[o + 4] = drawn.spots;
+  for (let t = 0; t < NT; t++) v[o + 5 + t] = TRAITS[t].get(drawn);
+}
+
+export interface FaunaLook {
+  /** The plan as the world draws it: the species' pattern and proportions (counts and kinds are the animal's own). */
+  plan: BodyPlan;
+  /** The species colourway, for creatureColour. */
+  hue: number; accent: number; diet: number;
+}
+
+/**
+ * How the world draws the animal with this birth plan: its species colourway, pattern and proportions, once fauna has
+ * drawn it. Otherwise (not seen yet, e.g. off-world, or long gone from the ring) the plan's own, deterministically.
+ */
+export function faunaLook(raw: BodyPlan): FaunaLook {
+  const slot = seenAt.get(planHash(raw));
+  if (slot === undefined) return { plan: raw, hue: raw.hue, accent: raw.accent, diet: raw.diet };
+  const o = slot * SEEN_STRIDE, v = seenVals;
+  const plan: BodyPlan = {
+    ...raw, tierRadii: raw.tierRadii.slice(), arms: raw.arms.map((a) => ({ ...a })),
+    limbJointAngles: raw.limbJointAngles.slice(), modeCosts: { ...raw.modeCosts },
+    hue: v[o], accent: v[o + 1], bands: v[o + 3], spots: v[o + 4],
+  };
+  for (let t = 0; t < NT; t++) TRAITS[t].set(plan, v[o + 5 + t]);
+  return { plan, hue: v[o], accent: v[o + 1], diet: v[o + 2] };
+}

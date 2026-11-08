@@ -5,7 +5,8 @@ import { OrganismField, geneField } from '../../sim/organismLayout';
 import { BEAD_EYE, beadLayout } from '../creatureLayout';
 import { PART, describe as describeFauna } from './adapter';
 import { RING_STRIDE, circleSection, setRing, writeRings } from './loft';
-import { SETTLE, SPECIES_DIM, SpeciesBook, type SpeciesLook } from './species';
+import { SETTLE, SPECIES_DIM, SpeciesBook, faunaLook, rememberLook, type SpeciesLook } from './species';
+import { packBodyPlan, unpackBodyPlan } from '../../sim/plan';
 import { creatureRing } from '../palette';
 
 const water: DevelopInputs = {
@@ -207,5 +208,29 @@ describe('fauna adapter', () => {
       expect([PART.ring, PART.frill, PART.hornC, PART.plateC, PART.knob]).not.toContain(p.type);
     }
     for (const a of d.arms) expect(a.tipRod).toBeLessThan(a.nRods);
+  });
+});
+
+describe('faunaLook (the bestiary sprite draws what the world draws)', () => {
+  it('finds the world look for another unpack of the same birth plan, and falls back to the plan otherwise', () => {
+    const packed = packBodyPlan(develop(hunter, day, water));
+    const worlds = unpackBodyPlan(packed), uis = unpackBodyPlan(packed); // fauna's copy and the UI's copy of one birth
+    const book = new SpeciesBook();
+    const bin = book.assign(vec(hunter), 0, worlds);
+    const l = book.lookOf(bin, look());
+    const drawn = book.attract({ ...worlds, girth: worlds.girth + 0.3 }, bin, l);
+    rememberLook(worlds, drawn, l);
+    const seen = faunaLook(uis);
+    expect(seen.hue).toBeCloseTo(l.hue, 6);
+    expect(seen.accent).toBeCloseTo(l.accent, 6);
+    expect(seen.diet).toBeCloseTo(l.diet, 6);
+    expect(seen.plan.bands).toBe(drawn.bands);
+    expect(seen.plan.spots).toBeCloseTo(drawn.spots, 6);
+    expect(seen.plan.girth).toBeCloseTo(drawn.girth, 5); // the world's proportions, not the UI copy's own
+    expect([seen.plan.legPairs, seen.plan.hornCount, seen.plan.eyeCount]).toEqual([uis.legPairs, uis.hornCount, uis.eyeCount]);
+    const stranger = unpackBodyPlan(packBodyPlan(develop(grazer, day, water)));
+    const fb = faunaLook(stranger);
+    expect(fb.plan).toBe(stranger);
+    expect([fb.hue, fb.accent, fb.diet]).toEqual([stranger.hue, stranger.accent, stranger.diet]);
   });
 });

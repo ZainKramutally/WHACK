@@ -5,7 +5,8 @@
 // shaded, and a one-pixel ink outline, as in the pixel style. Every pixel is either fully opaque or empty.
 import type { BodyPlan } from '../sim/develop';
 import { beadLayout, type BeadTone } from './creatureLayout';
-import { creatureColour, LOOK_PALETTES, scaleHex, type Tone } from './palette';
+import { WORLD_TONE, creatureColour, LOOK_PALETTES, scaleHex } from './palette';
+import { faunaLook } from './faunaLib/species';
 
 // Oblique projection: screen u = x + KU·z, screen v (up) = y − KV·z; z grows away from the viewer.
 const KU = 0.38, KV = 0.3;
@@ -44,11 +45,14 @@ function capsule(au: number, av: number, bu: number, bv: number, r: number, dept
 const project = (x: number, y: number, z: number): [number, number] => [x + KU * z, y - KV * z];
 
 /** The plan's parts as flat 2D primitives in body units, far ones first. */
-function primitives(plan: BodyPlan): Prim[] {
+function primitives(raw: BodyPlan): Prim[] {
+  // As the world draws it: the species colourway, pattern and proportions (faunaLook falls back to the plan's own), in
+  // the world's one body colour + one accent.
+  const { plan, hue, accent, diet } = faunaLook(raw);
   const lay = beadLayout(plan);
   const silicon = plan.chemistry === 'silicon';
   const colour = (tone: BeadTone, z: number) => {
-    const c = creatureColour(silicon, plan.diet, tone as Tone, plan.hue, plan.accent);
+    const c = creatureColour(silicon, diet, WORLD_TONE[tone], hue, accent);
     return z > 0.02 * plan.scale ? scaleHex(c, FAR_SHADE) : c;
   };
   const prims: Prim[] = [];
