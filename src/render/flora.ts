@@ -24,7 +24,7 @@ import { VTX_CAP, VTX_GLOW, VTX_RIM, VTX_SWAY, lookGeometry, plantLook, copyPlan
 import { DYING_CAP, GROW_SEC, Presence, plantKey } from './floraLib/presence';
 
 /** Plants within this many metres of the camera ease in and out; farther ones simply appear and go (thinning, LOD). */
-const ANIM_NEAR = 90;
+const ANIM_NEAR = 40;
 /** Picking ignores plants less grown than this. */
 const PICK_MIN_GROWN = 0.3;
 
@@ -234,7 +234,7 @@ export function createFlora(app: App): FloraPart {
       const b = buckets.get(id)!, m = b.mesh.instanceMatrix;
       m.clearUpdateRanges(); m.addUpdateRange(0, b.mesh.count * 16); m.needsUpdate = true;
     }
-    if (!pres.active) dirty.clear(); // one last upload happened above
+    dirty.clear(); // write() re-adds the active buckets next frame
   };
 
   const part: FloraPart = {
