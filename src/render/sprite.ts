@@ -73,13 +73,22 @@ function primitives(raw: BodyPlan): Prim[] {
   return prims.sort((a, b) => b.depth - a.depth); // far (large z) first
 }
 
+/** A plain capsule in the plan's body colour (grey if even that fails), for a plan whose layout can't be built. */
+function fallbackPrims(plan: BodyPlan): Prim[] {
+  let c = 0x9a8f8c;
+  try { c = creatureColour(plan.chemistry === 'silicon', plan.diet, 0, plan.hue, plan.accent); } catch { /* keep grey */ }
+  return [capsule(-1, 0.35, 1, 0.35, 0.35, 0, c)];
+}
+
 /**
  * Rasterise the plan into a w × h RGBA buffer (row 0 at the top), fitted and centred, with a one-pixel ink outline.
- * Pure: the same plan and size always give the same pixels.
+ * Deterministic: the same plan and size give the same pixels (the world's species look once fauna has drawn the animal,
+ * the plan's own before). Never throws: a plan whose layout fails draws as a plain capsule.
  */
 export function spritePixels(plan: BodyPlan, w: number, h: number): Uint8ClampedArray {
   const out = new Uint8ClampedArray(w * h * 4);
-  const prims = primitives(plan);
+  let prims: Prim[];
+  try { prims = primitives(plan); } catch { prims = fallbackPrims(plan); } // a plan the layout can't build: a plain capsule
   if (prims.length === 0) return out;
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
   for (const p of prims) { u0 = Math.min(u0, p.u0); u1 = Math.max(u1, p.u1); v0 = Math.min(v0, p.v0); v1 = Math.max(v1, p.v1); }

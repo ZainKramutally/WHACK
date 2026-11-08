@@ -357,9 +357,9 @@ export function createFauna(app: App): FaunaPart {
         const bin = book.assign(buf, o + GENE0, p.plan);
         book.lookOf(bin, look);
         const drawn = book.attract(p.plan, bin, look);
-        rememberLook(p.plan, drawn, look); // so the bestiary sprite draws this animal as the world does
         const e = makeEntry(beadLayout(drawn), drawn, p.plan.chemistry === 'silicon', p.plan.glow, p.plan.scale, id, look, true);
         e.bin = bin; e.binStamp = book.stampOf(bin); e.legged = p.plan.legPairs > 0;
+        rememberLook(p.plan, drawn, look); // only once the layout built: the bestiary sprite redraws this same plan
         return e;
       } catch { /* a plan the layout can't build: draw it as a capsule */ }
     }
