@@ -171,3 +171,4 @@
 - 04:19: #81 done by art-fauna (bakePlan, bestiary:window view takeover, bestiaryPanel window) -> stage 8a01cce; gate 334/14, build OK; review 12 running.
 - 04:24: review 12: #81 clashes with teammate's 8538968 on main (bead-only, different event shape). Caden: keep ours + their UI bits -> art-fauna rebasing onto main 89dd2bf (crust session merged into main too). 16 + #81 notified.
 - 04:26: flora-audit 5 silicon-only archetypes (nitrideCrown, laceFan, airPlankton, glassKelp, lanternBulb; all on default silicon seed; mixed silicon 30 draws) -> stage 790d675 on main 36b6d79 (crust + teammate #81 merged); gate 410/14, SLOW 76/76, build OK; review 13. flora-audit next: crust-map gates; flora-unique: crust-map traits; art-fauna: #81 reconcile.
+- 04:32 16: art batch on main 0fb6f84 (5 silicon-only plants, #81 3D specimen). CLAUDE.md updated.
