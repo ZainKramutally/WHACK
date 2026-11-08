@@ -279,3 +279,4 @@
 09:27 merged feature/lead-pick (Pb one-click selectable); Tier 1 green
 - 09:27: fx-warm merged (609055c): underwaterFx under named group, added to warmFeatures. 9 tests + build green. 2c perf fixes on main (158fc63) incl. pillars-not-created hook bug.
 - 09:28 16: merged #94 milestone captions; hunt animations on main (6a 462dd39); CLAUDE.md kills + life:milestone.
+- 09:27 Pushed hunt-anim (attack/kill anims, v4 intent + kills) + nudge fast path + review fixes to main 462dd39 (owner OK). Running: kelp, plant-grow (due 09:50).
