@@ -617,7 +617,7 @@ Bus events: `selection:changed` (UI to render: `{ worldId, conditions, crust? }`
   - Organism buffer layout v3, stride 30: `altitude` (metres above the ground) and `grown` (current ÷ adult mass).
   - Body plan v4: `shellCover` (the silicon walkers' ceramic shell).
   - `life.inputs.flight`, `life.inputs.economics` and `life.founders.latent` in world config.
-  - `VisualInputs.terrain.crust?: { minerals, weights(x, z) }`, optional and read-only. Plant gates read the per-cell mineral, the argmax at the cell centre, matching the sim's crustMap.
+  - `VisualInputs.terrain.crust?: { minerals (id, supply, oxidises), weights(x, z) }`, optional and read-only. Plant gates read the per-cell mineral, the argmax at the cell centre, matching the sim's crustMap.
 
 ## Third-person player
 
